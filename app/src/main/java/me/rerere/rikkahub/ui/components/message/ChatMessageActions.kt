@@ -62,6 +62,7 @@ import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.extractQuotedContentAsText
 import me.rerere.rikkahub.utils.toLocalString
+import me.rerere.rikkahub.utils.toMessageTimeString
 import java.util.Locale
 
 @Composable
@@ -76,6 +77,7 @@ fun ColumnScope.ChatMessageActionButtons(
     onClearTranslation: (UIMessage) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val settings = LocalSettings.current
     var isPendingDelete by remember { mutableStateOf(false) }
     var showTranslateDialog by remember { mutableStateOf(false) }
     var showRegenerateConfirm by remember { mutableStateOf(false) }
@@ -123,7 +125,6 @@ fun ColumnScope.ChatMessageActionButtons(
 
         if (message.role == MessageRole.ASSISTANT) {
             val tts = LocalTTSState.current
-            val settings = LocalSettings.current
             val isSpeaking by tts.isSpeaking.collectAsState()
             val isAvailable by tts.isAvailable.collectAsState()
             Icon(
@@ -214,6 +215,15 @@ fun ColumnScope.ChatMessageActionButtons(
             node = node,
             onUpdate = onUpdate,
         )
+
+        if (settings.displaySetting.showDateTimeInMessage) {
+            Text(
+                text = message.createdAt.toJavaLocalDateTime().toMessageTimeString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                maxLines = 1,
+            )
+        }
     }
 
     // Translation dialog

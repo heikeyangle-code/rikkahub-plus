@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,7 +22,6 @@ import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.utils.formatNumber
 
 @Composable
 fun ChatMessageUserAvatar(
@@ -39,20 +37,14 @@ fun ChatMessageUserAvatar(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
-                modifier = Modifier,
-                horizontalAlignment = Alignment.End,
-            ) {
-                Text(
-                    text = nickname.ifEmpty { stringResource(R.string.user_default_name) },
-                    style = MaterialTheme.typography.titleSmallEmphasized,
-                    maxLines = 1,
-                    color = LocalContentColor.current.copy(alpha = 0.85f),
-                )
-            }
+            Text(
+                text = nickname.ifEmpty { stringResource(R.string.user_default_name) },
+                style = MaterialTheme.typography.labelLargeEmphasized,
+                maxLines = 1,
+            )
             UIAvatar(
                 name = nickname,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(28.dp),
                 value = avatar,
                 loading = false,
             )
@@ -81,7 +73,7 @@ fun ChatMessageAssistantAvatar(
                 if (showIcon) {
                     UIAvatar(
                         name = assistant.name,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(28.dp),
                         value = assistant.avatar,
                         loading = loading,
                     )
@@ -92,7 +84,7 @@ fun ChatMessageAssistantAvatar(
                     if(settings.displaySetting.showModelName) {
                         Text(
                             text = assistant.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) },
-                            style = MaterialTheme.typography.titleSmallEmphasized,
+                            style = MaterialTheme.typography.labelLargeEmphasized,
                             maxLines = 1,
                         )
                     }
@@ -101,7 +93,7 @@ fun ChatMessageAssistantAvatar(
                 if (showIcon) {
                     AutoAIIcon(
                         name = model.modelId,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(28.dp),
                         loading = loading
                     )
                 }
@@ -111,7 +103,7 @@ fun ChatMessageAssistantAvatar(
                     if(settings.displaySetting.showModelName) {
                         Text(
                             text = model.displayName,
-                            style = MaterialTheme.typography.titleSmallEmphasized,
+                            style = MaterialTheme.typography.labelLargeEmphasized,
                             maxLines = 1,
                         )
                     }
