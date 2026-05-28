@@ -32,7 +32,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import java.security.MessageDigest
+import kotlin.math.abs
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -308,6 +312,48 @@ fun UIAvatar(
             }
         )
     }
+}
+
+@Composable
+private fun ProceduralAvatar(name: String, modifier: Modifier = Modifier) {
+    val (fromColor, toColor) = remember(name) {
+        vercelAvatarColors(name.ifBlank { "?" })
+    }
+    Canvas(modifier = modifier) {
+        drawRect(
+            brush = Brush.linearGradient(
+                colors = listOf(fromColor, toColor),
+                start = Offset(0f, 0f),
+                end = Offset(size.width, size.height)
+            )
+        )
+    }
+}
+
+private fun vercelAvatarColors(name: String): Pair<Color, Color> {
+    val bytes = MessageDigest.getInstance("SHA-1").digest(name.toByteArray(Charsets.UTF_8))
+    val sum = bytes.fold(0) { acc, b -> acc + (b.toInt() and 0xFF) }
+    val hue = (sum % 360).toFloat()
+    return Pair(
+        hslToColor(hue, 0.65f, 0.55f),
+        hslToColor((hue + 120f) % 360f, 0.65f, 0.55f)
+    )
+}
+
+private fun hslToColor(h: Float, s: Float, l: Float): Color {
+    val c = (1f - abs(2f * l - 1f)) * s
+    val hPrime = h / 60f
+    val x = c * (1f - abs(hPrime % 2f - 1f))
+    val (r1, g1, b1) = when {
+        hPrime < 1f -> Triple(c, x, 0f)
+        hPrime < 2f -> Triple(x, c, 0f)
+        hPrime < 3f -> Triple(0f, c, x)
+        hPrime < 4f -> Triple(0f, x, c)
+        hPrime < 5f -> Triple(x, 0f, c)
+        else        -> Triple(c, 0f, x)
+    }
+    val m = l - c / 2f
+    return Color(r1 + m, g1 + m, b1 + m)
 }
 
 @Preview(showBackground = true)
