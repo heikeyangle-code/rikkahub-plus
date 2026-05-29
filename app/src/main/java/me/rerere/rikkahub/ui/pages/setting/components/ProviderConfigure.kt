@@ -253,6 +253,15 @@ private val OFFICIAL_PROVIDER_HOSTS = setOf(
     CLAUDE_OFFICIAL_HOST
 )
 
+private val cardGroupTextFieldColors
+    @Composable get() = OutlinedTextFieldDefaults.colors(
+        unfocusedBorderColor = Color.Transparent,
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        disabledBorderColor = Color.Transparent,
+        disabledContainerColor = Color.Transparent,
+    )
+
 @Composable
 private fun ColumnScope.ProviderConfigureOpenAI(
     provider: ProviderSetting.OpenAI,

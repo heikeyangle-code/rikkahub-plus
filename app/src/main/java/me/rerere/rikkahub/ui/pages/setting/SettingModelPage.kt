@@ -73,6 +73,7 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
+        containerColor = CustomColors.topBarColors.containerColor,
         topBar = {
             LargeFlexibleTopAppBar(
                 title = {
@@ -85,8 +86,25 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
                 colors = CustomColors.topBarColors,
             )
         },
+        bottomBar = {
+            BottomAppBar(
+                containerColor = CustomColors.cardColorsOnSurfaceContainer.containerColor
+            ) {
+                NavigationBarItem(
+                    selected = pagerState.currentPage == 0,
+                    onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                    icon = { Icon(HugeIcons.AiBrain01, null) },
+                    label = { Text(stringResource(R.string.setting_model_page_tab_model)) }
+                )
+                NavigationBarItem(
+                    selected = pagerState.currentPage == 1,
+                    onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
+                    icon = { Icon(HugeIcons.AiEditing, null) },
+                    label = { Text(stringResource(R.string.setting_model_page_tab_prompt)) }
+                )
+            }
+        },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = CustomColors.topBarColors.containerColor,
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
