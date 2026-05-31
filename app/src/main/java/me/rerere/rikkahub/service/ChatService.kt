@@ -1436,26 +1436,32 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
         val processedParts = preprocessUserInputParts(parts, assistant)
         var edited = false
 
-        val updatedNodes = currentConversation.messageNodes.map { node ->
+        val updatedNodes = currentConversation.messageNodes.mapIndexed { index, node ->
             if (!node.messages.any { it.id == messageId }) {
-                return@map node
+                return@mapIndexed node
             }
             edited = true
 
+            // 替换消息内容，不追加版本
             node.copy(
-                messages = node.messages + UIMessage(
+                messages = listOf(UIMessage(
                     role = node.role,
                     parts = processedParts,
-                ),
-                selectIndex = node.messages.size
+                )),
+                selectIndex = 0
             )
         }
 
         if (!edited) return
 
-        saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
+        // 截断：保留到编辑位置，去掉之后的所有回复
+        val editIndex = updatedNodes.indexOfFirst { node ->
+            node.messages.any { it.id == messageId }
+        }
+        val truncated = updatedNodes.take(editIndex + 1)
+        saveConversation(conversationId, currentConversation.copy(messageNodes = truncated))
 
-        // 编辑后自动重新生成回复
+        // 编辑后自动生成回复（替换旧的）
         handleMessageComplete(conversationId)
     }
 
