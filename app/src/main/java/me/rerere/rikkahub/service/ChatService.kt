@@ -660,14 +660,14 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         appendLine("After using tools, continue working until the goal is complete.")
                                     }
 
-                                    // Tool loop (max 50 rounds, read-only tools refund)
+                                    // Tool loop (max 10 rounds, no refunds)
                                     val messages = mutableListOf(UIMessage.user(prompt))
                                     var finalText = ""
-                                    var budget = 50
+                                    var remainingSteps = 10
                                     val stepLog = StringBuilder()
 
-                                    while (budget > 0) {
-                                        budget--
+                                    while (remainingSteps > 0) {
+                                        remainingSteps--
 
                                         try {
                                         // Show real-time progress in UI
@@ -724,10 +724,6 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                                     error("Invalid arguments: ${e.message}")
                                                 }
                                                 val result = toolDef.execute(args)
-                                                // Refund budget for read-only tools
-                                                if (toolCall.toolName in setOf("file_read", "search_web", "scrape_web", "get_time_info")) {
-                                                    budget++
-                                                }
                                                 toolCall.copy(output = result)
                                             }
                                         }
