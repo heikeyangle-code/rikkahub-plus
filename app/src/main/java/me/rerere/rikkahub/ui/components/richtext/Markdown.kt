@@ -463,7 +463,7 @@ private fun MarkdownNode(
 
         // 加粗和斜体
         MarkdownElementTypes.EMPH -> {
-            ProvideTextStyle(TextStyle(fontStyle = FontStyle.Italic)) {
+            ProvideTextStyle(TextStyle(fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.secondary)) {
                 node.children.fastForEach { child ->
                     MarkdownNode(
                         node = child, content = content, modifier = modifier, onClickCitation = onClickCitation
