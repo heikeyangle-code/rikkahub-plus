@@ -669,6 +669,10 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                     while (budget > 0) {
                                         budget--
 
+                                        // Show real-time progress in UI
+                                        val stepNum = stepLog.count { it == '\n' } + 1
+                                        session.processingStatus.value = "子Agent: 第${stepNum}步思考中..."
+
                                         val chunk = providerImpl.generateText(
                                             providerSetting = providerSetting,
                                             messages = messages,
@@ -701,6 +705,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                             val args = tc.input.ifBlank { "{}" }
                                             "${tc.toolName}(${args.take(40)})"
                                         })
+                                        session.processingStatus.value = "子Agent: 调${toolCalls.first().toolName}..."
 
                                         // Execute tools
                                         val executedTools = toolCalls.map { toolCall ->
