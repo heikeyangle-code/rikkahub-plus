@@ -17,7 +17,6 @@ import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -348,14 +347,12 @@ fun GroupChatPage(groupId: String) {
                                 val effectiveSpeaker = if (selectedModelId != null) {
                                     speaker.copy(chatModelId = selectedModelId)
                                 } else speaker
-                                val response = withTimeout(120_000) {
-                                    chatService.generateForAssistant(
-                                        assistant = effectiveSpeaker,
-                                        settings = settings,
-                                        prompt = text,
-                                        history = history,
-                                    )
-                                }
+                                val response = chatService.generateForAssistant(
+                                    assistant = effectiveSpeaker,
+                                    settings = settings,
+                                    prompt = text,
+                                    history = history,
+                                )
                                 chatService.updateConversationState(currentConvId) { c ->
                                     val nodes = c.messageNodes.toMutableList()
                                     val newMsg = UIMessage.assistant(response)
@@ -566,14 +563,12 @@ private suspend fun autoTriggerNext(
             speakerMap = conversation?.speakerMap ?: emptyMap(),
             members = members,
         )
-        val response = withTimeout(120_000) {
-            chatService.generateForAssistant(
-                assistant = nextSpeaker,
-                settings = settings,
-                prompt = "",
-                history = history,
-            )
-        }
+        val response = chatService.generateForAssistant(
+            assistant = nextSpeaker,
+            settings = settings,
+            prompt = "",
+            history = history,
+        )
         chatService.updateConversationState(convId) { c ->
             val nodes = c.messageNodes.toMutableList()
             val newMsg = UIMessage.assistant(response)
