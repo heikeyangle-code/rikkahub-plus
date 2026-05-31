@@ -386,6 +386,9 @@ private fun ChatPageContent(
                     onSendClick = {
                         if (currentChatModel == null) {
                             toaster.show("请先选择模型", type = ToastType.Error)
+                        } else if (inputState.isEditing()) {
+                            vm.handleMessageEdit(inputState.getContents(), inputState.editingMessage!!)
+                            inputState.clearInput()
                         } else {
                             vm.handleMessageSend(inputState.getContents())
                             inputState.clearInput()
@@ -411,7 +414,10 @@ private fun ChatPageContent(
                 onImpersonate = { msg ->
                     inputState.setMessageText(msg.toText())
                 },
-                onEdit = { vm.handleMessageEdit(it.parts, it.id) },
+                onEdit = { msg ->
+                    inputState.setContents(msg.parts)
+                    inputState.editingMessage = msg.id
+                },
                 onForkMessage = { msg ->
                     scope.launch { vm.forkMessage(msg) }
                 },
