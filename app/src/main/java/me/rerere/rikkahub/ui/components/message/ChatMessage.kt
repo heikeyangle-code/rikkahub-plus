@@ -364,7 +364,7 @@ private fun MessagePartsBlock(
                         SelectionContainer {
                             if (role == MessageRole.USER) {
                                 Surface(
-                                    modifier = Modifier.widthIn(max = 360.dp).animateContentSize(),
+                                    modifier = Modifier.widthIn(max = 360.dp).wrapContentWidth().animateContentSize(),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.primaryContainer,
                                     onClick = { onUserMessageClick?.invoke() },
@@ -383,7 +383,7 @@ private fun MessagePartsBlock(
                             } else {
                                 if (settings.displaySetting.showAssistantBubble) {
                                 Surface(
-                                    modifier = Modifier.widthIn(max = 360.dp).animateContentSize(),
+                                    modifier = Modifier.widthIn(max = 360.dp).wrapContentWidth().animateContentSize(),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     ) {
