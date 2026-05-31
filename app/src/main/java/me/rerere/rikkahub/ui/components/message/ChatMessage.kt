@@ -369,7 +369,7 @@ private fun MessagePartsBlock(
                                     color = MaterialTheme.colorScheme.primaryContainer,
                                     onClick = { onUserMessageClick?.invoke() },
                                 ) {
-                                    Column(modifier = Modifier.padding(8.dp)) {
+                                    Column(modifier = Modifier.widthIn(max = 360.dp).padding(8.dp)) {
                                         MarkdownBlock(
                                             content = part.text.replaceRegexes(
                                                 assistant = assistant,
@@ -387,7 +387,7 @@ private fun MessagePartsBlock(
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     ) {
-                                        Column(modifier = Modifier.padding(8.dp)) {
+                                        Column(modifier = Modifier.widthIn(max = 360.dp).padding(8.dp)) {
                                             MarkdownBlock(
                                                 content = part.text.replaceRegexes(
                                                     assistant = assistant,
