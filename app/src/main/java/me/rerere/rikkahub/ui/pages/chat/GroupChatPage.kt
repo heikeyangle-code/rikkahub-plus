@@ -5,20 +5,23 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.hugeicons.HugeIcons
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.*
 import me.rerere.rikkahub.service.ChatService
@@ -27,7 +30,125 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
+import kotlin.random.Random
 import kotlin.uuid.Uuid
+
+/** 提取消息文本 */
+private fun messageText(node: MessageNode): String =
+    node.messages.joinToString("\n") { it.toText() }
+
+/** 构建带角色名前缀的历史消息列表 */
+private fun buildHistoryWithNames(
+    messageNodes: List<MessageNode>,
+    speakerMap: Map<Uuid, Uuid>,
+    members: List<Assistant>,
+): List<UIMessage> {
+    return messageNodes.map { node ->
+        val speakerId = speakerMap[node.id]
+        val speaker = members.find { it.id == speakerId }
+        val namePrefix = if (speaker != null && node.role != MessageRole.USER) {
+            "${speaker.name}:\n"
+        } else ""
+        val text = messageText(node)
+        UIMessage(
+            role = node.role,
+            parts = listOf(UIMessagePart.Text("$namePrefix$text")),
+        )
+    }
+}
+
+/** 检查用户输入是否提到了成员名字 */
+private fun findMentionedMembers(
+    text: String,
+    members: List<Assistant>,
+    bannedName: String?,
+): List<Uuid> {
+    return members.filter { m ->
+        m.name.isNotBlank() && m.name != bannedName &&
+            text.contains(m.name, ignoreCase = true)
+    }.map { it.id }
+}
+
+/** 酒馆风格 NATURAL 选人：名字检测 + 随机骰子 */
+private fun pickNaturalSpeakers(
+    enabledMembers: List<Assistant>,
+    userInput: String,
+    lastSpeakerName: String?,
+    allowSelfResponses: Boolean,
+): List<Uuid> {
+    val bannedName = if (allowSelfResponses) null else lastSpeakerName
+    val activated = mutableSetOf<Uuid>()
+
+    // 1. 名字匹配 — 用户输入提到谁，谁就入选（排除被禁的人）
+    if (userInput.isNotBlank()) {
+        activated.addAll(findMentionedMembers(userInput, enabledMembers, bannedName))
+    }
+
+    // 2. 打乱顺序，每人 50% 骰子通过
+    val shuffled = enabledMembers.shuffled()
+    for (m in shuffled) {
+        if (m.name == bannedName) continue
+        if (Random.nextFloat() < 0.5f) {
+            activated.add(m.id)
+        }
+    }
+
+    // 3. 没人通过 → 从有名字的人里随机抽一个（排除banned）
+    if (activated.isEmpty()) {
+        val pool = enabledMembers.filter { it.name != bannedName && it.name.isNotBlank() }
+        val randomPick = (if (pool.isNotEmpty()) pool else enabledMembers.filter { it.name != bannedName })
+            .randomOrNull()
+        if (randomPick != null) activated.add(randomPick.id)
+    }
+
+    // 如果全都被禁了，从所有人里随机
+    if (activated.isEmpty()) {
+        enabledMembers.firstOrNull()?.let { activated.add(it.id) }
+    }
+
+    return activated.toList()
+}
+
+/** 激活策略统一入口 */
+private fun activateMembers(
+    strategy: GroupActivationStrategy,
+    enabledMembers: List<Assistant>,
+    lastSpeakerId: Uuid?,
+    allowSelfResponses: Boolean,
+    lastSpeakerName: String? = enabledMembers.find { it.id == lastSpeakerId }?.name,
+    userInput: String = "",
+): List<Uuid> {
+    return when (strategy) {
+        GroupActivationStrategy.NATURAL -> pickNaturalSpeakers(
+            enabledMembers, userInput, lastSpeakerName, allowSelfResponses,
+        )
+        GroupActivationStrategy.LIST -> {
+            // 如果 allowSelfResponses=false，从 lastSpeaker 之后开始
+            if (!allowSelfResponses && lastSpeakerId != null) {
+                val idx = enabledMembers.indexOfFirst { it.id == lastSpeakerId }
+                if (idx >= 0) {
+                    listOfNotNull(enabledMembers.getOrNull((idx + 1) % enabledMembers.size)?.id)
+                } else {
+                    listOfNotNull(enabledMembers.firstOrNull()?.id)
+                }
+            } else {
+                listOfNotNull(enabledMembers.firstOrNull()?.id)
+            }
+        }
+        GroupActivationStrategy.POOLED -> {
+            // 排除 lastSpeaker（如果 allowSelfResponses=false）
+            val pool = if (!allowSelfResponses && lastSpeakerId != null)
+                enabledMembers.filter { it.id != lastSpeakerId }
+            else enabledMembers
+            if (pool.isEmpty()) {
+                listOfNotNull(enabledMembers.randomOrNull()?.id)
+            } else {
+                listOfNotNull(pool.randomOrNull()?.id)
+            }
+        }
+        GroupActivationStrategy.MANUAL -> emptyList()
+    }
+}
 
 @Composable
 fun GroupChatPage(groupId: String) {
@@ -44,10 +165,11 @@ fun GroupChatPage(groupId: String) {
 
     // 初始化/加载 Conversation
     var convId by remember { mutableStateOf(gc.conversationId) }
-    val conversation = chatService.getConversationFlow(convId ?: Uuid.random()).collectAsState(initial = null).value
+    val flowConvId = convId ?: Uuid.random()
+    val conversation = chatService.getConversationFlow(flowConvId).collectAsState(initial = null).value
 
     LaunchedEffect(Unit) {
-        if (gc.conversationId == null && conversation == null) {
+        if (gc.conversationId == null) {
             val newConvId = Uuid.random()
             val conv = Conversation(
                 id = newConvId,
@@ -63,15 +185,21 @@ fun GroupChatPage(groupId: String) {
         }
     }
 
-    var selectedSpeakerId by remember { mutableStateOf<Uuid?>(enabledMembers.firstOrNull()?.id) }
+    // 如果 convId 还没初始化，等
+    val currentConvId = convId
+    if (currentConvId == null) return
+
+    var selectedSpeakerId by remember { mutableStateOf(enabledMembers.firstOrNull()?.id) }
     var showSettings by remember { mutableStateOf(false) }
     var isGenerating by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val inputState = rememberTextFieldState()
     var autoJob by remember { mutableStateOf<Job?>(null) }
-    var pendingNaturalSpeaker by remember { mutableStateOf<Uuid?>(null) }
 
     val messageNodes = conversation?.messageNodes ?: emptyList()
+    val lastAssistantSpeakerId = if (messageNodes.isNotEmpty()) {
+        conversation?.speakerMap?.get(messageNodes.last().id)
+    } else null
 
     // 自动滚动
     LaunchedEffect(messageNodes.size) {
@@ -100,8 +228,9 @@ fun GroupChatPage(groupId: String) {
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).imePadding(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // 发言人选择
+                    // 发言人选择/指示
                     if (gc.activationStrategy != GroupActivationStrategy.MANUAL) {
+                        // 非MANUAL：只显示当前选中的发言人，不可切换
                         val currentSpeaker = members.find { it.id == selectedSpeakerId }
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -111,7 +240,11 @@ fun GroupChatPage(groupId: String) {
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                UIAvatar(value = currentSpeaker?.avatar, name = currentSpeaker?.name ?: "", modifier = Modifier.size(24.dp))
+                                UIAvatar(
+                                    value = currentSpeaker?.avatar ?: Avatar.Dummy,
+                                    name = currentSpeaker?.name ?: "",
+                                    modifier = Modifier.size(24.dp),
+                                )
                                 Spacer(Modifier.width(4.dp))
                                 Text(currentSpeaker?.name ?: "", style = MaterialTheme.typography.labelSmall, maxLines = 1)
                             }
@@ -131,7 +264,11 @@ fun GroupChatPage(groupId: String) {
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     val speaker = members.find { it.id == selectedSpeakerId }
-                                    UIAvatar(value = speaker?.avatar, name = speaker?.name ?: "", modifier = Modifier.size(24.dp))
+                                    UIAvatar(
+                                        value = speaker?.avatar ?: Avatar.Dummy,
+                                        name = speaker?.name ?: "选择",
+                                        modifier = Modifier.size(24.dp),
+                                    )
                                     Spacer(Modifier.width(4.dp))
                                     Text(speaker?.name ?: "选择", style = MaterialTheme.typography.labelSmall, maxLines = 1)
                                 }
@@ -144,7 +281,13 @@ fun GroupChatPage(groupId: String) {
                                             selectedSpeakerId = m.id
                                             expanded = false
                                         },
-                                        leadingIcon = { UIAvatar(value = m.avatar, name = m.name, modifier = Modifier.size(20.dp)) },
+                                        leadingIcon = {
+                                            UIAvatar(
+                                                value = m.avatar,
+                                                name = m.name,
+                                                modifier = Modifier.size(20.dp),
+                                            )
+                                        },
                                     )
                                 }
                             }
@@ -163,55 +306,93 @@ fun GroupChatPage(groupId: String) {
                     FilledIconButton(
                         onClick = {
                             val text = inputState.text.toString().trim()
-                            if (text.isBlank() || isGenerating || selectedSpeakerId == null || convId == null) return@FilledIconButton
+                            if (text.isBlank() || isGenerating || selectedSpeakerId == null) return@FilledIconButton
 
-                            // Cancel auto-timer on user input
+                            // 取消自动接话
                             autoJob?.cancel()
 
-                            // NATURAL: determine speaker first
-                            if (gc.activationStrategy == GroupActivationStrategy.NATURAL && pendingNaturalSpeaker == null) {
-                                scope.launch {
-                                    val chosen = naturalPickSpeaker(gc, enabledMembers, messageNodes, chatService, settings, text)
-                                    pendingNaturalSpeaker = chosen ?: enabledMembers.firstOrNull()?.id
-                                }
-                                return@FilledIconButton
-                            }
-
-                            val speakerId = if (gc.activationStrategy == GroupActivationStrategy.NATURAL && pendingNaturalSpeaker != null) {
-                                pendingNaturalSpeaker!!
+                            // 确定发言者
+                            val speakerId = if (gc.activationStrategy == GroupActivationStrategy.NATURAL) {
+                                // NATURAL: 用酒馆方式选人
+                                val picked = activateMembers(
+                                    strategy = gc.activationStrategy,
+                                    enabledMembers = enabledMembers,
+                                    lastSpeakerId = lastAssistantSpeakerId,
+                                    allowSelfResponses = gc.allowSelfResponses,
+                                    userInput = text,
+                                )
+                                picked.firstOrNull() ?: selectedSpeakerId!!
                             } else {
                                 selectedSpeakerId!!
                             }
-                            pendingNaturalSpeaker = null
 
-                            val userMsg = UIMessage.user(
-                                text,
-                                id = Uuid.random(),
-                            )
-                            chatService.sendMessage(convId, listOf(UIMessagePart.Text(text)), userMsg)
+                            // 保存用户消息
+                            chatService.sendMessage(currentConvId, listOf(UIMessagePart.Text(text)))
                             inputState.edit { replace(0, length, "") }
                             isGenerating = true
 
                             scope.launch {
                                 try {
-                                    val speaker = members.find { it.id == speakerId }
+                                    val speaker = members.find { it.id == speakerId } ?: return@launch
+                                    // 构建带名字前缀的历史
+                                    val history = buildHistoryWithNames(
+                                        messageNodes = messageNodes,
+                                        speakerMap = conversation?.speakerMap ?: emptyMap(),
+                                        members = members,
+                                    )
                                     val response = chatService.generateForAssistant(
-                                        assistant = speaker ?: return@launch,
+                                        assistant = speaker,
                                         settings = settings,
                                         prompt = text,
-                                        history = emptyList(), // ChatService handles history
+                                        history = history,
                                     )
-                                    val replyId = Uuid.random()
-                                    chatService.updateConversationState(convId) { c ->
+                                    // 根据 generationMode 决定追加/替换
+                                    chatService.updateConversationState(currentConvId) { c ->
                                         val nodes = c.messageNodes.toMutableList()
-                                        nodes.add(MessageNode(messages = listOf(UIMessage.assistant(response, id = replyId))))
-                                        c.copy(messageNodes = nodes, speakerMap = c.speakerMap + (replyId to speakerId))
+                                        val newMsg = UIMessage.assistant(response)
+                                        when (gc.generationMode) {
+                                            GroupGenerationMode.SWAP -> {
+                                                // 替换最后一条助手消息
+                                                val lastIdx = nodes.indexOfLast { it.role == MessageRole.ASSISTANT }
+                                                if (lastIdx >= 0) {
+                                                    val oldId = nodes[lastIdx].id
+                                                    nodes[lastIdx] = MessageNode(messages = listOf(newMsg))
+                                                    c.copy(
+                                                        messageNodes = nodes,
+                                                        speakerMap = c.speakerMap - oldId + (nodes[lastIdx].id to speakerId),
+                                                    )
+                                                } else {
+                                                    nodes.add(MessageNode(messages = listOf(newMsg)))
+                                                    c.copy(
+                                                        messageNodes = nodes,
+                                                        speakerMap = c.speakerMap + (nodes.last().id to speakerId),
+                                                    )
+                                                }
+                                            }
+                                            else -> {
+                                                // APPEND / APPEND_DISABLED: 追加
+                                                nodes.add(MessageNode(messages = listOf(newMsg)))
+                                                c.copy(
+                                                    messageNodes = nodes,
+                                                    speakerMap = c.speakerMap + (nodes.last().id to speakerId),
+                                                )
+                                            }
+                                        }
                                     }
-                                    // Start auto-timer
+                                    // 启动自动接话定时器
                                     if (gc.autoModeDelay > 0 && gc.activationStrategy != GroupActivationStrategy.MANUAL) {
+                                        autoJob?.cancel()
                                         autoJob = scope.launch {
                                             delay(gc.autoModeDelay * 1000L)
-                                            autoTriggerNext(chatService, convId, gc, members, settings, conversation.value)
+                                            autoTriggerNext(
+                                                chatService = chatService,
+                                                convId = currentConvId,
+                                                gc = gc,
+                                                members = members,
+                                                enabledMembers = enabledMembers,
+                                                settings = settings,
+                                                conversation = conversation,
+                                            )
                                         }
                                     }
                                 } catch (_: Exception) { }
@@ -234,13 +415,16 @@ fun GroupChatPage(groupId: String) {
             itemsIndexed(messageNodes, key = { _, n -> n.id }) { index, node ->
                 val speakerId = conversation?.speakerMap?.get(node.id)
                 val speaker = members.find { it.id == speakerId }
-                if (speaker != null && node.role != me.rerere.ai.core.MessageRole.USER) {
-                    // Show speaker name above assistant messages
+                if (speaker != null && node.role != MessageRole.USER) {
                     Row(
                         modifier = Modifier.padding(start = 8.dp, bottom = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        UIAvatar(value = speaker.avatar, name = speaker.name, modifier = Modifier.size(16.dp))
+                        UIAvatar(
+                            value = speaker.avatar,
+                            name = speaker.name,
+                            modifier = Modifier.size(16.dp),
+                        )
                         Spacer(Modifier.width(4.dp))
                         Text(speaker.name, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium)
                     }
@@ -286,7 +470,7 @@ fun GroupChatPage(groupId: String) {
 @Composable
 private fun GroupSettingsDialog(
     gc: GroupChat,
-    members: List<me.rerere.rikkahub.data.model.Assistant>,
+    members: List<Assistant>,
     onSave: (GroupChat) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -353,64 +537,66 @@ private suspend fun autoTriggerNext(
     chatService: ChatService,
     convId: Uuid,
     gc: GroupChat,
-    members: List<me.rerere.rikkahub.data.model.Assistant>,
+    members: List<Assistant>,
+    enabledMembers: List<Assistant>,
     settings: me.rerere.rikkahub.data.datastore.Settings,
-    conv: Conversation?,
+    conversation: Conversation?,
 ) {
-    val lastNodes = conv?.messageNodes ?: return
-    if (lastNodes.isEmpty()) return
-    val lastSpeakerId = if (lastNodes.isNotEmpty()) conv.speakerMap[lastNodes.lastOrNull()?.id] else null
-    var nextIndex = 0
-    if (!gc.allowSelfResponses && lastSpeakerId != null) {
-        val lastIdx = members.indexOfFirst { it.id == lastSpeakerId }
-        nextIndex = (lastIdx + 1) % members.size
-    }
-    val nextSpeaker = members.getOrNull(nextIndex) ?: return
+    val messageNodes = conversation?.messageNodes ?: return
+    if (messageNodes.isEmpty()) return
+
+    // 使用完整的激活策略选人
+    val lastSpeakerId = conversation?.speakerMap?.get(messageNodes.lastOrNull()?.id)
+    val picked = activateMembers(
+        strategy = gc.activationStrategy,
+        enabledMembers = enabledMembers,
+        lastSpeakerId = lastSpeakerId,
+        allowSelfResponses = gc.allowSelfResponses,
+    )
+    val nextSpeakerId = picked.firstOrNull() ?: return
+    val nextSpeaker = members.find { it.id == nextSpeakerId } ?: return
+
     try {
-        val response = chatService.generateForAssistant(assistant = nextSpeaker, settings = settings, prompt = "", history = emptyList())
-        val replyId = Uuid.random()
+        val history = buildHistoryWithNames(
+            messageNodes = messageNodes,
+            speakerMap = conversation?.speakerMap ?: emptyMap(),
+            members = members,
+        )
+        val response = chatService.generateForAssistant(
+            assistant = nextSpeaker,
+            settings = settings,
+            prompt = "",
+            history = history,
+        )
         chatService.updateConversationState(convId) { c ->
             val nodes = c.messageNodes.toMutableList()
-            nodes.add(MessageNode(messages = listOf(UIMessage.assistant(response, id = replyId))))
-            c.copy(messageNodes = nodes, speakerMap = c.speakerMap + (replyId to nextSpeaker.id))
+            val newMsg = UIMessage.assistant(response)
+            when (gc.generationMode) {
+                GroupGenerationMode.SWAP -> {
+                    val lastIdx = nodes.indexOfLast { it.role == MessageRole.ASSISTANT }
+                    if (lastIdx >= 0) {
+                        val oldId = nodes[lastIdx].id
+                        nodes[lastIdx] = MessageNode(messages = listOf(newMsg))
+                        c.copy(
+                            messageNodes = nodes,
+                            speakerMap = c.speakerMap - oldId + (nodes[lastIdx].id to nextSpeakerId),
+                        )
+                    } else {
+                        nodes.add(MessageNode(messages = listOf(newMsg)))
+                        c.copy(
+                            messageNodes = nodes,
+                            speakerMap = c.speakerMap + (nodes.last().id to nextSpeakerId),
+                        )
+                    }
+                }
+                else -> {
+                    nodes.add(MessageNode(messages = listOf(newMsg)))
+                    c.copy(
+                        messageNodes = nodes,
+                        speakerMap = c.speakerMap + (nodes.last().id to nextSpeakerId),
+                    )
+                }
+            }
         }
     } catch (_: Exception) { }
 }
-
-private fun advanceSpeaker(gc: GroupChat, members: List<me.rerere.rikkahub.data.model.Assistant>, index: Int, messages: List<MessageNode>): Int? {
-    if (members.isEmpty()) return null
-    return when (gc.activationStrategy) {
-        GroupActivationStrategy.NATURAL -> (index + 1) % members.size
-        GroupActivationStrategy.LIST -> (index + 1) % members.size
-        GroupActivationStrategy.MANUAL -> index
-        GroupActivationStrategy.POOLED -> (0 until members.size).random()
-    }
-}
-
-private suspend fun naturalPickSpeaker(
-    gc: GroupChat,
-    members: List<me.rerere.rikkahub.data.model.Assistant>,
-    messageNodes: List<MessageNode>,
-    chatService: ChatService,
-    settings: me.rerere.rikkahub.data.datastore.Settings,
-    userInput: String,
-): Uuid? {
-    if (members.isEmpty()) return null
-    val memberNames = members.joinToString(", ") { it.name.ifBlank { "(未命名)" } }
-    val prompt = """
-你是一个群聊对话管理器。根据对话上下文和用户输入，选择下一个应该回复的角色。
-可用角色: $memberNames
-用户说: $userInput
-请只回复角色名字，不要有其他文字。
-""".trimIndent()
-    val assistant = members.first()
-    return try {
-        val response = chatService.generateForAssistant(assistant = assistant, settings = settings, prompt = prompt, history = emptyList())
-        members.find { response.trim().contains(it.name) && it.name.length > 1 }?.id ?: members.firstOrNull()?.id
-    } catch (_: Exception) { members.firstOrNull()?.id }
-}
-
-private data class GroupMessage(
-    val msg: UIMessage,
-    val speakerId: Uuid?,
-)
