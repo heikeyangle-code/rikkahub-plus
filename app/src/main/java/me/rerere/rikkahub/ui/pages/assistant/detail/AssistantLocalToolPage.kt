@@ -120,28 +120,30 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
-            AnimatedVisibility(visible = assistant.enableSubAgent) {
-                CardGroup {
-                    item(
-                        headlineContent = { Text("子Agent模型") },
-                        supportingContent = { Text("不选则使用主对话模型") },
-                        trailingContent = {
-                            ModelSelector(
-                                modelId = assistant.subAgentModelId,
-                                providers = settings.providers,
-                                type = me.rerere.ai.provider.ModelType.CHAT,
-                                allowClear = true,
-                                onSelect = { model ->
-                                    onUpdate(assistant.copy(
-                                        subAgentModelId = if (model.modelId.isNullOrBlank()) null
-                                        else model.id
-                                    ))
-                                }
-                            )
-                        }
-                    )
-                }
+        }
+        AnimatedVisibility(visible = assistant.enableSubAgent) {
+            CardGroup {
+                item(
+                    headlineContent = { Text("子Agent模型") },
+                    supportingContent = { Text("不选则使用主对话模型") },
+                    trailingContent = {
+                        ModelSelector(
+                            modelId = assistant.subAgentModelId,
+                            providers = settings.providers,
+                            type = me.rerere.ai.provider.ModelType.CHAT,
+                            allowClear = true,
+                            onSelect = { model ->
+                                onUpdate(assistant.copy(
+                                    subAgentModelId = if (model.modelId.isNullOrBlank()) null
+                                    else model.id
+                                ))
+                            }
+                        )
+                    }
+                )
             }
+        }
+        CardGroup {
             item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_javascript_engine_title))
