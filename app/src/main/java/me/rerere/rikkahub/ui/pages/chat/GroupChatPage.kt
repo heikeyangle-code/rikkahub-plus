@@ -442,9 +442,9 @@ fun GroupChatPage(groupId: String) {
                     onShare = {},
                     onUpdate = {},
                     onFork = { scope.launch { chatService.forkConversationAtMessage(currentConvId, node.messages.first().id) } },
-                    onImpersonate = null,
-                    onTranslate = null,
-                    onClearTranslation = {},
+                    onImpersonate = { inputState.edit { replace(0, length, messageText(node)) } },
+                    onTranslate = { msg, locale -> chatService.translateMessage(currentConvId, msg, locale) },
+                    onClearTranslation = { chatService.clearTranslationField(currentConvId, it.id) },
                 )
             }
         }
