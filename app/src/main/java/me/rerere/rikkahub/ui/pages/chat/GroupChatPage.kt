@@ -301,7 +301,7 @@ fun GroupChatPage(groupId: String) {
                         onUpdateConversation = {},
                         onUpdateSearchService = {},
                         onCompressContext = { _, _, _ -> scope.launch { } },
-                        onCancelClick = { isGenerating = false },
+                        onCancelClick = { autoJob?.cancel() },
                         onSendClick = {
                             val contents = inputState.getContents()
                             val text = contents.joinToString("") { part ->
@@ -328,7 +328,7 @@ fun GroupChatPage(groupId: String) {
                             inputState.clearInput()
                             isGenerating = true
 
-                            scope.launch {
+                            autoJob = scope.launch {
                                 try {
                                     // 直接加用户消息（不走 sendMessage，防异步竞态和双重生成）
                                     var conv = chatService.getConversationFlow(currentConvId).value
