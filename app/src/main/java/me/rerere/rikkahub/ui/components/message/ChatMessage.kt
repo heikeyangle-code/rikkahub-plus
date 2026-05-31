@@ -365,6 +365,7 @@ private fun MessagePartsBlock(
                                 Surface(
                                     modifier = Modifier
                                         .animateContentSize()
+                                        .wrapContentWidth()
                                         .widthIn(max = 360.dp),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.primaryContainer,
@@ -383,10 +384,13 @@ private fun MessagePartsBlock(
                                 }
                             } else {
                                 if (settings.displaySetting.showAssistantBubble) {
-                                    Surface(
-                                        modifier = Modifier.animateContentSize(),
-                                        shape = RoundedCornerShape(16.dp),
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                Surface(
+                                    modifier = Modifier
+                                        .animateContentSize()
+                                        .wrapContentWidth()
+                                        .widthIn(max = 360.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
                                             MarkdownBlock(
