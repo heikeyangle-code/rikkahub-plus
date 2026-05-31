@@ -55,7 +55,7 @@ fun GroupChatPage(groupId: String) {
     val listState = rememberLazyListState()
     val inputState = rememberTextFieldState()
 
-    val currentSpeaker = members.getOrElse(currentSpeakerIndex % members.size) { members.firstOrNull() }
+    val currentSpeaker = pickSpeaker(gc, members, currentSpeakerIndex, messages)
 
     // 自动滚动
     LaunchedEffect(messages.size) {
@@ -149,7 +149,7 @@ fun GroupChatPage(groupId: String) {
                                         speakerName = currentSpeaker.name,
                                         role = me.rerere.ai.core.MessageRole.ASSISTANT,
                                     )
-                                    currentSpeakerIndex = (currentSpeakerIndex + 1) % members.size
+                                    currentSpeakerIndex = advanceSpeaker(gc, members, currentSpeakerIndex)
                                 } catch (e: Exception) {
                                     messages = messages + GroupMessage(
                                         content = "[错误] ${e.message}",
@@ -248,4 +248,40 @@ private fun GroupMessage.toUIMessage(): UIMessage {
         role = this.role,
         parts = listOf(UIMessagePart.Text(this.content)),
     )
+}
+
+private fun pickSpeaker(
+    gc: GroupChat,
+    members: List<me.rerere.rikkahub.data.model.Assistant>,
+    index: Int,
+    messages: List<GroupMessage>,
+): me.rerere.rikkahub.data.model.Assistant? {
+    return when (gc.autoSpeakerMode) {
+        GroupSpeakerMode.ROUND_ROBIN -> members.getOrElse(index % members.size) { members.firstOrNull() }
+        GroupSpeakerMode.LIST -> members.getOrElse(index % members.size) { members.firstOrNull() }
+        GroupSpeakerMode.POOLED -> {
+            val weights = members.map { m -> gc.speakerWeights[m.id]?.coerceAtLeast(1) ?: 1 }
+            val total = weights.sum()
+            var roll = (0 until total).random()
+            members.zip(weights).firstOrNull { (_, w) ->
+                roll -= w; roll < 0
+            }?.first ?: members.firstOrNull()
+        }
+        GroupSpeakerMode.MANUAL -> members.getOrElse(index % members.size) { members.firstOrNull() }
+        GroupSpeakerMode.NATURAL -> members.getOrElse(index % members.size) { members.firstOrNull() }
+    }
+}
+
+private fun advanceSpeaker(
+    gc: GroupChat,
+    members: List<me.rerere.rikkahub.data.model.Assistant>,
+    index: Int,
+): Int {
+    return when (gc.autoSpeakerMode) {
+        GroupSpeakerMode.ROUND_ROBIN -> (index + 1) % members.size
+        GroupSpeakerMode.LIST -> (index + 1) % members.size
+        GroupSpeakerMode.POOLED -> (0 until members.size).random() // random next
+        GroupSpeakerMode.MANUAL -> index // stays same, user picks manually
+        GroupSpeakerMode.NATURAL -> (index + 1) % members.size
+    }
 }

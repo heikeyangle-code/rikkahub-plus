@@ -101,6 +101,7 @@ fun GroupChatListPage() {
     if (showCreate) {
         var name by remember { mutableStateOf("") }
         var selectedIds by remember { mutableStateOf(setOf<Uuid>()) }
+        var selectedMode by remember { mutableStateOf(GroupSpeakerMode.ROUND_ROBIN) }
 
         AlertDialog(
             onDismissRequest = { showCreate = false },
@@ -112,6 +113,24 @@ fun GroupChatListPage() {
                         label = { Text("群名") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
+
+                    Text("发言策略:", style = MaterialTheme.typography.labelMedium)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        GroupSpeakerMode.entries.forEach { mode ->
+                            FilterChip(
+                                selected = selectedMode == mode,
+                                onClick = { selectedMode = mode },
+                                label = { Text(modeLabel(mode), style = MaterialTheme.typography.labelSmall) },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = modeDesc(selectedMode),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
                     Text("选择成员:", style = MaterialTheme.typography.labelMedium)
                     settings.assistants.forEach { a ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -136,6 +155,7 @@ fun GroupChatListPage() {
                             val gc = GroupChat(
                                 name = name,
                                 memberIds = selectedIds.toList(),
+                                autoSpeakerMode = selectedMode,
                             )
                             scope.launch {
                                 settingsStore.update(settings.copy(groupChats = settings.groupChats + gc))
@@ -148,4 +168,20 @@ fun GroupChatListPage() {
             dismissButton = { TextButton(onClick = { showCreate = false }) { Text("取消") } },
         )
     }
+}
+
+private fun modeLabel(mode: GroupSpeakerMode): String = when (mode) {
+    GroupSpeakerMode.ROUND_ROBIN -> "轮流"
+    GroupSpeakerMode.LIST -> "名单轮"
+    GroupSpeakerMode.POOLED -> "加权随机"
+    GroupSpeakerMode.MANUAL -> "手动"
+    GroupSpeakerMode.NATURAL -> "AI智能"
+}
+
+private fun modeDesc(mode: GroupSpeakerMode): String = when (mode) {
+    GroupSpeakerMode.ROUND_ROBIN -> "成员按固定顺序轮流发言"
+    GroupSpeakerMode.LIST -> "按你设置的角色顺序轮流"
+    GroupSpeakerMode.POOLED -> "按权重随机抽取，权重高的出场更多"
+    GroupSpeakerMode.MANUAL -> "每次发言前手动选择谁说话"
+    GroupSpeakerMode.NATURAL -> "AI根据上下文自动判断谁该说话"
 }
