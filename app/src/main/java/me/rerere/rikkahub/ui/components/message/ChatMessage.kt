@@ -97,7 +97,6 @@ import me.rerere.rikkahub.utils.urlDecode
 import kotlinx.datetime.toJavaLocalDateTime
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
-import me.rerere.rikkahub.ui.theme.customColors
 
 @Composable
 fun ChatMessage(
