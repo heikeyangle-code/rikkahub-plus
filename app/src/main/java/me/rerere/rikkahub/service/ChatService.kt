@@ -660,14 +660,13 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         appendLine("After using tools, continue working until the goal is complete.")
                                     }
 
-                                    // Tool loop with iteration budget (safety net: 50 rounds)
+                                    // Tool loop (max 50 rounds, read-only tools refund)
                                     val messages = mutableListOf(UIMessage.user(prompt))
                                     var finalText = ""
-                                    val budget = me.rerere.rikkahub.data.ai.IterationBudget(50)
-                                    val readOnlyToolNames = setOf("file_read", "search_web", "scrape_web", "get_time_info")
+                                    var budget = 50
 
-                                    while (budget.remaining > 0) {
-                                        budget.consume()
+                                    while (budget > 0) {
+                                        budget--
 
                                         val chunk = providerImpl.generateText(
                                             providerSetting = providerSetting,
@@ -709,9 +708,9 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                                     error("Invalid arguments: ${e.message}")
                                                 }
                                                 val result = toolDef.execute(args)
-                                                // Refund budget for read-only data-retrieval tools
-                                                if (toolCall.toolName in readOnlyToolNames) {
-                                                    budget.refund()
+                                                // Refund budget for read-only tools
+                                                if (toolCall.toolName in setOf("file_read", "search_web", "scrape_web", "get_time_info")) {
+                                                    budget++
                                                 }
                                                 toolCall.copy(output = result)
                                             }
