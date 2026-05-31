@@ -241,13 +241,15 @@ class GenerationHandler(
             if (isParallel) {
                 // 并行执行所有工具
                 coroutineScope {
-                    toolsToProcess.map { tool ->
+                    val deferreds = toolsToProcess.map { tool ->
                         async {
                             tool to runCatching {
                                 executeToolCall(tool, toolsInternal, json)
                             }
                         }
-                    }.awaitAll().forEach { (tool, result) ->
+                    }
+                    deferreds.forEach { deferred ->
+                        val (tool, result) = deferred.await()
                         addToolResult(executedTools, tool, result, json)
                     }
                 }
