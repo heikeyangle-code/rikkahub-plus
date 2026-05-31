@@ -1411,6 +1411,9 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
         if (!edited) return
 
         saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
+
+        // 编辑后自动重新生成回复
+        handleMessageComplete(conversationId)
     }
 
     suspend fun forkConversationAtMessage(
