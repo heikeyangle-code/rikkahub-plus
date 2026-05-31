@@ -464,7 +464,7 @@ private fun MarkdownNode(
         // 加粗和斜体
         MarkdownElementTypes.EMPH -> {
             val setting = LocalSettings.current.displaySetting
-            val italicColor = if (setting.italicsColor.isNotBlank()) {
+            val italicColor = if (setting.enableTextColor && setting.italicsColor.isNotBlank()) {
                 runCatching {
                     Color(android.graphics.Color.parseColor(setting.italicsColor))
                 }.getOrNull()

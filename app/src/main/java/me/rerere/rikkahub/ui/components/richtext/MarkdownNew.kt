@@ -371,6 +371,7 @@ private fun HtmlParagraphContent(
                     style = textStyle,
                     enableLatexRendering = enableLatexRendering,
                     onClickCitation = onClickCitation,
+                    italicsColor = italicsColor,
                 )
             }
         }
