@@ -351,9 +351,12 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                     type = guessMimeType(file.name)
                     putExtra(android.content.Intent.EXTRA_STREAM, uri)
                     addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(
-                    android.content.Intent.createChooser(intent, null)
+                    android.content.Intent.createChooser(intent, null).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
                 )
 
                 val payload = buildJsonObject {
