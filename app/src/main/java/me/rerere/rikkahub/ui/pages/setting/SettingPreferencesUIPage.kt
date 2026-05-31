@@ -375,6 +375,7 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                     )
                     if (displaySetting.enableTextColor) {
                         item(
+                            headlineContent = {},
                             supportingContent = {
                                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                     // Quote color
