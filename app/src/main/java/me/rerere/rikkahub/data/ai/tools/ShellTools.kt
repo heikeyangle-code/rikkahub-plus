@@ -40,7 +40,7 @@ fun createShellTools(): List<Tool> {
                 val command = args.jsonObject["command"]?.jsonPrimitive?.content
                     ?: error("command parameter is required")
                 val process = try {
-                    Runtime.getRuntime().exec(command)
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
                 } catch (e: Exception) {
                     error("Failed to start command: ${e.message}")
                 }

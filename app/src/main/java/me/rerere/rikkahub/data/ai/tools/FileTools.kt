@@ -54,10 +54,19 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
                 val file = resolveFile(path)
                 if (!file.exists()) error("File not found: $path")
                 if (!file.canRead()) error("Cannot read file: $path")
-                if (file.isDirectory) error("Path is a directory, not a file: $path")
-                if (file.length() > 5 * 1024 * 1024) error("文件超过 5MB，为防止内存溢出无法读取: $path")
-                val content = file.readText()
-                listOf(UIMessagePart.Text(content))
+                if (file.isDirectory) {
+                    // Directory: list contents
+                    val listing = file.listFiles()?.map { f ->
+                        val icon = if (f.isDirectory) "📁" else "📄"
+                        val size = if (f.isFile) " (${formatSize(f.length())})" else ""
+                        "$icon ${f.name}$size"
+                    }?.joinToString("\n") ?: "(empty)"
+                    listOf(UIMessagePart.Text("[${file.absolutePath}] 目录内容:\n$listing"))
+                } else {
+                    if (file.length() > 5 * 1024 * 1024) error("文件超过 5MB，为防止内存溢出无法读取: $path")
+                    val content = file.readText()
+                    listOf(UIMessagePart.Text(content))
+                }
             },
         ),
 

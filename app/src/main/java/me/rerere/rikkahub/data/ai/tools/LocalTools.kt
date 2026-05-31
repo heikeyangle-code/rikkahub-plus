@@ -386,8 +386,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         if (options.contains(LocalToolOption.AskUser)) {
             tools.add(askUserTool)
         }
-        // present_file is always available (utility tool)
-        tools.add(presentFileTool)
+        if (options.contains(LocalToolOption.PresentFile)) {
+            tools.add(presentFileTool)
+        }
         return tools
     }
 }
