@@ -15,6 +15,7 @@ data class GroupChat(
     val generationMode: GroupGenerationMode = GroupGenerationMode.SWAP,
     val disabledMemberIds: List<Uuid> = emptyList(),  // 禁言成员
     val speakerWeights: Map<Uuid, Int> = emptyMap(),  // for POOLED
+    val conversationId: Uuid? = null,  // 关联的 Conversation ID
     val allowSelfResponses: Boolean = false,
     val autoModeDelay: Int = 5,  // 自动接话延迟（秒）
     val enabled: Boolean = true,

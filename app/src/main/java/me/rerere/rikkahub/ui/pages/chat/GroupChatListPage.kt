@@ -105,6 +105,8 @@ fun GroupChatListPage() {
         var selectedIds by remember { mutableStateOf(setOf<Uuid>()) }
         var selectedMode by remember { mutableStateOf(GroupActivationStrategy.NATURAL) }
         var selectedGenMode by remember { mutableStateOf(GroupGenerationMode.SWAP) }
+        var autoDelay by remember { mutableIntStateOf(5) }
+        var allowSelf by remember { mutableStateOf(false) }
 
         AlertDialog(
             onDismissRequest = { showCreate = false },
@@ -145,6 +147,19 @@ fun GroupChatListPage() {
                         }
                     }
 
+                    Text("自动接话延迟: ${autoDelay}秒", style = MaterialTheme.typography.labelMedium)
+                    Slider(
+                        value = autoDelay.toFloat(),
+                        onValueChange = { autoDelay = it.toInt() },
+                        valueRange = 0f..30f,
+                        steps = 29,
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("允许自接话", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Switch(checked = allowSelf, onCheckedChange = { allowSelf = it })
+                    }
+
                     Text("选择成员:", style = MaterialTheme.typography.labelMedium)
                     settings.assistants.forEach { a ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -171,6 +186,8 @@ fun GroupChatListPage() {
                                 memberIds = selectedIds.toList(),
                                 activationStrategy = selectedMode,
                                 generationMode = selectedGenMode,
+                                autoModeDelay = autoDelay,
+                                allowSelfResponses = allowSelf,
                             )
                             scope.launch {
                                 settingsStore.update(settings.copy(groupChats = settings.groupChats + gc))

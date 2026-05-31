@@ -20,6 +20,7 @@ data class Conversation(
     val messageNodes: List<MessageNode>,
     val chatSuggestions: List<String> = emptyList(),
     val isPinned: Boolean = false,
+    val speakerMap: Map<Uuid, Uuid> = emptyMap(),  // messageNodeId → assistantId（群聊发言人）
     @Serializable(with = InstantSerializer::class)
     val createAt: Instant = Instant.now(),
     @Serializable(with = InstantSerializer::class)
