@@ -660,11 +660,15 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         appendLine("After using tools, continue working until the goal is complete.")
                                     }
 
-                                    // Tool loop (max 6 rounds)
+                                    // Tool loop with iteration budget (safety net: 50 rounds)
                                     val messages = mutableListOf(UIMessage.user(prompt))
                                     var finalText = ""
+                                    val budget = me.rerere.rikkahub.data.ai.IterationBudget(50)
+                                    val readOnlyToolNames = setOf("file_read", "search_web", "scrape_web", "get_time_info")
 
-                                    for (round in 0 until 6) {
+                                    while (budget.remaining > 0) {
+                                        budget.consume()
+
                                         val chunk = providerImpl.generateText(
                                             providerSetting = providerSetting,
                                             messages = messages,
@@ -678,12 +682,14 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         val assistantMsg = chunk.choices.firstOrNull()?.message
                                         if (assistantMsg == null) break
 
+                                        // Save any assistant text content for fallback
+                                        val assistantText = assistantMsg.toText()
                                         val toolCalls = assistantMsg.getTools()
                                             .filter { !it.isExecuted }
 
                                         if (toolCalls.isEmpty()) {
                                             // No tool calls — done
-                                            finalText = assistantMsg.toText()
+                                            finalText = assistantText
                                             break
                                         }
 
@@ -703,6 +709,10 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                                     error("Invalid arguments: ${e.message}")
                                                 }
                                                 val result = toolDef.execute(args)
+                                                // Refund budget for read-only data-retrieval tools
+                                                if (toolCall.toolName in readOnlyToolNames) {
+                                                    budget.refund()
+                                                }
                                                 toolCall.copy(output = result)
                                             }
                                         }
@@ -715,6 +725,11 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                                 } else part
                                             }
                                         ))
+                                    }
+
+                                    // Fallback: if loop ended without text, extract from most recent message
+                                    if (finalText.isBlank()) {
+                                        finalText = messages.lastOrNull()?.toText()?.takeIf { it.isNotBlank() } ?: ""
                                     }
 
                                     listOf(UIMessagePart.Text(finalText))

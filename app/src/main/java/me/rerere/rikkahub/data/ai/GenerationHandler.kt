@@ -35,6 +35,7 @@ import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
+import me.rerere.rikkahub.data.ai.withApiRetry
 import me.rerere.rikkahub.data.ai.transformers.onGenerationFinish
 import me.rerere.rikkahub.data.ai.transformers.transforms
 import me.rerere.rikkahub.data.ai.transformers.visualTransforms
@@ -187,9 +188,22 @@ class GenerationHandler(
                     break
                 }
 
+                // 1. Deduplicate tools: same (toolName, input) only execute once
+                val seenTools = mutableSetOf<Pair<String, String>>()
+                val uniqueTools = tools.filter { tool ->
+                    val key = tool.toolName to tool.input
+                    if (key in seenTools) {
+                        Log.w(TAG, "Deduplicated duplicate tool call: ${tool.toolName}")
+                        false
+                    } else {
+                        seenTools.add(key)
+                        true
+                    }
+                }
+
                 // Check for tools that need approval
                 var hasPendingApproval = false
-                val updatedTools = tools.map { tool ->
+                val updatedTools = uniqueTools.map { tool ->
                     val toolDef = toolsInternal.find { it.name == tool.toolName }
                     when {
                         // Tool needs approval and state is Auto -> set to Pending
@@ -208,7 +222,7 @@ class GenerationHandler(
                 }
 
                 // If any tools were updated to Pending, update the message and break
-                if (updatedTools != tools) {
+                if (updatedTools != uniqueTools) {
                     val lastMessage = messages.last()
                     val updatedParts = lastMessage.parts.map { part ->
                         if (part is UIMessagePart.Tool) {
@@ -219,6 +233,27 @@ class GenerationHandler(
                     }
                     messages = messages.dropLast(1) + lastMessage.copy(parts = updatedParts)
                     emit(GenerationChunk.Messages(messages))
+                }
+
+                // 3. Guardrails: detect repeated tool failures and loops
+                if (!hasPendingApproval) {
+                    val guardrailCheck = checkToolGuardrails(updatedTools)
+                    if (guardrailCheck != null) {
+                        Log.w(TAG, "Guardrail triggered: ${guardrailCheck.reason}")
+                        // Inject a synthetic tool result with the warning message
+                        val syntheticTool = updatedTools.first().copy(
+                            output = listOf(UIMessagePart.Text(guardrailCheck.message))
+                        )
+                        val lastMessage = messages.last()
+                        val updatedParts = lastMessage.parts.map { part ->
+                            if (part is UIMessagePart.Tool && part.toolCallId == syntheticTool.toolCallId) {
+                                syntheticTool
+                            } else part
+                        }
+                        messages = messages.dropLast(1) + lastMessage.copy(parts = updatedParts)
+                        emit(GenerationChunk.Messages(messages))
+                        break
+                    }
                 }
 
                 // If there are pending approvals, break and wait for user
@@ -290,6 +325,43 @@ class GenerationHandler(
         }
 
     }.flowOn(Dispatchers.IO)
+
+    // ── Guardrail tracking state ──────────────────────────────────
+    // Maps tool_name -> consecutive failure count across steps
+    private val toolFailureCounts = mutableMapOf<String, Int>()
+    // Maps tool_name -> count of same tool called within recent steps
+    private val toolCallHistory = mutableListOf<String>()
+    private val maxToolCallHistory = 10
+
+    /**
+     * Check tool guardrails and return a GuardrailResult if action is needed.
+     * Returns null if no guardrail is triggered.
+     */
+    private data class GuardrailResult(val reason: String, val message: String)
+
+    private fun checkToolGuardrails(tools: List<UIMessagePart.Tool>): GuardrailResult? {
+        // Track tool call history
+        tools.forEach { tool ->
+            toolCallHistory.add(tool.toolName)
+            if (toolCallHistory.size > maxToolCallHistory) {
+                toolCallHistory.removeFirst()
+            }
+        }
+
+        // Check: same idempotent tool called repeatedly (e.g. file_read 3+ times)
+        val lastFewTools = toolCallHistory.takeLast(6)
+        tools.forEach { tool ->
+            val sameToolCount = lastFewTools.count { it == tool.toolName }
+            if (sameToolCount >= 4) {
+                return GuardrailResult(
+                    reason = "idempotent_loop",
+                    message = "[Guardrail] Warning: ${tool.toolName} has been called $sameToolCount times in recent steps. If you're stuck, describe your findings and conclude."
+                )
+            }
+        }
+
+        return null
+    }
 
     private suspend fun generateInternal(
         assistant: Assistant,
@@ -384,11 +456,15 @@ class GenerationHandler(
                     stream = true
                 )
             )
-            providerImpl.streamText(
-                providerSetting = provider,
-                messages = internalMessages,
-                params = params
-            ).collect {
+            // Streaming path: retry only the flow creation, not mid-stream
+            val streamFlow = withApiRetry("streamText") {
+                providerImpl.streamText(
+                    providerSetting = provider,
+                    messages = internalMessages,
+                    params = params
+                )
+            }
+            streamFlow.collect {
                 messages = messages.handleMessageChunk(chunk = it, model = model)
                 it.usage?.let { usage ->
                     messages = messages.mapIndexed { index, message ->
@@ -410,11 +486,13 @@ class GenerationHandler(
                     stream = false
                 )
             )
-            val chunk = providerImpl.generateText(
-                providerSetting = provider,
-                messages = internalMessages,
-                params = params,
-            )
+            val chunk = withApiRetry("generateText") {
+                providerImpl.generateText(
+                    providerSetting = provider,
+                    messages = internalMessages,
+                    params = params,
+                )
+            }
             messages = messages.handleMessageChunk(chunk = chunk, model = model)
             chunk.usage?.let { usage ->
                 messages = messages.mapIndexed { index, message ->
