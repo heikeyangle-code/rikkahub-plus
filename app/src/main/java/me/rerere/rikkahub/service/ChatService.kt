@@ -60,6 +60,7 @@ import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
+import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createFileTools
@@ -627,37 +628,96 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                     val providerImpl = providerManager.getProviderByType(providerSetting)
                                         as me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>
 
-                                    // Build focused prompt (no conversation history)
+                                    // Build curated tools for sub-agent
+                                    val skillDirs = assistant.enabledSkills
+                                        .mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
+                                    val subTools = buildList {
+                                        if (settings.enableWebSearch) {
+                                            addAll(createSearchTools(settings))
+                                        }
+                                        addAll(
+                                            createFileTools(skillDirs)
+                                                .filter { it.name in listOf("file_read", "file_write") }
+                                        )
+                                        addAll(
+                                            localTools.getTools(listOf(LocalToolOption.TimeInfo))
+                                        )
+                                    }
+
+                                    // Build prompt
                                     val prompt = buildString {
                                         if (role.isNotBlank()) {
                                             appendLine("You are a $role.")
                                             appendLine()
                                         }
-                                        appendLine("Rules:")
-                                        appendLine("- Complete the goal directly. Do not add extra analysis.")
-                                        appendLine("- If you discover issues beyond the goal, note them at the end with [Note: ...].")
-                                        appendLine("- Do NOT call any tools or delegate to other agents.")
-                                        appendLine("- Keep your response concise.")
-                                        appendLine()
                                         appendLine("Goal: $goal")
                                         if (context.isNotBlank()) {
                                             appendLine()
                                             appendLine("Context: $context")
                                         }
+                                        appendLine()
+                                        appendLine("You have access to tools. Use them when needed.")
+                                        appendLine("After using tools, continue working until the goal is complete.")
                                     }
 
-                                    val result = providerImpl.generateText(
-                                        providerSetting = providerSetting,
-                                        messages = listOf(UIMessage.user(prompt)),
-                                        params = me.rerere.ai.provider.TextGenerationParams(
-                                            model = subModel,
-                                            tools = emptyList(),
-                                            reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
-                                        ),
-                                    )
+                                    // Tool loop (max 6 rounds)
+                                    val messages = mutableListOf(UIMessage.user(prompt))
+                                    var finalText = ""
 
-                                    val text = result.choices.firstOrNull()?.message?.toText() ?: ""
-                                    listOf(UIMessagePart.Text(text))
+                                    for (round in 0 until 6) {
+                                        val chunk = providerImpl.generateText(
+                                            providerSetting = providerSetting,
+                                            messages = messages,
+                                            params = me.rerere.ai.provider.TextGenerationParams(
+                                                model = subModel,
+                                                tools = subTools,
+                                                reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                                            ),
+                                        )
+
+                                        val assistantMsg = chunk.choices.firstOrNull()?.message
+                                        if (assistantMsg == null) break
+
+                                        val toolCalls = assistantMsg.getTools()
+                                            .filter { !it.isExecuted }
+
+                                        if (toolCalls.isEmpty()) {
+                                            // No tool calls — done
+                                            finalText = assistantMsg.toText()
+                                            break
+                                        }
+
+                                        // Execute tools
+                                        val executedTools = toolCalls.map { toolCall ->
+                                            val toolDef = subTools.find { it.name == toolCall.toolName }
+                                            if (toolDef == null) {
+                                                toolCall.copy(
+                                                    output = listOf(UIMessagePart.Text("Error: tool ${toolCall.toolName} not found"))
+                                                )
+                                            } else {
+                                                val args = try {
+                                                    kotlinx.serialization.json.Json.parseToJsonElement(
+                                                        toolCall.input.ifBlank { "{}" }
+                                                    )
+                                                } catch (e: Exception) {
+                                                    error("Invalid arguments: ${e.message}")
+                                                }
+                                                val result = toolDef.execute(args)
+                                                toolCall.copy(output = result)
+                                            }
+                                        }
+
+                                        // Append assistant message (with tool calls) + tool results
+                                        messages.add(assistantMsg.copy(
+                                            parts = assistantMsg.parts.map { part ->
+                                                if (part is UIMessagePart.Tool) {
+                                                    executedTools.find { it.toolCallId == part.toolCallId } ?: part
+                                                } else part
+                                            }
+                                        ))
+                                    }
+
+                                    listOf(UIMessagePart.Text(finalText))
                                 },
                             )
                         )
