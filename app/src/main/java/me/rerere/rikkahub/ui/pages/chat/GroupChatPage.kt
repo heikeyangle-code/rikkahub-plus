@@ -13,6 +13,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -431,7 +432,7 @@ fun GroupChatPage(groupId: String) {
                     onShare = {},
                     onUpdate = {},
                     onFork = { scope.launch { chatService.forkConversationAtMessage(currentConvId, node.messages.first().id) } },
-                    onImpersonate = { inputState.edit { replace(0, length, messageText(node)) } },
+                    onImpersonate = { inputState.setMessageText(messageText(node)) },
                     onTranslate = { msg, locale -> chatService.translateMessage(currentConvId, msg, locale) },
                     onClearTranslation = { chatService.clearTranslationField(currentConvId, it.id) },
                 )
@@ -478,14 +479,19 @@ private fun GroupSettingsDialog(
                 Text("激活策略", style = MaterialTheme.typography.labelMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     GroupActivationStrategy.entries.forEach { m ->
-                        FilterChip(selected = strategy == m, onClick = { strategy = m }, label = { Text(m.name, style = MaterialTheme.typography.labelSmall) })
+                        FilterChip(selected = strategy == m, onClick = { strategy = m }, label = { Text(strategyLabel(m), style = MaterialTheme.typography.labelSmall) })
                     }
                 }
+                Text(
+                    text = strategyDesc(strategy),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
                 Text("回复模式", style = MaterialTheme.typography.labelMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     GroupGenerationMode.entries.forEach { m ->
-                        FilterChip(selected = genMode == m, onClick = { genMode = m }, label = { Text(m.name, style = MaterialTheme.typography.labelSmall) })
+                        FilterChip(selected = genMode == m, onClick = { genMode = m }, label = { Text(genModeLabel(m), style = MaterialTheme.typography.labelSmall) })
                     }
                 }
 
@@ -589,4 +595,24 @@ private suspend fun autoTriggerNext(
             }
         }
     } catch (_: Exception) { }
+}
+
+private fun strategyLabel(mode: GroupActivationStrategy): String = when (mode) {
+    GroupActivationStrategy.NATURAL -> "AI智能 (NATURAL)"
+    GroupActivationStrategy.LIST -> "名单轮 (LIST)"
+    GroupActivationStrategy.MANUAL -> "手动 (MANUAL)"
+    GroupActivationStrategy.POOLED -> "加权随机 (POOLED)"
+}
+
+private fun strategyDesc(strategy: GroupActivationStrategy): String = when (strategy) {
+    GroupActivationStrategy.NATURAL -> "检测你输入中提到的名字 + 掷骰子选人回复，没人被提到则随机抽取"
+    GroupActivationStrategy.LIST -> "按成员在群聊中的顺序轮流发言，每人一轮"
+    GroupActivationStrategy.MANUAL -> "你手动从下拉列表中选择谁回复，系统不做自动选择"
+    GroupActivationStrategy.POOLED -> "从所有成员中加权随机抽取，权重越高的出场越多"
+}
+
+private fun genModeLabel(mode: GroupGenerationMode): String = when (mode) {
+    GroupGenerationMode.SWAP -> "替换 (SWAP)"
+    GroupGenerationMode.APPEND -> "追加 (APPEND)"
+    GroupGenerationMode.APPEND_DISABLED -> "追加含禁言 (APPEND_DISABLED)"
 }

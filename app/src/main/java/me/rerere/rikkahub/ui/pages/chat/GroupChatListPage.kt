@@ -203,21 +203,21 @@ fun GroupChatListPage() {
 }
 
 private fun modeLabel(mode: GroupActivationStrategy): String = when (mode) {
-    GroupActivationStrategy.NATURAL -> "AI智能"
-    GroupActivationStrategy.LIST -> "名单轮"
-    GroupActivationStrategy.MANUAL -> "手动"
-    GroupActivationStrategy.POOLED -> "加权随机"
+    GroupActivationStrategy.NATURAL -> "AI智能 (NATURAL)"
+    GroupActivationStrategy.LIST -> "名单轮 (LIST)"
+    GroupActivationStrategy.MANUAL -> "手动 (MANUAL)"
+    GroupActivationStrategy.POOLED -> "加权随机 (POOLED)"
 }
 
 private fun modeDesc(mode: GroupActivationStrategy): String = when (mode) {
-    GroupActivationStrategy.NATURAL -> "AI根据上下文自动判断谁该说话"
+    GroupActivationStrategy.NATURAL -> "检测你输入中提到的名字 + 掷骰子选人回复"
     GroupActivationStrategy.LIST -> "按成员名单顺序轮流发言"
     GroupActivationStrategy.MANUAL -> "每次发言前手动选择谁说话"
     GroupActivationStrategy.POOLED -> "按权重随机抽取，权重高的出场更多"
 }
 
 private fun genModeLabel(mode: GroupGenerationMode): String = when (mode) {
-    GroupGenerationMode.SWAP -> "替换"
-    GroupGenerationMode.APPEND -> "追加"
-    GroupGenerationMode.APPEND_DISABLED -> "追加(含禁言)"
+    GroupGenerationMode.SWAP -> "替换 (SWAP)"
+    GroupGenerationMode.APPEND -> "追加 (APPEND)"
+    GroupGenerationMode.APPEND_DISABLED -> "追加含禁言 (APPEND_DISABLED)"
 }
