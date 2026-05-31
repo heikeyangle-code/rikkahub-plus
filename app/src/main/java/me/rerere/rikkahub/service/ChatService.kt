@@ -1436,32 +1436,27 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
         val processedParts = preprocessUserInputParts(parts, assistant)
         var edited = false
 
-        val updatedNodes = currentConversation.messageNodes.mapIndexed { index, node ->
+        val updatedNodes = currentConversation.messageNodes.map { node ->
             if (!node.messages.any { it.id == messageId }) {
-                return@mapIndexed node
+                return@map node
             }
             edited = true
 
-            // 找到用户消息所在的节点索引，替换消息内容并截断后续节点
             node.copy(
-                messages = listOf(UIMessage(
+                messages = node.messages + UIMessage(
                     role = node.role,
                     parts = processedParts,
-                )),
-                selectIndex = 0
+                ),
+                selectIndex = node.messages.size
             )
         }
 
         if (!edited) return
 
-        // 截断：保留到编辑位置，去掉之后的所有回复
-        val editIndex = updatedNodes.indexOfFirst { node ->
-            node.messages.any { it.id == messageId }
-        }
-        val truncated = updatedNodes.take(editIndex + 1)
-        saveConversation(conversationId, currentConversation.copy(messageNodes = truncated))
+        saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
 
-        // 编辑后不再自动生成回复，由用户手动触发
+        // 编辑后自动重新生成回复
+        handleMessageComplete(conversationId)
     }
 
     suspend fun forkConversationAtMessage(
