@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.transformers
 
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.model.InjectionPosition
 
@@ -57,12 +58,23 @@ object AuthorsNoteTransformer : InputMessageTransformer {
                 if (messages.isNotEmpty()) {
                     listOf(messages.first()) + noteMsg + messages.drop(1)
                 } else listOf(noteMsg) + messages
-            InjectionPosition.TOP_OF_CHAT ->
-                messages + noteMsg
-            InjectionPosition.BOTTOM_OF_CHAT ->
-                messages + noteMsg
-            InjectionPosition.AUTHOR_NOTE ->
-                messages + noteMsg
+            InjectionPosition.TOP_OF_CHAT -> {
+                // 在第一条用户消息之前插入（系统消息之后）
+                val userIdx = messages.indexOfFirst { it.role == MessageRole.USER }
+                val insertIdx = if (userIdx >= 0) userIdx else messages.size
+                messages.take(insertIdx) + noteMsg + messages.drop(insertIdx)
+            }
+            InjectionPosition.BOTTOM_OF_CHAT -> {
+                // 在最后一条消息之前插入（紧邻最新消息）
+                val insertIdx = (messages.size - 1).coerceAtLeast(0)
+                messages.take(insertIdx) + noteMsg + messages.drop(insertIdx)
+            }
+            InjectionPosition.AUTHOR_NOTE -> {
+                // 使用用户配置的实际位置（自引用时回退到 AFTER_SYSTEM_PROMPT）
+                if (messages.isNotEmpty()) {
+                    listOf(messages.first()) + noteMsg + messages.drop(1)
+                } else listOf(noteMsg) + messages
+            }
             InjectionPosition.AT_DEPTH -> {
                 val insertIdx = (messages.size - depth).coerceAtLeast(0)
                 messages.take(insertIdx) + noteMsg + messages.drop(insertIdx)
