@@ -22,6 +22,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.*
 import me.rerere.rikkahub.service.ChatService
@@ -435,47 +436,12 @@ fun GroupChatPage(groupId: String) {
                     model = null,
                     loading = isGenerating && index == messageNodes.lastIndex,
                     lastMessage = index == messageNodes.lastIndex,
-                    onRegenerate = {
-                        // 截断到最后这条消息之前，重新生成
-                        autoJob?.cancel()
-                        val idx = messageNodes.indexOf(node)
-                        if (idx >= 0) {
-                            val speakerId = conversation?.speakerMap?.get(node.id)
-                            isGenerating = true
-                            scope.launch {
-                                try {
-                                    val truncatedNodes = messageNodes.take(idx)
-                                    chatService.updateConversationState(currentConvId) { c ->
-                                        c.copy(messageNodes = truncatedNodes, speakerMap = c.speakerMap - node.id)
-                                    }
-                                    val speaker = speakerId?.let { id -> members.find { it.id == id } }
-                                    if (speaker != null) {
-                                        val history = buildHistoryWithNames(truncatedNodes, conversation?.speakerMap ?: emptyMap(), members)
-                                        val response = chatService.generateForAssistant(assistant = speaker, settings = settings, prompt = "", history = history)
-                                        chatService.updateConversationState(currentConvId) { c ->
-                                            val n = c.messageNodes.toMutableList()
-                                            n.add(MessageNode(messages = listOf(UIMessage.assistant(response))))
-                                            c.copy(messageNodes = n, speakerMap = c.speakerMap + (n.last().id to speaker.id))
-                                        }
-                                    }
-                                } catch (_: Exception) { }
-                                isGenerating = false
-                            }
-                        }
-                    },
+                    onRegenerate = { chatService.regenerateAtMessage(currentConvId, node.messages.first()) },
                     onEdit = {},
-                    onDelete = {
-                        scope.launch {
-                            chatService.deleteMessage(currentConvId, node.messages.first().id)
-                        }
-                    },
+                    onDelete = { scope.launch { chatService.deleteMessage(currentConvId, node.messages.first().id) } },
                     onShare = {},
                     onUpdate = {},
-                    onFork = {
-                        scope.launch {
-                            chatService.forkConversationAtMessage(currentConvId, node.messages.first().id)
-                        }
-                    },
+                    onFork = { scope.launch { chatService.forkConversationAtMessage(currentConvId, node.messages.first().id) } },
                     onImpersonate = null,
                     onTranslate = null,
                     onClearTranslation = {},
