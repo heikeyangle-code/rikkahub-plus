@@ -582,11 +582,11 @@ class ChatService(
                         add(
                             Tool(
                                 name = "sub_agent",
-                                description = """Spawn a sub-agent to work on a subtask.
-The sub-agent uses a separate LLM call to complete a focused goal.
-It does NOT have access to the conversation history — provide all needed context.
-Results are returned as text.""".trimIndent().replace("\n", " "),
-                                needsApproval = true,
+                                description = """Delegate a focused subtask to a sub-agent.
+Only the main agent should call this — sub-agents must NOT call sub_agent.
+The sub-agent runs a separate LLM call with no access to conversation history.
+Provide all needed context in the context parameter.""".trimIndent().replace("\n", " "),
+                                needsApproval = false,
                                 parameters = {
                                     InputSchema.Obj(
                                         properties = buildJsonObject {
@@ -596,7 +596,11 @@ Results are returned as text.""".trimIndent().replace("\n", " "),
                                             })
                                             put("context", buildJsonObject {
                                                 put("type", "string")
-                                                put("description", "Optional background information for the sub-agent")
+                                                put("description", "Background information: code, data, text, etc. Do NOT put instructions here.")
+                                            })
+                                            put("role", buildJsonObject {
+                                                put("type", "string")
+                                                put("description", "Optional role for the sub-agent (e.g. 'code reviewer', 'researcher'). Default: general assistant.")
                                             })
                                         },
                                         required = listOf("goal"),
@@ -607,6 +611,7 @@ Results are returned as text.""".trimIndent().replace("\n", " "),
                                     val goal = obj["goal"]?.jsonPrimitive?.content
                                         ?: error("goal is required")
                                     val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
+                                    val role = obj["role"]?.jsonPrimitive?.contentOrNull ?: ""
 
                                     // Resolve model for sub-agent
                                     val subModelId = assistant.subAgentModelId
@@ -622,12 +627,20 @@ Results are returned as text.""".trimIndent().replace("\n", " "),
 
                                     // Build focused prompt (no conversation history)
                                     val prompt = buildString {
-                                        appendLine("You are a focused sub-agent. Complete the following goal concisely and directly.")
+                                        if (role.isNotBlank()) {
+                                            appendLine("You are a $role.")
+                                            appendLine()
+                                        }
+                                        appendLine("Rules:")
+                                        appendLine("- Complete the goal directly. Do not add extra analysis.")
+                                        appendLine("- If you discover issues beyond the goal, note them at the end with [Note: ...].")
+                                        appendLine("- Do NOT call any tools or delegate to other agents.")
+                                        appendLine("- Keep your response concise.")
                                         appendLine()
                                         appendLine("Goal: $goal")
                                         if (context.isNotBlank()) {
                                             appendLine()
-                                            appendLine("Background: $context")
+                                            appendLine("Context: $context")
                                         }
                                     }
 

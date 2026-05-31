@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,7 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -36,6 +39,7 @@ fun AssistantLocalToolPage(id: String) {
         }
     )
     val assistant by vm.assistant.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
@@ -57,6 +61,7 @@ fun AssistantLocalToolPage(id: String) {
         AssistantLocalToolContent(
             modifier = Modifier.padding(innerPadding),
             assistant = assistant,
+            settings = settings,
             onUpdate = { vm.update(it) }
         )
     }
@@ -66,6 +71,7 @@ fun AssistantLocalToolPage(id: String) {
 private fun AssistantLocalToolContent(
     modifier: Modifier = Modifier,
     assistant: Assistant,
+    settings: Settings,
     onUpdate: (Assistant) -> Unit
 ) {
     fun toggleLocalTool(option: LocalToolOption, enabled: Boolean) {
@@ -105,7 +111,7 @@ private fun AssistantLocalToolContent(
                     Text("子Agent")
                 },
                 supportingContent = {
-                    Text("AI可委托子任务到独立模型调用（需手动确认）")
+                    Text("AI可委托子任务到独立模型调用，开关控制启用与否")
                 },
                 trailingContent = {
                     Switch(
@@ -114,6 +120,28 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            AnimatedVisibility(visible = assistant.enableSubAgent) {
+                CardGroup {
+                    item(
+                        headlineContent = { Text("子Agent模型") },
+                        supportingContent = { Text("不选则使用主对话模型") },
+                        trailingContent = {
+                            ModelSelector(
+                                modelId = assistant.subAgentModelId,
+                                providers = settings.providers,
+                                type = me.rerere.ai.provider.ModelType.CHAT,
+                                allowClear = true,
+                                onSelect = { model ->
+                                    onUpdate(assistant.copy(
+                                        subAgentModelId = if (model.modelId.isNullOrBlank()) null
+                                        else model.id
+                                    ))
+                                }
+                            )
+                        }
+                    )
+                }
+            }
             item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_javascript_engine_title))
