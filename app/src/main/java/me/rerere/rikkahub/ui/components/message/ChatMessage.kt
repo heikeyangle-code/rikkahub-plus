@@ -361,6 +361,7 @@ private fun MessagePartsBlock(
             is MessagePartBlock.ContentBlock -> key(block.index) {
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
+                        Box(modifier = Modifier.widthIn(max = 360.dp).wrapContentWidth()) {
                         SelectionContainer {
                             if (role == MessageRole.USER) {
                                 Surface(
@@ -369,7 +370,7 @@ private fun MessagePartsBlock(
                                     color = MaterialTheme.colorScheme.primaryContainer,
                                     onClick = { onUserMessageClick?.invoke() },
                                 ) {
-                                    Column(modifier = Modifier.widthIn(max = 360.dp).padding(8.dp)) {
+                                    Column(modifier = Modifier.padding(8.dp)) {
                                         MarkdownBlock(
                                             content = part.text.replaceRegexes(
                                                 assistant = assistant,
@@ -387,7 +388,7 @@ private fun MessagePartsBlock(
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     ) {
-                                        Column(modifier = Modifier.widthIn(max = 360.dp).padding(8.dp)) {
+                                        Column(modifier = Modifier.padding(8.dp)) {
                                             MarkdownBlock(
                                                 content = part.text.replaceRegexes(
                                                     assistant = assistant,
@@ -411,6 +412,7 @@ private fun MessagePartsBlock(
                                     )
                                 }
                             }
+                        }
                         }
                     }
 
