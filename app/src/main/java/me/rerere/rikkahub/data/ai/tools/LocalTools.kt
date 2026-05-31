@@ -20,6 +20,7 @@ import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.utils.readClipboardText
 import me.rerere.rikkahub.utils.writeClipboardText
+import java.io.File
 import java.time.ZonedDateTime
 import java.time.format.TextStyle
 import java.util.Locale
@@ -45,6 +46,10 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("ask_user")
     data object AskUser : LocalToolOption()
+
+    @Serializable
+    @SerialName("present_file")
+    data object PresentFile : LocalToolOption()
 }
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {
@@ -304,6 +309,63 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         )
     }
 
+    val presentFileTool by lazy {
+        Tool(
+            name = "present_file",
+            description = """
+                Show a file to the user by opening the system share sheet.
+                The file is copied to a temporary location and a share dialog is opened
+                so the user can save, send, or open the file with another app.
+                Use this when the user wants to receive a file you created.
+            """.trimIndent().replace("\n", " "),
+            parameters = {
+                InputSchema.Obj(
+                    properties = buildJsonObject {
+                        put("path", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Absolute path to the file to present to the user")
+                        })
+                    },
+                    required = listOf("path"),
+                )
+            },
+            execute = {
+                val path = it.jsonObject["path"]?.jsonPrimitive?.content
+                    ?: error("path is required")
+                val file = File(path)
+                if (!file.exists()) error("File not found: $path")
+                if (!file.canRead()) error("Cannot read file: $path")
+
+                // Copy to cache dir for FileProvider sharing
+                val cacheFile = File(context.cacheDir, "shared_" + file.name)
+                cacheFile.parentFile?.mkdirs()
+                file.copyTo(cacheFile, overwrite = true)
+
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    cacheFile
+                )
+
+                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = guessMimeType(file.name)
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(
+                    android.content.Intent.createChooser(intent, null)
+                )
+
+                val payload = buildJsonObject {
+                    put("success", true)
+                    put("path", path)
+                    put("size", kotlinx.serialization.json.JsonPrimitive(file.length()))
+                }
+                listOf(UIMessagePart.Text(payload.toString()))
+            }
+        )
+    }
+
     fun getTools(options: List<LocalToolOption>): List<Tool> {
         val tools = mutableListOf<Tool>()
         if (options.contains(LocalToolOption.JavascriptEngine)) {
@@ -321,6 +383,13 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         if (options.contains(LocalToolOption.AskUser)) {
             tools.add(askUserTool)
         }
+        // present_file is always available (utility tool)
+        tools.add(presentFileTool)
         return tools
     }
+}
+
+private fun guessMimeType(fileName: String): String {
+    val ext = fileName.substringAfterLast('.', "").lowercase()
+    return android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
 }

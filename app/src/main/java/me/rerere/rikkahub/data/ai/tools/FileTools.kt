@@ -26,6 +26,11 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         return File(defaultDir, path)
     }
 
+    fun resolveDestPath(path: String): File {
+        return if (path.startsWith("/")) File(path)
+        else File(defaultDir, path)
+    }
+
     return listOf(
         // ── file_read ──
         Tool(
@@ -129,6 +134,118 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
                     }
                 }
                 listOf(UIMessagePart.Text(listing))
+            },
+        ),
+
+        // ── file_copy ──
+        Tool(
+            name = "file_copy",
+            description = "Copy a file or directory from source to destination. " +
+                    "Absolute paths work as-is. Relative paths resolve to ${defaultDir}.",
+            parameters = {
+                InputSchema.Obj(
+                    properties = buildJsonObject {
+                        put("source", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Source file or directory path")
+                        })
+                        put("destination", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Destination file or directory path")
+                        })
+                    },
+                    required = listOf("source", "destination"),
+                )
+            },
+            execute = { args ->
+                val obj = args.jsonObject
+                val source = obj["source"]?.jsonPrimitive?.content ?: error("source required")
+                val dest = obj["destination"]?.jsonPrimitive?.content ?: error("destination required")
+                val srcFile = resolveFile(source)
+                if (!srcFile.exists()) error("Source not found: $source")
+                val dstFile = resolveDestPath(dest)
+                dstFile.parentFile?.mkdirs()
+                if (srcFile.isDirectory) {
+                    srcFile.copyRecursively(dstFile, overwrite = true)
+                } else {
+                    srcFile.copyTo(dstFile, overwrite = true)
+                }
+                listOf(UIMessagePart.Text("OK: copied $source → $dest"))
+            },
+        ),
+
+        // ── file_move ──
+        Tool(
+            name = "file_move",
+            description = "Move or rename a file or directory. " +
+                    "Absolute paths work as-is. Relative paths resolve to ${defaultDir}.",
+            parameters = {
+                InputSchema.Obj(
+                    properties = buildJsonObject {
+                        put("source", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Source file or directory path")
+                        })
+                        put("destination", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Destination path (new location or name)")
+                        })
+                    },
+                    required = listOf("source", "destination"),
+                )
+            },
+            execute = { args ->
+                val obj = args.jsonObject
+                val source = obj["source"]?.jsonPrimitive?.content ?: error("source required")
+                val dest = obj["destination"]?.jsonPrimitive?.content ?: error("destination required")
+                val srcFile = resolveFile(source)
+                if (!srcFile.exists()) error("Source not found: $source")
+                val dstFile = resolveDestPath(dest)
+                dstFile.parentFile?.mkdirs()
+                if (!srcFile.renameTo(dstFile)) {
+                    // renameTo can fail across mount points — fallback to copy+delete
+                    if (srcFile.isDirectory) {
+                        srcFile.copyRecursively(dstFile, overwrite = true)
+                        srcFile.deleteRecursively()
+                    } else {
+                        srcFile.copyTo(dstFile, overwrite = true)
+                        srcFile.delete()
+                    }
+                }
+                listOf(UIMessagePart.Text("OK: moved $source → $dest"))
+            },
+        ),
+
+        // ── file_mkdir ──
+        Tool(
+            name = "file_mkdir",
+            description = "Create a new directory (and parent directories if needed). " +
+                    "Absolute paths work as-is. Relative paths resolve to ${defaultDir}.",
+            parameters = {
+                InputSchema.Obj(
+                    properties = buildJsonObject {
+                        put("path", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Directory path to create")
+                        })
+                    },
+                    required = listOf("path"),
+                )
+            },
+            execute = { args ->
+                val path = args.jsonObject["path"]?.jsonPrimitive?.content
+                    ?: error("path required")
+                val dir = resolveDestPath(path)
+                if (dir.exists() && dir.isDirectory) {
+                    listOf(UIMessagePart.Text("Directory already exists: $path"))
+                } else {
+                    val created = dir.mkdirs()
+                    if (created) {
+                        listOf(UIMessagePart.Text("OK: created directory $path"))
+                    } else {
+                        error("Failed to create directory: $path")
+                    }
+                }
             },
         ),
     )
