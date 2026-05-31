@@ -422,6 +422,12 @@ private fun ChatPageContent(
                     scope.launch { vm.forkMessage(msg) }
                 },
                 onDelete = { vm.deleteMessage(it) },
+                onUpdateMessage = { node ->
+                    val convo = conversation
+                    vm.updateConversation(convo.copy(
+                        messageNodes = convo.messageNodes.map { if (it.id == node.id) node else it }
+                    ))
+                },
                 onClickSuggestion = { vm.handleMessageSend(listOf(UIMessagePart.Text(it))) },
                 onTranslate = { msg, locale -> vm.translateMessage(msg, locale) },
                 onClearTranslation = { vm.clearTranslationField(it.id) },
