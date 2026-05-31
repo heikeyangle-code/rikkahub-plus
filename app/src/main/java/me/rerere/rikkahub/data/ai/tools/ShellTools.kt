@@ -19,12 +19,13 @@ fun createShellTools(): List<Tool> {
         Tool(
             name = "execute_command",
             description = """
-                Execute a shell command on the Android device.
+                Execute a shell command on the Android device. Prefer file_read/write/list/copy/move for file ops.
                 Returns stdout, stderr, and exit code as a JSON object.
                 Commands run in the app's sandbox — no root, no system-wide access.
-                Use for: logcat, file operations, device info, grep, zip.
+                Use for: logcat, device info, grep, zip.
                 Avoid: interactive commands (they will hang), long-running commands (30s timeout).
             """.trimIndent().replace("\n", " "),
+            needsApproval = true,
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -44,9 +45,16 @@ fun createShellTools(): List<Tool> {
                 } catch (e: Exception) {
                     error("Failed to start command: ${e.message}")
                 }
-                // Read stdout/stderr in parallel
-                val stdout = process.inputStream.bufferedReader().readText()
-                val stderr = process.errorStream.bufferedReader().readText()
+                // Read stdout and stderr in parallel to avoid deadlock
+                val (stdout, stderr) = kotlinx.coroutines.coroutineScope {
+                    val stdoutDeferred = kotlinx.coroutines.async {
+                        process.inputStream.bufferedReader().readText()
+                    }
+                    val stderrDeferred = kotlinx.coroutines.async {
+                        process.errorStream.bufferedReader().readText()
+                    }
+                    stdoutDeferred.await() to stderrDeferred.await()
+                }
                 val exitCode = process.waitFor()
                 val payload = buildJsonObject {
                     put("stdout", kotlinx.serialization.json.JsonPrimitive(stdout))
