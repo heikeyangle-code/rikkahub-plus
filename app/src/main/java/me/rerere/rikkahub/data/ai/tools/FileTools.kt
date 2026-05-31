@@ -46,6 +46,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_read",
             description = "Read a file from the Android filesystem. Returns the file content as text. " +
+                "PREFERRED over execute_command for reading files. " +
                 "Absolute paths work as-is. Relative paths are resolved against enabled skill directories first, then ${defaultDir}.$skillsHint",
             parameters = {
                 InputSchema.Obj(
@@ -84,6 +85,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_write",
             description = "Create or overwrite a file on the Android filesystem. " +
+                    "PREFERRED over execute_command for writing files. " +
                     "Relative paths go to skill dirs first, then ${defaultDir}.$skillsHint",
             parameters = {
                 InputSchema.Obj(
