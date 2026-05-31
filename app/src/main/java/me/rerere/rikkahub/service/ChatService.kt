@@ -1022,11 +1022,53 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
         val messages = history + UIMessage.user(prompt)
         var result = ""
 
+        val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
+
         generationHandler.generateText(
             settings = settings,
             model = model,
             messages = messages,
             assistant = assistant,
+            memories = if (assistant.useGlobalMemory) {
+                memoryRepository.getGlobalMemories()
+            } else {
+                memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
+            },
+            tools = buildList {
+                addAll(createFileTools(skillDirs))
+                if (settings.enableWebSearch) {
+                    addAll(createSearchTools(settings))
+                }
+                addAll(localTools.getTools(assistant.localTools))
+                addAll(createShellTools())
+                if (assistant.enabledSkills.isNotEmpty()) {
+                    addAll(
+                        createSkillTools(
+                            enabledSkills = assistant.enabledSkills,
+                            allSkills = skillManager.listSkills(),
+                            skillManager = skillManager,
+                        )
+                    )
+                }
+                mcpManager.getAllAvailableTools().forEach { (serverId, tool) ->
+                    add(
+                        Tool(
+                            name = "mcp__" + tool.name,
+                            description = tool.description ?: "",
+                            parameters = { tool.inputSchema },
+                            needsApproval = tool.needsApproval,
+                            execute = {
+                                mcpManager.callTool(serverId, tool.name, it.jsonObject)
+                            },
+                        )
+                    )
+                }
+            },
+            inputTransformers = buildList {
+                addAll(inputTransformers)
+                add(templateTransformer)
+            },
+            outputTransformers = outputTransformers,
         ).collect { chunk ->
             when (chunk) {
                 is GenerationChunk.Messages -> {

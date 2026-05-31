@@ -334,7 +334,7 @@ fun GroupChatPage(groupId: String) {
                                     var conv = chatService.getConversationFlow(currentConvId).value
                                     val newUserNode = UIMessage(
                                         role = MessageRole.USER,
-                                        parts = contents.map { it.copy() },
+                                        parts = contents,
                                     ).toMessageNode()
                                     conv = conv.copy(messageNodes = conv.messageNodes + newUserNode)
                                     chatService.updateConversationState(currentConvId) { conv }
