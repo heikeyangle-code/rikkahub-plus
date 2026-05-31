@@ -637,7 +637,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         }
                                         addAll(
                                             createFileTools(skillDirs)
-                                                .filter { it.name in listOf("file_read", "file_write") }
+                                                .filter { it.name in listOf("file_read", "file_write", "file_list") }
                                         )
                                         addAll(
                                             localTools.getTools(listOf(LocalToolOption.TimeInfo))
@@ -673,15 +673,22 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         val stepNum = stepLog.count { it == '\n' } + 1
                                         session.processingStatus.value = "子Agent: 第${stepNum}步思考中..."
 
-                                        val chunk = providerImpl.generateText(
-                                            providerSetting = providerSetting,
-                                            messages = messages,
-                                            params = me.rerere.ai.provider.TextGenerationParams(
-                                                model = subModel,
-                                                tools = subTools,
-                                                reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
-                                            ),
-                                        )
+                                        val chunk = try {
+                                            kotlinx.coroutines.withTimeout(30_000) {
+                                                providerImpl.generateText(
+                                                    providerSetting = providerSetting,
+                                                    messages = messages,
+                                                    params = me.rerere.ai.provider.TextGenerationParams(
+                                                        model = subModel,
+                                                        tools = subTools,
+                                                        reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                                                    ),
+                                                )
+                                            }
+                                        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                                            stepLog.appendLine("→ 超时(30s)，中断执行")
+                                            break
+                                        }
 
                                         val assistantMsg = chunk.choices.firstOrNull()?.message
                                         if (assistantMsg == null) break
