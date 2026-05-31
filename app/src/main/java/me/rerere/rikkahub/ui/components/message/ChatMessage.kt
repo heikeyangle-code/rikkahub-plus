@@ -363,7 +363,9 @@ private fun MessagePartsBlock(
                         SelectionContainer {
                             if (role == MessageRole.USER) {
                                 Surface(
-                                    modifier = Modifier.animateContentSize(),
+                                    modifier = Modifier
+                                        .animateContentSize()
+                                        .widthIn(max = 360.dp),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.primaryContainer,
                                     onClick = { onUserMessageClick?.invoke() },

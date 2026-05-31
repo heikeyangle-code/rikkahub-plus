@@ -664,6 +664,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                     val messages = mutableListOf(UIMessage.user(prompt))
                                     var finalText = ""
                                     var budget = 50
+                                    val stepLog = StringBuilder()
 
                                     while (budget > 0) {
                                         budget--
@@ -689,8 +690,17 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         if (toolCalls.isEmpty()) {
                                             // No tool calls — done
                                             finalText = assistantText
+                                            stepLog.appendLine("→ 分析完成，生成回答")
                                             break
                                         }
+
+                                        // Log tool calls for this step
+                                        val stepNum = stepLog.count { it == '\n' } + 1
+                                        stepLog.append("→ 第${stepNum}步：")
+                                        stepLog.appendLine(toolCalls.joinToString("、") { tc ->
+                                            val args = tc.input.ifBlank { "{}" }
+                                            "${tc.toolName}(${args.take(40)})"
+                                        })
 
                                         // Execute tools
                                         val executedTools = toolCalls.map { toolCall ->
@@ -731,7 +741,16 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         finalText = messages.lastOrNull()?.toText()?.takeIf { it.isNotBlank() } ?: ""
                                     }
 
-                                    listOf(UIMessagePart.Text(finalText))
+                                    // Prepend step log to final output
+                                    val outputText = if (stepLog.isNotEmpty()) {
+                                        stepLog.appendLine()
+                                        stepLog.append(finalText)
+                                        stepLog.toString()
+                                    } else {
+                                        finalText
+                                    }
+
+                                    listOf(UIMessagePart.Text(outputText))
                                 },
                             )
                         )
