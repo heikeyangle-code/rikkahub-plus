@@ -37,7 +37,9 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         return File(defaultDir, path)
     }
 
-    val skillsHint = if (skillDirs.isNotEmpty()) " Skill dirs: ${skillDirs.joinToString()}." else ""
+    val skillsHint = if (skillDirs.isNotEmpty()) {
+        " These are your working directories: ${skillDirs.joinToString()}."
+    } else ""
 
     return listOf(
         // ── file_read ──
