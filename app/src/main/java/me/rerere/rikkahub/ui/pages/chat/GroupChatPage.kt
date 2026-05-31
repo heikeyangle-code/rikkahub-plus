@@ -125,7 +125,6 @@ private fun activateMembers(
             enabledMembers, userInput, lastSpeakerName, allowSelfResponses,
         )
         GroupActivationStrategy.LIST -> {
-            // 如果 allowSelfResponses=false，从 lastSpeaker 之后开始
             if (!allowSelfResponses && lastSpeakerId != null) {
                 val idx = enabledMembers.indexOfFirst { it.id == lastSpeakerId }
                 if (idx >= 0) {
@@ -138,7 +137,6 @@ private fun activateMembers(
             }
         }
         GroupActivationStrategy.POOLED -> {
-            // 排除 lastSpeaker（如果 allowSelfResponses=false）
             val pool = if (!allowSelfResponses && lastSpeakerId != null)
                 enabledMembers.filter { it.id != lastSpeakerId }
             else enabledMembers
@@ -180,10 +178,14 @@ fun GroupChatPage(groupId: String) {
             )
             chatService.initializeConversation(newConvId)
             chatService.updateConversationState(newConvId) { conv }
+            chatService.saveConversation(newConvId, conv)
             settingsStore.update(settings.copy(
                 groupChats = settings.groupChats.map { if (it.id == gcId) it.copy(conversationId = newConvId) else it }
             ))
             convId = newConvId
+        } else {
+            // 已有 conversationId，从 DB 加载到 session
+            chatService.initializeConversation(gc.conversationId)
         }
     }
 
@@ -192,7 +194,7 @@ fun GroupChatPage(groupId: String) {
     if (currentConvId == null) return
 
     var selectedSpeakerId by remember { mutableStateOf(enabledMembers.firstOrNull()?.id) }
-    var selectedModelId by remember { mutableStateOf<Uuid?>(null) }  // 临时覆盖模型
+    var selectedModelId by remember { mutableStateOf<Uuid?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var isGenerating by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -227,172 +229,182 @@ fun GroupChatPage(groupId: String) {
             )
         },
         bottomBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(end = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Surface(
+                tonalElevation = 2.dp,
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 4.dp,
             ) {
-                // 发言人选择/指示
-                if (gc.activationStrategy != GroupActivationStrategy.MANUAL) {
-                    val currentSpeaker = members.find { it.id == selectedSpeakerId }
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.padding(start = 8.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            UIAvatar(
-                                value = currentSpeaker?.avatar ?: Avatar.Dummy,
-                                name = currentSpeaker?.name ?: "",
-                                modifier = Modifier.size(24.dp),
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(currentSpeaker?.name ?: "", style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                        }
-                    }
-                } else {
-                    var expanded by remember { mutableStateOf(false) }
-                    Box(modifier = Modifier.padding(start = 8.dp)) {
-                        Surface(
-                            onClick = { expanded = true },
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // MANUAL 模式：选人按钮（挤在一侧，名字限制宽度）
+                    if (gc.activationStrategy == GroupActivationStrategy.MANUAL) {
+                        var expanded by remember { mutableStateOf(false) }
+                        Box(modifier = Modifier.padding(start = 4.dp)) {
+                            val speaker = members.find { it.id == selectedSpeakerId }
+                            Surface(
+                                onClick = { expanded = true },
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
                             ) {
-                                val speaker = members.find { it.id == selectedSpeakerId }
-                                UIAvatar(
-                                    value = speaker?.avatar ?: Avatar.Dummy,
-                                    name = speaker?.name ?: "选择",
-                                    modifier = Modifier.size(24.dp),
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(speaker?.name ?: "选择", style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    UIAvatar(
+                                        value = speaker?.avatar ?: Avatar.Dummy,
+                                        name = speaker?.name ?: "选",
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                    if (!speaker?.name.isNullOrBlank()) {
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            speaker!!.name,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1,
+                                            modifier = Modifier.widthIn(max = 60.dp),
+                                        )
+                                    }
+                                }
                             }
-                        }
-                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            members.forEach { m ->
-                                DropdownMenuItem(
-                                    text = { Text(m.name) },
-                                    onClick = {
-                                        selectedSpeakerId = m.id
-                                        expanded = false
-                                    },
-                                    leadingIcon = {
-                                        UIAvatar(value = m.avatar, name = m.name, modifier = Modifier.size(20.dp))
-                                    },
-                                )
+                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                members.forEach { m ->
+                                    DropdownMenuItem(
+                                        text = { Text(m.name) },
+                                        onClick = {
+                                            selectedSpeakerId = m.id
+                                            expanded = false
+                                        },
+                                        leadingIcon = {
+                                            UIAvatar(value = m.avatar, name = m.name, modifier = Modifier.size(20.dp))
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                ChatInput(
-                    state = inputState,
-                    loading = isGenerating,
-                    conversation = conversation ?: Conversation(id = currentConvId, assistantId = selectedSpeakerId ?: Uuid.random(), messageNodes = emptyList()),
-                    settings = settings,
-                    mcpManager = chatService.mcpManager,
-                    hazeState = hazeState,
-                    enableSearch = false,
-                    onToggleSearch = {},
-                    onUpdateChatModel = { model ->
-                        // 临时覆盖当前发言人的模型，不持久化
-                        selectedModelId = model.id
-                    },
-                    onUpdateAssistant = {},
-                    onUpdateConversation = {},
-                    onUpdateSearchService = {},
-                    onCompressContext = { _, _, _ -> scope.launch { } },
-                    onCancelClick = { isGenerating = false },
-                    onSendClick = {
-                        val contents = inputState.getContents()
-                        val text = contents.joinToString("") { part ->
-                            if (part is UIMessagePart.Text) part.text else ""
-                        }.trim()
-                        if (text.isBlank() || isGenerating || selectedSpeakerId == null) return@ChatInput
+                    ChatInput(
+                        state = inputState,
+                        loading = isGenerating,
+                        conversation = conversation ?: Conversation(id = currentConvId, assistantId = selectedSpeakerId ?: Uuid.random(), messageNodes = emptyList()),
+                        settings = settings,
+                        mcpManager = chatService.mcpManager,
+                        hazeState = hazeState,
+                        enableSearch = false,
+                        onToggleSearch = {},
+                        onUpdateChatModel = { model ->
+                            selectedModelId = model.id
+                        },
+                        onUpdateAssistant = {},
+                        onUpdateConversation = {},
+                        onUpdateSearchService = {},
+                        onCompressContext = { _, _, _ -> scope.launch { } },
+                        onCancelClick = { isGenerating = false },
+                        onSendClick = {
+                            val contents = inputState.getContents()
+                            val text = contents.joinToString("") { part ->
+                                if (part is UIMessagePart.Text) part.text else ""
+                            }.trim()
+                            if (text.isBlank() || isGenerating) return@ChatInput
 
-                        autoJob?.cancel()
+                            autoJob?.cancel()
 
-                        val speakerId = if (gc.activationStrategy == GroupActivationStrategy.NATURAL) {
-                            val picked = activateMembers(
-                                strategy = gc.activationStrategy,
-                                enabledMembers = enabledMembers,
-                                lastSpeakerId = lastAssistantSpeakerId,
-                                allowSelfResponses = gc.allowSelfResponses,
-                                userInput = text,
-                            )
-                            picked.firstOrNull() ?: selectedSpeakerId!!
-                        } else {
-                            selectedSpeakerId!!
-                        }
-
-                        chatService.sendMessage(currentConvId, contents)
-                        inputState.clearInput()
-                        isGenerating = true
-
-                        scope.launch {
-                            try {
-                                val speaker = members.find { it.id == speakerId } ?: return@launch
-                                val history = buildHistoryWithNames(
-                                    messageNodes = messageNodes,
-                                    speakerMap = conversation?.speakerMap ?: emptyMap(),
-                                    members = members,
+                            // 所有被激活的成员
+                            val allPicked = if (gc.activationStrategy == GroupActivationStrategy.MANUAL) {
+                                listOfNotNull(selectedSpeakerId)
+                            } else {
+                                activateMembers(
+                                    strategy = gc.activationStrategy,
+                                    enabledMembers = enabledMembers,
+                                    lastSpeakerId = lastAssistantSpeakerId,
+                                    allowSelfResponses = gc.allowSelfResponses,
+                                    userInput = text,
                                 )
-                                // 临时模型覆盖
-                                val effectiveSpeaker = if (selectedModelId != null) {
-                                    speaker.copy(chatModelId = selectedModelId)
-                                } else speaker
-                                val response = chatService.generateForAssistant(
-                                    assistant = effectiveSpeaker,
-                                    settings = settings,
-                                    prompt = text,
-                                    history = history,
-                                )
-                                chatService.updateConversationState(currentConvId) { c ->
-                                    val nodes = c.messageNodes.toMutableList()
-                                    val newMsg = UIMessage.assistant(response)
-                                    when (gc.generationMode) {
-                                        GroupGenerationMode.SWAP -> {
-                                            val lastIdx = nodes.indexOfLast { it.role == MessageRole.ASSISTANT }
-                                            if (lastIdx >= 0) {
-                                                val oldId = nodes[lastIdx].id
-                                                nodes[lastIdx] = MessageNode(messages = listOf(newMsg))
-                                                c.copy(messageNodes = nodes, speakerMap = c.speakerMap - oldId + (nodes[lastIdx].id to speakerId))
-                                            } else {
+                            }
+                            if (allPicked.isEmpty()) return@ChatInput
+
+                            inputState.clearInput()
+                            isGenerating = true
+
+                            scope.launch {
+                                try {
+                                    // 直接加用户消息（不走 sendMessage，防异步竞态和双重生成）
+                                    var conv = chatService.getConversationFlow(currentConvId).value
+                                    val newUserNode = UIMessage(
+                                        role = MessageRole.USER,
+                                        parts = contents.map { it.copy() },
+                                    ).toMessageNode()
+                                    conv = conv.copy(messageNodes = conv.messageNodes + newUserNode)
+                                    chatService.updateConversationState(currentConvId) { conv }
+                                    chatService.saveConversation(currentConvId, conv)
+
+                                    // 逐个成员生成回复
+                                    for (sid in allPicked) {
+                                        val speaker = members.find { it.id == sid } ?: continue
+                                        val freshConv = chatService.getConversationFlow(currentConvId).value
+                                        val history = buildHistoryWithNames(
+                                            messageNodes = freshConv.messageNodes,
+                                            speakerMap = freshConv.speakerMap,
+                                            members = members,
+                                        )
+                                        val effectiveSpeaker = if (selectedModelId != null) {
+                                            speaker.copy(chatModelId = selectedModelId)
+                                        } else speaker
+                                        val response = chatService.generateForAssistant(
+                                            assistant = effectiveSpeaker,
+                                            settings = settings,
+                                            prompt = text,
+                                            history = history,
+                                        )
+                                        val freshConv2 = chatService.getConversationFlow(currentConvId).value
+                                        val nodes = freshConv2.messageNodes.toMutableList()
+                                        val newMsg = UIMessage.assistant(response)
+                                        val updated = when (gc.generationMode) {
+                                            GroupGenerationMode.SWAP -> {
+                                                val lastIdx = nodes.indexOfLast { it.role == MessageRole.ASSISTANT }
+                                                if (lastIdx >= 0) {
+                                                    val oldId = nodes[lastIdx].id
+                                                    nodes[lastIdx] = MessageNode(messages = listOf(newMsg))
+                                                    freshConv2.copy(
+                                                        messageNodes = nodes,
+                                                        speakerMap = freshConv2.speakerMap - oldId + (nodes[lastIdx].id to sid),
+                                                    )
+                                                } else {
+                                                    nodes.add(MessageNode(messages = listOf(newMsg)))
+                                                    freshConv2.copy(
+                                                        messageNodes = nodes,
+                                                        speakerMap = freshConv2.speakerMap + (nodes.last().id to sid),
+                                                    )
+                                                }
+                                            }
+                                            else -> {
                                                 nodes.add(MessageNode(messages = listOf(newMsg)))
-                                                c.copy(messageNodes = nodes, speakerMap = c.speakerMap + (nodes.last().id to speakerId))
+                                                freshConv2.copy(
+                                                    messageNodes = nodes,
+                                                    speakerMap = freshConv2.speakerMap + (nodes.last().id to sid),
+                                                )
                                             }
                                         }
-                                        else -> {
-                                            nodes.add(MessageNode(messages = listOf(newMsg)))
-                                            c.copy(messageNodes = nodes, speakerMap = c.speakerMap + (nodes.last().id to speakerId))
-                                        }
+                                        chatService.updateConversationState(currentConvId) { updated }
+                                        chatService.saveConversation(currentConvId, updated)
                                     }
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    isGenerating = false
                                 }
-                                if (gc.autoModeDelay > 0 && gc.activationStrategy != GroupActivationStrategy.MANUAL) {
-                                    autoJob?.cancel()
-                                    autoJob = scope.launch {
-                                        delay(gc.autoModeDelay * 1000L)
-                                        autoTriggerNext(chatService, currentConvId, gc, members, enabledMembers, settings, conversation)
-                                    }
-                                }
-                            } catch (_: Exception) { }
-                            isGenerating = false
-                        }
-                    },
-                    onLongSendClick = {
-                        // 不生成回复，只发消息
-                        val contents = inputState.getContents()
-                        chatService.sendMessage(currentConvId, contents, answer = false)
-                        inputState.clearInput()
-                    },
-                    modifier = Modifier.weight(1f),
-                )
+                            }
+                        },
+                        onLongSendClick = {
+                            val contents = inputState.getContents()
+                            chatService.sendMessage(currentConvId, contents, answer = false)
+                            inputState.clearInput()
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -401,7 +413,7 @@ fun GroupChatPage(groupId: String) {
             state = listState,
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 8.dp),
+            contentPadding = PaddingValues(bottom = 8.dp),
         ) {
             itemsIndexed(messageNodes, key = { _, n -> n.id }) { index, node ->
                 val speakerId = conversation?.speakerMap?.get(node.id)
@@ -414,7 +426,7 @@ fun GroupChatPage(groupId: String) {
                         UIAvatar(
                             value = speaker.avatar,
                             name = speaker.name,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(20.dp),
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(speaker.name, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium)
@@ -439,191 +451,4 @@ fun GroupChatPage(groupId: String) {
             }
         }
     }
-
-    // Settings dialog
-    if (showSettings) {
-        GroupSettingsDialog(
-            gc = gc,
-            members = members,
-            onSave = { updatedGc ->
-                scope.launch {
-                    settingsStore.update(settings.copy(
-                        groupChats = settings.groupChats.map { if (it.id == gcId) updatedGc else it }
-                    ))
-                }
-                showSettings = false
-            },
-            onDismiss = { showSettings = false },
-        )
-    }
-}
-
-@Composable
-private fun GroupSettingsDialog(
-    gc: GroupChat,
-    members: List<Assistant>,
-    onSave: (GroupChat) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var strategy by remember { mutableStateOf(gc.activationStrategy) }
-    var genMode by remember { mutableStateOf(gc.generationMode) }
-    var disabledIds by remember { mutableStateOf(gc.disabledMemberIds.toSet()) }
-    var autoDelay by remember { mutableIntStateOf(gc.autoModeDelay) }
-    var allowSelf by remember { mutableStateOf(gc.allowSelfResponses) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("群聊设置") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("激活策略", style = MaterialTheme.typography.labelMedium)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    GroupActivationStrategy.entries.forEach { m ->
-                        FilterChip(selected = strategy == m, onClick = { strategy = m }, label = { Text(strategyLabel(m), style = MaterialTheme.typography.labelSmall) })
-                    }
-                }
-                Text(
-                    text = strategyDesc(strategy),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                Text("回复模式", style = MaterialTheme.typography.labelMedium)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    GroupGenerationMode.entries.forEach { m ->
-                        FilterChip(selected = genMode == m, onClick = { genMode = m }, label = { Text(genModeLabel(m), style = MaterialTheme.typography.labelSmall) })
-                    }
-                }
-                Text(
-                    text = genModeDesc(genMode),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                Text("自动接话延迟: ${autoDelay}秒", style = MaterialTheme.typography.labelMedium)
-                Slider(value = autoDelay.toFloat(), onValueChange = { autoDelay = it.toInt() }, valueRange = 0f..30f, steps = 29)
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("允许自接话", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                    Switch(checked = allowSelf, onCheckedChange = { allowSelf = it })
-                }
-
-                Text("禁言成员", style = MaterialTheme.typography.labelMedium)
-                members.forEach { m ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = m.id in disabledIds, onCheckedChange = { checked ->
-                            disabledIds = if (checked) disabledIds + m.id else disabledIds - m.id
-                        })
-                        Text(m.name.ifBlank { "(未命名)" }, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                onSave(gc.copy(
-                    activationStrategy = strategy,
-                    generationMode = genMode,
-                    disabledMemberIds = disabledIds.toList(),
-                    autoModeDelay = autoDelay,
-                    allowSelfResponses = allowSelf,
-                ))
-            }) { Text("保存") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-    )
-}
-
-private suspend fun autoTriggerNext(
-    chatService: ChatService,
-    convId: Uuid,
-    gc: GroupChat,
-    members: List<Assistant>,
-    enabledMembers: List<Assistant>,
-    settings: me.rerere.rikkahub.data.datastore.Settings,
-    conversation: Conversation?,
-) {
-    val messageNodes = conversation?.messageNodes ?: return
-    if (messageNodes.isEmpty()) return
-
-    // 使用完整的激活策略选人
-    val lastSpeakerId = conversation?.speakerMap?.get(messageNodes.lastOrNull()?.id)
-    val picked = activateMembers(
-        strategy = gc.activationStrategy,
-        enabledMembers = enabledMembers,
-        lastSpeakerId = lastSpeakerId,
-        allowSelfResponses = gc.allowSelfResponses,
-    )
-    val nextSpeakerId = picked.firstOrNull() ?: return
-    val nextSpeaker = members.find { it.id == nextSpeakerId } ?: return
-
-    try {
-        val history = buildHistoryWithNames(
-            messageNodes = messageNodes,
-            speakerMap = conversation?.speakerMap ?: emptyMap(),
-            members = members,
-        )
-        val response = chatService.generateForAssistant(
-            assistant = nextSpeaker,
-            settings = settings,
-            prompt = "",
-            history = history,
-        )
-        chatService.updateConversationState(convId) { c ->
-            val nodes = c.messageNodes.toMutableList()
-            val newMsg = UIMessage.assistant(response)
-            when (gc.generationMode) {
-                GroupGenerationMode.SWAP -> {
-                    val lastIdx = nodes.indexOfLast { it.role == MessageRole.ASSISTANT }
-                    if (lastIdx >= 0) {
-                        val oldId = nodes[lastIdx].id
-                        nodes[lastIdx] = MessageNode(messages = listOf(newMsg))
-                        c.copy(
-                            messageNodes = nodes,
-                            speakerMap = c.speakerMap - oldId + (nodes[lastIdx].id to nextSpeakerId),
-                        )
-                    } else {
-                        nodes.add(MessageNode(messages = listOf(newMsg)))
-                        c.copy(
-                            messageNodes = nodes,
-                            speakerMap = c.speakerMap + (nodes.last().id to nextSpeakerId),
-                        )
-                    }
-                }
-                else -> {
-                    nodes.add(MessageNode(messages = listOf(newMsg)))
-                    c.copy(
-                        messageNodes = nodes,
-                        speakerMap = c.speakerMap + (nodes.last().id to nextSpeakerId),
-                    )
-                }
-            }
-        }
-    } catch (_: Exception) { }
-}
-
-private fun strategyLabel(mode: GroupActivationStrategy): String = when (mode) {
-    GroupActivationStrategy.NATURAL -> "AI智能 (NATURAL)"
-    GroupActivationStrategy.LIST -> "名单轮 (LIST)"
-    GroupActivationStrategy.MANUAL -> "手动 (MANUAL)"
-    GroupActivationStrategy.POOLED -> "加权随机 (POOLED)"
-}
-
-private fun strategyDesc(strategy: GroupActivationStrategy): String = when (strategy) {
-    GroupActivationStrategy.NATURAL -> "检测你输入中提到的名字 + 掷骰子选人回复，没人被提到则随机抽取"
-    GroupActivationStrategy.LIST -> "按成员在群聊中的顺序轮流发言，每人一轮"
-    GroupActivationStrategy.MANUAL -> "你手动从下拉列表中选择谁回复，系统不做自动选择"
-    GroupActivationStrategy.POOLED -> "从所有成员中加权随机抽取，权重越高的出场越多"
-}
-
-private fun genModeLabel(mode: GroupGenerationMode): String = when (mode) {
-    GroupGenerationMode.SWAP -> "替换 (SWAP)"
-    GroupGenerationMode.APPEND -> "追加 (APPEND)"
-    GroupGenerationMode.APPEND_DISABLED -> "追加含禁言 (APPEND_DISABLED)"
-}
-
-private fun genModeDesc(mode: GroupGenerationMode): String = when (mode) {
-    GroupGenerationMode.SWAP -> "新回复替换上一条助手消息，适合同一角色重新回答"
-    GroupGenerationMode.APPEND -> "新回复直接追加到对话末尾，所有消息保留"
-    GroupGenerationMode.APPEND_DISABLED -> "追加消息，但被禁言角色的上一条也包含在上下文中"
 }
