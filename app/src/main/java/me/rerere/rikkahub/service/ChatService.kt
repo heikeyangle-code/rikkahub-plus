@@ -700,7 +700,6 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         }
 
                                         // Log tool calls for this step
-                                        val stepNum = stepLog.count { it == '\n' } + 1
                                         stepLog.append("→ 第${stepNum}步：")
                                         stepLog.appendLine(toolCalls.joinToString("、") { tc ->
                                             val args = tc.input.ifBlank { "{}" }

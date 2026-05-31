@@ -5,6 +5,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
@@ -46,11 +48,11 @@ fun createShellTools(): List<Tool> {
                     error("Failed to start command: ${e.message}")
                 }
                 // Read stdout and stderr in parallel to avoid deadlock
-                val (stdout, stderr) = kotlinx.coroutines.coroutineScope {
-                    val stdoutDeferred = kotlinx.coroutines.async {
+                val (stdout, stderr) = coroutineScope {
+                    val stdoutDeferred = async {
                         process.inputStream.bufferedReader().readText()
                     }
-                    val stderrDeferred = kotlinx.coroutines.async {
+                    val stderrDeferred = async {
                         process.errorStream.bufferedReader().readText()
                     }
                     stdoutDeferred.await() to stderrDeferred.await()
