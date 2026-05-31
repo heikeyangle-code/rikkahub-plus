@@ -307,7 +307,7 @@ fun GroupChatPage(groupId: String) {
                     onUpdateAssistant = {},
                     onUpdateConversation = {},
                     onUpdateSearchService = {},
-                    onCompressContext = { _, _, _ -> scope.launch { }.let {} },
+                    onCompressContext = { _, _, _ -> scope.launch { } },
                     onCancelClick = { isGenerating = false },
                     onSendClick = {
                         val contents = inputState.getContents()
@@ -494,6 +494,11 @@ private fun GroupSettingsDialog(
                         FilterChip(selected = genMode == m, onClick = { genMode = m }, label = { Text(genModeLabel(m), style = MaterialTheme.typography.labelSmall) })
                     }
                 }
+                Text(
+                    text = genModeDesc(genMode),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
                 Text("自动接话延迟: ${autoDelay}秒", style = MaterialTheme.typography.labelMedium)
                 Slider(value = autoDelay.toFloat(), onValueChange = { autoDelay = it.toInt() }, valueRange = 0f..30f, steps = 29)
@@ -615,4 +620,10 @@ private fun genModeLabel(mode: GroupGenerationMode): String = when (mode) {
     GroupGenerationMode.SWAP -> "替换 (SWAP)"
     GroupGenerationMode.APPEND -> "追加 (APPEND)"
     GroupGenerationMode.APPEND_DISABLED -> "追加含禁言 (APPEND_DISABLED)"
+}
+
+private fun genModeDesc(mode: GroupGenerationMode): String = when (mode) {
+    GroupGenerationMode.SWAP -> "新回复替换上一条助手消息，适合同一角色重新回答"
+    GroupGenerationMode.APPEND -> "新回复直接追加到对话末尾，所有消息保留"
+    GroupGenerationMode.APPEND_DISABLED -> "追加消息，但被禁言角色的上一条也包含在上下文中"
 }
