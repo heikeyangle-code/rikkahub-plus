@@ -27,16 +27,24 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
     }
 
     fun resolveDestPath(path: String): File {
-        return if (path.startsWith("/")) File(path)
-        else File(defaultDir, path)
+        val f = File(path)
+        if (path.startsWith("/")) return f
+        // 相对路径 → 优先 skill 目录
+        for (skillDir in skillDirs) {
+            val candidate = File(skillDir, path)
+            if (candidate.exists() || skillDirs.size == 1) return candidate
+        }
+        return File(defaultDir, path)
     }
+
+    val skillsHint = if (skillDirs.isNotEmpty()) " Skill dirs: ${skillDirs.joinToString()}." else ""
 
     return listOf(
         // ── file_read ──
         Tool(
             name = "file_read",
             description = "Read a file from the Android filesystem. Returns the file content as text. " +
-                "Absolute paths work as-is. Relative paths are resolved against enabled skill directories first, then ${defaultDir}.",
+                "Absolute paths work as-is. Relative paths are resolved against enabled skill directories first, then ${defaultDir}.$skillsHint",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -74,7 +82,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_write",
             description = "Create or overwrite a file on the Android filesystem. " +
-                    "Relative paths go to ${defaultDir}.",
+                    "Relative paths go to skill dirs first, then ${defaultDir}.$skillsHint",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -97,13 +105,10 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
                 val content = obj["content"]?.jsonPrimitive?.content
                     ?: error("content required")
 
-                val path = if (rawPath.startsWith("/")) rawPath
-                else "${defaultDir.trimEnd('/')}/${rawPath.trimStart('/')}"
-
-                val file = File(path)
-                file.parentFile?.mkdirs()
-                file.writeText(content)
-                listOf(UIMessagePart.Text("OK: wrote ${content.length} bytes to $path"))
+                val path = resolveDestPath(rawPath)
+                path.parentFile?.mkdirs()
+                path.writeText(content)
+                listOf(UIMessagePart.Text("OK: wrote ${content.length} bytes to ${path.absolutePath}"))
             },
         ),
 
@@ -150,7 +155,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_copy",
             description = "Copy a file or directory from source to destination. " +
-                    "Absolute paths work as-is. Relative paths resolve to ${defaultDir}.",
+                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.$skillsHint",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -187,7 +192,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_move",
             description = "Move or rename a file or directory. " +
-                    "Absolute paths work as-is. Relative paths resolve to ${defaultDir}.",
+                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.$skillsHint",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -229,7 +234,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_mkdir",
             description = "Create a new directory (and parent directories if needed). " +
-                    "Absolute paths work as-is. Relative paths resolve to ${defaultDir}.",
+                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.$skillsHint",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
