@@ -101,7 +101,8 @@ fun GroupChatListPage() {
     if (showCreate) {
         var name by remember { mutableStateOf("") }
         var selectedIds by remember { mutableStateOf(setOf<Uuid>()) }
-        var selectedMode by remember { mutableStateOf(GroupSpeakerMode.ROUND_ROBIN) }
+        var selectedMode by remember { mutableStateOf(GroupActivationStrategy.NATURAL) }
+        var selectedGenMode by remember { mutableStateOf(GroupGenerationMode.SWAP) }
 
         AlertDialog(
             onDismissRequest = { showCreate = false },
@@ -114,9 +115,9 @@ fun GroupChatListPage() {
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    Text("发言策略:", style = MaterialTheme.typography.labelMedium)
+                    Text("激活策略:", style = MaterialTheme.typography.labelMedium)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        GroupSpeakerMode.entries.forEach { mode ->
+                        GroupActivationStrategy.entries.forEach { mode ->
                             FilterChip(
                                 selected = selectedMode == mode,
                                 onClick = { selectedMode = mode },
@@ -130,6 +131,17 @@ fun GroupChatListPage() {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+
+                    Text("回复模式:", style = MaterialTheme.typography.labelMedium)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        GroupGenerationMode.entries.forEach { mode ->
+                            FilterChip(
+                                selected = selectedGenMode == mode,
+                                onClick = { selectedGenMode = mode },
+                                label = { Text(genModeLabel(mode), style = MaterialTheme.typography.labelSmall) },
+                            )
+                        }
+                    }
 
                     Text("选择成员:", style = MaterialTheme.typography.labelMedium)
                     settings.assistants.forEach { a ->
@@ -155,7 +167,8 @@ fun GroupChatListPage() {
                             val gc = GroupChat(
                                 name = name,
                                 memberIds = selectedIds.toList(),
-                                autoSpeakerMode = selectedMode,
+                                activationStrategy = selectedMode,
+                                generationMode = selectedGenMode,
                             )
                             scope.launch {
                                 settingsStore.update(settings.copy(groupChats = settings.groupChats + gc))
@@ -170,18 +183,22 @@ fun GroupChatListPage() {
     }
 }
 
-private fun modeLabel(mode: GroupSpeakerMode): String = when (mode) {
-    GroupSpeakerMode.ROUND_ROBIN -> "轮流"
-    GroupSpeakerMode.LIST -> "名单轮"
-    GroupSpeakerMode.POOLED -> "加权随机"
-    GroupSpeakerMode.MANUAL -> "手动"
-    GroupSpeakerMode.NATURAL -> "AI智能"
+private fun modeLabel(mode: GroupActivationStrategy): String = when (mode) {
+    GroupActivationStrategy.NATURAL -> "AI智能"
+    GroupActivationStrategy.LIST -> "名单轮"
+    GroupActivationStrategy.MANUAL -> "手动"
+    GroupActivationStrategy.POOLED -> "加权随机"
 }
 
-private fun modeDesc(mode: GroupSpeakerMode): String = when (mode) {
-    GroupSpeakerMode.ROUND_ROBIN -> "成员按固定顺序轮流发言"
-    GroupSpeakerMode.LIST -> "按你设置的角色顺序轮流"
-    GroupSpeakerMode.POOLED -> "按权重随机抽取，权重高的出场更多"
-    GroupSpeakerMode.MANUAL -> "每次发言前手动选择谁说话"
-    GroupSpeakerMode.NATURAL -> "AI根据上下文自动判断谁该说话"
+private fun modeDesc(mode: GroupActivationStrategy): String = when (mode) {
+    GroupActivationStrategy.NATURAL -> "AI根据上下文自动判断谁该说话"
+    GroupActivationStrategy.LIST -> "按成员名单顺序轮流发言"
+    GroupActivationStrategy.MANUAL -> "每次发言前手动选择谁说话"
+    GroupActivationStrategy.POOLED -> "按权重随机抽取，权重高的出场更多"
+}
+
+private fun genModeLabel(mode: GroupGenerationMode): String = when (mode) {
+    GroupGenerationMode.SWAP -> "替换"
+    GroupGenerationMode.APPEND -> "追加"
+    GroupGenerationMode.APPEND_DISABLED -> "追加(含禁言)"
 }

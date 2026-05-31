@@ -20,6 +20,8 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.GroupChat
+import me.rerere.rikkahub.data.model.GroupActivationStrategy
+import me.rerere.rikkahub.data.model.GroupGenerationMode
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -52,10 +54,12 @@ fun GroupChatPage(groupId: String) {
     var messages by remember { mutableStateOf(listOf<GroupMessage>()) }
     var currentSpeakerIndex by remember { mutableIntStateOf(0) }
     var isGenerating by remember { mutableStateOf(false) }
+    var pendingSpeakerId by remember { mutableStateOf<Uuid?>(null) }
     val listState = rememberLazyListState()
     val inputState = rememberTextFieldState()
 
-    val currentSpeaker = pickSpeaker(gc, members, currentSpeakerIndex, messages)
+    val enabledMembers = members.filter { it.id !in gc.disabledMemberIds }
+    val currentSpeaker = pickSpeaker(gc, enabledMembers, currentSpeakerIndex, messages)
 
     // 自动滚动
     LaunchedEffect(messages.size) {
@@ -123,7 +127,24 @@ fun GroupChatPage(groupId: String) {
                     FilledIconButton(
                         onClick = {
                             val text = inputState.text.toString().trim()
-                            if (text.isBlank() || isGenerating || currentSpeaker == null) return@FilledIconButton
+                            if (text.isBlank() || isGenerating || enabledMembers.isEmpty()) return@FilledIconButton
+
+                            // For NATURAL strategy, determine speaker before sending
+                            if (gc.activationStrategy == GroupActivationStrategy.NATURAL && pendingSpeakerId == null) {
+                                scope.launch {
+                                    val chosenId = naturalPickSpeaker(gc, enabledMembers, messages, chatService, settings, text)
+                                    pendingSpeakerId = chosenId ?: enabledMembers.firstOrNull()?.id
+                                }
+                                return@FilledIconButton
+                            }
+
+                            val speaker = if (gc.activationStrategy == GroupActivationStrategy.NATURAL && pendingSpeakerId != null) {
+                                enabledMembers.find { it.id == pendingSpeakerId }
+                            } else {
+                                currentSpeaker
+                            }
+                            pendingSpeakerId = null
+                            if (speaker == null) return@FilledIconButton
 
                             val userMsg = GroupMessage(
                                 content = text,
@@ -138,23 +159,28 @@ fun GroupChatPage(groupId: String) {
                             scope.launch {
                                 try {
                                     val response = chatService.generateForAssistant(
-                                        assistant = currentSpeaker,
+                                        assistant = speaker,
                                         settings = settings,
                                         prompt = text,
                                         history = messages.map { it.toUIMessage() },
                                     )
-                                    messages = messages + GroupMessage(
+                                    val reply = GroupMessage(
                                         content = response,
-                                        speakerId = currentSpeaker.id,
-                                        speakerName = currentSpeaker.name,
+                                        speakerId = speaker.id,
+                                        speakerName = speaker.name,
                                         role = me.rerere.ai.core.MessageRole.ASSISTANT,
                                     )
-                                    currentSpeakerIndex = advanceSpeaker(gc, members, currentSpeakerIndex)
+                                    messages = when (gc.generationMode) {
+                                        GroupGenerationMode.SWAP -> messages + reply
+                                        GroupGenerationMode.APPEND -> messages + reply
+                                        GroupGenerationMode.APPEND_DISABLED -> messages + reply
+                                    }
+                                    currentSpeakerIndex = advanceSpeaker(gc, enabledMembers, currentSpeakerIndex, messages)
                                 } catch (e: Exception) {
                                     messages = messages + GroupMessage(
                                         content = "[错误] ${e.message}",
-                                        speakerId = currentSpeaker.id,
-                                        speakerName = currentSpeaker.name,
+                                        speakerId = speaker.id,
+                                        speakerName = speaker.name,
                                         role = me.rerere.ai.core.MessageRole.ASSISTANT,
                                     )
                                 } finally {
@@ -256,10 +282,11 @@ private fun pickSpeaker(
     index: Int,
     messages: List<GroupMessage>,
 ): me.rerere.rikkahub.data.model.Assistant? {
-    return when (gc.autoSpeakerMode) {
-        GroupSpeakerMode.ROUND_ROBIN -> members.getOrElse(index % members.size) { members.firstOrNull() }
-        GroupSpeakerMode.LIST -> members.getOrElse(index % members.size) { members.firstOrNull() }
-        GroupSpeakerMode.POOLED -> {
+    return when (gc.activationStrategy) {
+        GroupActivationStrategy.NATURAL -> members.getOrElse(index % members.size) { members.firstOrNull() }
+        GroupActivationStrategy.LIST -> members.getOrElse(index % members.size) { members.firstOrNull() }
+        GroupActivationStrategy.MANUAL -> members.getOrElse(index % members.size) { members.firstOrNull() }
+        GroupActivationStrategy.POOLED -> {
             val weights = members.map { m -> gc.speakerWeights[m.id]?.coerceAtLeast(1) ?: 1 }
             val total = weights.sum()
             var roll = (0 until total).random()
@@ -267,8 +294,6 @@ private fun pickSpeaker(
                 roll -= w; roll < 0
             }?.first ?: members.firstOrNull()
         }
-        GroupSpeakerMode.MANUAL -> members.getOrElse(index % members.size) { members.firstOrNull() }
-        GroupSpeakerMode.NATURAL -> members.getOrElse(index % members.size) { members.firstOrNull() }
     }
 }
 
@@ -276,12 +301,46 @@ private fun advanceSpeaker(
     gc: GroupChat,
     members: List<me.rerere.rikkahub.data.model.Assistant>,
     index: Int,
+    messages: List<GroupMessage>,
 ): Int {
-    return when (gc.autoSpeakerMode) {
-        GroupSpeakerMode.ROUND_ROBIN -> (index + 1) % members.size
-        GroupSpeakerMode.LIST -> (index + 1) % members.size
-        GroupSpeakerMode.POOLED -> (0 until members.size).random() // random next
-        GroupSpeakerMode.MANUAL -> index // stays same, user picks manually
-        GroupSpeakerMode.NATURAL -> (index + 1) % members.size
+    return when (gc.activationStrategy) {
+        GroupActivationStrategy.NATURAL -> (index + 1) % members.size
+        GroupActivationStrategy.LIST -> (index + 1) % members.size
+        GroupActivationStrategy.MANUAL -> index
+        GroupActivationStrategy.POOLED -> (0 until members.size).random()
+    }
+}
+
+private suspend fun naturalPickSpeaker(
+    gc: GroupChat,
+    enabledMembers: List<me.rerere.rikkahub.data.model.Assistant>,
+    messages: List<GroupMessage>,
+    chatService: ChatService,
+    settings: me.rerere.rikkahub.data.datastore.Settings,
+    userInput: String,
+): Uuid? {
+    if (enabledMembers.isEmpty()) return null
+    val memberNames = enabledMembers.joinToString(", ") { it.name.ifBlank { "(未命名)" } }
+    val context = messages.joinToString("\n") { "${it.speakerName}: ${it.content}" }
+    val prompt = """
+你是一个群聊对话管理器。根据对话上下文和用户输入，选择下一个应该回复的角色。
+可用角色: $memberNames
+用户说: $userInput
+请只回复角色名字，不要有其他文字。
+""".trimIndent()
+
+    val assistant = enabledMembers.first()
+    return try {
+        val response = chatService.generateForAssistant(
+            assistant = assistant,
+            settings = settings,
+            prompt = prompt,
+            history = emptyList(),
+        )
+        val cleaned = response.trim()
+        enabledMembers.find { cleaned.contains(it.name) && it.name.length > 1 }?.id
+            ?: enabledMembers.firstOrNull()?.id
+    } catch (_: Exception) {
+        enabledMembers.firstOrNull()?.id
     }
 }
