@@ -595,8 +595,9 @@ data class DisplaySetting(
     val chatCustomFontName: String = "",
     val enableVolumeKeyScroll: Boolean = false,
     val volumeKeyScrollRatio: Float = 1.0f,
-    val enableQuoteColor: Boolean = true,
+    val enableTextColor: Boolean = true,
     val quoteColor: String = "",  // empty = theme-follow, otherwise hex like "#E18A24"
+    val italicsColor: String = "",  // empty = default (#919191), otherwise hex
 )
 
 @Serializable

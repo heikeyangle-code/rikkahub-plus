@@ -102,7 +102,7 @@ private val INLINE_LATEX_REGEX = Regex("\\\\\\((.+?)\\\\\\)")
 private val BLOCK_LATEX_REGEX = Regex("\\\\\\[(.+?)\\\\\\]", RegexOption.DOT_MATCHES_ALL)
 val THINKING_REGEX = Regex("<think>([\\s\\S]*?)(?:</think>|$)", RegexOption.DOT_MATCHES_ALL)
 private val CODE_BLOCK_REGEX = Regex("```[\\s\\S]*?```|`[^`\\n]*`", RegexOption.DOT_MATCHES_ALL)
-private val BREAK_LINE_REGEX = Regex("(?i)<br\\\\s*/?>")
+private val BREAK_LINE_REGEX = Regex("(?i)<br\\s*/?>")
 
 // 预处理markdown内容
 private fun preProcess(content: String): String {
@@ -211,7 +211,7 @@ fun MarkdownBlock(
 ) {
     val settings = LocalSettings.current.displaySetting
     val darkMode = LocalDarkMode.current
-    val quoteColor = if (settings.enableQuoteColor) {
+    val quoteColor = if (settings.enableTextColor) {
         settings.quoteColor.ifBlank { if (darkMode) "#E18A24" else "#C7731E" }
     } else null
 
@@ -237,7 +237,7 @@ fun MarkdownBlock(
             .collect { setData(it) }
     }
 
-    if (data.hasHtml) {
+    if (data.hasHtml || settings.enableTextColor) {
         MarkdownNew(
             content = coloredContent,
             modifier = modifier,

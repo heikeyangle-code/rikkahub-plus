@@ -781,10 +781,13 @@ private fun HtmlInlineAsComposable(node: Node, onClickCitation: (String) -> Unit
                     val colorScheme = MaterialTheme.colorScheme
                     val textStyle = LocalTextStyle.current
                     val density = LocalDensity.current
-                    val enableLatexRendering = LocalSettings.current.displaySetting.enableLatexRendering
+                    val setting = LocalSettings.current.displaySetting
+                    val enableLatexRendering = setting.enableLatexRendering
+                    val italicsColor = if (setting.enableTextColor) setting.italicsColor.ifBlank { "#919191" } else null
                     val (annotated, inlineContents) = remember(
                         node.outerHtml(),
                         enableLatexRendering,
+                        italicsColor,
                         colorScheme,
                         density,
                         textStyle,
@@ -800,6 +803,7 @@ private fun HtmlInlineAsComposable(node: Node, onClickCitation: (String) -> Unit
                                 style = textStyle,
                                 enableLatexRendering = enableLatexRendering,
                                 onClickCitation = onClickCitation,
+                                italicsColor = italicsColor,
                             )
                         }
                         text to contents
@@ -821,6 +825,7 @@ private fun AnnotatedString.Builder.appendHtmlInlineNode(
     style: TextStyle,
     enableLatexRendering: Boolean,
     onClickCitation: (String) -> Unit,
+    italicsColor: String? = null,
 ) {
     when (node) {
         is TextNode -> append(node.text())
@@ -832,6 +837,7 @@ private fun AnnotatedString.Builder.appendHtmlInlineNode(
             style = style,
             enableLatexRendering = enableLatexRendering,
             onClickCitation = onClickCitation,
+            italicsColor = italicsColor,
         )
     }
 }
@@ -844,6 +850,7 @@ private fun AnnotatedString.Builder.appendHtmlInlineElement(
     style: TextStyle,
     enableLatexRendering: Boolean,
     onClickCitation: (String) -> Unit,
+    italicsColor: String? = null,
 ) {
     val cssStyle = element.attr("style").takeIf { it.isNotBlank() }?.let {
         parseInlineSpanStyle(
@@ -852,6 +859,8 @@ private fun AnnotatedString.Builder.appendHtmlInlineElement(
             baseFontSize = style.fontSize,
         )
     }
+
+    val insideQuote = isInsideQuoteElement(element)
 
     fun recurseChildren(el: Element, inheritedStyle: TextStyle = style) = el.childNodes().fastForEach {
         appendHtmlInlineNode(
@@ -862,6 +871,7 @@ private fun AnnotatedString.Builder.appendHtmlInlineElement(
             style = inheritedStyle,
             enableLatexRendering = enableLatexRendering,
             onClickCitation = onClickCitation,
+            italicsColor = italicsColor,
         )
     }
 
@@ -881,7 +891,15 @@ private fun AnnotatedString.Builder.appendHtmlInlineElement(
     when (element.tagName().lowercase()) {
         "b", "strong" -> appendElementChildren(SpanStyle(fontWeight = FontWeight.SemiBold))
 
-        "i", "em" -> appendElementChildren(SpanStyle(fontStyle = FontStyle.Italic))
+        "i", "em" -> {
+            val color = if (!insideQuote && italicsColor != null) {
+                parseColor(italicsColor)
+            } else null
+            appendElementChildren(SpanStyle(
+                fontStyle = FontStyle.Italic,
+                color = color ?: Color.Unspecified,
+            ))
+        }
 
         "del", "s", "strike" -> appendElementChildren(SpanStyle(textDecoration = TextDecoration.LineThrough))
 
@@ -1372,6 +1390,16 @@ private fun parseFontFamily(fontFamily: String): FontFamily? {
         normalized.contains("cursive") -> FontFamily.Cursive
         else -> null
     }
+}
+
+/** Check if an element is inside a <q> tag (for nested color inheritance) */
+private fun isInsideQuoteElement(element: Element): Boolean {
+    var current = element.parent()
+    while (current != null) {
+        if (current.tagName().lowercase() == "q") return true
+        current = current.parent()
+    }
+    return false
 }
 
 private fun parseColor(colorString: String): Color? {

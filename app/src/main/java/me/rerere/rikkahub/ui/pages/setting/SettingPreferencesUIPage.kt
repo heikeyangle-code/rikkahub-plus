@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +35,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +55,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.Dispatchers
@@ -358,27 +362,63 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     item(
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_enable_quote_color_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_enable_quote_color_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_enable_text_color_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_enable_text_color_desc)) },
                         trailingContent = {
                             Switch(
-                                checked = displaySetting.enableQuoteColor,
+                                checked = displaySetting.enableTextColor,
                                 onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(enableQuoteColor = it))
+                                    updateDisplaySetting(displaySetting.copy(enableTextColor = it))
                                 }
                             )
                         },
                     )
-                    if (displaySetting.enableQuoteColor) {
+                    if (displaySetting.enableTextColor) {
                         item(
-                            headlineContent = { Text(stringResource(R.string.setting_display_page_quote_color_scheme_title)) },
                             supportingContent = {
-                                QuoteColorPicker(
-                                    currentColor = displaySetting.quoteColor,
-                                    onColorSelected = { color ->
-                                        updateDisplaySetting(displaySetting.copy(quoteColor = color))
+                                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    // Quote color
+                                    Column {
+                                        Text(
+                                            stringResource(R.string.setting_display_page_text_color_quote_title),
+                                            style = MaterialTheme.typography.labelLarge,
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        ColorPicker(
+                                            presets = QUOTE_COLOR_PRESETS,
+                                            currentColor = displaySetting.quoteColor,
+                                            onColorSelected = { color ->
+                                                updateDisplaySetting(displaySetting.copy(quoteColor = color))
+                                            },
+                                            defaultDark = "#E18A24",
+                                            defaultLight = "#C7731E",
+                                        )
                                     }
-                                )
+                                    HorizontalDivider()
+                                    // Italics color
+                                    Column {
+                                        Text(
+                                            stringResource(R.string.setting_display_page_text_color_italics_title),
+                                            style = MaterialTheme.typography.labelLarge,
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        ColorPicker(
+                                            presets = ITALICS_COLOR_PRESETS,
+                                            currentColor = displaySetting.italicsColor,
+                                            onColorSelected = { color ->
+                                                updateDisplaySetting(displaySetting.copy(italicsColor = color))
+                                            },
+                                            defaultDark = "#919191",
+                                            defaultLight = "#919191",
+                                        )
+                                    }
+                                    // Preview
+                                    val previewText = stringResource(R.string.setting_display_page_quote_color_preview)
+                                    MarkdownBlock(
+                                        content = previewText,
+                                        style = LocalTextStyle.current.copy(fontSize = 13.sp),
+                                    )
+                                }
                             },
                         )
                     }
@@ -445,17 +485,34 @@ private val QUOTE_COLOR_PRESETS = listOf(
     "__custom__" to R.string.setting_display_page_quote_color_custom,
 )
 
-private val QUOTE_COLOR_PRESET_KEYS = QUOTE_COLOR_PRESETS.map { it.first }.filter { it != "__custom__" }
+private val ITALICS_COLOR_PRESETS = listOf(
+    "" to R.string.setting_display_page_text_color_reset_default,
+    "#919191" to R.string.setting_display_page_text_color_gray,
+    "#D4D4D4" to R.string.setting_display_page_text_color_light_gray,
+    "#9CA3AF" to R.string.setting_display_page_text_color_cool_gray,
+    "#E6D2BE" to R.string.setting_display_page_text_color_beige,
+    "#FFFFFF" to R.string.setting_display_page_text_color_white,
+    "#A78BFA" to R.string.setting_display_page_text_color_lavender,
+    "#F472B6" to R.string.setting_display_page_text_color_pink,
+    "__custom__" to R.string.setting_display_page_text_color_custom,
+)
+
+private fun presetKeys(presets: List<Pair<String, Int>>): List<String> =
+    presets.map { it.first }.filter { it != "__custom__" }
 
 @Composable
-private fun QuoteColorPicker(
+private fun ColorPicker(
+    presets: List<Pair<String, Int>>,
     currentColor: String,
     onColorSelected: (String) -> Unit,
+    defaultDark: String,
+    defaultLight: String,
 ) {
-    val initialKey = if (currentColor in QUOTE_COLOR_PRESET_KEYS) currentColor else "__custom__"
+    val keys = presetKeys(presets)
+    val initialKey = if (currentColor in keys) currentColor else "__custom__"
     var selectedKey by remember { mutableStateOf(initialKey) }
 
-    var customColor by remember { mutableStateOf(currentColor.ifBlank { "#E18A24" }) }
+    var customColor by remember { mutableStateOf(currentColor.ifBlank { defaultDark }) }
     var hexInput by remember { mutableStateOf(customColor) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -464,10 +521,10 @@ private fun QuoteColorPicker(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            QUOTE_COLOR_PRESETS.forEach { (hex, labelResId) ->
+            presets.forEach { (hex, labelResId) ->
                 val isSelected = hex == selectedKey
                 val displayColor = when {
-                    hex.isEmpty() -> if (LocalDarkMode.current) parseHexColor("#E18A24")!! else parseHexColor("#C7731E")!!
+                    hex.isEmpty() -> if (LocalDarkMode.current) parseHexColor(defaultDark)!! else parseHexColor(defaultLight)!!
                     hex == "__custom__" -> parseHexColor(customColor) ?: MaterialTheme.colorScheme.tertiary
                     else -> parseHexColor(hex) ?: MaterialTheme.colorScheme.tertiary
                 }
