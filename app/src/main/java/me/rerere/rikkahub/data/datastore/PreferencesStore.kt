@@ -149,6 +149,15 @@ class SettingsStore(
 
         // 赞助提醒
         val SPONSOR_ALERT_DISMISSED_AT = intPreferencesKey("sponsor_alert_dismissed_at")
+
+        // 人设 & 导演备注（补全）
+        val PERSONAS = stringPreferencesKey("personas")
+        val ACTIVE_PERSONA_ID = stringPreferencesKey("active_persona_id")
+        val AUTHOR_NOTE = stringPreferencesKey("author_note")
+        val AUTHOR_NOTE_POSITION = stringPreferencesKey("author_note_position")
+        val AUTHOR_NOTE_DEPTH = intPreferencesKey("author_note_depth")
+        val AUTHOR_NOTE_FREQUENCY = stringPreferencesKey("author_note_frequency")
+        val GROUP_CHATS = stringPreferencesKey("group_chats")
     }
 
     private val dataStore = context.settingsStore
@@ -241,6 +250,13 @@ class SettingsStore(
                 } ?: BackupReminderConfig(),
                 launchCount = preferences[LAUNCH_COUNT] ?: 0,
                 sponsorAlertDismissedAt = preferences[SPONSOR_ALERT_DISMISSED_AT] ?: 0,
+                personas = preferences[PERSONAS]?.let { JsonInstant.decodeFromString(it) } ?: DEFAULT_PERSONAS,
+                activePersonaId = preferences[ACTIVE_PERSONA_ID]?.let { Uuid.parse(it) },
+                authorNote = preferences[AUTHOR_NOTE] ?: "",
+                authorNotePosition = preferences[AUTHOR_NOTE_POSITION]?.let { InjectionPosition.valueOf(it) } ?: InjectionPosition.AFTER_SYSTEM_PROMPT,
+                authorNoteDepth = preferences[AUTHOR_NOTE_DEPTH] ?: 4,
+                authorNoteFrequency = preferences[AUTHOR_NOTE_FREQUENCY]?.toFloatOrNull() ?: 1.0f,
+                groupChats = preferences[GROUP_CHATS]?.let { JsonInstant.decodeFromString(it) } ?: emptyList(),
             )
         }
         .map {
@@ -403,6 +419,14 @@ class SettingsStore(
             preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
             preferences[LAUNCH_COUNT] = settings.launchCount
             preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
+            preferences[PERSONAS] = JsonInstant.encodeToString(settings.personas)
+            settings.activePersonaId?.let { preferences[ACTIVE_PERSONA_ID] = it.toString() }
+                ?: preferences.remove(ACTIVE_PERSONA_ID)
+            preferences[AUTHOR_NOTE] = settings.authorNote
+            preferences[AUTHOR_NOTE_POSITION] = settings.authorNotePosition.name
+            preferences[AUTHOR_NOTE_DEPTH] = settings.authorNoteDepth
+            preferences[AUTHOR_NOTE_FREQUENCY] = settings.authorNoteFrequency.toString()
+            preferences[GROUP_CHATS] = JsonInstant.encodeToString(settings.groupChats)
         }
     }
 

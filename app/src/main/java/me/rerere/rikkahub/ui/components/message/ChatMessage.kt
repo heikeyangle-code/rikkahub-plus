@@ -365,8 +365,8 @@ private fun MessagePartsBlock(
                             if (role == MessageRole.USER) {
                                 Surface(
                                     modifier = Modifier
-                                        .animateContentSize()
                                         .wrapContentWidth()
+                                        .animateContentSize()
                                         .widthIn(max = 360.dp),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.primaryContainer,
@@ -387,8 +387,8 @@ private fun MessagePartsBlock(
                                 if (settings.displaySetting.showAssistantBubble) {
                                 Surface(
                                     modifier = Modifier
-                                        .animateContentSize()
                                         .wrapContentWidth()
+                                        .animateContentSize()
                                         .widthIn(max = 360.dp),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
