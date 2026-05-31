@@ -3,6 +3,8 @@ package me.rerere.rikkahub.data.ai
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
@@ -234,75 +236,28 @@ class GenerationHandler(
 
             // Handle tools (execute approved tools, handle denied tools)
             val executedTools = arrayListOf<UIMessagePart.Tool>()
-            toolsToProcess.forEach { tool ->
-                when (tool.approvalState) {
-                    is ToolApprovalState.Denied -> {
-                        // Tool was denied by user
-                        val reason = (tool.approvalState as ToolApprovalState.Denied).reason
-                        executedTools += tool.copy(
-                            output = listOf(
-                                UIMessagePart.Text(
-                                    json.encodeToString(
-                                        buildJsonObject {
-                                            put(
-                                                "error",
-                                                JsonPrimitive("Tool execution denied by user. Reason: ${reason.ifBlank { "No reason provided" }}")
-                                            )
-                                        }
-                                    )
-                                )
-                            )
-                        )
-                    }
+            val isParallel = assistant.enableParallelToolExecution && toolsToProcess.size > 1
 
-                    is ToolApprovalState.Answered -> {
-                        // Tool was answered by user (e.g., ask_user tool)
-                        val answer = (tool.approvalState as ToolApprovalState.Answered).answer
-                        executedTools += tool.copy(
-                            output = listOf(
-                                UIMessagePart.Text(answer)
-                            )
-                        )
-                    }
-
-                    is ToolApprovalState.Pending -> {
-                        // Should not reach here, but just in case
-                    }
-
-                    else -> {
-                        // Auto or Approved - execute the tool
-                        runCatching {
-                            val toolDef = toolsInternal.find { toolDef -> toolDef.name == tool.toolName }
-                                ?: error("Tool ${tool.toolName} not found")
-                            val args = runCatching {
-                                json.parseToJsonElement(tool.input.ifBlank { "{}" })
-                            }.getOrElse {
-                                error("Invalid tool arguments JSON for ${tool.toolName}: ${it.message}")
+            if (isParallel) {
+                // 并行执行所有工具
+                coroutineScope {
+                    toolsToProcess.map { tool ->
+                        async {
+                            tool to runCatching {
+                                executeToolCall(tool, toolsInternal, json)
                             }
-                            Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
-                            val result = toolDef.execute(args)
-                            executedTools += tool.copy(output = result)
-                        }.onFailure {
-                            it.printStackTrace()
-                            executedTools += tool.copy(
-                                output = listOf(
-                                    UIMessagePart.Text(
-                                        json.encodeToString(
-                                            buildJsonObject {
-                                                put(
-                                                    "error",
-                                                    JsonPrimitive(buildString {
-                                                        append("[${it.javaClass.name}] ${it.message}")
-                                                        append("\n${it.stackTraceToString()}")
-                                                    })
-                                                )
-                                            }
-                                        )
-                                    )
-                                )
-                            )
                         }
+                    }.awaitAll().forEach { (tool, result) ->
+                        addToolResult(executedTools, tool, result, json)
                     }
+                }
+            } else {
+                // 顺序执行（原版行为）
+                toolsToProcess.forEach { tool ->
+                    val result = runCatching {
+                        executeToolCall(tool, toolsInternal, json)
+                    }
+                    addToolResult(executedTools, tool, result, json)
                 }
             }
 
@@ -545,4 +500,89 @@ class GenerationHandler(
             }
         }
     }.flowOn(Dispatchers.IO)
+}
+
+/**
+ * 执行单个工具调用（提取逻辑以避免并行/串行分支重复）
+ */
+private suspend fun executeToolCall(
+    tool: UIMessagePart.Tool,
+    toolsInternal: List<Tool>,
+    json: kotlinx.serialization.json.Json,
+): UIMessagePart.Tool {
+    return when (tool.approvalState) {
+        is ToolApprovalState.Denied -> {
+            val reason = (tool.approvalState as ToolApprovalState.Denied).reason
+            tool.copy(
+                output = listOf(
+                    UIMessagePart.Text(
+                        json.encodeToString(
+                            buildJsonObject {
+                                put(
+                                    "error",
+                                    JsonPrimitive("Tool execution denied by user. Reason: ${reason.ifBlank { "No reason provided" }}")
+                                )
+                            }
+                        )
+                    )
+                )
+            )
+        }
+
+        is ToolApprovalState.Answered -> {
+            val answer = (tool.approvalState as ToolApprovalState.Answered).answer
+            tool.copy(
+                output = listOf(UIMessagePart.Text(answer))
+            )
+        }
+
+        is ToolApprovalState.Pending -> tool
+
+        else -> {
+            val toolDef = toolsInternal.find { it.name == tool.toolName }
+                ?: error("Tool ${tool.toolName} not found")
+            val args = runCatching {
+                json.parseToJsonElement(tool.input.ifBlank { "{}" })
+            }.getOrElse {
+                error("Invalid tool arguments JSON for ${tool.toolName}: ${it.message}")
+            }
+            Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
+            val result = toolDef.execute(args)
+            tool.copy(output = result)
+        }
+    }
+}
+
+/**
+ * 将工具执行结果添加到列表中（处理成功和失败两种情况）
+ */
+private fun addToolResult(
+    executedTools: ArrayList<UIMessagePart.Tool>,
+    tool: UIMessagePart.Tool,
+    result: Result<UIMessagePart.Tool>,
+    json: kotlinx.serialization.json.Json,
+) {
+    result.onSuccess { executedTools.add(it) }
+        .onFailure {
+            it.printStackTrace()
+            executedTools.add(
+                tool.copy(
+                    output = listOf(
+                        UIMessagePart.Text(
+                            json.encodeToString(
+                                buildJsonObject {
+                                    put(
+                                        "error",
+                                        JsonPrimitive(buildString {
+                                            append("[${it.javaClass.name}] ${it.message}")
+                                            append("\n${it.stackTraceToString()}")
+                                        })
+                                    )
+                                }
+                            )
+                        )
+                    )
+                )
+            )
+        }
 }

@@ -46,6 +46,7 @@ data class Assistant(
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt
     val allowConversationPromptInjection: Boolean = false, // 允许对话单独绑定提示词注入
     val tavernData: TavernCharacterData? = null,       // 酒馆角色卡结构化数据（从PNG/JSON导入时填充）
+    val enableParallelToolExecution: Boolean = true,    // 并行执行多个工具调用
 )
 
 @Serializable

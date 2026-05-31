@@ -88,6 +88,20 @@ private fun AssistantLocalToolContent(
         CardGroup {
             item(
                 headlineContent = {
+                    Text("并行执行工具")
+                },
+                supportingContent = {
+                    Text("同时执行多个工具调用，加速搜索、文件操作等")
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.enableParallelToolExecution,
+                        onCheckedChange = { onUpdate(assistant.copy(enableParallelToolExecution = it)) }
+                    )
+                }
+            )
+            item(
+                headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_javascript_engine_title))
                 },
                 supportingContent = {
