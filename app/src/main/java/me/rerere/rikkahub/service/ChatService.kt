@@ -1442,13 +1442,13 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
             }
             edited = true
 
-            // 替换消息内容，不追加版本
+            // 追加新版本（保留编辑历史）
             node.copy(
-                messages = listOf(UIMessage(
+                messages = node.messages + UIMessage(
                     role = node.role,
                     parts = processedParts,
-                )),
-                selectIndex = 0
+                ),
+                selectIndex = node.messages.size
             )
         }
 
