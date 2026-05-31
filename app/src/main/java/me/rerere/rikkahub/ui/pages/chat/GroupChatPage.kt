@@ -348,7 +348,7 @@ fun GroupChatPage(groupId: String) {
                                 val effectiveSpeaker = if (selectedModelId != null) {
                                     speaker.copy(chatModelId = selectedModelId)
                                 } else speaker
-                                val response = withTimeout(120_000) {
+                                val response = withTimeout(30_000) {
                                     chatService.generateForAssistant(
                                         assistant = effectiveSpeaker,
                                         settings = settings,
@@ -566,7 +566,7 @@ private suspend fun autoTriggerNext(
             speakerMap = conversation?.speakerMap ?: emptyMap(),
             members = members,
         )
-        val response = withTimeout(120_000) {
+        val response = withTimeout(30_000) {
             chatService.generateForAssistant(
                 assistant = nextSpeaker,
                 settings = settings,
