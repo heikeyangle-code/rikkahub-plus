@@ -874,7 +874,7 @@ class SkillsVM(
     )
     /** 从 GitHub URL 解析 owner/repo/branch/path */
     private fun parseGitHubUrl(url: String): GitHubRepoInfo? {
-        val trimmed = url.trim().trimEnd('/').trimEnd("/SKILL.md")
+        val trimmed = url.trim().trimEnd('/').removeSuffix("/SKILL.md")
         // https://github.com/owner/repo
         // https://github.com/owner/repo/tree/branch
         // https://github.com/owner/repo/tree/branch/sub/path
