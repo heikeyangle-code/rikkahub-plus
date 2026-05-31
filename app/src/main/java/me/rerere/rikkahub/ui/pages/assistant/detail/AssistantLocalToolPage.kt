@@ -102,6 +102,20 @@ private fun AssistantLocalToolContent(
             )
             item(
                 headlineContent = {
+                    Text("子Agent")
+                },
+                supportingContent = {
+                    Text("AI可委托子任务到独立模型调用（需手动确认）")
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.enableSubAgent,
+                        onCheckedChange = { onUpdate(assistant.copy(enableSubAgent = it)) }
+                    )
+                }
+            )
+            item(
+                headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_javascript_engine_title))
                 },
                 supportingContent = {

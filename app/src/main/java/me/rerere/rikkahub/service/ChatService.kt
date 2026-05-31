@@ -31,7 +31,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
@@ -571,6 +574,75 @@ class ChatService(
                                 needsApproval = tool.needsApproval,
                                 execute = {
                                     mcpManager.callTool(serverId, tool.name, it.jsonObject)
+                                },
+                            )
+                        )
+                    }
+                    if (assistant.enableSubAgent) {
+                        add(
+                            Tool(
+                                name = "sub_agent",
+                                description = """Spawn a sub-agent to work on a subtask.
+The sub-agent uses a separate LLM call to complete a focused goal.
+It does NOT have access to the conversation history — provide all needed context.
+Results are returned as text.""".trimIndent().replace("\n", " "),
+                                needsApproval = true,
+                                parameters = {
+                                    InputSchema.Obj(
+                                        properties = buildJsonObject {
+                                            put("goal", buildJsonObject {
+                                                put("type", "string")
+                                                put("description", "What the sub-agent should accomplish. Be specific and self-contained.")
+                                            })
+                                            put("context", buildJsonObject {
+                                                put("type", "string")
+                                                put("description", "Optional background information for the sub-agent")
+                                            })
+                                        },
+                                        required = listOf("goal"),
+                                    )
+                                },
+                                execute = {
+                                    val obj = it.jsonObject
+                                    val goal = obj["goal"]?.jsonPrimitive?.content
+                                        ?: error("goal is required")
+                                    val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
+
+                                    // Resolve model for sub-agent
+                                    val subModelId = assistant.subAgentModelId
+                                        ?: assistant.chatModelId
+                                        ?: settings.chatModelId
+                                    val subModel = settings.findModelById(subModelId)
+                                        ?: error("Model not found for sub-agent")
+                                    val providerSetting = subModel.findProvider(settings.providers)
+                                        ?: error("Provider not found for model ${subModel.id}")
+                                    @Suppress("UNCHECKED_CAST")
+                                    val providerImpl = providerManager.getProviderByType(providerSetting)
+                                        as me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>
+
+                                    // Build focused prompt (no conversation history)
+                                    val prompt = buildString {
+                                        appendLine("You are a focused sub-agent. Complete the following goal concisely and directly.")
+                                        appendLine()
+                                        appendLine("Goal: $goal")
+                                        if (context.isNotBlank()) {
+                                            appendLine()
+                                            appendLine("Background: $context")
+                                        }
+                                    }
+
+                                    val result = providerImpl.generateText(
+                                        providerSetting = providerSetting,
+                                        messages = listOf(UIMessage.user(prompt)),
+                                        params = me.rerere.ai.provider.TextGenerationParams(
+                                            model = subModel,
+                                            tools = emptyList(),
+                                            reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                                        ),
+                                    )
+
+                                    val text = result.choices.firstOrNull()?.message?.toText() ?: ""
+                                    listOf(UIMessagePart.Text(text))
                                 },
                             )
                         )
