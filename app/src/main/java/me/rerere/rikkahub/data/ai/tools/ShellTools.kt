@@ -55,7 +55,12 @@ fun createShellTools(): List<Tool> {
                     }
                     stdoutDeferred.await() to stderrDeferred.await()
                 }
-                val exitCode = process.waitFor()
+                val exitCode = if (process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) {
+                    process.exitValue()
+                } else {
+                    process.destroyForcibly()
+                    -1
+                }
                 val payload = buildJsonObject {
                     put("stdout", kotlinx.serialization.json.JsonPrimitive(stdout))
                     put("stderr", kotlinx.serialization.json.JsonPrimitive(stderr))

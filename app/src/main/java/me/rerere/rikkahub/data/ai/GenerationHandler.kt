@@ -267,7 +267,9 @@ class GenerationHandler(
                     val deferreds = toolsToProcess.map { tool ->
                         async {
                             tool to runCatching {
-                                executeToolCall(tool, toolsInternal, json)
+                                kotlinx.coroutines.withTimeout(60_000) {
+                                    executeToolCall(tool, toolsInternal, json)
+                                }
                             }
                         }
                     }
@@ -280,7 +282,9 @@ class GenerationHandler(
                 // 顺序执行（原版行为）
                 toolsToProcess.forEach { tool ->
                     val result = runCatching {
-                        executeToolCall(tool, toolsInternal, json)
+                        kotlinx.coroutines.withTimeout(60_000) {
+                            executeToolCall(tool, toolsInternal, json)
+                        }
                     }
                     addToolResult(executedTools, tool, result, json)
                 }
