@@ -669,26 +669,20 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                     while (budget > 0) {
                                         budget--
 
+                                        try {
                                         // Show real-time progress in UI
                                         val stepNum = stepLog.count { it == '\n' } + 1
                                         session.processingStatus.value = "子Agent: 第${stepNum}步思考中..."
 
-                                        val chunk = try {
-                                            kotlinx.coroutines.withTimeout(30_000) {
-                                                providerImpl.generateText(
-                                                    providerSetting = providerSetting,
-                                                    messages = messages,
-                                                    params = me.rerere.ai.provider.TextGenerationParams(
-                                                        model = subModel,
-                                                        tools = subTools,
-                                                        reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
-                                                    ),
-                                                )
-                                            }
-                                        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                                            stepLog.appendLine("→ 超时(30s)，中断执行")
-                                            break
-                                        }
+                                        val chunk = providerImpl.generateText(
+                                            providerSetting = providerSetting,
+                                            messages = messages,
+                                            params = me.rerere.ai.provider.TextGenerationParams(
+                                                model = subModel,
+                                                tools = subTools,
+                                                reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                                            ),
+                                        )
 
                                         val assistantMsg = chunk.choices.firstOrNull()?.message
                                         if (assistantMsg == null) break
@@ -746,6 +740,10 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                                 } else part
                                             }
                                         ))
+                                        } catch (e: Exception) {
+                                            stepLog.appendLine("→ 错误: ${e.message?.take(100) ?: e.javaClass.simpleName}")
+                                            break
+                                        }
                                     }
 
                                     // Fallback: if loop ended without text, extract from most recent message
