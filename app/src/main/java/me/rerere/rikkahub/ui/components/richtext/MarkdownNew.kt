@@ -349,10 +349,12 @@ private fun HtmlParagraphContent(
     val hasInlineMath = element.select("span.math").any { it.attr("inline") == "true" }
     val colorScheme = MaterialTheme.colorScheme
     val textStyle = LocalTextStyle.current
+    val italicsColor = LocalSettings.current.displaySetting.italicsColor.takeIf { it.isNotBlank() }
 
     val (annotatedString, inlineContents) = remember(
         element.outerHtml(),
         enableLatexRendering,
+        italicsColor,
         colorScheme,
         density,
         textStyle,
