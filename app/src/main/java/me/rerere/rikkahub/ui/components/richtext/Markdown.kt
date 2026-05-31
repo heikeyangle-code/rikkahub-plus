@@ -463,7 +463,18 @@ private fun MarkdownNode(
 
         // 加粗和斜体
         MarkdownElementTypes.EMPH -> {
-            ProvideTextStyle(TextStyle(fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.secondary)) {
+            val setting = LocalSettings.current.displaySetting
+            val italicColor = if (setting.enableTextColor && setting.italicsColor.isNotBlank()) {
+                runCatching {
+                    Color(android.graphics.Color.parseColor(setting.italicsColor))
+                }.getOrNull()
+            } else null
+            ProvideTextStyle(
+                TextStyle(
+                    fontStyle = FontStyle.Italic,
+                    color = italicColor ?: MaterialTheme.colorScheme.secondary,
+                )
+            ) {
                 node.children.fastForEach { child ->
                     MarkdownNode(
                         node = child, content = content, modifier = modifier, onClickCitation = onClickCitation

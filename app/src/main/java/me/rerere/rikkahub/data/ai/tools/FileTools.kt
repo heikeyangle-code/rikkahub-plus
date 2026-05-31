@@ -119,9 +119,12 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         // ── file_list ──
         Tool(
             name = "file_list",
-            description = "List files and directories in a given directory. " +
-                    "Default: ${defaultDir}/. " +
-                    "Skill directories available: ${skillDirs.joinToString()}.",
+            description = buildString {
+                append("List files. Default: $defaultDir/. App work dir: /data/data/me.rerere.rikkahub/files/.")
+                if (skillDirs.isNotEmpty()) {
+                    append(" Skills: ${skillDirs.joinToString()}.")
+                }
+            },
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
