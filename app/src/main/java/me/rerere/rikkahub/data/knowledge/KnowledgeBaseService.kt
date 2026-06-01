@@ -576,6 +576,157 @@ class KnowledgeBaseService(
         }
     }
 
+    /** 为自动注入优化的搜索：RRF融合 + 去重 + Token预算 */
+    suspend fun searchForInjection(
+        query: String,
+        assistantId: String? = null,
+        settings: Settings,
+    ): List<KnowledgeSearchResult> = withContext(Dispatchers.IO) {
+        val kbSettings = settings.kbInjectionSettings
+        if (!kbSettings.enabled) return@withContext emptyList()
+
+        try {
+            // 1. Query Rewrite（可选）
+            val queries = if (kbSettings.useQueryRewrite) {
+                buildList {
+                    add(query)
+                    val stripped = query.replace(Regex("(?i)^(what|how|why|where|when|who|which|tell me|show me|给我|请问|如何|为什么|怎么|哪里|什么是|有哪些)\\s*"), "")
+                    if (stripped.length >= 4 && stripped != query) add(stripped)
+                    val keywords = Regex("""[\w\u4e00-\u9fff]+""").findAll(query).map { it.value }.joinToString(" ")
+                    if (keywords.length >= 4 && keywords != query) add(keywords)
+                }.distinct()
+            } else {
+                listOf(query)
+            }
+
+            // 2. 并行混合检索（FTS5 + 向量）
+            val ftsResults = mutableListOf<KnowledgeSearchResult>()
+            val embeddingResults = mutableListOf<KnowledgeSearchResult>()
+
+            queries.forEach { q ->
+                // FTS5
+                try {
+                    val ftsQuery = q.trim()
+                        .replace(Regex("""[^\w\u4e00-\u9fff\s]"""), " ")
+                        .split(Regex("\\s+"))
+                        .filter { it.length >= 2 }
+                        .joinToString(" AND ")
+                    if (ftsQuery.isNotBlank()) {
+                        val cursor = writableDb.query("""
+                            SELECT kc.id, kc.source_id, kc.chunk_index, kc.text, kc.sentence_start, kc.sentence_end
+                            FROM knowledge_fts kf
+                            INNER JOIN knowledge_chunks kc ON kc.id = kf.chunk_id
+                            WHERE kf.text MATCH ?
+                            ORDER BY rank
+                            LIMIT ?
+                        """, arrayOf(ftsQuery, (kbSettings.chunkCount * 4).toString()))
+                        try {
+                            while (cursor.moveToNext()) {
+                                val chunk = KnowledgeChunkEntity(
+                                    id = cursor.getString(0),
+                                    sourceId = cursor.getString(1),
+                                    chunkIndex = cursor.getInt(2),
+                                    text = cursor.getString(3),
+                                    sentenceStart = cursor.getInt(4),
+                                    sentenceEnd = cursor.getInt(5),
+                                )
+                                val sourceEntity = dao.getSourceById(chunk.sourceId)
+                                ftsResults.add(KnowledgeSearchResult(
+                                    chunk = chunk.toDomain(),
+                                    score = 0.6f,
+                                    source = sourceEntity?.toDomain() ?: KnowledgeSource(),
+                                    matchType = MatchType.FTS,
+                                ))
+                            }
+                        } finally {
+                            cursor.close()
+                        }
+                    }
+                } catch (_: Exception) {}
+
+                // 向量搜索（混合模式）
+                if (kbSettings.useHybridSearch) {
+                    try {
+                        val model = findEmbeddingModel(settings)
+                        if (model != null) {
+                            ensureEmbeddings(settings)
+                            val provider = model.findProvider(settings.providers)
+                            if (provider != null) {
+                                val providerImpl = providerManager.getProviderByType(provider)
+                                val emb = providerImpl.generateEmbedding(provider, EmbeddingGenerationParams(
+                                    model = model, input = listOf(q),
+                                )).embeddings.firstOrNull()
+                                if (emb != null) {
+                                    val embeddedChunks = if (assistantId != null) {
+                                        dao.getEmbeddedChunksForAssistant(assistantId)
+                                    } else {
+                                        dao.getAllEmbeddedChunks()
+                                    }
+                                    embeddedChunks.forEach { chunk ->
+                                        val chunkEmb = chunk.embedding?.let { KnowledgeChunkEntity.bytesToFloats(it) }
+                                        if (chunkEmb != null && chunkEmb.size == emb.size) {
+                                            val score = cosineSimilarity(emb, chunkEmb)
+                                            if (score >= kbSettings.scoreThreshold) {
+                                                val sourceEntity = dao.getSourceById(chunk.sourceId)
+                                                embeddingResults.add(KnowledgeSearchResult(
+                                                    chunk = chunk.toDomain(),
+                                                    score = score,
+                                                    source = sourceEntity?.toDomain() ?: KnowledgeSource(),
+                                                    matchType = MatchType.EMBEDDING,
+                                                ))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+
+            // 3. RRF 融合
+            val merged = rrfMerge(ftsResults, embeddingResults)
+
+            // 4. 去重（可选）
+            val deduped = if (kbSettings.enableDedup) {
+                val seen = mutableSetOf<String>()
+                merged.filter { seen.add(it.chunk.id) }
+            } else {
+                merged
+            }
+
+            // 5. Token预算裁剪
+            var tokenCount = 0
+            val budget = kbSettings.tokenBudget
+            deduped.takeWhile { result ->
+                val tokens = estimateTokens(result.chunk.text)
+                if (tokenCount + tokens > budget) false
+                else { tokenCount += tokens; true }
+            }
+
+        } catch (e: Exception) {
+            Log.w(TAG, "searchForInjection failed", e)
+            emptyList()
+        }
+    }
+
+    /** RRF: Reciprocal Rank Fusion */
+    private fun rrfMerge(
+        fts: List<KnowledgeSearchResult>,
+        embedding: List<KnowledgeSearchResult>,
+        k: Int = 60,
+    ): List<KnowledgeSearchResult> {
+        val scores = mutableMapOf<String, Float>()
+        fts.forEachIndexed { i, r -> scores[r.chunk.id] = (scores[r.chunk.id] ?: 0f) + 1f / (k + i + 1) }
+        embedding.forEachIndexed { i, r -> scores[r.chunk.id] = (scores[r.chunk.id] ?: 0f) + 1f / (k + i + 1) }
+        return (fts + embedding)
+            .distinctBy { it.chunk.id }
+            .sortedByDescending { scores[it.chunk.id] }
+    }
+
+    /** 粗略估算中英文混合文本的token数（每字0.75 token） */
+    private fun estimateTokens(text: String): Int = maxOf(1, (text.length * 0.75).toInt())
+
     /** UI搜索（返回可直接展示的结果） */
     data class SearchResultUi(
         val chunkId: String,

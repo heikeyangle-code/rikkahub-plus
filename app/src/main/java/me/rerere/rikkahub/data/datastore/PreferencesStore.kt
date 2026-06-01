@@ -531,6 +531,7 @@ data class Settings(
     val compressModelId: Uuid = Uuid.random(),
     val compressPrompt: String = DEFAULT_COMPRESS_PROMPT,
     val embeddingModelId: Uuid? = null,  // 全局embedding模型（null=使用chatModelId）
+    val kbInjectionSettings: KbInjectionSettings = KbInjectionSettings(),
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
@@ -625,6 +626,17 @@ data class DisplaySetting(
     val italicsColor: String = "",  // empty = default (#919191), otherwise hex
     val autoEmbedOnImport: Boolean = true,  // 导入后自动向量化
     val embeddingEnabled: Boolean = true,   // 向量搜索总开关（关则仅使用FTS5文本搜索）
+)
+
+@Serializable
+data class KbInjectionSettings(
+    val enabled: Boolean = false,
+    val chunkCount: Int = 3,
+    val tokenBudget: Int = 1024,
+    val scoreThreshold: Float = 0.25f,
+    val useHybridSearch: Boolean = true,
+    val useQueryRewrite: Boolean = true,
+    val enableDedup: Boolean = true,
 )
 
 @Serializable
