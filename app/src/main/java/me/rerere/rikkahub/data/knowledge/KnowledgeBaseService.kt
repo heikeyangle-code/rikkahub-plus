@@ -542,9 +542,14 @@ class KnowledgeBaseService(
         }
     }
 
-    private fun findEmbeddingModel(settings: Settings?): me.rerere.ai.provider.Model? {
-        if (settings == null) return null
-        // 优先使用全局聊天模型（默认有embedding能力）
+    private fun findEmbeddingModel(settings: Settings): me.rerere.ai.provider.Model? {
+        // 优先使用专用的embedding模型
+        val embeddingId = settings.embeddingModelId
+        if (embeddingId != null) {
+            val model = settings.findModelById(embeddingId)
+            if (model != null) return model
+        }
+        // fallback到聊天模型
         return settings.findModelById(settings.chatModelId)
     }
 

@@ -50,6 +50,7 @@ data class Assistant(
     val enableSubAgent: Boolean = false,                // 启用子Agent（AI可委托子任务）
     val subAgentModelId: Uuid? = null,                  // 子Agent模型（null=使用父模型）
     val enableKnowledgeBase: Boolean = false,           // 启用知识库检索
+    val embeddingModelId: Uuid? = null,                  // 专用embedding模型（null=使用聊天模型）
 )
 
 @Serializable
