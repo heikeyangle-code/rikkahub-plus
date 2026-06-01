@@ -156,6 +156,70 @@ private fun AssistantLocalToolContent(
                 }
             )
             item(
+                headlineContent = { Text("总工具调用轮数上限") },
+                supportingContent = { Text("整个对话AI调工具的总次数上限，默认256") },
+                trailingContent = {
+                    OutlinedTextField(
+                        value = assistant.totalStepsLimit.toString(),
+                        onValueChange = { v ->
+                            v.toIntOrNull()?.let { onUpdate(assistant.copy(totalStepsLimit = it)) }
+                        },
+                        modifier = Modifier.width(70.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("单工具执行超时(秒)") },
+                supportingContent = { Text("每个工具调用最长执行时间，默认60") },
+                trailingContent = {
+                    OutlinedTextField(
+                        value = assistant.toolExecTimeout.toString(),
+                        onValueChange = { v ->
+                            v.toIntOrNull()?.let { onUpdate(assistant.copy(toolExecTimeout = it)) }
+                        },
+                        modifier = Modifier.width(70.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("JS引擎超时(秒)") },
+                supportingContent = { Text("JavaScript代码执行超时，默认15") },
+                trailingContent = {
+                    OutlinedTextField(
+                        value = assistant.jsTimeout.toString(),
+                        onValueChange = { v ->
+                            v.toIntOrNull()?.let { onUpdate(assistant.copy(jsTimeout = it)) }
+                        },
+                        modifier = Modifier.width(70.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("Shell超时(秒)") },
+                supportingContent = { Text("shell命令执行超时，默认30") },
+                trailingContent = {
+                    OutlinedTextField(
+                        value = assistant.shellTimeout.toString(),
+                        onValueChange = { v ->
+                            v.toIntOrNull()?.let { onUpdate(assistant.copy(shellTimeout = it)) }
+                        },
+                        modifier = Modifier.width(70.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                }
+            )
+            item(
                 headlineContent = {
                     Text("子Agent")
                 },

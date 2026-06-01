@@ -200,7 +200,7 @@ class KnowledgeBaseService(
             val resolver = context.contentResolver
             val treeDocId = android.provider.DocumentsContract.getTreeDocumentId(folderUri)
             val childrenUri = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(
-                folderUri.authority ?: return@withContext 0,
+                folderUri,
                 treeDocId
             )
             val children = resolver.query(childrenUri, null, null, null, null)?.use { cursor ->
