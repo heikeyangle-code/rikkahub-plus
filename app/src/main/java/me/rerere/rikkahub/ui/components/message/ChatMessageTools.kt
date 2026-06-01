@@ -65,12 +65,17 @@ import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.highlight.HighlightText
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.AiMagic
+import me.rerere.hugeicons.stroke.AiSearch02
 import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Clipboard
+import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Eraser
 import me.rerere.hugeicons.stroke.Folder01
@@ -119,8 +124,13 @@ private object ToolNames {
     const val FILE_COPY = "file_copy"
     const val FILE_MOVE = "file_move"
     const val FILE_MKDIR = "file_mkdir"
+    const val FILE_DELETE = "file_delete"
+    const val FILE_SEARCH = "file_search"
     const val EXECUTE_COMMAND = "execute_command"
     const val PRESENT_FILE = "present_file"
+    const val CREATE_ASSET = "create_asset"
+    const val EVAL_JS = "eval_javascript"
+    const val SUB_AGENT = "sub_agent"
 }
 
 private object MemoryActions {
@@ -156,6 +166,11 @@ private fun getToolIcon(toolName: String, action: String?) = when (toolName) {
     ToolNames.FILE_MKDIR -> HugeIcons.Add01
     ToolNames.EXECUTE_COMMAND -> HugeIcons.Zap
     ToolNames.PRESENT_FILE -> HugeIcons.Share03
+    ToolNames.FILE_DELETE -> HugeIcons.Delete02
+    ToolNames.FILE_SEARCH -> HugeIcons.AiSearch02
+    ToolNames.CREATE_ASSET -> HugeIcons.AiMagic
+    ToolNames.EVAL_JS -> HugeIcons.Code
+    ToolNames.SUB_AGENT -> HugeIcons.Brain02
     else -> HugeIcons.Tools
 }
 
