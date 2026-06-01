@@ -329,20 +329,22 @@ class KnowledgeBaseService(
         // 只embed未处理的chunks
         val unembedded = writableDb.query(
             "SELECT id, source_id, chunk_index, text, sentence_start, sentence_end FROM knowledge_chunks WHERE embedding IS NULL",
-            null
+            emptyArray()
         )
         val chunks = mutableListOf<KnowledgeChunkEntity>()
-        unembedded.use { cursor ->
-            while (cursor.moveToNext()) {
+        try {
+            while (unembedded.moveToNext()) {
                 chunks.add(KnowledgeChunkEntity(
-                    id = cursor.getString(0),
-                    sourceId = cursor.getString(1),
-                    chunkIndex = cursor.getInt(2),
-                    text = cursor.getString(3),
-                    sentenceStart = cursor.getInt(4),
-                    sentenceEnd = cursor.getInt(5),
+                    id = unembedded.getString(0),
+                    sourceId = unembedded.getString(1),
+                    chunkIndex = unembedded.getInt(2),
+                    text = unembedded.getString(3),
+                    sentenceStart = unembedded.getInt(4),
+                    sentenceEnd = unembedded.getInt(5),
                 ))
             }
+        } finally {
+            unembedded.close()
         }
         if (chunks.isEmpty()) return@withContext
 
@@ -418,15 +420,15 @@ class KnowledgeBaseService(
                         ORDER BY rank
                         LIMIT ?
                     """, arrayOf(ftsQuery, (topK * 2).toString()))
-                    cursor.use {
-                        while (it.moveToNext()) {
+                    try {
+                        while (cursor.moveToNext()) {
                             val chunk = KnowledgeChunkEntity(
-                                id = it.getString(0),
-                                sourceId = it.getString(1),
-                                chunkIndex = it.getInt(2),
-                                text = it.getString(3),
-                                sentenceStart = it.getInt(4),
-                                sentenceEnd = it.getInt(5),
+                                id = cursor.getString(0),
+                                sourceId = cursor.getString(1),
+                                chunkIndex = cursor.getInt(2),
+                                text = cursor.getString(3),
+                                sentenceStart = cursor.getInt(4),
+                                sentenceEnd = cursor.getInt(5),
                             )
                             val key = chunk.id
                             val existing = results[key]
@@ -437,6 +439,8 @@ class KnowledgeBaseService(
                                 matchType = if (existing?.matchType == MatchType.EMBEDDING) MatchType.HYBRID else MatchType.FTS,
                             )
                         }
+                    } finally {
+                        cursor.close()
                     }
                 }
             }
