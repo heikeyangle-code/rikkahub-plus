@@ -9,7 +9,11 @@ import me.rerere.highlight.Highlighter
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.AILoggingManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
+import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.knowledge.DocumentChunker
+import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
+import me.rerere.rikkahub.data.ai.transformers.KnowledgeBaseTransformer
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.utils.EmojiData
 import me.rerere.rikkahub.utils.EmojiUtils
@@ -72,6 +76,26 @@ val appModule = module {
     }
 
     single {
+        DocumentChunker()
+    }
+
+    single {
+        val db = get<AppDatabase>()
+        KnowledgeBaseService(
+            context = get(),
+            dao = db.knowledgeBaseDao(),
+            chunker = get(),
+            providerManager = get(),
+        )
+    }
+
+    single {
+        KnowledgeBaseTransformer(
+            knowledgeBaseService = get(),
+        )
+    }
+
+    single {
         ChatService(
             context = get(),
             appScope = get(),
@@ -84,7 +108,8 @@ val appModule = module {
             localTools = get(),
             mcpManager = get(),
             filesManager = get(),
-            skillManager = get()
+            skillManager = get(),
+            knowledgeBaseTransformer = get(),
         )
     }
 

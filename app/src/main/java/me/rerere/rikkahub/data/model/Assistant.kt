@@ -49,6 +49,7 @@ data class Assistant(
     val enableParallelToolExecution: Boolean = true,    // 并行执行多个工具调用
     val enableSubAgent: Boolean = false,                // 启用子Agent（AI可委托子任务）
     val subAgentModelId: Uuid? = null,                  // 子Agent模型（null=使用父模型）
+    val enableKnowledgeBase: Boolean = false,           // 启用知识库检索
 )
 
 @Serializable

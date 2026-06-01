@@ -77,6 +77,7 @@ import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.AuthorsNoteTransformer
 import me.rerere.rikkahub.data.ai.transformers.SkillAutoTriggerTransformer
+import me.rerere.rikkahub.data.ai.transformers.KnowledgeBaseTransformer
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -150,6 +151,7 @@ class ChatService(
     val mcpManager: McpManager,
     private val filesManager: FilesManager,
     private val skillManager: SkillManager,
+    private val knowledgeBaseTransformer: KnowledgeBaseTransformer,
 ) {
     // 统一会话管理
     private val sessions = ConcurrentHashMap<Uuid, ConversationSession>()
@@ -551,6 +553,7 @@ class ChatService(
                 inputTransformers = buildList {
                     addAll(inputTransformers)
                     add(templateTransformer)
+                    add(knowledgeBaseTransformer)
                 },
                 outputTransformers = outputTransformers,
                 tools = buildList {
@@ -1067,6 +1070,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
             inputTransformers = buildList {
                 addAll(inputTransformers)
                 add(templateTransformer)
+                add(knowledgeBaseTransformer)
             },
             outputTransformers = outputTransformers,
         ).collect { chunk ->
