@@ -67,6 +67,7 @@ import me.rerere.rikkahub.data.ai.tools.createAssetTool
 import me.rerere.rikkahub.data.ai.tools.createDataProcessTool
 import me.rerere.rikkahub.data.ai.tools.createFileTools
 import me.rerere.rikkahub.data.ai.tools.createShellTools
+import me.rerere.rikkahub.data.ai.tools.createPythonTool
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -568,6 +569,7 @@ class ChatService(
                     }
                     addAll(localTools.getTools(assistant.localTools))
                     addAll(createShellTools())
+                    add(createPythonTool(context, assistant.shellTimeout))
                     if (assistant.enabledSkills.isNotEmpty()) {
                         addAll(
                             createSkillTools(
