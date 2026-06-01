@@ -555,7 +555,9 @@ fun KnowledgeBasePage() {
                                     embeddingId = source.id
                                     val err = kbService.embedSource(source.id, settings)
                                     embeddingId = null
-                                    if (err != null) toaster.show(err)
+                                    if (err != null) {
+                                        toaster.show(err, type = com.dokar.sonner.ToastType.Error)
+                                    }
                                 }
                             },
                             isEmbedding = embeddingId == source.id,
