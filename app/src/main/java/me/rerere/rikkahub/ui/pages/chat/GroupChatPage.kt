@@ -754,7 +754,7 @@ private suspend fun runAutoChat(
     val autoDelay = gc.autoModeDelay
     if (autoDelay <= 0) return
 
-    while (kotlinx.coroutines.isActive) {
+    while (scope.isActive) {
         val conv = chatService.getConversationFlow(convId).value
         val lastSpeakerId = conv.messageNodes.lastOrNull()?.let { conv.speakerMap[it.id] }
 
@@ -773,7 +773,7 @@ private suspend fun runAutoChat(
 
         // 逐个生成
         for ((idx, sid) in picked.withIndex()) {
-            if (!kotlinx.coroutines.isActive) return
+            if (!scope.isActive) return
             val speaker = members.find { it.id == sid } ?: continue
 
             // 占位消息
