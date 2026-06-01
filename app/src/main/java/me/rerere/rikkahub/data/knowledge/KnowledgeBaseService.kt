@@ -198,7 +198,12 @@ class KnowledgeBaseService(
     ): Int = withContext(Dispatchers.IO) {
         try {
             val resolver = context.contentResolver
-            val children = resolver.query(folderUri, null, null, null, null)?.use { cursor ->
+            val treeDocId = android.provider.DocumentsContract.getTreeDocumentId(folderUri)
+            val childrenUri = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(
+                folderUri.authority ?: return@withContext 0,
+                treeDocId
+            )
+            val children = resolver.query(childrenUri, null, null, null, null)?.use { cursor ->
                 val names = mutableListOf<Pair<String, Uri>>()
                 while (cursor.moveToNext()) {
                     val name = cursor.getString(cursor.getColumnIndexOrThrow(
