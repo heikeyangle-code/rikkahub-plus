@@ -501,8 +501,11 @@ fun KnowledgeBasePage() {
                 } else {
                     // 助理筛选行
                     item {
-                        val allAssistants = settings.assistants
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val allAssistants = settings.assistants.filter { it.name.isNotBlank() }
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp),
+                        ) {
                             item {
                                 FilterChip(
                                     selected = assistantFilter == null,
