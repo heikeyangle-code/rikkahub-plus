@@ -269,6 +269,44 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
                 }
             },
         ),
+
+        // ── file_delete ──
+        Tool(
+            name = "file_delete",
+            description = "Delete a file or directory from the Android filesystem. " +
+                    "Directories are deleted recursively (all contents removed). " +
+                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.$skillsHint. " +
+                    "WARNING: This is destructive and irreversible.",
+            parameters = {
+                InputSchema.Obj(
+                    properties = buildJsonObject {
+                        put("path", buildJsonObject {
+                            put("type", "string")
+                            put("description", "File or directory path to delete")
+                        })
+                    },
+                    required = listOf("path"),
+                )
+            },
+            execute = { args ->
+                val path = args.jsonObject["path"]?.jsonPrimitive?.content
+                    ?: error("path required")
+                val file = resolveFile(path)
+                if (!file.exists()) error("File not found: $path")
+                if (!file.canWrite()) error("Cannot delete (no write permission): $path")
+                val deleted = if (file.isDirectory) {
+                    file.deleteRecursively()
+                } else {
+                    file.delete()
+                }
+                if (deleted) {
+                    val type = if (file.isDirectory) "directory" else "file"
+                    listOf(UIMessagePart.Text("OK: deleted $type $path"))
+                } else {
+                    error("Failed to delete: $path")
+                }
+            },
+        ),
     )
 }
 
