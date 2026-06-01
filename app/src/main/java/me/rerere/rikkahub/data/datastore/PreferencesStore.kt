@@ -555,6 +555,8 @@ data class Settings(
     val authorNotePosition: InjectionPosition = InjectionPosition.AFTER_SYSTEM_PROMPT,
     val authorNoteDepth: Int = 4,                   // Author's Note 插入深度
     val authorNoteFrequency: Float = 1.0f,          // Author's Note 插入频率 (0-1)
+    val authorNoteRole: MessageRole = MessageRole.USER, // 注入角色
+    val authorNoteInterval: Int = 0,                // 每N条注入一次（0=每次都注入）
     val groupChats: List<GroupChat> = emptyList(),   // 群聊列表
     val webServerEnabled: Boolean = false,
     val webServerPort: Int = 8080,

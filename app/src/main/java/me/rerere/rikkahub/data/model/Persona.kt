@@ -12,10 +12,12 @@ import kotlin.uuid.Uuid
 data class Persona(
     val id: Uuid = Uuid.random(),
     val name: String = "",
+    val title: String = "",                 // 短标题（展示用）
     val description: String = "",            // 外观/背景描述
     val position: PersonaInjectionPosition = PersonaInjectionPosition.AFTER_SYSTEM,
     val avatar: Avatar = Avatar.Dummy,
     val enabled: Boolean = true,
+    val lockedCharacterIds: List<Uuid> = emptyList(), // 绑定到特定角色
 )
 
 @Serializable
