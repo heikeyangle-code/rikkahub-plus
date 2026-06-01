@@ -279,12 +279,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_web_server)) },
                     )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingModels) },
-                        leadingContent = { Icon(HugeIcons.Earth, null) },
-                        supportingContent = { Text("用于知识库向量化，不设置则使用聊天模型") },
-                        headlineContent = { Text("Embedding 模型") },
-                    )
                 }
             }
 
