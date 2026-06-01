@@ -487,6 +487,7 @@ class KnowledgeBaseService(
         // 4. 上下文窗口扩展：每块前后各取1块，拼成完整段落
         val expanded = sorted.map { (_, result) ->
             val allChunks = dao.getChunksBySource(result.chunk.sourceId.toString())
+                .sortedBy { it.sentenceStart }
             val idx = allChunks.indexOfFirst { it.id == result.chunk.id }
             if (idx < 0) return@map result
 
