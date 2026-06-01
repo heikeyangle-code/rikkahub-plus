@@ -89,6 +89,7 @@ import me.rerere.rikkahub.ui.pages.backup.BackupPage
 import me.rerere.rikkahub.ui.pages.chat.ChatPage
 import me.rerere.rikkahub.ui.pages.chat.GroupChatListPage
 import me.rerere.rikkahub.ui.pages.chat.GroupChatPage
+import me.rerere.rikkahub.ui.pages.knowledge.KnowledgeBasePage
 import me.rerere.rikkahub.ui.pages.setting.PersonaPage
 import me.rerere.rikkahub.ui.pages.setting.AuthorsNotePage
 import me.rerere.rikkahub.ui.pages.debug.DebugPage
@@ -527,6 +528,10 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.GroupChat> { key ->
                                 GroupChatPage(groupId = key.id)
                             }
+
+                            entry<Screen.KnowledgeBase> {
+                                KnowledgeBasePage()
+                            }
                         }
                     )
                     if (BuildConfig.DEBUG) {
@@ -729,4 +734,7 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object GroupChatList : Screen
+
+    @Serializable
+    data object KnowledgeBase : Screen
 }

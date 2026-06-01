@@ -83,7 +83,7 @@ val appModule = module {
         val db = get<AppDatabase>()
         KnowledgeBaseService(
             context = get(),
-            dao = db.knowledgeBaseDao(),
+            database = db,
             chunker = get(),
             providerManager = get(),
         )

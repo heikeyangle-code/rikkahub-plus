@@ -23,6 +23,7 @@ enum class KnowledgeSourceType {
     FILE,      // 文件导入（PDF/DOCX/EPUB/PPTX/TXT）
     CHAT,      // 聊天记录导入
     TEXT,      // 手动输入的笔记/文字
+    BATCH,     // 批量文件夹导入
 }
 
 /**

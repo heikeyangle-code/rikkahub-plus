@@ -14,6 +14,7 @@ import me.rerere.document.DocxParser
 import me.rerere.document.EpubParser
 import me.rerere.document.PdfParser
 import me.rerere.document.PptxParser
+import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.dao.KnowledgeBaseDao
 import me.rerere.rikkahub.data.db.entity.KnowledgeChunkEntity
 import me.rerere.rikkahub.data.db.entity.KnowledgeSourceEntity
@@ -34,10 +35,12 @@ private const val TAG = "KnowledgeBaseService"
 
 class KnowledgeBaseService(
     private val context: Context,
-    private val dao: KnowledgeBaseDao,
+    private val database: AppDatabase,
     private val chunker: DocumentChunker,
     private val providerManager: ProviderManager,
 ) {
+    private val dao: KnowledgeBaseDao = database.knowledgeBaseDao()
+    private val writableDb get() = database.openHelper.writableDatabase
     // ---- 数据源管理 ----
 
     fun getAllSourcesFlow(): Flow<List<KnowledgeSourceEntity>> = dao.getAllSourcesFlow()
@@ -52,10 +55,7 @@ class KnowledgeBaseService(
         dao.deleteChunksBySource(sourceId)
         dao.deleteSource(sourceId)
         // 清理FTS
-        val db = (dao as? androidx.room.RoomDatabase)?.openHelper?.writableDatabase
-        if (db != null) {
-            db.execSQL("DELETE FROM knowledge_fts WHERE source_id = ?", arrayOf(sourceId))
-        }
+        writableDb.execSQL("DELETE FROM knowledge_fts WHERE source_id = ?", arrayOf(sourceId))
     }
 
     // ---- 文件导入 ----
@@ -118,6 +118,72 @@ class KnowledgeBaseService(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to import file: $fileName", e)
             null
+        }
+    }
+
+    // ---- 批量文件夹导入 ----
+
+    suspend fun importFolder(
+        folderUri: Uri,
+        folderName: String,
+        assistantId: String? = null,
+        chunkSize: Int = 10,
+        overlap: Int = 2,
+    ): Int = withContext(Dispatchers.IO) {
+        try {
+            val docFile = DocumentFile.fromTreeUri(context, folderUri) ?: return@withContext 0
+            val files = docFile.listFiles().filter { f ->
+                val name = f.name?.lowercase() ?: return@filter false
+                name.endsWith(".pdf") || name.endsWith(".docx") || name.endsWith(".epub") ||
+                name.endsWith(".pptx") || name.endsWith(".txt") || name.endsWith(".md")
+            }
+            if (files.isEmpty()) return@withContext 0
+
+            var imported = 0
+            for (file in files) {
+                val uri = file.uri
+                val name = file.name ?: "unknown"
+                try {
+                    val text = readDocument(uri) ?: continue
+                    if (text.isBlank()) continue
+
+                    val sourceId = Uuid.random().toString()
+                    val source = KnowledgeSourceEntity(
+                        id = sourceId,
+                        name = name,
+                        type = KnowledgeSourceType.BATCH.name,
+                        assistantId = assistantId,
+                        filePath = uri.toString(),
+                        fileSize = text.length.toLong(),
+                        createdAt = System.currentTimeMillis(),
+                    )
+                    dao.insertSource(source)
+
+                    val result = chunker.chunkDocument(text, chunkSize, overlap)
+                    val chunks = result.chunks.mapIndexed { index, chunk ->
+                        KnowledgeChunkEntity(
+                            id = "${sourceId}_$index",
+                            sourceId = sourceId,
+                            chunkIndex = index,
+                            text = chunk.text,
+                            sentenceStart = chunk.sentenceStart,
+                            sentenceEnd = chunk.sentenceEnd,
+                        )
+                    }
+                    dao.insertChunks(chunks)
+                    indexFts5(chunks)
+                    dao.deleteSource(sourceId)
+                    dao.insertSource(source.copy(chunkCount = chunks.size))
+                    imported++
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to import $name in folder", e)
+                }
+            }
+            Log.i(TAG, "Folder import complete: $imported files from $folderName")
+            imported
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to import folder: $folderName", e)
+            0
         }
     }
 
@@ -258,8 +324,7 @@ class KnowledgeBaseService(
                         embeddingDim = embedding.size,
                     )
                     // Update individually
-                    val db = (dao as? androidx.room.RoomDatabase)?.openHelper?.writableDatabase
-                    db?.execSQL(
+                    writableDb.execSQL(
                         "UPDATE knowledge_chunks SET embedding = ?, embedding_dim = ? WHERE id = ?",
                         arrayOf(updated.embedding, updated.embeddingDim, updated.id)
                     )
@@ -291,16 +356,33 @@ class KnowledgeBaseService(
                 .filter { it.length >= 2 }
                 .joinToString(" AND ")
             if (ftsQuery.isNotBlank()) {
-                val ftsResults = dao.searchFts(ftsQuery, topK * 2)
-                ftsResults.forEach { chunk ->
-                    val key = chunk.id
-                    val existing = results[key]
-                    results[key] = KnowledgeSearchResult(
-                        chunk = chunk.toDomain(),
-                        score = maxOf(existing?.score ?: 0f, 0.6f),
-                        source = KnowledgeSource(), // placeholder, filled below
-                        matchType = if (existing?.matchType == MatchType.EMBEDDING) MatchType.HYBRID else MatchType.FTS,
-                    )
+                val cursor = writableDb.rawQuery("""
+                    SELECT kc.id, kc.source_id, kc.chunk_index, kc.text, kc.sentence_start, kc.sentence_end
+                    FROM knowledge_fts kf
+                    INNER JOIN knowledge_chunks kc ON kc.id = kf.chunk_id
+                    WHERE kf.text MATCH ?
+                    ORDER BY rank
+                    LIMIT ?
+                """, arrayOf(ftsQuery, (topK * 2).toString()))
+                cursor.use {
+                    while (it.moveToNext()) {
+                        val chunk = KnowledgeChunkEntity(
+                            id = it.getString(0),
+                            sourceId = it.getString(1),
+                            chunkIndex = it.getInt(2),
+                            text = it.getString(3),
+                            sentenceStart = it.getInt(4),
+                            sentenceEnd = it.getInt(5),
+                        )
+                        val key = chunk.id
+                        val existing = results[key]
+                        results[key] = KnowledgeSearchResult(
+                            chunk = chunk.toDomain(),
+                            score = maxOf(existing?.score ?: 0f, 0.6f),
+                            source = KnowledgeSource(),
+                            matchType = if (existing?.matchType == MatchType.EMBEDDING) MatchType.HYBRID else MatchType.FTS,
+                        )
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -365,9 +447,8 @@ class KnowledgeBaseService(
     // ---- 内部方法 ----
 
     private fun indexFts5(chunks: List<KnowledgeChunkEntity>) {
-        val db = (dao as? androidx.room.RoomDatabase)?.openHelper?.writableDatabase ?: return
         chunks.forEach { chunk ->
-            db.execSQL(
+            writableDb.execSQL(
                 "INSERT INTO knowledge_fts(text, chunk_id, source_id) VALUES (?, ?, ?)",
                 arrayOf(chunk.text, chunk.id, chunk.sourceId)
             )

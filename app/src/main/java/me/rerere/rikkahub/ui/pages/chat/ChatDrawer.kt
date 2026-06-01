@@ -53,6 +53,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.BookOpen02
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.InLove
@@ -356,6 +357,18 @@ fun ChatDrawerContent(
                     },
                     onClick = {
                         navController.navigate(Screen.Stats)
+                    },
+                )
+
+                DrawerAction(
+                    icon = {
+                        Icon(HugeIcons.BookOpen02, "知识库")
+                    },
+                    label = {
+                        Text("知识库")
+                    },
+                    onClick = {
+                        navController.navigate(Screen.KnowledgeBase)
                     },
                 )
 

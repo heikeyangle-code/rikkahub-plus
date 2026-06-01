@@ -47,18 +47,8 @@ interface KnowledgeBaseDao {
     @Query("SELECT count(*) FROM knowledge_chunks WHERE source_id = :sourceId")
     suspend fun getChunkCount(sourceId: String): Int
 
-    // ---- FTS5 全文检索 ----
-
-    @Query("""
-        SELECT kc.* FROM knowledge_fts kf
-        INNER JOIN knowledge_chunks kc ON kc.id = kf.chunk_id
-        WHERE kf.text MATCH :query
-        ORDER BY rank
-        LIMIT :limit
-    """)
-    suspend fun searchFts(query: String, limit: Int = 10): List<KnowledgeChunkEntity>
-
-    // ---- 嵌入向量检索（全表加载后内存计算） ----
+    // ---- FTS5 全文检索（通过 Service 层直接操作 WritableDatabase）----
+    // 不用 @Query，因为 Room 不支持 FTS5 MATCH 语法
 
     @Query("SELECT * FROM knowledge_chunks WHERE embedding IS NOT NULL AND embedding_dim > 0")
     suspend fun getAllEmbeddedChunks(): List<KnowledgeChunkEntity>

@@ -121,6 +121,18 @@ private fun AssistantLocalToolContent(
                 }
             )
         }
+        CardGroup {
+            item(
+                headlineContent = { Text("启用知识库") },
+                supportingContent = { Text("生成时自动检索知识库中相关内容并注入上下文") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.enableKnowledgeBase,
+                        onCheckedChange = { onUpdate(assistant.copy(enableKnowledgeBase = it)) }
+                    )
+                }
+            )
+        }
         AnimatedVisibility(visible = assistant.enableSubAgent) {
             CardGroup {
                 item(
