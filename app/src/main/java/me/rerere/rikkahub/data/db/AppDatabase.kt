@@ -23,7 +23,6 @@ import me.rerere.rikkahub.data.db.entity.MemoryEntity
 import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
 import me.rerere.rikkahub.data.db.migrations.Migration_16_17
 import me.rerere.rikkahub.data.db.migrations.Migration_8_9
-import me.rerere.rikkahub.data.db.migrations.Migration_21_22
 import me.rerere.rikkahub.utils.JsonInstant
 
 @Database(
@@ -54,9 +53,6 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 18, to = 19),
         AutoMigration(from = 19, to = 20),
         AutoMigration(from = 20, to = 21),
-    ],
-    migrations = [
-        Migration_21_22,
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
