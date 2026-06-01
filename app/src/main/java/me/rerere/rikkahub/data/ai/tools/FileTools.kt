@@ -307,6 +307,70 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
                 }
             },
         ),
+
+        // ── file_search ──
+        Tool(
+            name = "file_search",
+            description = "Search for files on the Android filesystem by name pattern (glob). " +
+                    "Returns matching file paths. Use this when the user wants to find a file but doesn't know where it is. " +
+                    "Only searches under the app's accessible paths and Download directory.",
+            parameters = {
+                InputSchema.Obj(
+                    properties = buildJsonObject {
+                        put("pattern", buildJsonObject {
+                            put("type", "string")
+                            put("description", "File name pattern (e.g. '*.pdf', '*report*', 'photo*.jpg')")
+                        })
+                        put("root", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Optional root directory to search under. Default: /storage/emulated/0/Download")
+                        })
+                        put("max_results", buildJsonObject {
+                            put("type", "integer")
+                            put("description", "Maximum number of results to return (default: 20, max: 100)")
+                        })
+                        put("type_filter", buildJsonObject {
+                            put("type", "string")
+                            put("enum", buildJsonArray { add("all"); add("file"); add("dir") })
+                            put("description", "Filter by file/directory type (default: all)")
+                        })
+                    },
+                    required = listOf("pattern"),
+                )
+            },
+            execute = { args ->
+                val obj = args.jsonObject
+                val pattern = obj["pattern"]?.jsonPrimitive?.contentOrNull ?: error("pattern required")
+                val root = obj["root"]?.jsonPrimitive?.contentOrNull ?: "/storage/emulated/0/Download"
+                val maxResults = (obj["max_results"]?.jsonPrimitive?.intOrNull ?: 20).coerceIn(1, 100)
+                val typeFilter = obj["type_filter"]?.jsonPrimitive?.contentOrNull ?: "all"
+
+                val rootDir = File(root)
+                if (!rootDir.exists()) error("Directory not found: $root")
+                if (!rootDir.isDirectory) error("Not a directory: $root")
+
+                val regex = pattern.toGlobRegex()
+                val results = mutableListOf<String>()
+                val walker = rootDir.walkTopDown().filter { f ->
+                    if (results.size >= maxResults) return@filter false
+                    if (typeFilter == "file" && f.isDirectory) return@filter false
+                    if (typeFilter == "dir" && f.isFile) return@filter false
+                    regex.matches(f.name)
+                }
+                for (f in walker) {
+                    if (results.size >= maxResults) break
+                    val icon = if (f.isDirectory) "📁" else "📄"
+                    val size = if (f.isFile) " (${fmtSize(f.length())})" else ""
+                    results.add("$icon ${f.absolutePath}$size")
+                }
+
+                if (results.isEmpty()) {
+                    listOf(UIMessagePart.Text("No files matching '$pattern' found under $root"))
+                } else {
+                    listOf(UIMessagePart.Text("Found ${results.size} result(s) for '$pattern':\n${results.joinToString("\n")}"))
+                }
+            },
+        ),
     )
 }
 
@@ -314,4 +378,16 @@ private fun formatSize(bytes: Long): String = when {
     bytes < 1024 -> "$bytes B"
     bytes < 1024 * 1024 -> "${bytes / 1024} KB"
     else -> "${bytes / (1024 * 1024)} MB"
+}
+
+private fun fmtSize(bytes: Long): String = formatSize(bytes)
+
+/** 将 glob 模式转换为正则表达式 */
+private fun String.toGlobRegex(): Regex {
+    val pattern = this
+        .replace(".", "\\.")
+        .replace("*", ".*")
+        .replace("?", ".")
+        .let { "^$it$" }
+    return Regex(pattern, RegexOption.IGNORE_CASE)
 }
