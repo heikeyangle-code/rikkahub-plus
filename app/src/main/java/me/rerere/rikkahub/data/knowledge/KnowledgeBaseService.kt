@@ -553,6 +553,17 @@ class KnowledgeBaseService(
         }
     }
 
+    /** 编辑知识源的标签 */
+    suspend fun editSourceTags(sourceId: String, tags: String) = withContext(Dispatchers.IO) {
+        try {
+            val source = dao.getSourceById(sourceId) ?: return@withContext
+            dao.insertSource(source.copy(tags = tags))
+            Log.i(TAG, "Updated tags for source $sourceId: $tags")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update tags for $sourceId", e)
+        }
+    }
+
     /** 文档预览：提取文本前300字符用于预览 */
     suspend fun previewDocument(uri: Uri): String? = withContext(Dispatchers.IO) {
         try {

@@ -314,17 +314,29 @@ fun KnowledgeBasePage() {
 
     // 重命名对话框
     if (renamingId != null) {
+        val currentSource = sources.find { it.id == renamingId }
+        var tagText by remember(renamingId) { mutableStateOf(currentSource?.tags ?: "") }
         AlertDialog(
             onDismissRequest = { renamingId = null },
-            title = { Text("重命名") },
+            title = { Text("编辑知识源") },
             text = {
-                OutlinedTextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    label = { Text("名称") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = { Text("名称") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = tagText,
+                        onValueChange = { tagText = it },
+                        label = { Text("标签（逗号分隔）") },
+                        placeholder = { Text("如: 技术, 文档, AI") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             },
             confirmButton = {
                 TextButton(
@@ -332,13 +344,14 @@ fun KnowledgeBasePage() {
                         renamingId?.let { id ->
                             scope.launch {
                                 kbService.renameSource(id, renameText.trim())
+                                kbService.editSourceTags(id, tagText.trim())
                                 renamingId = null
                             }
                         }
                     },
                     enabled = renameText.isNotBlank(),
                 ) {
-                    Text("确认")
+                    Text("保存")
                 }
             },
             dismissButton = {
@@ -399,17 +412,36 @@ private fun KnowledgeSourceCard(
                         })
                         append(" · ")
                         append(formatTime(source.createdAt))
-                        if (source.chunkCount > 0) {
-                            append(" · ${source.chunkCount} 段")
+                    if (source.chunkCount > 0) {
+                        append(" · ${source.chunkCount} 段")
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            // 标签
+            if (source.tags.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    source.tags.split(",").filter { it.isNotBlank() }.forEach { tag ->
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Text(
+                                text = tag.trim(),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
                         }
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                    }
+                }
             }
-            if (isDeleting) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            } else {
+        }
+        if (isDeleting) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+        } else {
                 IconButton(onClick = onDelete) {
                     Icon(
                         HugeIcons.Delete02,
