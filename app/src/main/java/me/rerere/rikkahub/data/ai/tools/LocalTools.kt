@@ -88,8 +88,8 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
             },
             execute = {
                 val logs = arrayListOf<String>()
-                val context = QuickJSContext.create()
-                context.setConsole(object : QuickJSContext.Console {
+                val jsContext = QuickJSContext.create()
+                jsContext.setConsole(object : QuickJSContext.Console {
                     override fun log(info: String?) {
                         logs.add("[LOG] $info")
                     }
@@ -107,19 +107,25 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                     }
                 })
                 val code = it.jsonObject["code"]?.jsonPrimitive?.contentOrNull
-                val result = context.evaluate(code)
+                val resultStr = try {
+                    val future = java.util.concurrent.Executors.newSingleThreadExecutor().submit<String> {
+                        val jsResult = jsContext.evaluate(code)
+                        when (jsResult) {
+                            null -> "null"
+                            is QuickJSObject -> jsResult.stringify()
+                            else -> jsResult.toString()
+                        }
+                    }
+                    future.get(15, java.util.concurrent.TimeUnit.SECONDS)
+                } catch (e: java.util.concurrent.TimeoutException) {
+                    error("JavaScript execution timed out after 15 seconds")
+                    jsContext.destroy()
+                }
                 val payload = buildJsonObject {
                     if (logs.isNotEmpty()) {
                         put("logs", JsonPrimitive(logs.joinToString("\n")))
                     }
-                    put(
-                        key = "result",
-                        element = when (result) {
-                            null -> JsonNull
-                            is QuickJSObject -> JsonPrimitive(result.stringify())
-                            else -> JsonPrimitive(result.toString())
-                        }
-                    )
+                    put("result", JsonPrimitive(resultStr))
                 }
                 listOf(UIMessagePart.Text(payload.toString()))
             }
