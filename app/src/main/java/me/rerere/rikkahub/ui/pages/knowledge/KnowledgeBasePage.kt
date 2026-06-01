@@ -133,7 +133,7 @@ fun KnowledgeBasePage() {
                     when (af) {
                         null -> true
                         "global" -> source.assistantId == null
-                        else -> source.assistantId == af.toLongOrNull()
+                        else -> source.assistantId == af
                     }
                 }
             }
