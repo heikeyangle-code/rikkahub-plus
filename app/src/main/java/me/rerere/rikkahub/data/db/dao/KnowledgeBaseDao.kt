@@ -20,12 +20,11 @@ interface KnowledgeBaseDao {
     suspend fun getAllSources(): List<KnowledgeSourceEntity>
 
     /**
-     * 获取对指定助理可见的知识源（全局 OR 通过关联表绑定的）
+     * 获取通过关联表绑定到指定助理的知识源
      */
     @Query("""
         SELECT * FROM knowledge_sources
-        WHERE assistant_id IS NULL
-        OR id IN (SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = :assistantId)
+        WHERE id IN (SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = :assistantId)
         ORDER BY created_at DESC
     """)
     fun getSourcesForAssistantFlow(assistantId: String): Flow<List<KnowledgeSourceEntity>>
@@ -64,8 +63,6 @@ interface KnowledgeBaseDao {
     @Query("""
         SELECT source_id FROM knowledge_source_assistants
         WHERE assistant_id = :assistantId
-        UNION
-        SELECT id FROM knowledge_sources WHERE assistant_id IS NULL
     """)
     suspend fun getSourceIdsForAssistant(assistantId: String): List<String>
 
@@ -87,19 +84,13 @@ interface KnowledgeBaseDao {
 
     // ---- FTS5 全文检索（通过 Service 层直接操作 WritableDatabase）----
 
-    /**
-     * 获取对指定助理可见的所有已向量化的chunks
-     * 包含：全局知识源（assistant_id IS NULL） + 通过关联表绑定的
-     */
+    /** 获取通过关联表绑定到指定助理的所有已向量化chunks */
     @Query("""
         SELECT kc.* FROM knowledge_chunks kc
         INNER JOIN knowledge_sources ks ON ks.id = kc.source_id
         WHERE kc.embedding IS NOT NULL AND kc.embedding_dim > 0
-        AND (
-            ks.assistant_id IS NULL
-            OR kc.source_id IN (
-                SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = :assistantId
-            )
+        AND kc.source_id IN (
+            SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = :assistantId
         )
     """)
     suspend fun getEmbeddedChunksForAssistant(assistantId: String): List<KnowledgeChunkEntity>

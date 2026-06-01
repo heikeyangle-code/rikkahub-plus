@@ -448,7 +448,7 @@ class KnowledgeBaseService(
                     .joinToString(" AND ")
                 if (ftsQuery.isNotBlank()) {
                     val assistFilter = if (assistantId != null) {
-                        "AND kc.source_id IN (SELECT id FROM knowledge_sources WHERE assistant_id IS NULL UNION SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = ?)"
+                        "AND kc.source_id IN (SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = ?)"
                     } else ""
                     val params = mutableListOf(ftsQuery)
                     if (assistantId != null) params.add(assistantId)
@@ -705,7 +705,7 @@ class KnowledgeBaseService(
                         .joinToString(" AND ")
                     if (ftsQuery.isNotBlank()) {
                         val assistFilter = if (assistantId != null) {
-                            "AND kc.source_id IN (SELECT id FROM knowledge_sources WHERE assistant_id IS NULL UNION SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = ?)"
+                            "AND kc.source_id IN (SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = ?)"
                         } else ""
                         val params = mutableListOf(ftsQuery)
                         if (assistantId != null) params.add(assistantId)

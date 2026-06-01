@@ -186,7 +186,7 @@ private fun AssistantLocalToolContent(
                 if (sources.isNotEmpty()) {
                     CardGroup {
                         sources.forEach { source ->
-                            val isBound = source.id in boundSourceIds || source.assistantId == null
+                            val isBound = source.id in boundSourceIds
                             item(
                                 headlineContent = { Text(source.name.ifBlank { "未命名" }) },
                                 supportingContent = {

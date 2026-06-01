@@ -8,8 +8,7 @@ import androidx.room.Index
  * 知识源 ↔ 助理 多对多关联表
  *
  * 一个知识源可以被多个助理使用，一个助理可以使用多个知识源。
- * 全局可见的知识源仍用 knowledge_sources.assistant_id IS NULL 表示，
- * 此表仅记录额外绑定的助理。
+ * 知识源必须通过此表绑定到助理后才会在搜索/注入时被检索到。
  */
 @Entity(
     tableName = "knowledge_source_assistants",
