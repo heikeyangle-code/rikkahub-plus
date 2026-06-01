@@ -228,11 +228,11 @@ class KnowledgeBaseService(
 
             importProgress.value = ImportProgress(children.size, 0, "")
             var imported = 0
-            for (i, (name, uri) in children.withIndex()) {
+            children.forEachIndexed { i, (name, uri) ->
                 importProgress.value = ImportProgress(children.size, i, name)
                 try {
-                    val text = readDocument(uri) ?: continue
-                    if (text.isBlank()) continue
+                    val text = readDocument(uri) ?: return@forEachIndexed
+                    if (text.isBlank()) return@forEachIndexed
 
                     val sourceId = Uuid.random().toString()
                     val source = KnowledgeSourceEntity(

@@ -466,7 +466,7 @@ private fun letterToBlock(ch: Char, line: Int): String {
     return patterns[ch]?.getOrElse(line) { "        " } ?: "        "
 }
 
-private fun generateBanner(text: String): String {
+private fun generateBanner(text: String): String = buildString {
     val w = text.length + 4
     val top = "╔${"═".repeat(w)}╗"
     val middle = "║  $text  ║"
@@ -476,6 +476,97 @@ private fun generateBanner(text: String): String {
         appendLine("║  ${text.uppercase().map { "$it " }.joinToString("")} ║")
         appendLine("╚${"═".repeat(text.length * 2 + 4)}╝")
     }
+}
+
+/** 简单流程图/时序图 SVG 生成 */
+private fun generateDiagramSvg(type: String, title: String, desc: String): String = buildString {
+    val lines = desc.lines().filter { it.isNotBlank() }
+    val h = lines.size * 60 + 80
+    val w = 700
+    appendLine("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"$w\" height=\"$h\" viewBox=\"0 0 $w $h\">")
+    appendLine("<rect width=\"100%\" height=\"100%\" fill=\"#1e1e2e\" rx=\"8\"/>")
+    appendLine("<text x=\"${w/2}\" y=\"30\" text-anchor=\"middle\" fill=\"#cdd6f4\" font-size=\"16\" font-weight=\"bold\">${xml(title)}</text>")
+    if (type == "sequence") {
+        // 时序图：参与者 → 消息
+        val participants = mutableListOf<String>()
+        lines.forEach { line ->
+            if (line.contains("->") || line.contains("->>")) {
+                val parts = line.split(Regex("[-][->]"))
+                if (parts.size >= 2) {
+                    val from = parts[0].trim()
+                    val to = parts[1].trim().substringBefore(":")
+                    participants.add(from)
+                    participants.add(to)
+                }
+            } else if (!line.startsWith(" ")) {
+                participants.add(line.trim())
+            }
+        }
+        val unique = participants.distinct().take(6)
+        if (unique.isNotEmpty()) {
+            val pw = (w - 100) / unique.size
+            unique.forEachIndexed { i, p ->
+                val px = 50 + pw * i
+                appendLine("<rect x=\"$px\" y=\"50\" width=\"$pw\" height=\"30\" rx=\"6\" fill=\"#4F46E5\" stroke=\"#6366f1\" stroke-width=\"1\"/>")
+                appendLine("<text x=\"${px + pw/2}\" y=\"68\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"11\" font-weight=\"bold\">${xml(p)}</text>")
+            }
+        }
+        var ly = 100
+        lines.forEach { line ->
+            if (line.contains("->") || line.contains("->>")) {
+                val parts = line.split(Regex("[-][->]"))
+                if (parts.size >= 2) {
+                    val from = parts[0].trim()
+                    val rest = parts[1].trim()
+                    val to = rest.substringBefore(":")
+                    val msg = rest.substringAfter(":", "").trim()
+                    val fromIdx = unique.indexOf(from)
+                    val toIdx = unique.indexOf(to)
+                    if (fromIdx >= 0 && toIdx >= 0 && fromIdx != toIdx) {
+                        val x1 = 50 + pw * fromIdx + pw / 2
+                        val x2 = 50 + pw * toIdx + pw / 2
+                        val midX = (x1 + x2) / 2
+                        val arrX = if (x1 < x2) x2 - 5 else x2 + 5
+                        appendLine("<line x1=\"$x1\" y1=\"$ly\" x2=\"$arrX\" y2=\"$ly\" stroke=\"#a6adc8\" stroke-width=\"1.5\"/>")
+                        if (line.contains("->>")) {
+                            appendLine("<polygon points=\"$arrX,$ly ${if (x1<x2) arrX-6 else arrX+6},${ly-4} ${if (x1<x2) arrX-6 else arrX+6},${ly+4}\" fill=\"#a6adc8\"/>")
+                        } else {
+                            appendLine("<polygon points=\"${if (x1<x2) x2 else x2},$ly ${if (x1<x2) x2-8 else x2+8},${ly-4} ${if (x1<x2) x2-8 else x2+8},${ly+4}\" fill=\"#a6adc8\"/>")
+                        }
+                        if (msg.isNotBlank()) appendLine("<text x=\"$midX\" y=\"${ly-6}\" text-anchor=\"middle\" fill=\"#cdd6f4\" font-size=\"11\">${xml(msg)}</text>")
+                        ly += 50
+                    }
+                }
+            }
+        }
+    } else {
+        // 流程图：方框+箭头
+        var yPos = 50
+        lines.forEach { line ->
+            val trimmed = line.trim()
+            val isArrow = trimmed.startsWith("->") || trimmed.startsWith("<-")
+            val isDecision = trimmed.startsWith("?") || trimmed.startsWith("if")
+            if (isArrow) {
+                val arrowW = 100; val x = w / 2 - arrowW / 2
+                appendLine("<line x1=\"${w/2}\" y1=\"$yPos\" x2=\"${w/2}\" y2=\"${yPos+25}\" stroke=\"#4F46E5\" stroke-width=\"2\"/>")
+                appendLine("<polygon points=\"${w/2},${yPos+30} ${w/2-5},${yPos+22} ${w/2+5},${yPos+22}\" fill=\"#4F46E5\"/>")
+                val label = trimmed.removePrefix("->").removePrefix("<-").trim()
+                if (label.isNotBlank()) {
+                    appendLine("<text x=\"${w/2+12}\" y=\"${yPos+20}\" fill=\"#a6adc8\" font-size=\"10\">${xml(label)}</text>")
+                }
+                yPos += 40
+            } else {
+                val boxW = 200; val boxH = 36
+                val x = w / 2 - boxW / 2; val y = yPos
+                val color = if (isDecision) "#F59E0B" else "#4F46E5"
+                val shape = if (isDecision) "rx=\"18\" ry=\"18\"" else "rx=\"6\""
+                appendLine("<rect x=\"$x\" y=\"$y\" width=\"$boxW\" height=\"$boxH\" fill=\"$color\" $shape opacity=\"0.9\"/>")
+                appendLine("<text x=\"${w/2}\" y=\"${yPos + boxH/2 + 4}\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"12\" font-weight=\"bold\">${xml(trimmed.removePrefix("?").removePrefix("if ").take(30))}</text>")
+                yPos += boxH + 15
+            }
+        }
+    }
+    appendLine("</svg>")
 }
 
 private fun generateTimelineSvg(title: String, events: List<TimelineEvent>): String = buildString {
