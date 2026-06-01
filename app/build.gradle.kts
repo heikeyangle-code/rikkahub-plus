@@ -43,6 +43,7 @@ android {
             install("python-docx")
             install("pypdf")
             install("openpyxl")
+            install("python-pptx")
             install("pandas")
             install("numpy")
             install("matplotlib")
