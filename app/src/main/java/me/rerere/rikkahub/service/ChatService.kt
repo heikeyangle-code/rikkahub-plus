@@ -570,7 +570,7 @@ class ChatService(
                     }
                     addAll(localTools.getTools(assistant.localTools))
                     addAll(createShellTools())
-                    add(createPythonTool(context, assistant.shellTimeout))
+                    add(createPythonTool(context, assistant.toolExecTimeout))
                     if (assistant.enabledSkills.isNotEmpty()) {
                         addAll(
                             createSkillTools(
