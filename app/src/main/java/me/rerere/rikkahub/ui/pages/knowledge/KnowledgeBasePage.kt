@@ -1110,7 +1110,10 @@ private fun ChatHistoryImportContent(
                         importing = true
                         status = "正在导入..."
                         scope.launch {
-                            val id = kbService.importChatHistory(conv, null)
+                            val fullConv = conversationRepo.getConversationById(conv.id)
+                            val id = if (fullConv != null) {
+                                kbService.importChatHistory(fullConv, null)
+                            } else null
                             importing = false
                             if (id != null) {
                                 status = "导入完成"
