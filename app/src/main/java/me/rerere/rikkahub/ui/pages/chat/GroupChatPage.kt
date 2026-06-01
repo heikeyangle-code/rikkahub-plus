@@ -115,7 +115,6 @@ fun GroupChatPage(groupId: String) {
     if (currentConvId == null) return
 
     var selectedSpeakerId by remember { mutableStateOf(enabledMembers.firstOrNull()?.id) }
-    var selectedModelId by remember { mutableStateOf<Uuid?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var isGenerating by remember { mutableStateOf(false) }
     var queueStatus by remember { mutableStateOf("") }
@@ -233,7 +232,7 @@ fun GroupChatPage(groupId: String) {
                             loading = isGenerating,
                             conversation = conversation ?: Conversation(
                                 id = currentConvId,
-                                assistantId = selectedSpeakerId ?: Uuid.random(),
+                                assistantId = gc.memberIds.firstOrNull() ?: Uuid.random(),
                                 messageNodes = emptyList(),
                             ),
                             settings = settings,
@@ -241,7 +240,13 @@ fun GroupChatPage(groupId: String) {
                             hazeState = hazeState,
                             enableSearch = false,
                             onToggleSearch = {},
-                            onUpdateChatModel = { model -> selectedModelId = model.id },
+                            onUpdateChatModel = { model ->
+                                scope.launch {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(chatModelId = model.id) else it })
+                                    }
+                                }
+                            },
                             onUpdateAssistant = {},
                             onUpdateConversation = {},
                             onUpdateSearchService = {},
@@ -285,7 +290,23 @@ fun GroupChatPage(groupId: String) {
                                         chatService.updateConversationState(currentConvId) { afterUser }
                                         chatService.saveConversation(currentConvId, afterUser)
 
-                                        // 2. 逐个成员生成
+                                        // 2. 如果是 SWAP 模式，先生删除最后一条助手消息
+                                        if (gc.generationMode == GroupGenerationMode.SWAP) {
+                                            val swapConv = chatService.getConversationFlow(currentConvId).value
+                                            val swapNodes = swapConv.messageNodes.toMutableList()
+                                            val lastAsstIdx = swapNodes.indexOfLast { it.role == MessageRole.ASSISTANT }
+                                            if (lastAsstIdx >= 0) {
+                                                val oldNode = swapNodes.removeAt(lastAsstIdx)
+                                                val updatedMap = swapConv.speakerMap - oldNode.id
+                                                chatService.updateConversationState(currentConvId) {
+                                                    it.copy(messageNodes = swapNodes, speakerMap = updatedMap)
+                                                }
+                                                chatService.saveConversation(currentConvId,
+                                                    chatService.getConversationFlow(currentConvId).value)
+                                            }
+                                        }
+
+                                        // 3. 逐个成员生成
                                         for ((idx, sid) in allPicked.withIndex()) {
                                             queueStatus = "正在生成 ${members.find { it.id == sid }?.name ?: "..."} 的回复（${idx + 1}/${allPicked.size}）"
                                             val speaker = members.find { it.id == sid } ?: continue
@@ -301,8 +322,8 @@ fun GroupChatPage(groupId: String) {
                                             }
                                             val history = buildHistoryWithNames(historyMinusLastUser, freshConv.speakerMap, members)
 
-                                            val effectiveSpeaker = if (selectedModelId != null) {
-                                                speaker.copy(chatModelId = selectedModelId)
+                                            val effectiveSpeaker = if (gc.chatModelId != null) {
+                                                speaker.copy(chatModelId = gc.chatModelId)
                                             } else speaker
                                             val response = try {
                                                 chatService.generateForAssistant(
@@ -324,29 +345,10 @@ fun GroupChatPage(groupId: String) {
                                             val newMsg = UIMessage.assistant(response)
                                             val newMsgNode = MessageNode(messages = listOf(newMsg))
 
-                                            if (gc.generationMode == GroupGenerationMode.SWAP && idx == allPicked.lastIndex) {
-                                                // SWAP：删除最后一条助手消息 + 追加新消息
-                                                val lastAsstIdx = nodes.indexOfLast { it.role == MessageRole.ASSISTANT }
-                                                if (lastAsstIdx >= 0) {
-                                                    val oldNode = nodes.removeAt(lastAsstIdx)
-                                                    // 从 speakerMap 移除旧的
-                                                    val updatedMap = freshConv2.speakerMap - oldNode.id
-                                                    nodes.add(newMsgNode)
-                                                    chatService.updateConversationState(currentConvId) {
-                                                        it.copy(messageNodes = nodes, speakerMap = updatedMap + (newMsgNode.id to sid))
-                                                    }
-                                                } else {
-                                                    nodes.add(newMsgNode)
-                                                    chatService.updateConversationState(currentConvId) {
-                                                        it.copy(messageNodes = nodes, speakerMap = freshConv2.speakerMap + (newMsgNode.id to sid))
-                                                    }
-                                                }
-                                            } else {
-                                                // APPEND：直接追加
-                                                nodes.add(newMsgNode)
-                                                chatService.updateConversationState(currentConvId) {
-                                                    it.copy(messageNodes = nodes, speakerMap = freshConv2.speakerMap + (newMsgNode.id to sid))
-                                                }
+                                            // APPEND：直接追加
+                                            nodes.add(newMsgNode)
+                                            chatService.updateConversationState(currentConvId) {
+                                                it.copy(messageNodes = nodes, speakerMap = freshConv2.speakerMap + (newMsgNode.id to sid))
                                             }
                                             chatService.saveConversation(currentConvId,
                                                 chatService.getConversationFlow(currentConvId).value)
@@ -429,10 +431,16 @@ fun GroupChatPage(groupId: String) {
                         Text("模型", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
                         Spacer(Modifier.height(4.dp))
                         ModelSelector(
-                            modelId = selectedModelId,
+                            modelId = gc.chatModelId,
                             providers = settings.providers,
                             type = ModelType.CHAT,
-                            onSelect = { model -> selectedModelId = model.id },
+                            onSelect = { model ->
+                                scope.launch {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(chatModelId = model.id) else it })
+                                    }
+                                }
+                            },
                         )
                     }
 
