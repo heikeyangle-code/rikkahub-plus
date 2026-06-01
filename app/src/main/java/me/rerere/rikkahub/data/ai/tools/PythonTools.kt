@@ -98,9 +98,9 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
         for (fname in files) {
             val file = File(workdir, fname)
             if (file.exists()) {
-                parts.add(UIMessagePart.File(
-                    name = fname,
-                    path = file.absolutePath,
+                parts.add(UIMessagePart.Document(
+                    url = "file://" + file.absolutePath,
+                    fileName = fname,
                     mime = fname.mimeType(),
                 ))
             }
