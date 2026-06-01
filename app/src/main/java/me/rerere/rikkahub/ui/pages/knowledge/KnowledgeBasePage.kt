@@ -51,6 +51,12 @@ fun KnowledgeBasePage() {
 
     var showImportDialog by remember { mutableStateOf(false) }
     var deletingId by remember { mutableStateOf<String?>(null) }
+    var embeddingId by remember { mutableStateOf<String?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<KnowledgeBaseService.SearchResultUi>?>(null) }
+    var isSearching by remember { mutableStateOf(false) }
+    val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore = koinInject()
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -109,18 +115,102 @@ fun KnowledgeBasePage() {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 16.dp),
             ) {
-                items(sources, key = { it.id }) { source ->
-                    KnowledgeSourceCard(
-                        source = source,
-                        isDeleting = deletingId == source.id,
-                        onDelete = {
-                            deletingId = source.id
-                            scope.launch {
-                                kbService.deleteSource(source.id)
-                                deletingId = null
+                // 搜索栏
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("搜索知识库...") },
+                        leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
+                        trailingIcon = {
+                            if (isSearching) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                             }
                         },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onSearch = {
+                                if (searchQuery.isNotBlank()) {
+                                    isSearching = true
+                                    scope.launch {
+                                        searchResults = kbService.searchForUi(searchQuery, settings)
+                                        isSearching = false
+                                    }
+                                }
+                            }
+                        ),
                     )
+                }
+
+                // 搜索结果或来源列表
+                if (searchResults != null) {
+                    item {
+                        Text(
+                            "搜索结果（${searchResults?.size}条）",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    items(searchResults ?: emptyList(), key = { it.chunkId }) { result ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = when (result.matchType) {
+                                        "FTS" -> "📖 关键字匹配"
+                                        "EMBEDDING" -> "🧠 语义匹配"
+                                        "HYBRID" -> "🎯 双通道匹配"
+                                        else -> ""
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = result.text,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 5,
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = "来源: ${result.sourceName} · 匹配度: ${"%.0f".format(result.score * 100)}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    items(sources, key = { it.id }) { source ->
+                        KnowledgeSourceCard(
+                            source = source,
+                            isDeleting = deletingId == source.id,
+                            onDelete = {
+                                deletingId = source.id
+                                scope.launch {
+                                    kbService.deleteSource(source.id)
+                                    deletingId = null
+                                }
+                            },
+                            onEmbed = {
+                                scope.launch {
+                                    embeddingId = source.id
+                                    kbService.embedSource(source.id, settings)
+                                    embeddingId = null
+                                }
+                            },
+                            isEmbedding = embeddingId == source.id,
+                        )
+                    }
                 }
             }
         }
@@ -139,7 +229,9 @@ fun KnowledgeBasePage() {
 private fun KnowledgeSourceCard(
     source: KnowledgeSourceEntity,
     isDeleting: Boolean,
+    isEmbedding: Boolean,
     onDelete: () -> Unit,
+    onEmbed: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -200,6 +292,17 @@ private fun KnowledgeSourceCard(
                     )
                 }
             }
+            if (isEmbedding) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+            } else {
+                IconButton(onClick = onEmbed) {
+                    Icon(
+                        HugeIcons.CloudDownload,
+                        contentDescription = "向量化",
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
         }
     }
 }
@@ -212,11 +315,42 @@ private fun KnowledgeImportDialog(
 ) {
     var selectedType by remember { mutableStateOf<ImportType>(ImportType.File) }
 
+    // 自动向量化开关
+    val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore = koinInject()
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+    var autoEmbed by remember { mutableStateOf(settings.displaySetting.autoEmbedOnImport) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("导入知识") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 自动向量化开关
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("导入后自动向量化", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "调API计算语义向量，可离线搜索但首次需要联网",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = autoEmbed,
+                        onCheckedChange = {
+                            autoEmbed = it
+                            scope.launch {
+                                settingsStore.update { s ->
+                                    s.copy(displaySetting = s.displaySetting.copy(autoEmbedOnImport = it))
+                                }
+                            }
+                        },
+                    )
+                }
+                Divider()
                 // 选择导入类型
                 Row(
                     modifier = Modifier.fillMaxWidth(),

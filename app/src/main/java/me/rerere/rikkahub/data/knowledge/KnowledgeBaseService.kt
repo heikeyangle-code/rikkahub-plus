@@ -112,7 +112,10 @@ class KnowledgeBaseService(
             // 3. 索引FTS5
             indexFts5(chunks)
 
-            // 4. 更新计数
+            // 4. 自动embedding
+            autoEmbedIfEnabled(sourceId)
+
+            // 5. 更新计数
             dao.deleteSource(sourceId)
             dao.insertSource(source.copy(chunkCount = chunks.size))
 
@@ -470,6 +473,50 @@ class KnowledgeBaseService(
             writableDb.execSQL(
                 "INSERT INTO knowledge_fts(text, chunk_id, source_id) VALUES (?, ?, ?)",
                 arrayOf(chunk.text, chunk.id, chunk.sourceId)
+            )
+        }
+    }
+
+    /** 自动embedding：仅当设置开启时 */
+    private suspend fun autoEmbedIfEnabled(sourceId: String) {
+        try {
+            val settings = settingsStore.settingsFlow.value
+            if (settings.displaySetting.autoEmbedOnImport) {
+                ensureEmbeddings(settings)
+            }
+        } catch (_: Exception) { }
+    }
+
+    /** 手动embed指定来源 */
+    suspend fun embedSource(sourceId: String, settings: Settings) = withContext(Dispatchers.IO) {
+        try {
+            val chunks = dao.getChunksBySource(sourceId)
+            if (chunks.isEmpty()) return@withContext
+            ensureEmbeddings(settings)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to embed source $sourceId", e)
+        }
+    }
+
+    /** UI搜索（返回可直接展示的结果） */
+    data class SearchResultUi(
+        val chunkId: String,
+        val text: String,
+        val sourceName: String,
+        val score: Float,
+        val matchType: String,
+    )
+
+    suspend fun searchForUi(query: String, settings: Settings): List<SearchResultUi> = withContext(Dispatchers.IO) {
+        val results = search(query, settings = settings, topK = 20, scoreThreshold = 0.1f)
+        results.map { r ->
+            val source = dao.getSourceById(r.chunk.sourceId.toString())
+            SearchResultUi(
+                chunkId = r.chunk.id,
+                text = r.chunk.text.take(300),
+                sourceName = source?.name ?: "未知",
+                score = r.score,
+                matchType = r.matchType.name,
             )
         }
     }
