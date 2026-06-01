@@ -459,8 +459,25 @@ class KnowledgeBaseService(
             .sortedByDescending { it.value.score }
             .take(topK)
 
-        // 4. 填充 source 信息
-        sorted.map { (_, result) ->
+        // 4. 上下文窗口扩展：每块前后各取1块，拼成完整段落
+        val expanded = sorted.map { (_, result) ->
+            val allChunks = dao.getChunksBySource(result.chunk.sourceId.toString())
+            val idx = allChunks.indexOfFirst { it.id == result.chunk.id }
+            if (idx < 0) return@map result
+
+            val start = maxOf(0, idx - 1)
+            val end = minOf(allChunks.size - 1, idx + 1)
+            val window = allChunks.subList(start, end + 1)
+            val fullText = window.joinToString("") { it.text }
+
+            result.copy(
+                chunk = result.chunk.copy(text = fullText),
+                score = result.score * 1.1f, // 小加分，有上下文的更优先
+            )
+        }
+
+        // 5. 填充 source 信息
+        expanded.map { result ->
             val sourceEntity = dao.getSourceById(result.chunk.sourceId.toString())
             result.copy(source = sourceEntity?.toDomain() ?: KnowledgeSource())
         }
