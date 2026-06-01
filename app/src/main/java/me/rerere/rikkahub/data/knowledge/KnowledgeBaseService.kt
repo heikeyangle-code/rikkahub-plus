@@ -356,8 +356,8 @@ class KnowledgeBaseService(
 
     // ---- Embedding（批量异步） ----
 
-    private suspend fun ensureEmbeddings(settings: Settings) = withContext(Dispatchers.IO) {
-        if (!settings.displaySetting.embeddingEnabled) return@withContext
+    private suspend fun ensureEmbeddings(settings: Settings): String? = withContext(Dispatchers.IO) {
+        if (!settings.displaySetting.embeddingEnabled) return@withContext null
         // 只embed未处理的chunks
         val unembedded = writableDb.query(
             "SELECT id, source_id, chunk_index, text, sentence_start, sentence_end FROM knowledge_chunks WHERE embedding IS NULL AND id LIKE ?",
@@ -378,11 +378,12 @@ class KnowledgeBaseService(
         } finally {
             unembedded.close()
         }
-        if (chunks.isEmpty()) return@withContext
+        if (chunks.isEmpty()) return@withContext null
 
         val model = findEmbeddingModel(settings) ?: run {
+            embeddingProgress.value = null
             Log.w(TAG, "No embedding model configured")
-            return@withContext
+            return@withContext "未配置向量模型，请在模型设置中添加一个 Embedding 模型"
         }
 
         Log.i(TAG, "Embedding ${chunks.size} unembedded chunks...")
@@ -588,13 +589,15 @@ class KnowledgeBaseService(
     }
 
     /** 手动embed指定来源 */
-    suspend fun embedSource(sourceId: String, settings: Settings) = withContext(Dispatchers.IO) {
+    suspend fun embedSource(sourceId: String, settings: Settings): String? = withContext(Dispatchers.IO) {
         try {
             val chunks = dao.getChunksBySource(sourceId)
-            if (chunks.isEmpty()) return@withContext
+            if (chunks.isEmpty()) return@withContext null
             ensureEmbeddings(settings)
         } catch (e: Exception) {
+            embeddingProgress.value = null
             Log.e(TAG, "Failed to embed source $sourceId", e)
+            e.message ?: "向量化失败"
         }
     }
 

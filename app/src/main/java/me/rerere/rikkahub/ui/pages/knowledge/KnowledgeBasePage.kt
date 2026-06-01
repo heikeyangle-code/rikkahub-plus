@@ -38,6 +38,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.context.LocalToaster
 import org.koin.compose.koinInject
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -530,6 +531,7 @@ fun KnowledgeBasePage() {
                     }
                     // 过滤后的来源列表
                     items(filteredSources, key = { it.id }) { source ->
+                        val toaster = LocalToaster.current
                         KnowledgeSourceCard(
                             source = source,
                             isDeleting = deletingId == source.id,
@@ -548,8 +550,9 @@ fun KnowledgeBasePage() {
                             onEmbed = {
                                 scope.launch {
                                     embeddingId = source.id
-                                    kbService.embedSource(source.id, settings)
+                                    val err = kbService.embedSource(source.id, settings)
                                     embeddingId = null
+                                    if (err != null) toaster.show(err)
                                 }
                             },
                             isEmbedding = embeddingId == source.id,
