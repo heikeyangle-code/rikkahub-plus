@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -71,13 +72,13 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
 
         // Collect output text
         val output = buildString {
-            resultJson["stdout"]?.jsonPrimitive?.contentOrNull?.let {
+            resultJson["stdout"]?.jsonPrimitive?.content?.let {
                 if (it.isNotBlank()) appendLine("Output:\n$it")
             }
-            resultJson["result"]?.jsonPrimitive?.contentOrNull?.let {
+            resultJson["result"]?.jsonPrimitive?.content?.let {
                 if (it.isNotBlank()) appendLine("Result: $it")
             }
-            resultJson["error"]?.jsonPrimitive?.contentOrNull?.let {
+            resultJson["error"]?.jsonPrimitive?.content?.let {
                 appendLine("Error: $it")
             }
         }
