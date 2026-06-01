@@ -675,9 +675,10 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         remainingSteps--
 
                                         try {
-                                        // Show real-time progress in UI
+                                        // Show real-time progress in UI (不覆盖主Agent状态，只追加)
                                         val stepNum = stepLog.count { it == '\n' } + 1
-                                        session.processingStatus.value = "子Agent: 第${stepNum}步思考中..."
+                                        val currentStatus = session.processingStatus.value
+                                        session.processingStatus.value = currentStatus + " | 子Agent: 第${stepNum}步..."
 
                                         val chunk = providerImpl.generateText(
                                             providerSetting = providerSetting,
