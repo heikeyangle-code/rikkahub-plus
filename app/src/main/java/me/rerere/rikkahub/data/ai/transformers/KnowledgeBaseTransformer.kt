@@ -47,7 +47,7 @@ class KnowledgeBaseTransformer(
                 appendLine()
                 appendLine("<knowledge_context>")
                 results.forEachIndexed { i, result ->
-                    appendLine("""  <source index="${i + 1}" name="${escapeXml(result.source.name)}" type="${escapeXml(result.source.type)}">""")
+                    appendLine("""  <source index="${i + 1}" name="${escapeXml(result.source.name)}" type="${escapeXml(result.source.type.name)}">""")
                     appendLine("    ${escapeXml(result.chunk.text)}")
                     appendLine("  </source>")
                 }
@@ -67,7 +67,10 @@ class KnowledgeBaseTransformer(
                 )
             } else {
                 // 没有 system 消息，在最前面加一条
-                injected.add(0, UIMessage.system(contextXml))
+                injected.add(0, UIMessage(
+                    role = MessageRole.SYSTEM,
+                    parts = listOf(UIMessagePart.Text(contextXml))
+                ))
             }
 
             Log.d(TAG, "Injected ${results.size} KB chunks via XML format")

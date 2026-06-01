@@ -630,9 +630,9 @@ data class DisplaySetting(
 
 @Serializable
 data class KbInjectionSettings(
-    val enabled: Boolean = false,
+    val enabled: Boolean = true,
     val chunkCount: Int = 3,
-    val tokenBudget: Int = 1024,
+    val tokenBudget: Int = 2048,
     val scoreThreshold: Float = 0.25f,
     val useHybridSearch: Boolean = true,
     val useQueryRewrite: Boolean = true,

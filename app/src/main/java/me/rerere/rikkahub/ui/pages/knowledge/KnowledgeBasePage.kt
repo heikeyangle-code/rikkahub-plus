@@ -58,7 +58,7 @@ fun KnowledgeBasePage() {
     var showImportDialog by remember { mutableStateOf(false) }
     var deletingId by remember { mutableStateOf<String?>(null) }
     var renamingId by remember { mutableStateOf<String?>(null) }
-    var renameText by remember { mutableStateOf(\"\") }
+    var renameText by remember { mutableStateOf("") }
     var embeddingId by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<KnowledgeBaseService.SearchResultUi>?>(null) }
@@ -123,6 +123,81 @@ fun KnowledgeBasePage() {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 16.dp),
             ) {
+                // 自动注入开关
+                item {
+                    val kbSettings = settings.kbInjectionSettings
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("自动注入", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                    Text(
+                                        if (kbSettings.enabled) "已开启 · ${kbSettings.chunkCount}条 · ${kbSettings.tokenBudget}tokens"
+                                        else "生成时自动检索知识库",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Switch(
+                                    checked = kbSettings.enabled,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            settingsStore.update { s ->
+                                                s.copy(kbInjectionSettings = kbSettings.copy(enabled = enabled))
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                            AnimatedVisibility(visible = kbSettings.enabled) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("注入条数:", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(60.dp))
+                                        Slider(
+                                            value = kbSettings.chunkCount.toFloat(),
+                                            onValueChange = { v ->
+                                                scope.launch {
+                                                    settingsStore.update { s ->
+                                                        s.copy(kbInjectionSettings = kbSettings.copy(chunkCount = v.toInt()))
+                                                    }
+                                                }
+                                            },
+                                            valueRange = 1f..10f,
+                                            steps = 8,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Text("${kbSettings.chunkCount}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(24.dp))
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Token预算:", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(60.dp))
+                                        Slider(
+                                            value = kbSettings.tokenBudget.toFloat(),
+                                            onValueChange = { v ->
+                                                scope.launch {
+                                                    settingsStore.update { s ->
+                                                        s.copy(kbInjectionSettings = kbSettings.copy(tokenBudget = v.toInt()))
+                                                    }
+                                                }
+                                            },
+                                            valueRange = 256f..4096f,
+                                            steps = 14,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Text("${kbSettings.tokenBudget}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(36.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 // 搜索栏
                 item {
                     OutlinedTextField(

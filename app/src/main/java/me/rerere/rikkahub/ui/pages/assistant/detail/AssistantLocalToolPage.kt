@@ -93,9 +93,6 @@ private fun AssistantLocalToolContent(
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // ---- 知识库和注入设置 ----
-        val scope = rememberCoroutineScope()
-        val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore = org.koin.compose.koinInject()
         CardGroup {
             item(
                 headlineContent = {
@@ -158,100 +155,6 @@ private fun AssistantLocalToolContent(
                         )
                     }
                 )
-            }
-            // 自动注入设置
-            val kbSettings = settings.kbInjectionSettings
-            CardGroup {
-                item(
-                    headlineContent = { Text("自动注入") },
-                    supportingContent = { Text("自动检索知识库并注入相关内容到 prompt") },
-                    trailingContent = {
-                        Switch(
-                            checked = kbSettings.enabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    settingsStore.update { s ->
-                                        s.copy(kbInjectionSettings = kbSettings.copy(enabled = enabled))
-                                    }
-                                }
-                            }
-                        )
-                    }
-                )
-            }
-            AnimatedVisibility(visible = kbSettings.enabled) {
-                CardGroup {
-                    item(
-                        headlineContent = { Text("注入数量") },
-                        supportingContent = { Text("每次注入 ${kbSettings.chunkCount} 条") },
-                        trailingContent = {
-                            androidx.compose.material3.Slider(
-                                value = kbSettings.chunkCount.toFloat(),
-                                onValueChange = { v ->
-                                    scope.launch {
-                                        settingsStore.update { s ->
-                                            s.copy(kbInjectionSettings = kbSettings.copy(chunkCount = v.toInt()))
-                                        }
-                                    }
-                                },
-                                valueRange = 1f..10f,
-                                steps = 8,
-                                modifier = Modifier.width(120.dp),
-                            )
-                        }
-                    )
-                    item(
-                        headlineContent = { Text("Token预算") },
-                        supportingContent = { Text("最多 ${kbSettings.tokenBudget} tokens") },
-                        trailingContent = {
-                            androidx.compose.material3.Slider(
-                                value = kbSettings.tokenBudget.toFloat(),
-                                onValueChange = { v ->
-                                    scope.launch {
-                                        settingsStore.update { s ->
-                                            s.copy(kbInjectionSettings = kbSettings.copy(tokenBudget = v.toInt()))
-                                        }
-                                    }
-                                },
-                                valueRange = 256f..4096f,
-                                steps = 14,
-                                modifier = Modifier.width(120.dp),
-                            )
-                        }
-                    )
-                    item(
-                        headlineContent = { Text("混合搜索") },
-                        supportingContent = { Text("FTS5 + 向量语义混合检索") },
-                        trailingContent = {
-                            Switch(
-                                checked = kbSettings.useHybridSearch,
-                                onCheckedChange = { v ->
-                                    scope.launch {
-                                        settingsStore.update { s ->
-                                            s.copy(kbInjectionSettings = kbSettings.copy(useHybridSearch = v))
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    )
-                    item(
-                        headlineContent = { Text("Query Rewrite") },
-                        supportingContent = { Text("搜前重写用户消息，提高召回率") },
-                        trailingContent = {
-                            Switch(
-                                checked = kbSettings.useQueryRewrite,
-                                onCheckedChange = { v ->
-                                    scope.launch {
-                                        settingsStore.update { s ->
-                                            s.copy(kbInjectionSettings = kbSettings.copy(useQueryRewrite = v))
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    )
-                }
             }
         }
         AnimatedVisibility(visible = assistant.enableSubAgent) {
