@@ -13,11 +13,16 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
@@ -135,6 +140,22 @@ private fun AssistantLocalToolContent(
                 }
             )
             item(
+                headlineContent = { Text("工具重复调用上限") },
+                supportingContent = { Text("同一批内相同工具调用超过此数打断，默认15") },
+                trailingContent = {
+                    OutlinedTextField(
+                        value = assistant.toolRecurringLimit.toString(),
+                        onValueChange = { v ->
+                            v.toIntOrNull()?.let { onUpdate(assistant.copy(toolRecurringLimit = it)) }
+                        },
+                        modifier = Modifier.width(70.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                }
+            )
+            item(
                 headlineContent = {
                     Text("子Agent")
                 },
@@ -229,6 +250,22 @@ private fun AssistantLocalToolContent(
                                     else model.id
                                 ))
                             }
+                        )
+                    }
+                )
+                item(
+                    headlineContent = { Text("子Agent最大步骤数") },
+                    supportingContent = { Text("默认15") },
+                    trailingContent = {
+                        OutlinedTextField(
+                            value = assistant.subAgentMaxSteps.toString(),
+                            onValueChange = { v ->
+                                v.toIntOrNull()?.let { onUpdate(assistant.copy(subAgentMaxSteps = it)) }
+                            },
+                            modifier = Modifier.width(70.dp),
+                            textStyle = MaterialTheme.typography.bodyMedium,
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         )
                     }
                 )

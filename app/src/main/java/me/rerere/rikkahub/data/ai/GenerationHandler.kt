@@ -234,10 +234,10 @@ class GenerationHandler(
                     emit(GenerationChunk.Messages(messages))
                 }
 
-                // 3. Guardrail: same tool called 20+ times in one batch → break
+                // 3. Guardrail: same tool called N+ times in one batch → break
                 if (!hasPendingApproval) {
                     val toolNameCount = updatedTools.groupingBy { it.toolName }.eachCount()
-                    val looped = toolNameCount.entries.find { it.value >= 20 }
+                    val looped = toolNameCount.entries.find { it.value >= assistant.toolRecurringLimit }
                     if (looped != null) {
                         Log.w(TAG, "Guardrail: ${looped.key} called ${looped.value} times in one batch, breaking")
                         break

@@ -21,10 +21,8 @@ fun createAssetTool(saveDir: String): Tool = Tool(
         - chart: bar/line/pie charts from numeric data → .svg
         - qrcode: QR code from text/URL → .svg
         - color_scheme: color palette from a base color → .svg
-        - ascii: convert text into ASCII art → .txt
-        - banner: large stylized text banner → .txt
         - timeline: chronological timeline from events → .svg
-        Use this when the user asks you to create a chart, QR code, banner, or visualize data.
+        Use this when the user asks you to create a chart, QR code, or visualize data.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -194,7 +192,7 @@ fun createAssetTool(saveDir: String): Tool = Tool(
                 val html = obj["html"]?.jsonPrimitive?.contentOrNull ?: error("html required")
                 "page_$ts.html" to html
             }
-            else -> error("Unknown type: $type (supported: chart/qrcode/color_scheme/ascii/banner/timeline/diagram/code_screenshot/html_page)")
+            else -> error("Unknown type: $type (supported: chart/qrcode/color_scheme/timeline/diagram/code_screenshot/html_page)")
         }
 
         val file = File(dir, filename)
