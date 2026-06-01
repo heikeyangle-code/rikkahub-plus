@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -27,6 +28,8 @@ import androidx.room.Index
     ],
 )
 data class KnowledgeSourceAssistantEntity(
+    @ColumnInfo(name = "source_id")
     val sourceId: String,
+    @ColumnInfo(name = "assistant_id")
     val assistantId: String,
 )
