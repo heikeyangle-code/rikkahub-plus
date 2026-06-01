@@ -34,6 +34,7 @@ fun createAssetTool(saveDir: String): Tool = Tool(
                     put("enum", buildJsonArray {
                         add("chart"); add("qrcode"); add("color_scheme")
                         add("ascii"); add("banner"); add("timeline"); add("diagram")
+                        add("code_screenshot"); add("html_page")
                     })
                     put("description", "Type of asset to create")
                 })
@@ -109,6 +110,34 @@ fun createAssetTool(saveDir: String): Tool = Tool(
                         })
                         put("required", buildJsonArray { add("date"); add("title") })
                     })
+                })
+                // === diagram params ===
+                put("diagram_type", buildJsonObject {
+                    put("type", "string")
+                    put("enum", buildJsonArray { add("flowchart"); add("sequence") })
+                    put("description", "For type=diagram. Diagram subtype: flowchart/sequence")
+                })
+                put("description", buildJsonObject {
+                    put("type", "string")
+                    put("description", "For type=diagram. Text description of the diagram flow")
+                })
+                // === code_screenshot params ===
+                put("code", buildJsonObject {
+                    put("type", "string")
+                    put("description", "For type=code_screenshot. The source code to render as image")
+                })
+                put("language", buildJsonObject {
+                    put("type", "string")
+                    put("description", "For type=code_screenshot. Programming language (kotlin/python/javascript/java/etc)")
+                })
+                put("theme", buildJsonObject {
+                    put("type", "string")
+                    put("description", "For type=code_screenshot/diagram. Color theme: dark/light (default: dark)")
+                })
+                // === html_page params ===
+                put("html", buildJsonObject {
+                    put("type", "string")
+                    put("description", "For type=html_page. Complete HTML content for the page")
                 })
             },
             required = listOf("type"),
