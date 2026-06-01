@@ -3,17 +3,25 @@ package me.rerere.rikkahub.data.knowledge
 import android.util.Log
 
 /**
- * 文档分块引擎
+ * 文档分块引擎（递归多级分块，对标 LlamaIndex SentenceSplitter）
  *
- * 策略：先分句，再按句组块（chunk），每块记录起止句子索引
- * 检索时命中某句，返回该句所属 chunk 的完整文本（前后文窗口）
+ * 分块策略（按优先级降序）：
+ * 1. 按段落分隔符（\n\n\n）切
+ * 2. 按句子边界（中英文句号/问号/感叹号）切
+ * 3. 按短语（逗号/分号）切
+ * 4. 按空格切
+ * 5. 按字符切
+ *
+ * 超出 chunkSize 时递归使用下一级切分方式。
+ * 用 token 数（而非句数）控制块大小。
  */
 class DocumentChunker {
 
     companion object {
         private const val TAG = "DocumentChunker"
-        private const val DEFAULT_CHUNK_SIZE = 10      // 每块默认10句
-        private const val DEFAULT_CHUNK_OVERLAP = 2    // 重叠2句
+        private const val DEFAULT_CHUNK_SIZE = 1024     // 默认每块 token 数（对标 LlamaIndex）
+        private const val DEFAULT_CHUNK_OVERLAP = 200   // 默认重叠 token 数（对标 LlamaIndex）
+        private const val PARAGRAPH_SEP = "\n\n\n"
     }
 
     data class ChunkResult(
@@ -28,166 +36,163 @@ class DocumentChunker {
     )
 
     /**
-     * 将文本切分为句子
+     * 递归多级分块
      */
-    fun splitSentences(text: String): List<String> {
-        if (text.isBlank()) return emptyList()
-        // 按常见的句子结束符分割
-        val sentences = mutableListOf<String>()
-        val regex = Regex("""[^。！？.!?\n]+[。！？.!?\n]?""")
-        val matches = regex.findAll(text)
-        for (match in matches) {
-            val sentence = match.value.trim()
-            if (sentence.isNotBlank()) {
-                sentences.add(sentence)
-            }
-        }
-        // 如果正则没匹配到任何句子（极端情况），整段作为一个句子
-        if (sentences.isEmpty() && text.isNotBlank()) {
-            sentences.add(text.trim())
-        }
-        return sentences
-    }
-
-    /**
-     * 按句组块
-     * @param sentences 句子列表
-     * @param chunkSize 每块多少句
-     * @param overlap 块间重叠句子数
-     */
-    fun chunkSentences(
-        sentences: List<String>,
-        chunkSize: Int = DEFAULT_CHUNK_SIZE,
-        overlap: Int = DEFAULT_CHUNK_OVERLAP,
-    ): ChunkResult {
-        if (sentences.isEmpty()) return ChunkResult(emptyList(), 0)
-
-        val chunks = mutableListOf<SentenceChunk>()
-        val step = chunkSize - overlap
-        if (step <= 0) {
-            Log.w(TAG, "chunkSize=$chunkSize overlap=$overlap: step<=0, forcing step=1")
-            return chunkSentences(sentences, chunkSize, chunkSize - 1)
-        }
-
-        var start = 0
-        while (start < sentences.size) {
-            val end = minOf(start + chunkSize, sentences.size)
-            val chunkText = sentences.subList(start, end).joinToString("")
-            chunks.add(SentenceChunk(
-                text = chunkText,
-                sentenceStart = start,
-                sentenceEnd = end - 1,
-            ))
-            start += step
-        }
-
-        return ChunkResult(chunks, sentences.size)
-    }
-
-    /**
-     * 语义分块：按段落/标题边界切，不跨段落切分
-     *
-     * 策略：
-     * 1. 先用 \n\n 或 markdown 标题分割成段落
-     * 2. 短段落合并成 chunk（不超过 chunkSize 句），长段落独立成 chunk
-     * 3. 超长段落按句回退到原始 chunkSentences
-     */
-    fun chunkDocumentSemantic(
+    fun chunkDocument(
         text: String,
         chunkSize: Int = DEFAULT_CHUNK_SIZE,
         overlap: Int = DEFAULT_CHUNK_OVERLAP,
     ): ChunkResult {
         if (text.isBlank()) return ChunkResult(emptyList(), 0)
+        if (overlap >= chunkSize) return chunkDocument(text, chunkSize, chunkSize / 5)
 
-        // 1. 按段落切分（双换行或 markdown 标题）
-        val paragraphs = splitParagraphs(text)
-        if (paragraphs.size <= 1) {
-            // 只有一段，退回到常规句子分块
-            return chunkDocument(text, chunkSize, overlap)
-        }
+        // 1. 递归切分到不超过 chunkSize 的片段
+        val splits = splitRecursive(text, chunkSize)
 
-        val allSentences = mutableListOf<String>()
-        val sentenceParagraphMap = mutableListOf<Int>() // 每句属于哪个段落
+        // 2. 合并成块（含重叠）
+        val chunks = mergeWithOverlap(splits, chunkSize, overlap)
 
-        paragraphs.forEachIndexed { paraIdx, para ->
-            val sentences = splitSentences(para)
-            // 记录段落边界 - 用于后续可能参考
-            allSentences.addAll(sentences)
-            repeat(sentences.size) { sentenceParagraphMap.add(paraIdx) }
-        }
-
-        if (allSentences.isEmpty()) return ChunkResult(emptyList(), 0)
-
-        // 2. 以段落为单位组块（尽量不跨段落）
-        val chunks = mutableListOf<SentenceChunk>()
-        var start = 0
-        while (start < allSentences.size) {
-            val end = findSemanticBoundary(allSentences, sentenceParagraphMap, start, chunkSize)
-            val chunkText = allSentences.subList(start, end).joinToString("")
-            chunks.add(SentenceChunk(
-                text = chunkText,
-                sentenceStart = start,
-                sentenceEnd = end - 1,
-            ))
-            // 跨段落时步进 overlap，否则直接跳到下个段落边界
-            val step = if (overlap > 0 && start > 0) chunkSize - overlap else end - start
-            start += maxOf(1, step)
-        }
-
-        return ChunkResult(chunks, allSentences.size)
+        return ChunkResult(chunks, chunks.size)
     }
 
     /**
-     * 找到语义边界：优先在段落边界断开，不超过 chunkSize 句
+     * 语义分块（保留段落边界优先）
+     * 与 chunkDocument 相同策略，段落感知已内建
      */
-    private fun findSemanticBoundary(
-        sentences: List<String>,
-        sentenceParagraphMap: List<Int>,
-        fromIndex: Int,
-        maxSize: Int,
-    ): Int {
-        val end = minOf(fromIndex + maxSize, sentences.size)
-        if (end >= sentences.size) return sentences.size
+    fun chunkDocumentSemantic(
+        text: String,
+        chunkSize: Int = DEFAULT_CHUNK_SIZE,
+        overlap: Int = DEFAULT_CHUNK_OVERLAP,
+    ): ChunkResult = chunkDocument(text, chunkSize, overlap)
 
-        // 在 [fromIndex, end) 范围内找最后一个段落边界
-        val currentPara = sentenceParagraphMap[fromIndex]
-        var bestSplit = end
-        for (i in end - 1 downTo fromIndex + 1) {
-            if (sentenceParagraphMap[i] != currentPara) {
-                bestSplit = i
-                break
+    // ========== 拆分 ==========
+
+    /** 内部拆分节点 */
+    private data class Split(
+        val text: String,
+        val isComplete: Boolean,  // true=完整句子/段落，false=碎片
+        val tokenSize: Int,
+    )
+
+    /** 估算 token 数（中英文混合，每字~0.75 token） */
+    private fun estimateTokens(text: String): Int = maxOf(1, (text.length * 0.75).toInt())
+
+    /**
+     * 递归拆分：先用段落分隔符，不行用句子，再不行用短语，最后字符
+     */
+    private fun splitRecursive(text: String, chunkSize: Int): List<Split> {
+        val tokenSize = estimateTokens(text)
+        if (tokenSize <= chunkSize) {
+            return listOf(Split(text, isComplete = true, tokenSize))
+        }
+
+        // 第1级：按段落切
+        val byParagraph = splitByParagraph(text)
+        if (byParagraph.size > 1) {
+            return byParagraph.flatMap { splitRecursive(it, chunkSize) }
+        }
+
+        // 第2级：按句子切（中英文句号）
+        val bySentence = splitBySentences(text)
+        if (bySentence.size > 1) {
+            return bySentence.flatMap { splitRecursive(it, chunkSize) }
+        }
+
+        // 第3级：按短语/逗号切
+        val byPhrase = splitByPhrases(text)
+        if (byPhrase.size > 1) {
+            return byPhrase.flatMap { splitRecursive(it, chunkSize) }
+        }
+
+        // 第4级：按空格切
+        val byWord = text.split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (byWord.size > 1) {
+            return byWord.map { Split(it, isComplete = false, estimateTokens(it)) }
+        }
+
+        // 第5级：逐字符（极极端情况）
+        return text.map { c ->
+            Split(c.toString(), isComplete = false, 1)
+        }
+    }
+
+    private fun splitByParagraph(text: String): List<String> {
+        val parts = text.split(PARAGRAPH_SEP)
+        if (parts.size <= 1) return parts
+        return parts.map { it.trim() }.filter { it.isNotBlank() }
+    }
+
+    private fun splitBySentences(text: String): List<String> {
+        val regex = Regex("""[^。！？.!?\n]+[。！？.!?\n]?""")
+        val matches = regex.findAll(text).map { it.value.trim() }.filter { it.isNotBlank() }.toList()
+        return matches.ifEmpty { listOf(text.trim()) }
+    }
+
+    private fun splitByPhrases(text: String): List<String> {
+        // 中英文逗号/分号/冒号
+        val regex = Regex("""[^，,；;：:]+[，,；;：:]?""")
+        val matches = regex.findAll(text).map { it.value.trim() }.filter { it.isNotBlank() }.toList()
+        return matches.ifEmpty { listOf(text.trim()) }
+    }
+
+    // ========== 合并 ==========
+
+    /**
+     * 合并 splits 成 chunks，块间重叠 overlap 个 token
+     */
+    private fun mergeWithOverlap(
+        splits: List<Split>,
+        chunkSize: Int,
+        overlap: Int,
+    ): List<SentenceChunk> {
+        val chunks = mutableListOf<SentenceChunk>()
+        var sentenceIndex = 0
+        var i = 0
+
+        while (i < splits.size) {
+            val currentChunk = mutableListOf<Split>()
+            var currentTokens = 0
+
+            // 单块至少包含一条完整内容
+            while (i < splits.size) {
+                val s = splits[i]
+                if (currentTokens + s.tokenSize > chunkSize && currentChunk.isNotEmpty()) {
+                    break
+                }
+                currentChunk.add(s)
+                currentTokens += s.tokenSize
+                i++
+            }
+
+            if (currentChunk.isEmpty() && i < splits.size) {
+                // 单条就超 chunkSize，强制塞一条
+                currentChunk.add(splits[i])
+                i++
+            }
+
+            if (currentChunk.isNotEmpty()) {
+                val text = currentChunk.joinToString("") { it.text }
+                chunks.add(SentenceChunk(
+                    text = text,
+                    sentenceStart = sentenceIndex,
+                    sentenceEnd = sentenceIndex + currentChunk.size - 1,
+                ))
+                sentenceIndex += currentChunk.size
+
+                // 计算重叠：从 i 往回退
+                if (overlap > 0 && i < splits.size) {
+                    var overlapTokens = 0
+                    var backtrack = i - 1
+                    while (backtrack >= 0 && overlapTokens < overlap) {
+                        overlapTokens += splits[backtrack].tokenSize
+                        backtrack--
+                    }
+                    i = maxOf(backtrack + 1, i - (overlap * 2)) // 至少回退一点
+                    i = maxOf(0, i)
+                }
             }
         }
 
-        // 如果范围内有段落边界，在边界处断开
-        if (bestSplit < end && bestSplit > fromIndex) {
-            return bestSplit
-        }
-
-        // 没有段落边界，硬截断
-        return end
-    }
-
-    /**
-     * 将文本按段落/标题分割
-     */
-    private fun splitParagraphs(text: String): List<String> {
-        // 按双换行或 markdown 标题（##, ===, --- 等）分割
-        val segments = text.split(Regex("\\n\\s*\\n|\\n#{1,6}\\s|\\n[-=]{2,}\\n"))
-        return segments.map { it.trim() }.filter { it.isNotBlank() }
-    }
-    
-    fun chunkDocument(text: String, chunkSize: Int = DEFAULT_CHUNK_SIZE, overlap: Int = DEFAULT_CHUNK_OVERLAP): ChunkResult {
-        val sentences = splitSentences(text)
-        return chunkSentences(sentences, chunkSize, overlap)
-    }
-
-    /**
-     * 从文本中提取上下文窗口（命中句前后各N句）
-     */
-    fun extractWindow(sentences: List<String>, hitIndex: Int, windowSize: Int = 5): String {
-        val start = maxOf(0, hitIndex - windowSize)
-        val end = minOf(sentences.size - 1, hitIndex + windowSize)
-        return sentences.subList(start, end + 1).joinToString("")
+        return chunks
     }
 }
