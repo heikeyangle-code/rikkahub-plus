@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -27,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -63,12 +65,18 @@ import me.rerere.rikkahub.R
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.hugeicons.stroke.Brain02
+import me.rerere.hugeicons.stroke.ChartColumn
+import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Download01
+import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Puzzle
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Book01
+import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.files.SkillMetadata
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -99,6 +107,22 @@ fun SkillsPage() {
     var isDownloading by remember { mutableStateOf(false) }
     var scanRepoUrl by remember { mutableStateOf("") }
     val downloadStatus by vm.downloadStatus.collectAsStateWithLifecycle()
+
+    // 搜索和筛选
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    val categories = remember(skills) {
+        skills.map { it.category }.filterNotNull().distinct().sorted()
+    }
+    val filteredSkills = remember(skills, searchQuery, selectedCategory) {
+        skills.filter { s ->
+            val matchSearch = searchQuery.isBlank() ||
+                s.name.contains(searchQuery, ignoreCase = true) ||
+                s.description.contains(searchQuery, ignoreCase = true)
+            val matchCategory = selectedCategory == null || s.category == selectedCategory
+            matchSearch && matchCategory
+        }
+    }
 
     // File picker launcher (.zip / .md)
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -206,7 +230,51 @@ fun SkillsPage() {
                 }
             }
 
-            // 已安装
+            // 搜索栏
+            item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("搜索 Skill...") },
+                    leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                )
+            }
+
+            // 分类筛选
+            if (categories.isNotEmpty()) {
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        item {
+                            FilterChip(
+                                selected = selectedCategory == null,
+                                onClick = { selectedCategory = null },
+                                label = { Text("全部", style = MaterialTheme.typography.labelSmall) },
+                                shape = RoundedCornerShape(8.dp),
+                            )
+                        }
+                        items(categories, key = { it }) { cat ->
+                            FilterChip(
+                                selected = selectedCategory == cat,
+                                onClick = { selectedCategory = cat },
+                                label = { Text(cat, style = MaterialTheme.typography.labelSmall) },
+                                leadingIcon = {
+                                    Icon(
+                                        getCategoryIcon(cat),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 已安装（显示数量）
             item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -223,6 +291,20 @@ fun SkillsPage() {
                         "已安装",
                         style = MaterialTheme.typography.titleSmall,
                     )
+                    if (skills.isNotEmpty()) {
+                        Spacer(Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Text(
+                                "${filteredSkills.size}/${skills.size}",
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -253,7 +335,7 @@ fun SkillsPage() {
                 }
             }
 
-            items(skills, key = { it.name }) { skill ->
+            items(filteredSkills, key = { it.name }) { skill ->
                 SkillCard(
                     skill = skill,
                     onClick = { navController.navigate(Screen.SkillDetail(skill.name)) },
@@ -670,6 +752,22 @@ private fun downloadNext(
     }
 }
 
+/**
+ * 按分类返回对应图标
+ */
+private fun getCategoryIcon(category: String) = when (category.lowercase()) {
+    "creative", "创作" -> HugeIcons.AiMagic
+    "devops", "运维" -> HugeIcons.Zap
+    "data-science", "数据" -> HugeIcons.ChartColumn
+    "mlops", "ml" -> HugeIcons.Brain02
+    "research", "研究" -> HugeIcons.GlobalSearch
+    "productivity", "效率" -> HugeIcons.Clock02
+    "github" -> HugeIcons.Book01
+    "gaming", "游戏" -> HugeIcons.Zap
+    "note-taking", "笔记" -> HugeIcons.Book01
+    else -> HugeIcons.Puzzle
+}
+
 @Composable
 private fun SkillCard(
     skill: SkillMetadata,
@@ -697,7 +795,7 @@ private fun SkillCard(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = HugeIcons.Puzzle,
+                        imageVector = getCategoryIcon(skill.category ?: ""),
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.primary,

@@ -257,22 +257,8 @@ if (skill.mcpServers.isNotEmpty()) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.End,
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        HugeIcons.Refresh01,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        if (updating) "更新中..." else "检查更新",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
                                 if (updating) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(18.dp),
