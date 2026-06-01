@@ -315,10 +315,6 @@ private fun KnowledgeImportDialog(
 ) {
     var selectedType by remember { mutableStateOf<ImportType>(ImportType.File) }
 
-    // 绑定助手（null=全局）
-    var selectedAssistantId by remember { mutableStateOf<String?>(null) }
-    var showAssistantMenu by remember { mutableStateOf(false) }
-
     // 自动向量化开关
     val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore = koinInject()
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
@@ -329,46 +325,6 @@ private fun KnowledgeImportDialog(
         title = { Text("导入知识") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // 绑定助手选择
-                val aName = selectedAssistantId?.let { id ->
-                    settings.assistants.find { it.id.toString() == id }?.name
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { showAssistantMenu = true },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("绑定到助手", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            aName?.let { "仅「$it」可用" } ?: "全局（所有助手可用）",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Text(
-                        aName ?: "全局",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                DropdownMenu(
-                    expanded = showAssistantMenu,
-                    onDismissRequest = { showAssistantMenu = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("全局（所有助手可用）") },
-                        onClick = { selectedAssistantId = null; showAssistantMenu = false },
-                    )
-                    settings.assistants.forEach { a ->
-                        DropdownMenuItem(
-                            text = { Text(a.name.ifBlank { "未命名助手" }) },
-                            onClick = { selectedAssistantId = a.id.toString(); showAssistantMenu = false },
-                        )
-                    }
-                }
-
-                Divider()
-
                 // 自动向量化开关
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -429,10 +385,10 @@ private fun KnowledgeImportDialog(
                 Spacer(Modifier.height(8.dp))
 
                 when (selectedType) {
-                    is ImportType.File -> FileImportContent(knowledgeBaseService, scope, onDismiss, selectedAssistantId)
-                    is ImportType.ChatHistory -> ChatHistoryImportContent(knowledgeBaseService, scope, onDismiss, selectedAssistantId)
-                    is ImportType.TextNote -> TextNoteImportContent(knowledgeBaseService, scope, onDismiss, selectedAssistantId)
-                    is ImportType.BatchFolder -> BatchFolderImportContent(knowledgeBaseService, scope, onDismiss, selectedAssistantId)
+                    is ImportType.File -> FileImportContent(knowledgeBaseService, scope, onDismiss)
+                    is ImportType.ChatHistory -> ChatHistoryImportContent(knowledgeBaseService, scope, onDismiss)
+                    is ImportType.TextNote -> TextNoteImportContent(knowledgeBaseService, scope, onDismiss)
+                    is ImportType.BatchFolder -> BatchFolderImportContent(knowledgeBaseService, scope, onDismiss)
                 }
             }
         },
@@ -467,7 +423,6 @@ private fun FileImportContent(
     kbService: KnowledgeBaseService,
     scope: kotlinx.coroutines.CoroutineScope,
     onDone: () -> Unit,
-    assistantId: String?,
 ) {
     var importing by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
@@ -480,7 +435,7 @@ private fun FileImportContent(
             status = "正在导入..."
             scope.launch {
                 val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "未知文件"
-                kbService.importFile(uri, fileName, assistantId = assistantId)
+                kbService.importFile(uri, fileName)
                 importing = false
                 status = "导入完成"
                 onDone()
@@ -520,7 +475,6 @@ private fun ChatHistoryImportContent(
     kbService: KnowledgeBaseService,
     scope: kotlinx.coroutines.CoroutineScope,
     onDone: () -> Unit,
-    assistantId: String?,
 ) {
     val conversationRepo: me.rerere.rikkahub.data.repository.ConversationRepository = koinInject()
     val conversations by conversationRepo.getAllConversationsFlow()
@@ -545,7 +499,7 @@ private fun ChatHistoryImportContent(
                         importing = true
                         status = "正在导入..."
                         scope.launch {
-                            kbService.importChatHistory(conv, assistantId = assistantId)
+                            kbService.importChatHistory(conv)
                             importing = false
                             status = "导入完成"
                             onDone()
@@ -597,7 +551,6 @@ private fun TextNoteImportContent(
     kbService: KnowledgeBaseService,
     scope: kotlinx.coroutines.CoroutineScope,
     onDone: () -> Unit,
-    assistantId: String?,
 ) {
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
@@ -630,7 +583,6 @@ private fun TextNoteImportContent(
                         kbService.importText(
                             title = title.ifBlank { "笔记" },
                             text = content,
-                            assistantId = assistantId,
                         )
                         importing = false
                         status = "导入完成"

@@ -40,7 +40,7 @@ data class KnowledgeChunkEntity(
     val sentenceStart: Int = 0,
     @ColumnInfo("sentence_end")
     val sentenceEnd: Int = 0,
-    @ColumnInfo("embedding")
+    @ColumnInfo("embedding", typeAffinity = ColumnInfo.BLOB)
     val embedding: ByteArray? = null, // FloatArray serialized
     @ColumnInfo("embedding_dim")
     val embeddingDim: Int = 0, // 向量维度，0=未embedding
