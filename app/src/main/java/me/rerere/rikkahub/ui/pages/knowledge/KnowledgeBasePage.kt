@@ -1,8 +1,7 @@
 package me.rerere.rikkahub.ui.pages.knowledge
 
-import android.content.ContentValues.TAG
-import android.net.Uri
 import android.util.Log
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -22,6 +21,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AddCircleHalfDot
 import me.rerere.hugeicons.stroke.BookOpen02
 import me.rerere.hugeicons.stroke.CloudDownload
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Folder02
