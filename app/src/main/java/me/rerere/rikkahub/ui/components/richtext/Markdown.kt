@@ -237,7 +237,7 @@ fun MarkdownBlock(
             .collect { setData(it) }
     }
 
-    if (data.hasHtml || settings.enableTextColor) {
+    if (data.hasHtml) {
         MarkdownNew(
             content = coloredContent,
             modifier = modifier,

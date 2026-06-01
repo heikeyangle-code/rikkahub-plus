@@ -538,6 +538,7 @@ fun GroupChatPage(groupId: String) {
                                     s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(allowSelfResponses = v) else it })
                                 }
                                 }
+                            }
                         )
                     }
 
