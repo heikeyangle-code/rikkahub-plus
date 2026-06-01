@@ -16,6 +16,7 @@ import me.rerere.document.PdfParser
 import me.rerere.document.PptxParser
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.dao.KnowledgeBaseDao
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.entity.KnowledgeChunkEntity
 import me.rerere.rikkahub.data.db.entity.KnowledgeSourceEntity
 import me.rerere.rikkahub.data.model.KnowledgeSearchResult
@@ -25,6 +26,7 @@ import me.rerere.rikkahub.data.model.MatchType
 import me.rerere.rikkahub.data.model.KnowledgeChunk
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.Conversation
 import java.io.File
@@ -38,6 +40,7 @@ class KnowledgeBaseService(
     private val database: AppDatabase,
     private val chunker: DocumentChunker,
     private val providerManager: ProviderManager,
+    private val settingsStore: SettingsStore,
 ) {
     private val dao: KnowledgeBaseDao = database.knowledgeBaseDao()
     private val writableDb get() = database.openHelper.writableDatabase
@@ -296,40 +299,53 @@ class KnowledgeBaseService(
 
     // ---- Embedding（批量异步） ----
 
-    suspend fun embedAllChunks(settings: Settings) = withContext(Dispatchers.IO) {
-        val chunks = dao.getAllEmbeddedChunks()
+    private suspend fun ensureEmbeddings(settings: Settings) = withContext(Dispatchers.IO) {
+        // 只embed未处理的chunks
+        val unembedded = writableDb.rawQuery(
+            "SELECT id, source_id, chunk_index, text, sentence_start, sentence_end FROM knowledge_chunks WHERE embedding IS NULL",
+            null
+        )
+        val chunks = mutableListOf<KnowledgeChunkEntity>()
+        unembedded.use { cursor ->
+            while (cursor.moveToNext()) {
+                chunks.add(KnowledgeChunkEntity(
+                    id = cursor.getString(0),
+                    sourceId = cursor.getString(1),
+                    chunkIndex = cursor.getInt(2),
+                    text = cursor.getString(3),
+                    sentenceStart = cursor.getInt(4),
+                    sentenceEnd = cursor.getInt(5),
+                ))
+            }
+        }
+        if (chunks.isEmpty()) return@withContext
+
         val model = findEmbeddingModel(settings) ?: run {
             Log.w(TAG, "No embedding model configured")
             return@withContext
         }
 
+        Log.i(TAG, "Embedding ${chunks.size} unembedded chunks...")
         val batchSize = 5
         chunks.chunked(batchSize).forEachIndexed { batchIndex, batch ->
             try {
                 val texts = batch.map { it.text }
-                val provider = model.findProvider(settings.providers)
-                    ?: run {
-                        Log.e(TAG, "Provider not found for embedding model: ${model.id}")
-                        return@withContext
-                    }
+                val provider = model.findProvider(settings.providers) ?: return@forEachIndexed
                 val providerImpl = providerManager.getProviderByType(provider)
                 val result = providerImpl.generateEmbedding(EmbeddingGenerationParams(
                     model = model,
                     input = texts,
                 ))
                 result.embeddings.forEachIndexed { i, embedding ->
-                    val entity = batch[i]
-                    val updated = entity.copy(
-                        embedding = KnowledgeChunkEntity.floatsToBytes(embedding),
-                        embeddingDim = embedding.size,
-                    )
-                    // Update individually
                     writableDb.execSQL(
                         "UPDATE knowledge_chunks SET embedding = ?, embedding_dim = ? WHERE id = ?",
-                        arrayOf(updated.embedding, updated.embeddingDim, updated.id)
+                        arrayOf(
+                            KnowledgeChunkEntity.floatsToBytes(embedding),
+                            embedding.size,
+                            batch[i].id
+                        )
                     )
                 }
-                Log.i(TAG, "Embedded batch $batchIndex/${chunks.size / batchSize}")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to embed batch $batchIndex", e)
             }
@@ -392,6 +408,9 @@ class KnowledgeBaseService(
         // 2. Embedding 语义搜索（需要 settings）
         if (settings != null) {
             try {
+                // 懒embedding：首次搜索时自动embed未处理的chunks
+                ensureEmbeddings(settings)
+
                 val model = findEmbeddingModel(settings)
                 if (model != null) {
                     val provider = model.findProvider(settings.providers)
@@ -519,7 +538,3 @@ private fun KnowledgeSourceEntity.toDomain() = KnowledgeSource(
     chunkCount = chunkCount,
     createdAt = createdAt,
 )
-
-private fun me.rerere.ai.provider.Model.findProvider(providers: List<me.rerere.ai.provider.ProviderSetting>): me.rerere.ai.provider.ProviderSetting? {
-    return providers.find { it.id == this.providerId }
-}

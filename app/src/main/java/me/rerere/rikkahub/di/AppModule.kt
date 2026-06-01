@@ -86,6 +86,7 @@ val appModule = module {
             database = db,
             chunker = get(),
             providerManager = get(),
+            settingsStore = get(),
         )
     }
 
