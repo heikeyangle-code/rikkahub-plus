@@ -371,6 +371,109 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
                 }
             },
         ),
+
+        // ── grep_search（在文件内容中搜索文本）──
+        Tool(
+            name = "grep_search",
+            description = "Search for text content inside files on the Android filesystem (like grep -r). " +
+                    "Supports plain text or regex patterns. Can filter by file glob pattern. " +
+                    "Returns matching file paths, line numbers, and the matching lines with context. " +
+                    "Use this when the user wants to find code, configuration, or any text inside files.",
+            parameters = {
+                InputSchema.Obj(
+                    properties = buildJsonObject {
+                        put("pattern", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Text or regex pattern to search for")
+                        })
+                        put("root", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Root directory to search under (default: /storage/emulated/0/Download)")
+                        })
+                        put("file_pattern", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Optional file filter (glob), e.g. '*.kt', '*.json', 'build.gradle*'")
+                        })
+                        put("use_regex", buildJsonObject {
+                            put("type", "boolean")
+                            put("description", "Set true if pattern is a regex, false for plain text (default: false)")
+                        })
+                        put("context", buildJsonObject {
+                            put("type", "integer")
+                            put("description", "Number of context lines before/after each match (default: 2)")
+                        })
+                        put("max_results", buildJsonObject {
+                            put("type", "integer")
+                            put("description", "Max results (default: 30)")
+                        })
+                    },
+                    required = listOf("pattern"),
+                )
+            },
+            execute = { args ->
+                val obj = args.jsonObject
+                val pattern = obj["pattern"]?.jsonPrimitive?.contentOrNull ?: error("pattern required")
+                val root = obj["root"]?.jsonPrimitive?.contentOrNull ?: "/storage/emulated/0/Download"
+                val fileGlob = obj["file_pattern"]?.jsonPrimitive?.contentOrNull ?: ""
+                val useRegex = obj["use_regex"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+                val contextLines = (obj["context"]?.jsonPrimitive?.intOrNull ?: 2).coerceIn(0, 10)
+                val maxResults = (obj["max_results"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 200)
+
+                val rootDir = File(root)
+                if (!rootDir.exists()) error("Directory not found: $root")
+                if (!rootDir.isDirectory) error("Not a directory: $root")
+
+                val searchRegex = if (useRegex) {
+                    try { Regex(pattern, setOf(RegexOption.IGNORE_CASE)) }
+                    catch (e: Exception) { error("Invalid regex: ${e.message}") }
+                } else {
+                    Regex(Regex.escape(pattern), RegexOption.IGNORE_CASE)
+                }
+                val fileFilter = if (fileGlob.isNotBlank()) fileGlob.toGlobRegexForFile() else null
+
+                val results = mutableListOf<String>()
+                val sb = StringBuilder()
+
+                try {
+                    rootDir.walkTopDown()
+                        .filter { it.isFile && it.length() > 0 && it.length() <= 512_000 }
+                        .filter { f -> fileFilter?.matches(f.name) ?: true }
+                        .forEach { file ->
+                            if (results.size >= maxResults) return@forEach
+                            try {
+                                val lines = file.readLines()
+                                var matchCount = 0
+                                lines.forEachIndexed { lineNum, line ->
+                                    if (matchCount >= 5 || results.size >= maxResults) return@forEachIndexed
+                                    if (searchRegex.containsMatchIn(line)) {
+                                        matchCount++
+                                        val relPath = file.absolutePath.removePrefix(rootDir.absolutePath).trimStart('/')
+                                        val tag = if (fileFilter != null) "" else relPath.takeLastWhile { it != '/' }
+                                        results.add("${file.absolutePath}:${lineNum + 1}")
+                                        // Context before
+                                        for (c in (lineNum - contextLines).coerceAtLeast(0) until lineNum) {
+                                            sb.appendLine("  ${c + 1}: ${lines[c].take(120)}")
+                                        }
+                                        sb.appendLine("→ ${lineNum + 1}: ${line.take(120)}")
+                                        // Context after
+                                        for (c in (lineNum + 1)..(lineNum + contextLines).coerceAtMost(lines.size - 1)) {
+                                            sb.appendLine("  ${c + 1}: ${lines[c].take(120)}")
+                                        }
+                                        sb.appendLine()
+                                    }
+                                }
+                            } catch (_: Exception) { /* skip unreadable files */ }
+                        }
+                } catch (_: Exception) { /* walk errors */ }
+
+                if (results.isEmpty()) {
+                    listOf(UIMessagePart.Text("No matches found for '$pattern' under $root${if (fileGlob.isNotBlank()) " in files matching '$fileGlob'" else ""}"))
+                } else {
+                    val summary = "Found ${results.size} match(es) for '$pattern'${if (fileGlob.isNotBlank()) " in $fileGlob files" else ""}:\n"
+                    listOf(UIMessagePart.Text(summary + sb.toString().take(15000)))
+                }
+            },
+        ),
     )
 }
 
@@ -390,4 +493,12 @@ private fun String.toGlobRegex(): Regex {
         .replace("?", ".")
         .let { "^$it$" }
     return Regex(pattern, RegexOption.IGNORE_CASE)
+}
+
+/** 将 glob 模式转换为正则（用于 grep 的文件过滤） */
+private fun String.toGlobRegexForFile(): Regex {
+    val parts = split("/").map { part ->
+        part.replace(".", "\\.").replace("*", ".*").replace("?", ".")
+    }
+    return Regex(parts.joinToString("/"), RegexOption.IGNORE_CASE)
 }

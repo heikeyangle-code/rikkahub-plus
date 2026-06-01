@@ -33,7 +33,7 @@ fun createAssetTool(saveDir: String): Tool = Tool(
                     put("type", "string")
                     put("enum", buildJsonArray {
                         add("chart"); add("qrcode"); add("color_scheme")
-                        add("ascii"); add("banner"); add("timeline"); add("diagram")
+                        add("timeline"); add("diagram")
                         add("code_screenshot"); add("html_page")
                     })
                     put("description", "Type of asset to create")
@@ -89,12 +89,6 @@ fun createAssetTool(saveDir: String): Tool = Tool(
                     put("type", "string")
                     put("enum", buildJsonArray { add("analogous"); add("complementary"); add("triadic"); add("monochromatic") })
                     put("description", "For type=color_scheme. Color harmony type")
-                })
-
-                // === ascii/banner params ===
-                put("text", buildJsonObject {
-                    put("type", "string")
-                    put("description", "For type=ascii/banner. The text to render")
                 })
 
                 // === timeline params ===
@@ -173,14 +167,6 @@ fun createAssetTool(saveDir: String): Tool = Tool(
                 val scheme = obj["scheme_type"]?.jsonPrimitive?.contentOrNull ?: "complementary"
                 "palette_$ts.svg" to generateColorSchemeSvg(base, scheme)
             }
-            "ascii" -> {
-                val text = obj["text"]?.jsonPrimitive?.contentOrNull ?: error("text required")
-                "ascii_$ts.txt" to generateAsciiArt(text)
-            }
-            "banner" -> {
-                val text = obj["text"]?.jsonPrimitive?.contentOrNull ?: error("text required")
-                "banner_$ts.txt" to generateBanner(text)
-            }
             "timeline" -> {
                 val title = obj["title"]?.jsonPrimitive?.contentOrNull ?: "Timeline"
                 val events = obj["events"]?.jsonArray?.map { e ->
@@ -196,9 +182,19 @@ fun createAssetTool(saveDir: String): Tool = Tool(
                 val dgType = obj["diagram_type"]?.jsonPrimitive?.contentOrNull ?: "flowchart"
                 val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: error("description required")
                 val title = obj["title"]?.jsonPrimitive?.contentOrNull ?: "Diagram"
-                "${dgType}_$ts.svg" to generateDiagramSvg(dgType, title, desc)
+                "diagram_$ts.html" to generateMermaidHtml(dgType, title, desc)
             }
-            else -> error("Unknown type: $type (supported: chart/qrcode/color_scheme/ascii/banner/timeline/diagram)")
+            "code_screenshot" -> {
+                val code = obj["code"]?.jsonPrimitive?.contentOrNull ?: error("code required")
+                val lang = obj["language"]?.jsonPrimitive?.contentOrNull ?: ""
+                val theme = obj["theme"]?.jsonPrimitive?.contentOrNull ?: "dark"
+                "code_$ts.svg" to generateCodeScreenshotSvg(code, lang, theme)
+            }
+            "html_page" -> {
+                val html = obj["html"]?.jsonPrimitive?.contentOrNull ?: error("html required")
+                "page_$ts.html" to html
+            }
+            else -> error("Unknown type: $type (supported: chart/qrcode/color_scheme/ascii/banner/timeline/diagram/code_screenshot/html_page)")
         }
 
         val file = File(dir, filename)
@@ -406,165 +402,59 @@ private fun generateColorSchemeSvg(baseHex: String, scheme: String): String {
     }
 }
 
-private fun generateAsciiArt(text: String): String {
-    val fonts = listOf(
-        listOf("██████╗ ", "██╔══██╗", "██████╔╝", "██╔══██╗", "██║  ██║", "╚═╝  ╚═╝"),
-        listOf("╔══╗", "║ ═║", "╠╗ ║", "║ ║║", "║═╝║", "╚══╝"),
-        listOf("██╗", "╚█║", " █║", " █║", "██║", "╚═╝"),
-    )
-    val font = fonts[0] // Use first font
-    val result = StringBuilder()
-    // Simple approach: render each char as a stylized block
-    if (text.length <= 6) {
-        // Short text: render each letter as wide block art
-        val letters = text.uppercase()
-        for (line in 0..5) {
-            for (ch in letters) {
-                result.append(letterToBlock(ch, line))
-                result.append("  ")
-            }
-            result.appendLine()
-        }
-    } else {
-        // Long text: simple border box
-        val border = "╔${"═".repeat(text.length + 4)}╗"
-        val middle = "║  $text  ║"
-        val bottom = "╚${"═".repeat(text.length + 4)}╝"
-        result.appendLine(border)
-        result.appendLine(middle)
-        result.appendLine(bottom)
-    }
-    return result.toString()
-}
+/** 使用 Mermaid CDN 渲染的 HTML 图表页面 */
+private fun generateMermaidHtml(type: String, title: String, desc: String): String = """
+<!DOCTYPE html><html lang="zh"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>$title</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:'dark',themeVariables:{primaryColor:'#4F46E5',primaryTextColor:'#fff',primaryBorderColor:'#6366f1',lineColor:'#a6adc8',secondaryColor:'#10B981',tertiaryColor:'#F59E0B'}})</script>
+<style>body{margin:20px;background:#1e1e2e;color:#cdd6f4;font-family:sans-serif}
+h2{text-align:center;color:#cdd6f4}
+.mermaid{display:flex;justify-content:center;margin-top:20px}
+</style></head><body>
+<h2>$title</h2>
+<div class="mermaid">
+$desc
+</div>
+</body></html>
+""".trimIndent()
 
-private fun letterToBlock(ch: Char, line: Int): String {
-    val patterns = mapOf(
-        'A' to listOf(" █████╗ ", "██╔══██╗", "███████║", "██╔══██║", "██║  ██║", "╚═╝  ╚═╝"),
-        'B' to listOf("██████╗ ", "██╔══██╗", "██████╔╝", "██╔══██╗", "██████╔╝", "╚═════╝ "),
-        'C' to listOf(" █████╗ ", "██╔══██╗", "██║  ╚═╝", "██║  ██╗", "╚█████╔╝", " ╚════╝ "),
-        'D' to listOf("██████╗ ", "██╔══██╗", "██║  ██║", "██║  ██║", "██████╔╝", "╚═════╝ "),
-        'E' to listOf("███████╗", "██╔════╝", "█████╗  ", "██╔══╝  ", "███████╗", "╚══════╝"),
-        'F' to listOf("███████╗", "██╔════╝", "█████╗  ", "██╔══╝  ", "██║     ", "╚═╝     "),
-        'G' to listOf(" █████╗ ", "██╔══██╗", "██║  ██║", "██║  ██║", "╚█████╔╝", " ╚════╝ "),
-        'H' to listOf("██╗  ██╗", "██║  ██║", "███████║", "██╔══██║", "██║  ██║", "╚═╝  ╚═╝"),
-        'I' to listOf("██████╗ ", "╚═██╔═╝", "  ██║  ", "  ██║  ", "  ██║  ", "  ╚═╝  "),
-        'K' to listOf("██╗  ██╗", "██║ ██╔╝", "█████╔╝ ", "██╔═██╗ ", "██║  ██╗", "╚═╝  ╚═╝"),
-        'L' to listOf("██╗     ", "██║     ", "██║     ", "██║     ", "███████╗", "╚══════╝"),
-        'M' to listOf("███╗   ██╗", "████╗  ██║", "██╔██╗ ██║", "██║╚██╗██║", "██║ ╚████║", "╚═╝  ╚═══╝"),
-        'N' to listOf("███╗   ██╗", "████╗  ██║", "██╔██╗ ██║", "██║╚██╗██║", "██║ ╚████║", "╚═╝  ╚═══╝"),
-        'P' to listOf("██████╗ ", "██╔══██╗", "██████╔╝", "██╔═══╝ ", "██║     ", "╚═╝     "),
-        'R' to listOf("██████╗ ", "██╔══██╗", "██████╔╝", "██╔══██╗", "██║  ██║", "╚═╝  ╚═╝"),
-        'S' to listOf(" █████╗ ", "██╔══██╗", "╚█████╔╝", "██╔══██╗", "╚█████╔╝", " ╚════╝ "),
-        'T' to listOf("████████╗", "╚═██╔═╝ ", "  ██║   ", "  ██║   ", "  ██║   ", "  ╚═╝   "),
-        'U' to listOf("██╗   ██╗", "██║   ██║", "██║   ██║", "██║   ██║", "╚██████╔╝", " ╚═════╝ "),
-        'V' to listOf("██╗   ██╗", "██║   ██║", "██║   ██║", "╚██╗ ██╔╝", " ╚████╔╝ ", "  ╚═══╝  "),
-        'W' to listOf("██╗    ██╗", "██║    ██║", "██║ █╗ ██║", "██║███╗██║", "╚███╔███╔╝", " ╚══╝╚══╝ "),
-        'X' to listOf("██╗  ██╗", "╚██╗██╔╝", " ╚███╔╝ ", " ██╔██╗ ", "██╔╝ ██╗", "╚═╝  ╚═╝"),
-        'Y' to listOf("██╗   ██╗", "╚██╗ ██╔╝", " ╚████╔╝ ", "  ╚██╔╝  ", "   ██║   ", "   ╚═╝   "),
-        'Z' to listOf("███████╗", "╚══███╔╝", "  ███╔╝ ", " ███╔╝  ", "███████╗", "╚══════╝"),
-    )
-    return patterns[ch]?.getOrElse(line) { "        " } ?: "        "
-}
+/** 代码截图 SVG（carbon.now.sh 风格） */
+private fun generateCodeScreenshotSvg(code: String, language: String, theme: String): String = buildString {
+    val lines = code.lines().take(50)
+    val maxLineLen = lines.maxOfOrNull { it.length } ?: 40
+    val charW = 8; val lineH = 22
+    val pad = 24; val headerH = 38
+    val w = (maxLineLen * charW + pad * 2 + 20).coerceAtLeast(200)
+    val h = lines.size * lineH + pad * 2 + headerH + 10
+    val bg = if (theme == "light") "#ffffff" else "#1e1e2e"
+    val textColor = if (theme == "light") "#1e1e2e" else "#cdd6f4"
+    val lineNumColor = if (theme == "light") "#d4d4d4" else "#6c7086"
+    val headerBg = if (theme == "light") "#f0f0f0" else "#181825"
 
-private fun generateBanner(text: String): String = buildString {
-    val w = text.length + 4
-    val top = "╔${"═".repeat(w)}╗"
-    val middle = "║  $text  ║"
-    val bottom = "╚${"═".repeat(w)}╝"
-    return buildString {
-        appendLine("╔${"═".repeat(text.length * 2 + 4)}╗")
-        appendLine("║  ${text.uppercase().map { "$it " }.joinToString("")} ║")
-        appendLine("╚${"═".repeat(text.length * 2 + 4)}╝")
-    }
-}
-
-/** 简单流程图/时序图 SVG 生成 */
-private fun generateDiagramSvg(type: String, title: String, desc: String): String = buildString {
-    val lines = desc.lines().filter { it.isNotBlank() }
-    val h = lines.size * 60 + 80
-    val w = 700
     appendLine("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"$w\" height=\"$h\" viewBox=\"0 0 $w $h\">")
-    appendLine("<rect width=\"100%\" height=\"100%\" fill=\"#1e1e2e\" rx=\"8\"/>")
-    appendLine("<text x=\"${w/2}\" y=\"30\" text-anchor=\"middle\" fill=\"#cdd6f4\" font-size=\"16\" font-weight=\"bold\">${xml(title)}</text>")
-    if (type == "sequence") {
-        // 时序图：参与者 → 消息
-        val participants = mutableListOf<String>()
-        lines.forEach { line ->
-            if (line.contains("->") || line.contains("->>")) {
-                val parts = line.split(Regex("[-][->]"))
-                if (parts.size >= 2) {
-                    val from = parts[0].trim()
-                    val to = parts[1].trim().substringBefore(":")
-                    participants.add(from)
-                    participants.add(to)
-                }
-            } else if (!line.startsWith(" ")) {
-                participants.add(line.trim())
-            }
-        }
-        val unique = participants.distinct().take(6)
-        if (unique.isNotEmpty()) {
-            val pw = (w - 100) / unique.size
-            unique.forEachIndexed { i, p ->
-                val px = 50 + pw * i
-                appendLine("<rect x=\"$px\" y=\"50\" width=\"$pw\" height=\"30\" rx=\"6\" fill=\"#4F46E5\" stroke=\"#6366f1\" stroke-width=\"1\"/>")
-                appendLine("<text x=\"${px + pw/2}\" y=\"68\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"11\" font-weight=\"bold\">${xml(p)}</text>")
-            }
-        }
-        var ly = 100
-        lines.forEach { line ->
-            if (line.contains("->") || line.contains("->>")) {
-                val parts = line.split(Regex("[-][->]"))
-                if (parts.size >= 2) {
-                    val from = parts[0].trim()
-                    val rest = parts[1].trim()
-                    val to = rest.substringBefore(":")
-                    val msg = rest.substringAfter(":", "").trim()
-                    val fromIdx = unique.indexOf(from)
-                    val toIdx = unique.indexOf(to)
-                    if (fromIdx >= 0 && toIdx >= 0 && fromIdx != toIdx) {
-                        val x1 = 50 + pw * fromIdx + pw / 2
-                        val x2 = 50 + pw * toIdx + pw / 2
-                        val midX = (x1 + x2) / 2
-                        val arrX = if (x1 < x2) x2 - 5 else x2 + 5
-                        appendLine("<line x1=\"$x1\" y1=\"$ly\" x2=\"$arrX\" y2=\"$ly\" stroke=\"#a6adc8\" stroke-width=\"1.5\"/>")
-                        if (line.contains("->>")) {
-                            appendLine("<polygon points=\"$arrX,$ly ${if (x1<x2) arrX-6 else arrX+6},${ly-4} ${if (x1<x2) arrX-6 else arrX+6},${ly+4}\" fill=\"#a6adc8\"/>")
-                        } else {
-                            appendLine("<polygon points=\"${if (x1<x2) x2 else x2},$ly ${if (x1<x2) x2-8 else x2+8},${ly-4} ${if (x1<x2) x2-8 else x2+8},${ly+4}\" fill=\"#a6adc8\"/>")
-                        }
-                        if (msg.isNotBlank()) appendLine("<text x=\"$midX\" y=\"${ly-6}\" text-anchor=\"middle\" fill=\"#cdd6f4\" font-size=\"11\">${xml(msg)}</text>")
-                        ly += 50
-                    }
-                }
-            }
-        }
-    } else {
-        // 流程图：方框+箭头
-        var yPos = 50
-        lines.forEach { line ->
-            val trimmed = line.trim()
-            val isArrow = trimmed.startsWith("->") || trimmed.startsWith("<-")
-            val isDecision = trimmed.startsWith("?") || trimmed.startsWith("if")
-            if (isArrow) {
-                val arrowW = 100; val x = w / 2 - arrowW / 2
-                appendLine("<line x1=\"${w/2}\" y1=\"$yPos\" x2=\"${w/2}\" y2=\"${yPos+25}\" stroke=\"#4F46E5\" stroke-width=\"2\"/>")
-                appendLine("<polygon points=\"${w/2},${yPos+30} ${w/2-5},${yPos+22} ${w/2+5},${yPos+22}\" fill=\"#4F46E5\"/>")
-                val label = trimmed.removePrefix("->").removePrefix("<-").trim()
-                if (label.isNotBlank()) {
-                    appendLine("<text x=\"${w/2+12}\" y=\"${yPos+20}\" fill=\"#a6adc8\" font-size=\"10\">${xml(label)}</text>")
-                }
-                yPos += 40
-            } else {
-                val boxW = 200; val boxH = 36
-                val x = w / 2 - boxW / 2; val y = yPos
-                val color = if (isDecision) "#F59E0B" else "#4F46E5"
-                val shape = if (isDecision) "rx=\"18\" ry=\"18\"" else "rx=\"6\""
-                appendLine("<rect x=\"$x\" y=\"$y\" width=\"$boxW\" height=\"$boxH\" fill=\"$color\" $shape opacity=\"0.9\"/>")
-                appendLine("<text x=\"${w/2}\" y=\"${yPos + boxH/2 + 4}\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"12\" font-weight=\"bold\">${xml(trimmed.removePrefix("?").removePrefix("if ").take(30))}</text>")
-                yPos += boxH + 15
-            }
-        }
+    // 背景
+    appendLine("<rect width=\"$w\" height=\"$h\" fill=\"$bg\" rx=\"12\"/>")
+    // 窗口顶栏
+    appendLine("<rect x=\"0\" y=\"0\" width=\"$w\" height=\"$headerH\" fill=\"$headerBg\" rx=\"12\"/>")
+    appendLine("<rect x=\"0\" y=\"$headerH\" width=\"$w\" height=\"2\" fill=\"#313244\"/>")
+    // 红绿灯圆点
+    listOf("#ff5f56" to 14, "#ffbd2e" to 36, "#27c93f" to 58).forEach { (color, x) ->
+        appendLine("<circle cx=\"$x\" cy=\"${headerH/2}\" r=\"5\" fill=\"$color\"/>")
+    }
+    // 标题
+    val langLabel = language.ifBlank { "code" }
+    appendLine("<text x=\"${w/2}\" y=\"${headerH/2 + 4}\" text-anchor=\"middle\" fill=\"$lineNumColor\" font-size=\"12\" font-family=\"monospace\">$langLabel</text>")
+    // 行号 + 代码
+    lines.forEachIndexed { i, line ->
+        val y = headerH + pad + i * lineH + 14
+        val displayLine = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            .replace("\t", "  ")
+        // 行号
+        appendLine("<text x=\"${pad}\" y=\"$y\" fill=\"$lineNumColor\" font-size=\"13\" font-family=\"monospace\" text-anchor=\"end\">${i + 1}</text>")
+        // 代码
+        appendLine("<text x=\"${pad + 30}\" y=\"$y\" fill=\"$textColor\" font-size=\"13\" font-family=\"monospace\">$displayLine</text>")
     }
     appendLine("</svg>")
 }

@@ -64,6 +64,7 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createAssetTool
+import me.rerere.rikkahub.data.ai.tools.createDataProcessTool
 import me.rerere.rikkahub.data.ai.tools.createFileTools
 import me.rerere.rikkahub.data.ai.tools.createShellTools
 import me.rerere.rikkahub.data.files.SkillManager
@@ -561,6 +562,7 @@ class ChatService(
                     val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
                     addAll(createFileTools(skillDirs))
                     add(createAssetTool(context.filesDir.absolutePath))
+                    add(createDataProcessTool())
                     if (settings.enableWebSearch) {
                         addAll(createSearchTools(settings))
                     }
