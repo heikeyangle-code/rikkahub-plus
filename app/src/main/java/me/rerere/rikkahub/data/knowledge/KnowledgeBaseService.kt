@@ -96,11 +96,13 @@ class KnowledgeBaseService(
             )
             dao.insertSource(source)
 
-            // 2. 分块
-            val result = chunker.chunkDocumentSemantic(text, chunkSize, overlap)
-            val chunks = result.chunks.mapIndexed { index, chunk ->
+            // 2. 分块（双级：parent 1024 + child 256）
+            val parentChunks = chunker.chunkDocument(text, chunkSize = 1024, overlap = 200)
+            val childChunks = chunker.chunkDocument(text, chunkSize = 256, overlap = 50)
+
+            val parentEntities = parentChunks.chunks.mapIndexed { index, chunk ->
                 KnowledgeChunkEntity(
-                    id = "${sourceId}_$index",
+                    id = "${sourceId}_p_$index",
                     sourceId = sourceId,
                     chunkIndex = index,
                     text = chunk.text,
@@ -108,19 +110,34 @@ class KnowledgeBaseService(
                     sentenceEnd = chunk.sentenceEnd,
                 )
             }
-            dao.insertChunks(chunks)
+            val childEntities = childChunks.chunks.mapIndexed { index, chunk ->
+                // 找到所属的 parent chunk
+                val parentIdx = parentChunks.chunks.indexOfLast { p ->
+                    p.sentenceStart <= chunk.sentenceStart
+                }
+                KnowledgeChunkEntity(
+                    id = "${sourceId}_c_$index",
+                    sourceId = sourceId,
+                    chunkIndex = index,
+                    text = chunk.text,
+                    sentenceStart = chunk.sentenceStart,
+                    sentenceEnd = chunk.sentenceEnd,
+                    parentChunkId = if (parentIdx >= 0) "${sourceId}_p_$parentIdx" else null,
+                )
+            }
+            dao.insertChunks(parentEntities + childEntities)
 
-            // 3. 索引FTS5
-            indexFts5(chunks)
+            // 3. 索引FTS5（只索引 child chunks）
+            indexFts5(childEntities)
 
             // 4. 自动embedding
             autoEmbedIfEnabled(sourceId)
 
             // 5. 更新计数
             dao.deleteSource(sourceId)
-            dao.insertSource(source.copy(chunkCount = chunks.size))
+            dao.insertSource(source.copy(chunkCount = parentEntities.size))
 
-            Log.i(TAG, "Imported $fileName: ${result.sentenceCount} sentences, ${chunks.size} chunks")
+            Log.i(TAG, "Imported $fileName: ${parentEntities.size} parent chunks, ${childEntities.size} child chunks")
             sourceId
         } catch (e: Exception) {
             Log.e(TAG, "Failed to import file: $fileName", e)
@@ -185,21 +202,11 @@ class KnowledgeBaseService(
                     )
                     dao.insertSource(source)
 
-                    val result = chunker.chunkDocumentSemantic(text, chunkSize, overlap)
-                    val chunks = result.chunks.mapIndexed { index, chunk ->
-                        KnowledgeChunkEntity(
-                            id = "${sourceId}_$index",
-                            sourceId = sourceId,
-                            chunkIndex = index,
-                            text = chunk.text,
-                            sentenceStart = chunk.sentenceStart,
-                            sentenceEnd = chunk.sentenceEnd,
-                        )
-                    }
-                    dao.insertChunks(chunks)
-                    indexFts5(chunks)
+                    val (parentEntities, childEntities) = createDualChunks(sourceId, text)
+                    dao.insertChunks(parentEntities + childEntities)
+                    indexFts5(childEntities)
                     dao.deleteSource(sourceId)
-                    dao.insertSource(source.copy(chunkCount = chunks.size))
+                    dao.insertSource(source.copy(chunkCount = parentEntities.size))
                     imported++
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to import $name in folder", e)
@@ -249,24 +256,14 @@ class KnowledgeBaseService(
             )
             dao.insertSource(source)
 
-            val result = chunker.chunkDocumentSemantic(text, chunkSize, overlap)
-            val chunks = result.chunks.mapIndexed { index, chunk ->
-                KnowledgeChunkEntity(
-                    id = "${sourceId}_$index",
-                    sourceId = sourceId,
-                    chunkIndex = index,
-                    text = chunk.text,
-                    sentenceStart = chunk.sentenceStart,
-                    sentenceEnd = chunk.sentenceEnd,
-                )
-            }
-            dao.insertChunks(chunks)
-            indexFts5(chunks)
+            val (parentEntities, childEntities) = createDualChunks(sourceId, text)
+            dao.insertChunks(parentEntities + childEntities)
+            indexFts5(childEntities)
 
             dao.deleteSource(sourceId)
-            dao.insertSource(source.copy(chunkCount = chunks.size))
+            dao.insertSource(source.copy(chunkCount = parentEntities.size))
 
-            Log.i(TAG, "Imported chat '$title': ${result.sentenceCount} sentences, ${chunks.size} chunks")
+            Log.i(TAG, "Imported chat '$title': ${parentEntities.size} parent chunks, ${childEntities.size} child chunks")
             sourceId
         } catch (e: Exception) {
             Log.e(TAG, "Failed to import chat history", e)
@@ -297,24 +294,14 @@ class KnowledgeBaseService(
             )
             dao.insertSource(source)
 
-            val result = chunker.chunkDocumentSemantic(text, chunkSize, overlap)
-            val chunks = result.chunks.mapIndexed { index, chunk ->
-                KnowledgeChunkEntity(
-                    id = "${sourceId}_$index",
-                    sourceId = sourceId,
-                    chunkIndex = index,
-                    text = chunk.text,
-                    sentenceStart = chunk.sentenceStart,
-                    sentenceEnd = chunk.sentenceEnd,
-                )
-            }
-            dao.insertChunks(chunks)
-            indexFts5(chunks)
+            val (parentEntities, childEntities) = createDualChunks(sourceId, text)
+            dao.insertChunks(parentEntities + childEntities)
+            indexFts5(childEntities)
 
             dao.deleteSource(sourceId)
-            dao.insertSource(source.copy(chunkCount = chunks.size))
+            dao.insertSource(source.copy(chunkCount = parentEntities.size))
 
-            Log.i(TAG, "Imported text '$title': ${result.sentenceCount} sentences, ${chunks.size} chunks")
+            Log.i(TAG, "Imported text '$title': ${parentEntities.size} parent chunks, ${childEntities.size} child chunks")
             sourceId
         } catch (e: Exception) {
             Log.e(TAG, "Failed to import text", e)
@@ -328,8 +315,8 @@ class KnowledgeBaseService(
         if (!settings.displaySetting.embeddingEnabled) return@withContext
         // 只embed未处理的chunks
         val unembedded = writableDb.query(
-            "SELECT id, source_id, chunk_index, text, sentence_start, sentence_end FROM knowledge_chunks WHERE embedding IS NULL",
-            emptyArray()
+            "SELECT id, source_id, chunk_index, text, sentence_start, sentence_end FROM knowledge_chunks WHERE embedding IS NULL AND id LIKE ?",
+            arrayOf("%_c_%")
         )
         val chunks = mutableListOf<KnowledgeChunkEntity>()
         try {
@@ -576,6 +563,44 @@ class KnowledgeBaseService(
         }
     }
 
+    /**
+     * 双级分块：生成 parent chunks（1024 tokens）和 child chunks（256 tokens）
+     * 仅嵌入 child chunks，搜索时返回 parent chunks 获得更完整的上下文
+     */
+    private fun createDualChunks(
+        sourceId: String,
+        text: String,
+    ): Pair<List<KnowledgeChunkEntity>, List<KnowledgeChunkEntity>> {
+        val parentChunks = chunker.chunkDocument(text, chunkSize = 1024, overlap = 200)
+        val childChunks = chunker.chunkDocument(text, chunkSize = 256, overlap = 50)
+
+        val parentEntities = parentChunks.chunks.mapIndexed { index, chunk ->
+            KnowledgeChunkEntity(
+                id = "${sourceId}_p_$index",
+                sourceId = sourceId,
+                chunkIndex = index,
+                text = chunk.text,
+                sentenceStart = chunk.sentenceStart,
+                sentenceEnd = chunk.sentenceEnd,
+            )
+        }
+        val childEntities = childChunks.chunks.mapIndexed { index, chunk ->
+            val parentIdx = parentChunks.chunks.indexOfLast { p ->
+                p.sentenceStart <= chunk.sentenceStart
+            }
+            KnowledgeChunkEntity(
+                id = "${sourceId}_c_$index",
+                sourceId = sourceId,
+                chunkIndex = index,
+                text = chunk.text,
+                sentenceStart = chunk.sentenceStart,
+                sentenceEnd = chunk.sentenceEnd,
+                parentChunkId = if (parentIdx >= 0) "${sourceId}_p_$parentIdx" else null,
+            )
+        }
+        return parentEntities to childEntities
+    }
+
     /** 为自动注入优化的搜索：RRF融合 + 去重 + Token预算 */
     suspend fun searchForInjection(
         query: String,
@@ -687,18 +712,19 @@ class KnowledgeBaseService(
             // 3. RRF 融合
             val merged = rrfMerge(ftsResults, embeddingResults)
 
-            // 4. 去重（可选）
+            // 4. 去重 + Parent-Document 解析
             val deduped = if (kbSettings.enableDedup) {
                 val seen = mutableSetOf<String>()
                 merged.filter { seen.add(it.chunk.id) }
             } else {
                 merged
             }
+            val withParents = resolveParentChunks(deduped)
 
             // 5. Token预算裁剪
             var tokenCount = 0
             val budget = kbSettings.tokenBudget
-            deduped.takeWhile { result ->
+            withParents.takeWhile { result ->
                 val tokens = estimateTokens(result.chunk.text)
                 if (tokenCount + tokens > budget) false
                 else { tokenCount += tokens; true }
@@ -722,6 +748,37 @@ class KnowledgeBaseService(
         return (fts + embedding)
             .distinctBy { it.chunk.id }
             .sortedByDescending { scores[it.chunk.id] }
+    }
+
+    /**
+     * 将搜索结果中的 child chunks 替换为 parent chunks
+     * 提升上下文的完整性
+     */
+    private suspend fun resolveParentChunks(
+        results: List<KnowledgeSearchResult>,
+    ): List<KnowledgeSearchResult> {
+        val mapped = results.map { result ->
+            val chunkId = result.chunk.id
+            if (chunkId.contains("_c_")) {
+                // 这是一个 child chunk，找 parent
+                val parentId = chunkId.replace("_c_", "_p_")
+                // 通常 parent index 和 child index 不同，直接从 DAO 查
+                val childEntity = dao.getChunkById(chunkId)
+                if (childEntity?.parentChunkId != null) {
+                    val parentEntity = dao.getChunkById(childEntity.parentChunkId)
+                    if (parentEntity != null) {
+                        return@map result.copy(
+                            chunk = parentEntity.toDomain(),
+                            score = result.score * 1.1f, // 小幅加分
+                        )
+                    }
+                }
+            }
+            result
+        }
+        // 去重：同一 parent 可能被多个 child 命中
+        val seen = mutableSetOf<String>()
+        return mapped.filter { seen.add(it.chunk.id) }
     }
 
     /** 粗略估算中英文混合文本的token数（每字0.75 token） */

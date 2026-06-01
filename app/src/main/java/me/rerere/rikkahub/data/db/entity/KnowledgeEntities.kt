@@ -23,6 +23,8 @@ data class KnowledgeSourceEntity(
     val chunkCount: Int = 0,
     @ColumnInfo("created_at")
     val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo("tags")
+    val tags: String = "", // 逗号分隔的标签
 )
 
 @Entity(tableName = "knowledge_chunks")
@@ -44,6 +46,8 @@ data class KnowledgeChunkEntity(
     val embedding: ByteArray? = null, // FloatArray serialized
     @ColumnInfo("embedding_dim")
     val embeddingDim: Int = 0, // 向量维度，0=未embedding
+    @ColumnInfo("parent_chunk_id")
+    val parentChunkId: String? = null, // 父块ID（Parent-Document检索用）
 ) {
     companion object {
         fun floatsToBytes(floats: List<Float>): ByteArray {
