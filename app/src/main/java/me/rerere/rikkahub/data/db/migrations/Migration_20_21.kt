@@ -6,7 +6,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 /**
  * 从版本20升级到21：添加知识库表 + FTS5
  */
-class Migration_20_21 : Migration(20, 21) {
+val Migration_20_21 = object : Migration(20, 21) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // 知识源
         db.execSQL("""

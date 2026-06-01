@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,12 +35,16 @@ import me.rerere.rikkahub.data.model.KnowledgeSourceType
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.utils.formatRelativeTime
 import org.koin.compose.koinInject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.uuid.Uuid
+
+private fun formatTime(millis: Long): String {
+    val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+    return sdf.format(Date(millis))
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -272,7 +277,7 @@ private fun KnowledgeSourceCard(
                             else -> source.type
                         })
                         append(" · ")
-                        append(formatRelativeTime(source.createdAt))
+                        append(formatTime(source.createdAt))
                         if (source.chunkCount > 0) {
                             append(" · ${source.chunkCount} 段")
                         }

@@ -354,7 +354,7 @@ class KnowledgeBaseService(
                 val texts = batch.map { it.text }
                 val provider = model.findProvider(settings.providers) ?: return@forEachIndexed
                 val providerImpl = providerManager.getProviderByType(provider)
-                val result = providerImpl.generateEmbedding(EmbeddingGenerationParams(
+                val result = providerImpl.generateEmbedding(provider, EmbeddingGenerationParams(
                     model = model,
                     input = texts,
                 ))
@@ -406,32 +406,33 @@ class KnowledgeBaseService(
                     .filter { it.length >= 2 }
                     .joinToString(" AND ")
                 if (ftsQuery.isNotBlank()) {
-                val cursor = writableDb.rawQuery("""
-                    SELECT kc.id, kc.source_id, kc.chunk_index, kc.text, kc.sentence_start, kc.sentence_end
-                    FROM knowledge_fts kf
-                    INNER JOIN knowledge_chunks kc ON kc.id = kf.chunk_id
-                    WHERE kf.text MATCH ?
-                    ORDER BY rank
-                    LIMIT ?
-                """, arrayOf(ftsQuery, (topK * 2).toString()))
-                cursor.use {
-                    while (it.moveToNext()) {
-                        val chunk = KnowledgeChunkEntity(
-                            id = it.getString(0),
-                            sourceId = it.getString(1),
-                            chunkIndex = it.getInt(2),
-                            text = it.getString(3),
-                            sentenceStart = it.getInt(4),
-                            sentenceEnd = it.getInt(5),
-                        )
-                        val key = chunk.id
-                        val existing = results[key]
-                        results[key] = KnowledgeSearchResult(
-                            chunk = chunk.toDomain(),
-                            score = maxOf(existing?.score ?: 0f, 0.6f),
-                            source = KnowledgeSource(),
-                            matchType = if (existing?.matchType == MatchType.EMBEDDING) MatchType.HYBRID else MatchType.FTS,
-                        )
+                    val cursor = writableDb.rawQuery("""
+                        SELECT kc.id, kc.source_id, kc.chunk_index, kc.text, kc.sentence_start, kc.sentence_end
+                        FROM knowledge_fts kf
+                        INNER JOIN knowledge_chunks kc ON kc.id = kf.chunk_id
+                        WHERE kf.text MATCH ?
+                        ORDER BY rank
+                        LIMIT ?
+                    """, arrayOf(ftsQuery, (topK * 2).toString()))
+                    cursor.use {
+                        while (it.moveToNext()) {
+                            val chunk = KnowledgeChunkEntity(
+                                id = it.getString(0),
+                                sourceId = it.getString(1),
+                                chunkIndex = it.getInt(2),
+                                text = it.getString(3),
+                                sentenceStart = it.getInt(4),
+                                sentenceEnd = it.getInt(5),
+                            )
+                            val key = chunk.id
+                            val existing = results[key]
+                            results[key] = KnowledgeSearchResult(
+                                chunk = chunk.toDomain(),
+                                score = maxOf(existing?.score ?: 0f, 0.6f),
+                                source = KnowledgeSource(),
+                                matchType = if (existing?.matchType == MatchType.EMBEDDING) MatchType.HYBRID else MatchType.FTS,
+                            )
+                        }
                     }
                 }
             }
@@ -450,7 +451,7 @@ class KnowledgeBaseService(
                     val provider = model.findProvider(settings.providers)
                     if (provider != null) {
                         val providerImpl = providerManager.getProviderByType(provider)
-                        val queryEmbedding = providerImpl.generateEmbedding(EmbeddingGenerationParams(
+                        val queryEmbedding = providerImpl.generateEmbedding(provider, EmbeddingGenerationParams(
                             model = model,
                             input = listOf(query),
                         )).embeddings.firstOrNull()
