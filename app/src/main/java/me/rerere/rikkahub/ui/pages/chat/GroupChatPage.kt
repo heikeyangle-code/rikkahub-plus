@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.uuid.Uuid
 import me.rerere.ai.core.MessageRole
@@ -24,6 +25,8 @@ import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Pause
+import me.rerere.hugeicons.stroke.Play
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.*
@@ -85,33 +88,32 @@ fun GroupChatPage(groupId: String) {
     val members = gc.memberIds.mapNotNull { id -> settings.assistants.find { it.id == id } }
     val enabledMembers = members.filter { it.id !in gc.disabledMemberIds }
 
-    // 初始化/加载 Conversation
-    var convId by remember { mutableStateOf(gc.conversationId) }
-    val flowConvId = convId ?: Uuid.random()
-    val conversation by chatService.getConversationFlow(flowConvId)
-        .collectAsStateWithLifecycle(initialValue = null)
+    // 初始化/加载 Conversation（简化：一次性处理，不用 flowConvId 切换）
+    var convId by remember { mutableStateOf<Uuid?>(null) }
+    val currentConvId = convId
+    val conversation by (currentConvId?.let { chatService.getConversationFlow(it) }?.collectAsStateWithLifecycle()
+        ?: remember { mutableStateOf(null) })
 
     LaunchedEffect(Unit) {
+        val existingId = gc.conversationId ?: Uuid.random()
         if (gc.conversationId == null) {
-            val newConvId = Uuid.random()
             val conv = Conversation(
-                id = newConvId,
+                id = existingId,
                 assistantId = gc.memberIds.firstOrNull() ?: Uuid.random(),
                 messageNodes = emptyList(),
             )
-            chatService.initializeConversation(newConvId)
-            chatService.updateConversationState(newConvId) { conv }
-            chatService.saveConversation(newConvId, conv)
+            chatService.initializeConversation(existingId)
+            chatService.updateConversationState(existingId) { conv }
+            chatService.saveConversation(existingId, conv)
             settingsStore.update(settings.copy(
-                groupChats = settings.groupChats.map { if (it.id == gcId) it.copy(conversationId = newConvId) else it }
+                groupChats = settings.groupChats.map { if (it.id == gcId) it.copy(conversationId = existingId) else it }
             ))
-            convId = newConvId
         } else {
-            chatService.initializeConversation(gc.conversationId)
+            chatService.initializeConversation(existingId)
         }
+        convId = existingId
     }
 
-    val currentConvId = convId
     if (currentConvId == null) return
 
     var selectedSpeakerId by remember { mutableStateOf(enabledMembers.firstOrNull()?.id) }
@@ -270,88 +272,122 @@ fun GroupChatPage(groupId: String) {
                                     speakerHistory = getSpeakerHistory(messageNodes, speakerMap),
                                     allowSelfResponses = gc.allowSelfResponses,
                                     manualSpeakerId = selectedSpeakerId,
+                                    speakerWeights = gc.speakerWeights,
                                 )
                                 if (allPicked.isEmpty()) { isGenerating = false; return@ChatInput }
 
                                 queueMembers = allPicked.mapNotNull { id -> members.find { it.id == id }?.name }
                                 queueStatus = "等待 ${queueMembers.joinToString("、")} 回复..."
 
+                                // 语音识别用
+                                val inputContents = inputState.getContents()
+
                                 generationJob = scope.launch {
                                     try {
-                                        // 1. 添加用户消息（走标准管线）
-                                        val conv = chatService.getConversationFlow(currentConvId).value
-                                        val userNode = UIMessage(
-                                            role = MessageRole.USER,
-                                            parts = inputState.getContents(),
-                                        ).toMessageNode()
-                                        val afterUser = conv.copy(
-                                            messageNodes = conv.messageNodes + userNode,
-                                        )
-                                        chatService.updateConversationState(currentConvId) { afterUser }
-                                        chatService.saveConversation(currentConvId, afterUser)
-
-                                        // 2. 如果是 SWAP 模式，先生删除最后一条助手消息
-                                        if (gc.generationMode == GroupGenerationMode.SWAP) {
-                                            val swapConv = chatService.getConversationFlow(currentConvId).value
-                                            val swapNodes = swapConv.messageNodes.toMutableList()
-                                            val lastAsstIdx = swapNodes.indexOfLast { it.role == MessageRole.ASSISTANT }
-                                            if (lastAsstIdx >= 0) {
-                                                val oldNode = swapNodes.removeAt(lastAsstIdx)
-                                                val updatedMap = swapConv.speakerMap - oldNode.id
-                                                chatService.updateConversationState(currentConvId) {
-                                                    it.copy(messageNodes = swapNodes, speakerMap = updatedMap)
-                                                }
-                                                chatService.saveConversation(currentConvId,
-                                                    chatService.getConversationFlow(currentConvId).value)
-                                            }
+                                        // ====== 1. 添加用户消息 ======
+                                        chatService.updateConversationState(currentConvId) { conv ->
+                                            val userNode = UIMessage(
+                                                role = MessageRole.USER,
+                                                parts = inputContents,
+                                            ).toMessageNode()
+                                            conv.copy(messageNodes = conv.messageNodes + userNode)
                                         }
 
-                                        // 3. 逐个成员生成
+                                        // ====== 2. 逐个生成 ======
                                         for ((idx, sid) in allPicked.withIndex()) {
-                                            queueStatus = "正在生成 ${members.find { it.id == sid }?.name ?: "..."} 的回复（${idx + 1}/${allPicked.size}）"
+                                            if (!isActive) break
                                             val speaker = members.find { it.id == sid } ?: continue
-                                            val freshConv = chatService.getConversationFlow(currentConvId).value
-                                            // 去掉最后一条用户消息（prompt 已有不重复）
-                                            val historyMinusLastUser = buildList {
-                                                val nodes = freshConv.messageNodes
-                                                val lastUserIdx = nodes.indexOfLast { it.role == MessageRole.USER }
-                                                for ((i, node) in nodes.withIndex()) {
-                                                    if (i == lastUserIdx) break
-                                                    add(node)
-                                                }
+                                            queueStatus = "${speaker.name} 正在输入...（${idx + 1}/${allPicked.size}）"
+
+                                            // 创建占位消息（流式更新用）
+                                            val placeholderNode = UIMessage.assistant("").toMessageNode()
+                                            chatService.updateConversationState(currentConvId) { conv ->
+                                                conv.copy(
+                                                    messageNodes = conv.messageNodes + placeholderNode,
+                                                    speakerMap = conv.speakerMap + (placeholderNode.id to sid),
+                                                )
                                             }
-                                            val history = buildHistoryWithNames(historyMinusLastUser, freshConv.speakerMap, members)
 
                                             val effectiveSpeaker = if (gc.chatModelId != null) {
                                                 speaker.copy(chatModelId = gc.chatModelId)
                                             } else speaker
-                                            val response = try {
-                                                chatService.generateForAssistant(
+
+                                            // 构建历史（不含最新的user消息+占位消息，但包含之前的群聊消息）
+                                            val currentConv = chatService.getConversationFlow(currentConvId).value
+                                            val historyNodes = currentConv.messageNodes.dropLast(1) // 去掉占位
+
+                                            // 构建带角色名前缀的历史
+                                            val history = buildHistoryWithNames(historyNodes, currentConv.speakerMap, members)
+                                            // 去掉最后一条用户消息（prompt里已经有了）
+                                            val lastUserIdx = history.indexOfLast { it.role == MessageRole.USER }
+                                            val historyWithoutLastUser = if (lastUserIdx >= 0) history.subList(0, lastUserIdx) else history
+
+                                            try {
+                                                val response = chatService.generateForAssistant(
                                                     assistant = effectiveSpeaker,
                                                     settings = settings,
                                                     prompt = text,
-                                                    history = history,
+                                                    history = historyWithoutLastUser,
+                                                    onChunk = { partialText, parts ->
+                                                        // 实时更新占位消息的内容
+                                                        chatService.updateConversationState(currentConvId) { conv ->
+                                                            val nodes = conv.messageNodes.toMutableList()
+                                                            val idx2 = nodes.indexOfLast { it.id == placeholderNode.id }
+                                                            if (idx2 >= 0) {
+                                                                val updatedMsg = if (parts != null) {
+                                                                    UIMessage(
+                                                                        role = me.rerere.ai.core.MessageRole.ASSISTANT,
+                                                                        parts = parts,
+                                                                    )
+                                                                } else {
+                                                                    UIMessage.assistant(partialText)
+                                                                }
+                                                                nodes[idx2] = MessageNode(
+                                                                    id = placeholderNode.id,
+                                                                    messages = listOf(updatedMsg),
+                                                                )
+                                                            }
+                                                            conv.copy(messageNodes = nodes)
+                                                        }
+                                                    },
                                                 )
+
+                                                if (response.isBlank()) {
+                                                    // 空回复，删除占位
+                                                    chatService.updateConversationState(currentConvId) { conv ->
+                                                        conv.copy(
+                                                            messageNodes = conv.messageNodes.filter { it.id != placeholderNode.id },
+                                                            speakerMap = conv.speakerMap - placeholderNode.id,
+                                                        )
+                                                    }
+                                                }
                                             } catch (e: Exception) {
                                                 queueStatus = "${speaker.name} 生成失败: ${e.message?.take(40) ?: "未知错误"}"
-                                                e.printStackTrace()
+                                                // 删除占位消息
+                                                chatService.updateConversationState(currentConvId) { conv ->
+                                                    conv.copy(
+                                                        messageNodes = conv.messageNodes.filter { it.id != placeholderNode.id },
+                                                        speakerMap = conv.speakerMap - placeholderNode.id,
+                                                    )
+                                                }
                                                 delay(2000)
-                                                continue
                                             }
-                                            if (response.isBlank()) continue
+                                        }
 
-                                            val freshConv2 = chatService.getConversationFlow(currentConvId).value
-                                            val nodes = freshConv2.messageNodes.toMutableList()
-                                            val newMsg = UIMessage.assistant(response)
-                                            val newMsgNode = MessageNode(messages = listOf(newMsg))
-
-                                            // APPEND：直接追加
-                                            nodes.add(newMsgNode)
-                                            chatService.updateConversationState(currentConvId) {
-                                                it.copy(messageNodes = nodes, speakerMap = freshConv2.speakerMap + (newMsgNode.id to sid))
+                                        // ====== 3. 自动接话 ======
+                                        if (gc.autoModeDelay > 0 && isActive) {
+                                            queueStatus = "等待自动接话（${gc.autoModeDelay}秒）..."
+                                            delay(gc.autoModeDelay * 1000L)
+                                            if (isActive) {
+                                                // 用最后一条 AI 回复作为输入触发下一轮
+                                                val freshConv = chatService.getConversationFlow(currentConvId).value
+                                                val lastAsstMsg = freshConv.messageNodes.lastOrNull { it.role == MessageRole.ASSISTANT }
+                                                val autoText = lastAsstMsg?.let { messageText(it) } ?: ""
+                                                if (autoText.isNotBlank()) {
+                                                    // 自动触发下一轮（用 AI 回复作为 prompt）
+                                                    runAutoChat(currentConvId, gc, members, enabledMembers, chatService, settingsStore, settings, autoText, scope, generationJob)
+                                                }
                                             }
-                                            chatService.saveConversation(currentConvId,
-                                                chatService.getConversationFlow(currentConvId).value)
                                         }
                                     } catch (e: Exception) {
                                         e.printStackTrace()
@@ -399,7 +435,7 @@ fun GroupChatPage(groupId: String) {
                 }
                 ChatMessage(
                     node = node,
-                    assistant = members.firstOrNull(),
+                    assistant = speaker ?: members.firstOrNull(),
                     model = null,
                     loading = isGenerating && index == messageNodes.lastIndex,
                     lastMessage = index == messageNodes.lastIndex,
@@ -422,10 +458,27 @@ fun GroupChatPage(groupId: String) {
         ModalBottomSheet(
             onDismissRequest = { showSettings = false },
         ) {
-            Column(
+            ScrollableColumn(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                    // 群名
+                    Column {
+                        Text("群名", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = gc.name,
+                            onValueChange = { v ->
+                                scope.launch {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(name = v) else it })
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     // 模型选择
                     Column {
                         Text("模型", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
@@ -529,6 +582,18 @@ fun GroupChatPage(groupId: String) {
                                 },
                                 label = { Text("追加") },
                             )
+                            Spacer(Modifier.width(6.dp))
+                            FilterChip(
+                                selected = gc.generationMode == GroupGenerationMode.APPEND_DISABLED,
+                                onClick = {
+                                    scope.launch {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(generationMode = GroupGenerationMode.APPEND_DISABLED) else it })
+                                    }
+                                    }
+                                },
+                                label = { Text("追加(含禁言)") },
+                            )
                         }
                     }
 
@@ -547,6 +612,25 @@ fun GroupChatPage(groupId: String) {
                                 }
                                 }
                             }
+                        )
+                    }
+
+                    // 自动接话延迟
+                    Column {
+                        Text("自动接话延迟: ${gc.autoModeDelay}秒", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+                        Text("设为0可禁用自动接话", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(4.dp))
+                        Slider(
+                            value = gc.autoModeDelay.toFloat(),
+                            onValueChange = { v ->
+                                scope.launch {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(autoModeDelay = v.toInt()) else it })
+                                    }
+                                }
+                            },
+                            valueRange = 0f..30f,
+                            steps = 29,
                         )
                     }
 
@@ -604,11 +688,147 @@ fun GroupChatPage(groupId: String) {
                                         Text("%.1f".format(m.talkativeness), style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(24.dp))
                                     }
                                 }
+                                if (isEnabled && gc.activationStrategy == GroupActivationStrategy.POOLED) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("权重", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(56.dp))
+                                        Slider(
+                                            value = (gc.speakerWeights[m.id] ?: 5).toFloat(),
+                                            onValueChange = { v ->
+                                                scope.launch {
+                                                    val newWeights = gc.speakerWeights + (m.id to v.toInt())
+                                                    settingsStore.update { s ->
+                                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(speakerWeights = newWeights) else it })
+                                                    }
+                                                }
+                                            },
+                                            valueRange = 1f..10f,
+                                            steps = 8,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Text("${gc.speakerWeights[m.id] ?: 5}", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(24.dp))
+                                    }
+                                }
                             }
                         }
                         Spacer(Modifier.height(4.dp))
                     }
                 }
             }
+    }
+}
+
+/** 可滚动的设置面板 */
+@Composable
+private fun ScrollableColumn(
+    modifier: Modifier = Modifier,
+    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .imePadding(),
+        verticalArrangement = verticalArrangement,
+        content = content,
+    )
+}
+
+/**
+ * 自动接话循环
+ */
+private suspend fun runAutoChat(
+    convId: Uuid,
+    gc: GroupChat,
+    members: List<Assistant>,
+    enabledMembers: List<Assistant>,
+    chatService: ChatService,
+    settingsStore: SettingsStore,
+    settings: me.rerere.rikkahub.data.datastore.Settings,
+    triggerText: String,
+    scope: kotlinx.coroutines.CoroutineScope,
+    parentJob: kotlinx.coroutines.Job?,
+) {
+    val autoDelay = gc.autoModeDelay
+    if (autoDelay <= 0) return
+
+    while (kotlinx.coroutines.isActive) {
+        val conv = chatService.getConversationFlow(convId).value
+        val lastSpeakerId = conv.messageNodes.lastOrNull()?.let { conv.speakerMap[it.id] }
+
+        // 选人
+        val picked = GroupSpeakerSelector.pick(
+            strategy = gc.activationStrategy,
+            members = members,
+            enabledMembers = enabledMembers,
+            userInput = triggerText,
+            lastSpeakerId = lastSpeakerId,
+            speakerHistory = getSpeakerHistory(conv.messageNodes, conv.speakerMap),
+            allowSelfResponses = gc.allowSelfResponses,
+            speakerWeights = gc.speakerWeights,
+        )
+        if (picked.isEmpty()) break
+
+        // 逐个生成
+        for ((idx, sid) in picked.withIndex()) {
+            if (!kotlinx.coroutines.isActive) return
+            val speaker = members.find { it.id == sid } ?: continue
+
+            // 占位消息
+            val placeholderNode = UIMessage.assistant("").toMessageNode()
+            chatService.updateConversationState(convId) { c ->
+                c.copy(
+                    messageNodes = c.messageNodes + placeholderNode,
+                    speakerMap = c.speakerMap + (placeholderNode.id to sid),
+                )
+            }
+
+            val effectiveSpeaker = if (gc.chatModelId != null) {
+                speaker.copy(chatModelId = gc.chatModelId)
+            } else speaker
+
+            val currentConv = chatService.getConversationFlow(convId).value
+            val historyNodes = currentConv.messageNodes.dropLast(1)
+            val history = buildHistoryWithNames(historyNodes, currentConv.speakerMap, members)
+            val lastUserIdx = history.indexOfLast { it.role == MessageRole.USER }
+            val historyWithoutLastUser = if (lastUserIdx >= 0) history.subList(0, lastUserIdx) else history
+
+            try {
+                chatService.generateForAssistant(
+                    assistant = effectiveSpeaker,
+                    settings = settings,
+                    prompt = triggerText,
+                    history = historyWithoutLastUser,
+                    onChunk = { partialText, parts ->
+                        chatService.updateConversationState(convId) { c ->
+                            val nodes = c.messageNodes.toMutableList()
+                            val i2 = nodes.indexOfLast { it.id == placeholderNode.id }
+                            if (i2 >= 0) {
+                                val updatedMsg = if (parts != null) {
+                                    UIMessage(
+                                        role = me.rerere.ai.core.MessageRole.ASSISTANT,
+                                        parts = parts,
+                                    )
+                                } else {
+                                    UIMessage.assistant(partialText)
+                                }
+                                nodes[i2] = MessageNode(id = placeholderNode.id, messages = listOf(updatedMsg))
+                            }
+                            c.copy(messageNodes = nodes)
+                        }
+                    },
+                )
+            } catch (e: Exception) {
+                chatService.updateConversationState(convId) { c ->
+                    c.copy(
+                        messageNodes = c.messageNodes.filter { it.id != placeholderNode.id },
+                        speakerMap = c.speakerMap - placeholderNode.id,
+                    )
+                }
+            }
+        }
+
+        // 等待下次自动接话
+        kotlinx.coroutines.delay(autoDelay * 1000L)
     }
 }

@@ -4,16 +4,15 @@ import kotlin.random.Random
 import kotlin.uuid.Uuid
 
 /**
- * 群聊发言人选择器 — 对齐酒馆 + AutoGen 方案
+ * 群聊发言人选择器 — 对齐酒馆
  *
- * NATURAL: talkativeness(0-1) × 骰子 + 名字分词匹配 + 不能连续
+ * NATURAL: talkativeness(0-1) × 骰子 + 名字分词匹配 + 至少选2人
  * LIST:    轮换
- * POOLED:  未发言者优先（AutoGen 式 RoundRobin）
+ * POOLED:  按权重随机（AutoGen 式 RoundRobin）
  * MANUAL:  用户指定
  */
 object GroupSpeakerSelector {
 
-    /** 从用户输入中提取所有单词（对齐酒馆 extractAllWords） */
     private fun extractWords(text: String): Set<String> {
         return text.split(Regex("[\\s,，。！？.!?、；;：:/\\\\()（）\\[\\]【】{}「」『』\"'「」]+"))
             .map { it.trim() }
@@ -21,7 +20,6 @@ object GroupSpeakerSelector {
             .toSet()
     }
 
-    /** 名字分词匹配：提取输入和角色名的单词，逐个比较 */
     private fun findMentionedMembers(
         input: String,
         members: List<Assistant>,
@@ -30,7 +28,6 @@ object GroupSpeakerSelector {
         if (input.isBlank()) return emptySet()
         val inputWords = extractWords(input)
         if (inputWords.isEmpty()) return emptySet()
-
         return members.filter { m ->
             if (bannedId != null && m.id == bannedId) return@filter false
             val nameWords = extractWords(m.name)
@@ -41,11 +38,12 @@ object GroupSpeakerSelector {
     }
 
     /**
-     * NATURAL 模式（对齐酒馆 activateNaturalOrder）
+     * NATURAL 模式（对齐酒馆）
      *
      * 1. 名字匹配 → 提到的入选
      * 2. 按 talkativeness 掷骰子（打乱顺序遍历）
-     * 3. 无人激活时从 talkative > 0 的人里随机
+     * 3. 至少选 2 人（如果总人数 >= 2 且骰子没选中至少 2 人，补到 2 个）
+     * 4. 禁止连续同一个人发言
      */
     fun pickNatural(
         members: List<Assistant>,
@@ -53,10 +51,11 @@ object GroupSpeakerSelector {
         lastSpeakerId: Uuid?,
         allowSelfResponses: Boolean,
     ): List<Uuid> {
+        if (members.isEmpty()) return emptyList()
         val activated = mutableSetOf<Uuid>()
         val bannedId = if (allowSelfResponses) null else lastSpeakerId
 
-        // 1. 名字匹配（排除连续同一个人）
+        // 1. 名字匹配
         if (userInput.isNotBlank()) {
             activated.addAll(findMentionedMembers(userInput, members, bannedId))
         }
@@ -70,16 +69,14 @@ object GroupSpeakerSelector {
             }
         }
 
-        // 3. 没人通过 → 从 talkative > 0 的人里随机（对标酒馆 chattyMembers）
-        if (activated.isEmpty()) {
-            val chatty = members.filter { it.talkativeness > 0f && (bannedId == null || it.id != bannedId) }
-            val pool = if (chatty.isNotEmpty()) chatty else members.filter { bannedId == null || it.id != bannedId }
-            if (pool.isNotEmpty()) {
-                activated.add(pool.random().id)
-            }
+        // 3. 至少选 2 人（成员数 >= 2 且当前选中不足 2 时）
+        if (activated.size < 2 && members.size >= 2) {
+            val candidates = members.filter { it.id !in activated && (bannedId == null || it.id != bannedId) }
+            val toAdd = candidates.shuffled().take(2 - activated.size)
+            activated.addAll(toAdd.map { it.id })
         }
 
-        // 4. 全都被禁了从所有人里随机
+        // 4. 仍没人 → 从所有成员里随机选一个
         if (activated.isEmpty()) {
             members.firstOrNull()?.let { activated.add(it.id) }
         }
@@ -88,7 +85,7 @@ object GroupSpeakerSelector {
     }
 
     /**
-     * LIST 模式：轮换（从 lastSpeakerId 的下一个开始）
+     * LIST 模式：轮换
      */
     fun pickList(
         members: List<Assistant>,
@@ -99,41 +96,79 @@ object GroupSpeakerSelector {
         val pool = if (!allowSelfResponses && lastSpeakerId != null) {
             val idx = members.indexOfFirst { it.id == lastSpeakerId }
             if (idx >= 0) {
-                return listOfNotNull(members.getOrNull((idx + 1) % members.size)?.id)
+                // 找下一个
+                val nextIdx = (idx + 1) % members.size
+                // 如果一轮只有一个人，返回 2 个
+                if (members.size == 1) return listOf(members[0].id)
+                val afterNext = (nextIdx + 1) % members.size
+                return listOf(members[nextIdx].id, members[afterNext].id)
             }
             members
         } else members
-        return listOfNotNull(pool.firstOrNull()?.id)
+
+        val picks = if (pool.size >= 2) pool.shuffled().take(2) else pool.take(1)
+        return picks.map { it.id }
     }
 
     /**
-     * POOLED 模式（对齐酒馆 + AutoGen RoundRobin）：
-     * 优先选自上次用户发言后未发言的成员
+     * POOLED 模式：按权重随机
+     * 优先选上次用户发言后未发言的成员
+     * 权重越高，出场几率越大
      */
     fun pickPooled(
         members: List<Assistant>,
         lastSpeakerId: Uuid?,
-        speakerHistory: List<Uuid>,  // 按时间的发言者ID列表
+        speakerHistory: List<Uuid>,
         allowSelfResponses: Boolean,
+        weights: Map<Uuid, Int> = emptyMap(),
     ): List<Uuid> {
         if (members.isEmpty()) return emptyList()
 
-        // 自上次用户消息后谁还没说过话
+        // 自上次用户消息后未发言的成员
         val spokenSinceUser = mutableSetOf<Uuid>()
         for (sid in speakerHistory) {
-            if (sid == lastSpeakerId) break  // lastSpeakerId 是用户？不，是助手的
             spokenSinceUser.add(sid)
         }
-        // 其实 speakerHistory 里最后一条用户消息之前的就是未发言者
-        // 简化：选未发言者，全发言了就随机
-        val pool = if (!allowSelfResponses && lastSpeakerId != null) {
-            members.filter { it.id != lastSpeakerId && it.id !in spokenSinceUser }
-        } else {
-            members.filter { it.id !in spokenSinceUser }
+
+        val available = if (!allowSelfResponses && lastSpeakerId != null) {
+            members.filter { it.id != lastSpeakerId }
+        } else members
+
+        // 未发言者优先
+        val unspoken = available.filter { it.id !in spokenSinceUser }
+        val pool = if (unspoken.isNotEmpty()) unspoken else available
+
+        // 按权重随机
+        val pick = weightedRandom(pool, weights)
+
+        // 至少选2人（如果有2个以上的可用成员）
+        val result = mutableListOf(pick.id)
+        if (members.size >= 2) {
+            val secondPool = available.filter { it.id != pick.id }
+            if (secondPool.isNotEmpty()) {
+                val second = weightedRandom(secondPool, weights)
+                result.add(second.id)
+            }
         }
 
-        val pick = if (pool.isNotEmpty()) pool.random() else members.random()
-        return listOf(pick.id)
+        return result
+    }
+
+    /** 加权随机选取 */
+    private fun weightedRandom(
+        members: List<Assistant>,
+        weights: Map<Uuid, Int>,
+    ): Assistant {
+        if (members.isEmpty()) error("empty pool")
+        if (members.size == 1 || weights.isEmpty()) return members.random()
+        val totalWeight = members.sumOf { weights[it.id] ?: 1 }
+        if (totalWeight <= 0) return members.random()
+        var roll = Random.nextInt(totalWeight)
+        for (m in members) {
+            roll -= (weights[m.id] ?: 1)
+            if (roll < 0) return m
+        }
+        return members.last()
     }
 
     /**
@@ -148,6 +183,7 @@ object GroupSpeakerSelector {
         speakerHistory: List<Uuid> = emptyList(),
         allowSelfResponses: Boolean = false,
         manualSpeakerId: Uuid? = null,
+        speakerWeights: Map<Uuid, Int> = emptyMap(),
     ): List<Uuid> {
         return when (strategy) {
             GroupActivationStrategy.NATURAL -> pickNatural(
@@ -157,7 +193,7 @@ object GroupSpeakerSelector {
                 enabledMembers, lastSpeakerId, allowSelfResponses,
             )
             GroupActivationStrategy.POOLED -> pickPooled(
-                enabledMembers, lastSpeakerId, speakerHistory, allowSelfResponses,
+                enabledMembers, lastSpeakerId, speakerHistory, allowSelfResponses, speakerWeights,
             )
             GroupActivationStrategy.MANUAL -> listOfNotNull(manualSpeakerId)
         }

@@ -12,7 +12,7 @@ data class GroupChat(
     val name: String = "",
     val memberIds: List<Uuid> = emptyList(),    // 引用 assistants
     val activationStrategy: GroupActivationStrategy = GroupActivationStrategy.NATURAL,
-    val generationMode: GroupGenerationMode = GroupGenerationMode.SWAP,
+    val generationMode: GroupGenerationMode = GroupGenerationMode.APPEND,
     val disabledMemberIds: List<Uuid> = emptyList(),  // 禁言成员
     val speakerWeights: Map<Uuid, Int> = emptyMap(),  // for POOLED
     val conversationId: Uuid? = null,  // 关联的 Conversation ID

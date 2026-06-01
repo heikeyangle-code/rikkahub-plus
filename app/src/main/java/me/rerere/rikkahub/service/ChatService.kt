@@ -1012,13 +1012,14 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
     }
 
     /**
-     * 为指定 Assistant 生成回复（群聊用），不涉及 Conversation 状态管理
+     * 为指定 Assistant 生成回复（群聊用），支持流式回调
      */
     suspend fun generateForAssistant(
         assistant: Assistant,
         settings: Settings,
         prompt: String,
         history: List<UIMessage>,
+        onChunk: ((String, List<UIMessagePart>?) -> Unit)? = null,
     ): String {
         val model = settings.findModelById(assistant.chatModelId ?: settings.chatModelId)
             ?: error("No model configured for assistant '${assistant.name}'")
@@ -1077,9 +1078,10 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
         ).collect { chunk ->
             when (chunk) {
                 is GenerationChunk.Messages -> {
-                    result = chunk.messages.lastOrNull()
-                        ?.toText()
-                        ?: ""
+                    val lastMsg = chunk.messages.lastOrNull()
+                    val text = lastMsg?.toText() ?: ""
+                    result = text
+                    onChunk?.invoke(text, lastMsg?.parts)
                 }
             }
         }
