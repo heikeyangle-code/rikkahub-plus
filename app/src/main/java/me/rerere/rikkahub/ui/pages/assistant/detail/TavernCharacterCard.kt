@@ -887,29 +887,29 @@ private fun EntryEditor(
     onUpdate: (TavernBookEntry) -> Unit,
     onCollapse: () -> Unit,
 ) {
-    // 所有字段的状态
-    var enabled by remember(entry) { mutableStateOf(!entry.disable) }
-    var content by remember(entry) { mutableStateOf(entry.content) }
-    var probability by remember(entry) { mutableStateOf(entry.probability.toFloat()) }
-    var position by remember(entry) { mutableStateOf(entry.position) }
-    var priority by remember(entry) { mutableStateOf(entry.priority.toString()) }
-    var role by remember(entry) { mutableStateOf(entry.role) }
-    var constant by remember(entry) { mutableStateOf(entry.constant) }
-    var selective by remember(entry) { mutableStateOf(entry.selective) }
-    var selectiveLogic by remember(entry) { mutableStateOf(entry.selectiveLogic) }
-    var sticky by remember(entry) { mutableStateOf(entry.sticky.toString()) }
-    var cooldown by remember(entry) { mutableStateOf(entry.cooldown.toString()) }
-    var delay by remember(entry) { mutableStateOf(entry.delay.toString()) }
-    var depth by remember(entry) { mutableStateOf(entry.depth.toString()) }
-    var caseSensitive by remember(entry) { mutableStateOf(entry.caseSensitive) }
-    var useRegex by remember(entry) { mutableStateOf(entry.useRegex) }
-    var groupStr by remember(entry) { mutableStateOf(entry.group) }
-    var groupWeight by remember(entry) { mutableStateOf(entry.groupWeight.toString()) }
-    var groupOverride by remember(entry) { mutableStateOf(entry.groupOverride) }
-    var scanDepthStr by remember(entry) { mutableStateOf(entry.scanDepth.toString()) }
-    var keysStr by remember(entry) { mutableStateOf(entry.keys.joinToString(", ")) }
-    var secondaryKeysStr by remember(entry) { mutableStateOf(entry.secondaryKeys.joinToString(", ")) }
-    var commentStr by remember(entry) { mutableStateOf(entry.comment) }
+    // 所有字段的状态 — key用entry.id避免外部onUpdate触发remember重置
+    var enabled by remember(entry.id) { mutableStateOf(!entry.disable) }
+    var content by remember(entry.id) { mutableStateOf(entry.content) }
+    var probability by remember(entry.id) { mutableStateOf(entry.probability.toFloat()) }
+    var position by remember(entry.id) { mutableStateOf(entry.position) }
+    var priority by remember(entry.id) { mutableStateOf(entry.priority.toString()) }
+    var role by remember(entry.id) { mutableStateOf(entry.role) }
+    var constant by remember(entry.id) { mutableStateOf(entry.constant) }
+    var selective by remember(entry.id) { mutableStateOf(entry.selective) }
+    var selectiveLogic by remember(entry.id) { mutableStateOf(entry.selectiveLogic) }
+    var sticky by remember(entry.id) { mutableStateOf(entry.sticky.toString()) }
+    var cooldown by remember(entry.id) { mutableStateOf(entry.cooldown.toString()) }
+    var delay by remember(entry.id) { mutableStateOf(entry.delay.toString()) }
+    var depth by remember(entry.id) { mutableStateOf(entry.depth.toString()) }
+    var caseSensitive by remember(entry.id) { mutableStateOf(entry.caseSensitive) }
+    var useRegex by remember(entry.id) { mutableStateOf(entry.useRegex) }
+    var groupStr by remember(entry.id) { mutableStateOf(entry.group) }
+    var groupWeight by remember(entry.id) { mutableStateOf(entry.groupWeight.toString()) }
+    var groupOverride by remember(entry.id) { mutableStateOf(entry.groupOverride) }
+    var scanDepthStr by remember(entry.id) { mutableStateOf(entry.scanDepth.toString()) }
+    var keysStr by remember(entry.id) { mutableStateOf(entry.keys.joinToString(", ")) }
+    var secondaryKeysStr by remember(entry.id) { mutableStateOf(entry.secondaryKeys.joinToString(", ")) }
+    var commentStr by remember(entry.id) { mutableStateOf(entry.comment) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // 顶部：标题 + 收起

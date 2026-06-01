@@ -128,11 +128,12 @@ fun KnowledgeBasePage() {
         } else {
             // 在Composable域计算filteredSources，不能在LazyColumn的LazyListScope里用remember
             val filteredSources = remember(sources, assistantFilter) {
+                val af = assistantFilter // 本地捕获，enable smart cast
                 sources.filter { source ->
-                    when (assistantFilter) {
+                    when (af) {
                         null -> true
                         "global" -> source.assistantId == null
-                        else -> source.assistantId == assistantFilter.toLongOrNull()
+                        else -> source.assistantId == af.toLongOrNull()
                     }
                 }
             }
