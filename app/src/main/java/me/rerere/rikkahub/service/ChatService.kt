@@ -669,10 +669,10 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         appendLine("After using tools, continue working until the goal is complete.")
                                     }
 
-                                    // Tool loop (max 10 rounds, no refunds)
+                                    // Tool loop (max 30 rounds, no refunds)
                                     val messages = mutableListOf(UIMessage.user(prompt))
                                     var finalText = ""
-                                    var remainingSteps = 10
+                                    var remainingSteps = 30
                                     val stepLog = StringBuilder()
 
                                     while (remainingSteps > 0) {
