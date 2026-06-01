@@ -49,8 +49,8 @@ data class Assistant(
     val enableParallelToolExecution: Boolean = true,    // 并行执行多个工具调用
     val enableSubAgent: Boolean = false,                // 启用子Agent（AI可委托子任务）
     val subAgentModelId: Uuid? = null,                  // 子Agent模型（null=使用父模型）
-    val toolRecurringLimit: Int = 15,                   // 单批同工具调用上限
-    val subAgentMaxSteps: Int = 15,                     // 子Agent最大步骤数
+    val toolRecurringLimit: Int = 8,                    // 单批同工具调用上限
+    val subAgentMaxSteps: Int = 8,                      // 子Agent最大步骤数
     val enableKnowledgeBase: Boolean = false,           // 启用知识库检索
     val talkativeness: Float = 0.5f,                    // 群聊发言倾向 (0-1)，酒馆对齐
     val embeddingModelId: Uuid? = null,                  // 专用embedding模型（null=使用聊天模型）

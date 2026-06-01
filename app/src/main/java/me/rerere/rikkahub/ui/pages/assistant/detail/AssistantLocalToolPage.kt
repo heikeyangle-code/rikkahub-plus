@@ -141,7 +141,7 @@ private fun AssistantLocalToolContent(
             )
             item(
                 headlineContent = { Text("工具重复调用上限") },
-                supportingContent = { Text("同一批内相同工具调用超过此数打断，默认15") },
+                supportingContent = { Text("同一批内相同工具调用超过此数打断，默认8") },
                 trailingContent = {
                     OutlinedTextField(
                         value = assistant.toolRecurringLimit.toString(),
@@ -255,7 +255,7 @@ private fun AssistantLocalToolContent(
                 )
                 item(
                     headlineContent = { Text("子Agent最大步骤数") },
-                    supportingContent = { Text("默认15") },
+                    supportingContent = { Text("默认8") },
                     trailingContent = {
                         OutlinedTextField(
                             value = assistant.subAgentMaxSteps.toString(),
