@@ -137,18 +137,37 @@ class KnowledgeBaseService(
         overlap: Int = 2,
     ): Int = withContext(Dispatchers.IO) {
         try {
-            val docFile = DocumentFile.fromTreeUri(context, folderUri) ?: return@withContext 0
-            val files = docFile.listFiles().filter { f ->
-                val name = f.name?.lowercase() ?: return@filter false
-                name.endsWith(".pdf") || name.endsWith(".docx") || name.endsWith(".epub") ||
-                name.endsWith(".pptx") || name.endsWith(".txt") || name.endsWith(".md")
-            }
-            if (files.isEmpty()) return@withContext 0
+            val resolver = context.contentResolver
+            val children = resolver.query(folderUri, null, null, null, null)?.use { cursor ->
+                val names = mutableListOf<Pair<String, Uri>>()
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(cursor.getColumnIndexOrThrow(
+                        android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME
+                    ))
+                    val mime = cursor.getString(cursor.getColumnIndexOrThrow(
+                        android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE
+                    ))
+                    val docId = cursor.getString(cursor.getColumnIndexOrThrow(
+                        android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID
+                    ))
+                    if (mime == "application/vnd.google-apps.folder") continue
+                    val childUri = android.provider.DocumentsContract.buildDocumentUri(
+                        folderUri.authority ?: return@use null,
+                        docId
+                    )
+                    val lower = name.lowercase()
+                    if (lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".epub") ||
+                        lower.endsWith(".pptx") || lower.endsWith(".txt") || lower.endsWith(".md")) {
+                        names.add(name to childUri)
+                    }
+                }
+                names
+            } ?: return@withContext 0
+
+            if (children.isEmpty()) return@withContext 0
 
             var imported = 0
-            for (file in files) {
-                val uri = file.uri
-                val name = file.name ?: "unknown"
+            for ((name, uri) in children) {
                 try {
                     val text = readDocument(uri) ?: continue
                     if (text.isBlank()) continue
