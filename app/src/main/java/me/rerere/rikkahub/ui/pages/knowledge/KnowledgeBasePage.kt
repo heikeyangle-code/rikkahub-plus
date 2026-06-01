@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.knowledge
 
 import android.util.Log
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
