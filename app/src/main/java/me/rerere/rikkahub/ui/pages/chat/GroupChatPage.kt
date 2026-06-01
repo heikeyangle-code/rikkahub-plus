@@ -446,8 +446,10 @@ fun GroupChatPage(groupId: String) {
                             FilterChip(
                                 selected = gc.activationStrategy == GroupActivationStrategy.NATURAL,
                                 onClick = {
+                                    scope.launch {
                                     settingsStore.update { s ->
                                         s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(activationStrategy = GroupActivationStrategy.NATURAL) else it })
+                                    }
                                     }
                                 },
                                 label = { Text("自然") },
@@ -456,8 +458,10 @@ fun GroupChatPage(groupId: String) {
                             FilterChip(
                                 selected = gc.activationStrategy == GroupActivationStrategy.LIST,
                                 onClick = {
+                                    scope.launch {
                                     settingsStore.update { s ->
                                         s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(activationStrategy = GroupActivationStrategy.LIST) else it })
+                                    }
                                     }
                                 },
                                 label = { Text("轮换") },
@@ -466,8 +470,10 @@ fun GroupChatPage(groupId: String) {
                             FilterChip(
                                 selected = gc.activationStrategy == GroupActivationStrategy.MANUAL,
                                 onClick = {
+                                    scope.launch {
                                     settingsStore.update { s ->
                                         s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(activationStrategy = GroupActivationStrategy.MANUAL) else it })
+                                    }
                                     }
                                 },
                                 label = { Text("手动") },
@@ -476,8 +482,10 @@ fun GroupChatPage(groupId: String) {
                             FilterChip(
                                 selected = gc.activationStrategy == GroupActivationStrategy.POOLED,
                                 onClick = {
+                                    scope.launch {
                                     settingsStore.update { s ->
                                         s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(activationStrategy = GroupActivationStrategy.POOLED) else it })
+                                    }
                                     }
                                 },
                                 label = { Text("加权") },
@@ -493,8 +501,10 @@ fun GroupChatPage(groupId: String) {
                             FilterChip(
                                 selected = gc.generationMode == GroupGenerationMode.SWAP,
                                 onClick = {
+                                    scope.launch {
                                     settingsStore.update { s ->
                                         s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(generationMode = GroupGenerationMode.SWAP) else it })
+                                    }
                                     }
                                 },
                                 label = { Text("替换") },
@@ -503,8 +513,10 @@ fun GroupChatPage(groupId: String) {
                             FilterChip(
                                 selected = gc.generationMode == GroupGenerationMode.APPEND,
                                 onClick = {
+                                    scope.launch {
                                     settingsStore.update { s ->
                                         s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(generationMode = GroupGenerationMode.APPEND) else it })
+                                    }
                                     }
                                 },
                                 label = { Text("追加") },
@@ -521,10 +533,11 @@ fun GroupChatPage(groupId: String) {
                         Switch(
                             checked = gc.allowSelfResponses,
                             onCheckedChange = { v ->
+                                scope.launch {
                                 settingsStore.update { s ->
                                     s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(allowSelfResponses = v) else it })
                                 }
-                            }
+                                }
                         )
                     }
 
@@ -553,9 +566,11 @@ fun GroupChatPage(groupId: String) {
                                     Switch(
                                         checked = isEnabled,
                                         onCheckedChange = { v ->
+                                            scope.launch {
                                             settingsStore.update { s ->
                                                 val newDisabled = if (v) gc.disabledMemberIds - m.id else gc.disabledMemberIds + m.id
                                                 s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(disabledMemberIds = newDisabled) else it })
+                                            }
                                             }
                                         }
                                     )
@@ -567,8 +582,10 @@ fun GroupChatPage(groupId: String) {
                                         Slider(
                                             value = m.talkativeness,
                                             onValueChange = { v ->
+                                                scope.launch {
                                                 settingsStore.update { s ->
                                                     s.copy(assistants = s.assistants.map { if (it.id == m.id) it.copy(talkativeness = v) else it })
+                                                }
                                                 }
                                             },
                                             valueRange = 0f..1f,

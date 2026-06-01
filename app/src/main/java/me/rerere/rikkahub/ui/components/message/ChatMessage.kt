@@ -361,11 +361,10 @@ private fun MessagePartsBlock(
             is MessagePartBlock.ContentBlock -> key(block.index) {
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
-                        Box(Modifier.wrapContentWidth().widthIn(max = 360.dp)) {
-                            SelectionContainer {
+                        SelectionContainer {
                             if (role == MessageRole.USER) {
                                 Surface(
-                                    modifier = Modifier.wrapContentWidth().animateContentSize(),
+                                    modifier = Modifier.widthIn(max = 360.dp).wrapContentWidth().animateContentSize(),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.primaryContainer,
                                     onClick = { onUserMessageClick?.invoke() },
@@ -377,15 +376,14 @@ private fun MessagePartsBlock(
                                                 scope = AssistantAffectScope.USER,
                                                 visual = true,
                                             ),
-                                            onClickCitation = handleClickCitation,
-                                            modifier = Modifier.wrapContentWidth(),
+                                            onClickCitation = handleClickCitation
                                         )
                                     }
                                 }
                             } else {
                                 if (settings.displaySetting.showAssistantBubble) {
                                 Surface(
-                                    modifier = Modifier.wrapContentWidth().animateContentSize(),
+                                    modifier = Modifier.widthIn(max = 360.dp).wrapContentWidth().animateContentSize(),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     ) {
@@ -397,7 +395,6 @@ private fun MessagePartsBlock(
                                                     visual = true,
                                                 ),
                                                 onClickCitation = handleClickCitation,
-                                                modifier = Modifier.wrapContentWidth(),
                                             )
                                         }
                                     }
@@ -410,11 +407,9 @@ private fun MessagePartsBlock(
                                         ),
                                         onClickCitation = handleClickCitation,
                                         modifier = Modifier
-                                            .wrapContentWidth()
                                             .animateContentSize()
                                     )
                                 }
-                            }
                             }
                         }
                     }

@@ -383,7 +383,7 @@ private fun HtmlParagraphContent(
         inlineContent = inlineContents,
         softWrap = true,
         overflow = TextOverflow.Visible,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
         style = textStyle.copy(
             lineHeight = if (hasInlineMath && enableLatexRendering)
                 TextUnit.Unspecified
