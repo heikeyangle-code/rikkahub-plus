@@ -14,9 +14,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
@@ -51,6 +49,12 @@ fun AssistantLocalToolPage(id: String) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()
 
+    // 当前助理已绑定的知识源ID集合（从关联表查）
+    var boundSourceIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    LaunchedEffect(id) {
+        boundSourceIds = kbService.getBoundSourceIds(id).toSet()
+    }
+
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
@@ -73,11 +77,13 @@ fun AssistantLocalToolPage(id: String) {
             settings = settings,
             sources = sources,
             assistantId = vm.assistant.value.id.toString(),
+            boundSourceIds = boundSourceIds,
             scope = scope,
             onUpdate = { vm.update(it) },
             onToggleSource = { sourceId, bind ->
                 scope.launch {
-                    kbService.assignSourceToAssistant(sourceId, if (bind) id else null)
+                    kbService.assignSourceToAssistant(sourceId, if (bind) assistant.id.toString() else null)
+                    boundSourceIds = kbService.getBoundSourceIds(assistant.id.toString()).toSet()
                 }
             },
         )
@@ -91,6 +97,7 @@ private fun AssistantLocalToolContent(
     settings: Settings,
     sources: List<KnowledgeSourceEntity>,
     assistantId: String,
+    boundSourceIds: Set<String>,
     scope: kotlinx.coroutines.CoroutineScope,
     onUpdate: (Assistant) -> Unit,
     onToggleSource: (sourceId: String, bind: Boolean) -> Unit,
@@ -179,7 +186,7 @@ private fun AssistantLocalToolContent(
                 if (sources.isNotEmpty()) {
                     CardGroup {
                         sources.forEach { source ->
-                            val isBound = source.assistantId == assistantId
+                            val isBound = source.id in boundSourceIds || source.assistantId == null
                             item(
                                 headlineContent = { Text(source.name.ifBlank { "未命名" }) },
                                 supportingContent = {

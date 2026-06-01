@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -31,6 +32,7 @@ import me.rerere.hugeicons.stroke.Link02
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.Note
 import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.data.db.entity.KnowledgeSourceEntity
 import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
@@ -57,6 +59,10 @@ fun KnowledgeBasePage() {
     val sources by kbService.getAllSourcesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore = koinInject()
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+    val importProgress by kbService.importProgress.collectAsStateWithLifecycle()
+    val embeddingProgress by kbService.embeddingProgress.collectAsStateWithLifecycle()
 
     var showImportDialog by remember { mutableStateOf(false) }
     var deletingId by remember { mutableStateOf<String?>(null) }
@@ -66,8 +72,10 @@ fun KnowledgeBasePage() {
     var searchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<KnowledgeBaseService.SearchResultUi>?>(null) }
     var isSearching by remember { mutableStateOf(false) }
-    val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore = koinInject()
-    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+    var simulateResults by remember { mutableStateOf<List<KnowledgeBaseService.SearchResultUi>?>(null) }
+    var isSimulating by remember { mutableStateOf(false) }
+    var detailSourceId by remember { mutableStateOf<String?>(null) }
+    var assistantFilter by remember { mutableStateOf<String?>(null) } // null=全部, "global"=全局
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -126,6 +134,39 @@ fun KnowledgeBasePage() {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 16.dp),
             ) {
+                // 进度条
+                if (importProgress != null) {
+                    item {
+                        val p = importProgress!!
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                            Column(Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("批量导入中...", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                }
+                                Spacer(Modifier.height(6.dp))
+                                LinearProgressIndicator(progress = { if (p.total > 0) p.completed.toFloat() / p.total else 0f }, modifier = Modifier.fillMaxWidth())
+                                Text("${p.currentFileName}（${p.completed}/${p.total}）", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+                if (embeddingProgress != null) {
+                    item {
+                        val p = embeddingProgress!!
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                        ) {
+                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text("向量化中 ${p.completed}/${p.total}...", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
                 // 自动注入开关
                 item {
                     val kbSettings = settings.kbInjectionSettings
@@ -304,37 +345,67 @@ fun KnowledgeBasePage() {
                         }
                     }
                 }
-                // 搜索栏
+                // 搜索栏 + 模拟注入按钮
                 item {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("搜索知识库...") },
-                        leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
-                        trailingIcon = {
-                            if (isSearching) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
-                            imeAction = androidx.compose.ui.text.input.ImeAction.Search,
-                        ),
-                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                            onSearch = {
-                                if (searchQuery.isNotBlank()) {
-                                    isSearching = true
-                                    scope.launch {
-                                        searchResults = kbService.searchForUi(searchQuery, settings)
-                                        isSearching = false
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it; searchResults = null; simulateResults = null },
+                            placeholder = { Text("搜索知识库...") },
+                            leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
+                            trailingIcon = {
+                                if (isSearching) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+                                imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onSearch = {
+                                    if (searchQuery.isNotBlank()) {
+                                        isSearching = true
+                                        scope.launch {
+                                            searchResults = kbService.searchForUi(searchQuery, settings)
+                                            isSearching = false
+                                        }
                                     }
                                 }
+                            ),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        // 模拟注入按钮
+                        IconButton(
+                            enabled = searchQuery.isNotBlank() && !isSimulating,
+                            onClick = {
+                                isSimulating = true
+                                simulateResults = null
+                                scope.launch {
+                                    val injectResults = kbService.searchForInjection(searchQuery, settings = settings)
+                                    simulateResults = injectResults.map { r ->
+                                        KnowledgeBaseService.SearchResultUi(
+                                            chunkId = r.chunk.id,
+                                            text = r.chunk.text.take(300),
+                                            sourceName = r.source.name,
+                                            score = r.score,
+                                            matchType = r.matchType.name,
+                                        )
+                                    }
+                                    isSimulating = false
+                                }
+                            },
+                        ) {
+                            if (isSimulating) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(HugeIcons.AiMagic, contentDescription = "模拟注入")
                             }
-                        ),
-                    )
+                        }
+                    }
                 }
 
                 // 搜索结果或来源列表
@@ -378,11 +449,92 @@ fun KnowledgeBasePage() {
                             }
                         }
                     }
+                } else if (simulateResults != null) {
+                    item {
+                        Text(
+                            "模拟注入结果（${simulateResults?.size}条 · 使用注入参数）",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
+                    items(simulateResults ?: emptyList(), key = { it.chunkId }) { result ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = when (result.matchType) {
+                                        "FTS" -> "📖 关键字匹配"
+                                        "EMBEDDING" -> "🧠 语义匹配"
+                                        "HYBRID" -> "🎯 双通道匹配"
+                                        else -> ""
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = result.text,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 5,
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = "来源: ${result.sourceName} · 匹配度: ${"%.0f".format(result.score * 100)}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
                 } else {
-                    items(sources, key = { it.id }) { source ->
+                    // 助理筛选行
+                    item {
+                        val allAssistants = settings.assistants
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            item {
+                                FilterChip(
+                                    selected = assistantFilter == null,
+                                    onClick = { assistantFilter = null },
+                                    label = { Text("全部", style = MaterialTheme.typography.labelSmall) },
+                                    shape = RoundedCornerShape(8.dp),
+                                )
+                            }
+                            item {
+                                FilterChip(
+                                    selected = assistantFilter == "global",
+                                    onClick = { assistantFilter = "global" },
+                                    label = { Text("全局", style = MaterialTheme.typography.labelSmall) },
+                                    shape = RoundedCornerShape(8.dp),
+                                )
+                            }
+                            items(allAssistants.take(20), key = { it.id.toString() }) { asst ->
+                                FilterChip(
+                                    selected = assistantFilter == asst.id.toString(),
+                                    onClick = { assistantFilter = asst.id.toString() },
+                                    label = { Text(asst.name, style = MaterialTheme.typography.labelSmall) },
+                                    shape = RoundedCornerShape(8.dp),
+                                )
+                            }
+                        }
+                    }
+                    // 过滤后的来源列表
+                    val filteredSources = remember(sources, assistantFilter) {
+                        sources.filter { source ->
+                            when (assistantFilter) {
+                                null -> true
+                                "global" -> source.assistantId == null
+                                else -> source.assistantId == null
+                            }
+                        }
+                    }
+                    items(filteredSources, key = { it.id }) { source ->
                         KnowledgeSourceCard(
                             source = source,
                             isDeleting = deletingId == source.id,
+                            onClick = { detailSourceId = source.id },
                             onDelete = {
                                 deletingId = source.id
                                 scope.launch {
@@ -465,6 +617,89 @@ fun KnowledgeBasePage() {
                 }
             },
         )
+
+        // 详情 BottomSheet
+        if (detailSourceId != null) {
+            val detailSource = sources.find { it.id == detailSourceId }
+            ModalBottomSheet(
+                onDismissRequest = { detailSourceId = null },
+                containerColor = MaterialTheme.colorScheme.surface,
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
+                    if (detailSource != null) {
+                        Text(detailSource.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(8.dp))
+
+                        // 基本信息
+                        Text(
+                            buildString {
+                                append(when (detailSource.type) {
+                                    "FILE" -> "📄 文件"
+                                    "CHAT" -> "💬 聊天记录"
+                                    "TEXT" -> "📝 笔记"
+                                    "BATCH" -> "📁 批量"
+                                    else -> detailSource.type
+                                })
+                                append(" · ${detailSource.chunkCount} 段")
+                                if (detailSource.fileSize > 0) {
+                                    append(" · ${"%.0f".format(detailSource.fileSize / 1024.0)} KB")
+                                }
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "创建于 ${formatTime(detailSource.createdAt)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        // 标签
+                        if (detailSource.tags.isNotBlank()) {
+                            Spacer(Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                detailSource.tags.split(",").filter { it.isNotBlank() }.forEach { tag ->
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                    ) {
+                                        Text(
+                                            text = tag.trim(),
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // 预览
+                        if (detailSource.filePath != null) {
+                            Spacer(Modifier.height(12.dp))
+                            Text("预览", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.height(4.dp))
+                            var preview by remember { mutableStateOf<String?>(null) }
+                            LaunchedEffect(detailSource) {
+                                preview = kbService.previewDocument(Uri.parse(detailSource.filePath))
+                            }
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ) {
+                                Text(
+                                    text = preview ?: "加载中...",
+                                    modifier = Modifier.padding(8.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -473,11 +708,15 @@ private fun KnowledgeSourceCard(
     source: KnowledgeSourceEntity,
     isDeleting: Boolean,
     isEmbedding: Boolean,
+    onClick: () -> Unit,
     onDelete: () -> Unit,
     onRename: () -> Unit,
     onEmbed: () -> Unit,
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
     Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -547,7 +786,7 @@ private fun KnowledgeSourceCard(
         if (isDeleting) {
             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
         } else {
-                IconButton(onClick = onDelete) {
+                IconButton(onClick = { showDeleteConfirm = true }) {
                     Icon(
                         HugeIcons.Delete02,
                         contentDescription = "删除",
@@ -574,6 +813,28 @@ private fun KnowledgeSourceCard(
                 }
             }
         }
+    }
+
+    // 删除确认弹窗
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("删除知识源") },
+            text = { Text("确定删除「${source.name}」及其所有分块？此操作不可撤销。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    onDelete()
+                }) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("取消")
+                }
+            },
+        )
     }
 }
 

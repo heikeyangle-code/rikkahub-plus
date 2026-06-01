@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.EmbeddingGenerationParams
 import me.rerere.ai.provider.ProviderManager
@@ -16,6 +17,7 @@ import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.dao.KnowledgeBaseDao
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.entity.KnowledgeChunkEntity
+import me.rerere.rikkahub.data.db.entity.KnowledgeSourceAssistantEntity
 import me.rerere.rikkahub.data.db.entity.KnowledgeSourceEntity
 import me.rerere.rikkahub.data.model.KnowledgeSearchResult
 import me.rerere.rikkahub.data.model.KnowledgeSource
@@ -44,6 +46,10 @@ class KnowledgeBaseService(
     private val dao: KnowledgeBaseDao = database.knowledgeBaseDao()
     private val writableDb get() = database.openHelper.writableDatabase
 
+    // 导入进度
+    val importProgress = MutableStateFlow<ImportProgress?>(null)
+    val embeddingProgress = MutableStateFlow<EmbeddingProgress?>(null)
+
     init {
         // 确保 FTS5 表存在（不在 @Entity 中，仅通过 Migration_20_21 的 raw SQL 创建，
         // 但该迁移从未注册到 AppDatabase，导致新装/未走迁移的数据库没有此表）
@@ -63,10 +69,21 @@ class KnowledgeBaseService(
 
     // ---- 数据源管理 ----
 
+    /**
+     * 将知识源绑定到指定助理（多对多关联表）
+     * @param assistantId 非null=绑，null=解除绑定
+     */
     suspend fun assignSourceToAssistant(sourceId: String, assistantId: String?) {
-        val source = dao.getSourceById(sourceId) ?: return
-        dao.insertSource(source.copy(assistantId = assistantId))
+        if (assistantId != null) {
+            dao.addSourceAssistants(listOf(KnowledgeSourceAssistantEntity(sourceId, assistantId)))
+        } else {
+            dao.clearSourceAssistants(sourceId)
+        }
     }
+
+    /** 获取指定助理已绑定的知识源 ID 列表 */
+    suspend fun getBoundSourceIds(assistantId: String): List<String> =
+        dao.getSourceIdsForAssistant(assistantId)
 
     fun getAllSourcesFlow(): Flow<List<KnowledgeSourceEntity>> = dao.getAllSourcesFlow()
 
@@ -74,7 +91,12 @@ class KnowledgeBaseService(
         dao.getSourcesForAssistantFlow(assistantId)
 
     suspend fun getSourcesForAssistantOnce(assistantId: String): List<KnowledgeSourceEntity> =
-        dao.getAllSources().filter { it.assistantId == null || it.assistantId == assistantId }
+        dao.getSourcesForAssistantFlow(assistantId).let { flow ->
+            // 一次性获取，直接用 Room DAO 的 suspend 版
+            dao.getAllSources().filter {
+                it.assistantId == null || it.id in dao.getSourceIdsForAssistant(assistantId)
+            }
+        }
 
     suspend fun deleteSource(sourceId: String) = withContext(Dispatchers.IO) {
         dao.deleteChunksBySource(sourceId)
@@ -212,8 +234,10 @@ class KnowledgeBaseService(
 
             if (children.isEmpty()) return@withContext 0
 
+            importProgress.value = ImportProgress(children.size, 0, "")
             var imported = 0
-            for ((name, uri) in children) {
+            for (i, (name, uri) in children.withIndex()) {
+                importProgress.value = ImportProgress(children.size, i, name)
                 try {
                     val text = readDocument(uri) ?: continue
                     if (text.isBlank()) continue
@@ -241,6 +265,7 @@ class KnowledgeBaseService(
                 }
             }
             Log.i(TAG, "Folder import complete: $imported files from $folderName")
+            importProgress.value = null
             imported
         } catch (e: Exception) {
             Log.e(TAG, "Failed to import folder: $folderName", e)
@@ -369,8 +394,10 @@ class KnowledgeBaseService(
         }
 
         Log.i(TAG, "Embedding ${chunks.size} unembedded chunks...")
+        embeddingProgress.value = EmbeddingProgress(chunks.size, 0)
         val batchSize = 5
         chunks.chunked(batchSize).forEachIndexed { batchIndex, batch ->
+            embeddingProgress.value = EmbeddingProgress(chunks.size, batchIndex * batchSize)
             try {
                 val texts = batch.map { it.text }
                 val provider = model.findProvider(settings.providers) ?: return@forEachIndexed
@@ -394,6 +421,7 @@ class KnowledgeBaseService(
             }
         }
         Log.i(TAG, "Embedding complete: ${chunks.size} chunks")
+        embeddingProgress.value = null
     }
 
     // ---- 检索 ----
@@ -427,14 +455,21 @@ class KnowledgeBaseService(
                     .filter { it.length >= 2 }
                     .joinToString(" AND ")
                 if (ftsQuery.isNotBlank()) {
+                    val assistFilter = if (assistantId != null) {
+                        "AND kc.source_id IN (SELECT id FROM knowledge_sources WHERE assistant_id IS NULL UNION SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = ?)"
+                    } else ""
+                    val params = mutableListOf(ftsQuery)
+                    if (assistantId != null) params.add(assistantId)
+                    params.add((topK * 2).toString())
                     val cursor = writableDb.query("""
                         SELECT kc.id, kc.source_id, kc.chunk_index, kc.text, kc.sentence_start, kc.sentence_end
                         FROM knowledge_fts kf
                         INNER JOIN knowledge_chunks kc ON kc.id = kf.chunk_id
                         WHERE kf.text MATCH ?
+                        $assistFilter
                         ORDER BY rank
                         LIMIT ?
-                    """, arrayOf(ftsQuery, (topK * 2).toString()))
+                    """, params.toTypedArray())
                     try {
                         while (cursor.moveToNext()) {
                             val chunk = KnowledgeChunkEntity(
@@ -677,14 +712,21 @@ class KnowledgeBaseService(
                         .filter { it.length >= 2 }
                         .joinToString(" AND ")
                     if (ftsQuery.isNotBlank()) {
+                        val assistFilter = if (assistantId != null) {
+                            "AND kc.source_id IN (SELECT id FROM knowledge_sources WHERE assistant_id IS NULL UNION SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = ?)"
+                        } else ""
+                        val params = mutableListOf(ftsQuery)
+                        if (assistantId != null) params.add(assistantId)
+                        params.add((kbSettings.chunkCount * 4).toString())
                         val cursor = writableDb.query("""
                             SELECT kc.id, kc.source_id, kc.chunk_index, kc.text, kc.sentence_start, kc.sentence_end
                             FROM knowledge_fts kf
                             INNER JOIN knowledge_chunks kc ON kc.id = kf.chunk_id
                             WHERE kf.text MATCH ?
+                            $assistFilter
                             ORDER BY rank
                             LIMIT ?
-                        """, arrayOf(ftsQuery, (kbSettings.chunkCount * 4).toString()))
+                        """, params.toTypedArray())
                         try {
                             while (cursor.moveToNext()) {
                                 val chunk = KnowledgeChunkEntity(
@@ -905,6 +947,21 @@ class KnowledgeBaseService(
         return if (denom == 0f) 0f else dotProduct / denom
     }
 }
+
+// ---- 进度数据类型 ----
+
+/** 批量导入进度 */
+data class ImportProgress(
+    val total: Int,
+    val completed: Int,
+    val currentFileName: String,
+)
+
+/** Embedding 向量化进度 */
+data class EmbeddingProgress(
+    val total: Int,
+    val completed: Int,
+)
 
 // ---- 扩展函数 ----
 

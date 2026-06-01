@@ -17,6 +17,7 @@ import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.KnowledgeChunkEntity
+import me.rerere.rikkahub.data.db.entity.KnowledgeSourceAssistantEntity
 import me.rerere.rikkahub.data.db.entity.KnowledgeSourceEntity
 import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
@@ -35,8 +36,9 @@ import me.rerere.rikkahub.utils.JsonInstant
         FavoriteEntity::class,
         KnowledgeSourceEntity::class,
         KnowledgeChunkEntity::class,
+        KnowledgeSourceAssistantEntity::class,
     ],
-    version = 22,
+    version = 23,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),

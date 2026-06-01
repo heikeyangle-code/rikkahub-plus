@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import me.rerere.rikkahub.data.db.entity.KnowledgeChunkEntity
+import me.rerere.rikkahub.data.db.entity.KnowledgeSourceAssistantEntity
 import me.rerere.rikkahub.data.db.entity.KnowledgeSourceEntity
 
 @Dao
@@ -18,7 +19,15 @@ interface KnowledgeBaseDao {
     @Query("SELECT * FROM knowledge_sources ORDER BY created_at DESC")
     suspend fun getAllSources(): List<KnowledgeSourceEntity>
 
-    @Query("SELECT * FROM knowledge_sources WHERE assistant_id = :assistantId OR assistant_id IS NULL ORDER BY created_at DESC")
+    /**
+     * 获取对指定助理可见的知识源（全局 OR 通过关联表绑定的）
+     */
+    @Query("""
+        SELECT * FROM knowledge_sources
+        WHERE assistant_id IS NULL
+        OR id IN (SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = :assistantId)
+        ORDER BY created_at DESC
+    """)
     fun getSourcesForAssistantFlow(assistantId: String): Flow<List<KnowledgeSourceEntity>>
 
     @Query("SELECT * FROM knowledge_sources WHERE id = :id")
@@ -47,16 +56,54 @@ interface KnowledgeBaseDao {
     @Query("SELECT count(*) FROM knowledge_chunks WHERE source_id = :sourceId")
     suspend fun getChunkCount(sourceId: String): Int
 
+    // ---- 关联表（知识源 ↔ 助理 多对多）----
+
+    @Query("SELECT assistant_id FROM knowledge_source_assistants WHERE source_id = :sourceId")
+    suspend fun getAssistantIdsForSource(sourceId: String): List<String>
+
+    @Query("""
+        SELECT source_id FROM knowledge_source_assistants
+        WHERE assistant_id = :assistantId
+        UNION
+        SELECT id FROM knowledge_sources WHERE assistant_id IS NULL
+    """)
+    suspend fun getSourceIdsForAssistant(assistantId: String): List<String>
+
+    @Query("DELETE FROM knowledge_source_assistants WHERE source_id = :sourceId")
+    suspend fun clearSourceAssistants(sourceId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun addSourceAssistants(rows: List<KnowledgeSourceAssistantEntity>)
+
+    /**
+     * 替换某个知识源绑定的助理列表（先清后插）
+     */
+    suspend fun replaceSourceAssistants(sourceId: String, assistantIds: List<String>) {
+        clearSourceAssistants(sourceId)
+        if (assistantIds.isNotEmpty()) {
+            addSourceAssistants(assistantIds.map { KnowledgeSourceAssistantEntity(sourceId, it) })
+        }
+    }
+
     // ---- FTS5 全文检索（通过 Service 层直接操作 WritableDatabase）----
-    // 不用 @Query，因为 Room 不支持 FTS5 MATCH 语法
+
+    /**
+     * 获取对指定助理可见的所有已向量化的chunks
+     * 包含：全局知识源（assistant_id IS NULL） + 通过关联表绑定的
+     */
+    @Query("""
+        SELECT kc.* FROM knowledge_chunks kc
+        INNER JOIN knowledge_sources ks ON ks.id = kc.source_id
+        WHERE kc.embedding IS NOT NULL AND kc.embedding_dim > 0
+        AND (
+            ks.assistant_id IS NULL
+            OR kc.source_id IN (
+                SELECT source_id FROM knowledge_source_assistants WHERE assistant_id = :assistantId
+            )
+        )
+    """)
+    suspend fun getEmbeddedChunksForAssistant(assistantId: String): List<KnowledgeChunkEntity>
 
     @Query("SELECT * FROM knowledge_chunks WHERE embedding IS NOT NULL AND embedding_dim > 0")
     suspend fun getAllEmbeddedChunks(): List<KnowledgeChunkEntity>
-
-    @Query("""
-        SELECT * FROM knowledge_chunks 
-        WHERE embedding IS NOT NULL AND embedding_dim > 0
-        AND source_id IN (SELECT id FROM knowledge_sources WHERE assistant_id = :assistantId OR assistant_id IS NULL)
-    """)
-    suspend fun getEmbeddedChunksForAssistant(assistantId: String): List<KnowledgeChunkEntity>
 }
