@@ -85,8 +85,98 @@ class DocumentChunker {
     }
 
     /**
-     * 全文分块：分句 → 组块
+     * 语义分块：按段落/标题边界切，不跨段落切分
+     *
+     * 策略：
+     * 1. 先用 \n\n 或 markdown 标题分割成段落
+     * 2. 短段落合并成 chunk（不超过 chunkSize 句），长段落独立成 chunk
+     * 3. 超长段落按句回退到原始 chunkSentences
      */
+    fun chunkDocumentSemantic(
+        text: String,
+        chunkSize: Int = DEFAULT_CHUNK_SIZE,
+        overlap: Int = DEFAULT_CHUNK_OVERLAP,
+    ): ChunkResult {
+        if (text.isBlank()) return ChunkResult(emptyList(), 0)
+
+        // 1. 按段落切分（双换行或 markdown 标题）
+        val paragraphs = splitParagraphs(text)
+        if (paragraphs.size <= 1) {
+            // 只有一段，退回到常规句子分块
+            return chunkDocument(text, chunkSize, overlap)
+        }
+
+        val allSentences = mutableListOf<String>()
+        val sentenceParagraphMap = mutableListOf<Int>() // 每句属于哪个段落
+
+        paragraphs.forEachIndexed { paraIdx, para ->
+            val sentences = splitSentences(para)
+            // 记录段落边界 - 用于后续可能参考
+            allSentences.addAll(sentences)
+            repeat(sentences.size) { sentenceParagraphMap.add(paraIdx) }
+        }
+
+        if (allSentences.isEmpty()) return ChunkResult(emptyList(), 0)
+
+        // 2. 以段落为单位组块（尽量不跨段落）
+        val chunks = mutableListOf<SentenceChunk>()
+        var start = 0
+        while (start < allSentences.size) {
+            val end = findSemanticBoundary(allSentences, sentenceParagraphMap, start, chunkSize)
+            val chunkText = allSentences.subList(start, end).joinToString("")
+            chunks.add(SentenceChunk(
+                text = chunkText,
+                sentenceStart = start,
+                sentenceEnd = end - 1,
+            ))
+            // 跨段落时步进 overlap，否则直接跳到下个段落边界
+            val step = if (overlap > 0 && start > 0) chunkSize - overlap else end - start
+            start += maxOf(1, step)
+        }
+
+        return ChunkResult(chunks, allSentences.size)
+    }
+
+    /**
+     * 找到语义边界：优先在段落边界断开，不超过 chunkSize 句
+     */
+    private fun findSemanticBoundary(
+        sentences: List<String>,
+        sentenceParagraphMap: List<Int>,
+        fromIndex: Int,
+        maxSize: Int,
+    ): Int {
+        val end = minOf(fromIndex + maxSize, sentences.size)
+        if (end >= sentences.size) return sentences.size
+
+        // 在 [fromIndex, end) 范围内找最后一个段落边界
+        val currentPara = sentenceParagraphMap[fromIndex]
+        var bestSplit = end
+        for (i in end - 1 downTo fromIndex + 1) {
+            if (sentenceParagraphMap[i] != currentPara) {
+                bestSplit = i
+                break
+            }
+        }
+
+        // 如果范围内有段落边界，在边界处断开
+        if (bestSplit < end && bestSplit > fromIndex) {
+            return bestSplit
+        }
+
+        // 没有段落边界，硬截断
+        return end
+    }
+
+    /**
+     * 将文本按段落/标题分割
+     */
+    private fun splitParagraphs(text: String): List<String> {
+        // 按双换行或 markdown 标题（##, ===, --- 等）分割
+        val segments = text.split(Regex("\\n\\s*\\n|\\n#{1,6}\\s|\\n[-=]{2,}\\n"))
+        return segments.map { it.trim() }.filter { it.isNotBlank() }
+    }
+    
     fun chunkDocument(text: String, chunkSize: Int = DEFAULT_CHUNK_SIZE, overlap: Int = DEFAULT_CHUNK_OVERLAP): ChunkResult {
         val sentences = splitSentences(text)
         return chunkSentences(sentences, chunkSize, overlap)

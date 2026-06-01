@@ -29,6 +29,7 @@ import me.rerere.hugeicons.stroke.Folder02
 import me.rerere.hugeicons.stroke.Link02
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.Note
+import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.rikkahub.data.db.entity.KnowledgeSourceEntity
 import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
 import me.rerere.rikkahub.data.model.KnowledgeSourceType
@@ -56,6 +57,8 @@ fun KnowledgeBasePage() {
 
     var showImportDialog by remember { mutableStateOf(false) }
     var deletingId by remember { mutableStateOf<String?>(null) }
+    var renamingId by remember { mutableStateOf<String?>(null) }
+    var renameText by remember { mutableStateOf(\"\") }
     var embeddingId by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<KnowledgeBaseService.SearchResultUi>?>(null) }
@@ -206,6 +209,10 @@ fun KnowledgeBasePage() {
                                     deletingId = null
                                 }
                             },
+                            onRename = {
+                                renamingId = source.id
+                                renameText = source.name
+                            },
                             onEmbed = {
                                 scope.launch {
                                     embeddingId = source.id
@@ -228,6 +235,43 @@ fun KnowledgeBasePage() {
             scope = scope,
         )
     }
+
+    // 重命名对话框
+    if (renamingId != null) {
+        AlertDialog(
+            onDismissRequest = { renamingId = null },
+            title = { Text("重命名") },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    label = { Text("名称") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        renamingId?.let { id ->
+                            scope.launch {
+                                kbService.renameSource(id, renameText.trim())
+                                renamingId = null
+                            }
+                        }
+                    },
+                    enabled = renameText.isNotBlank(),
+                ) {
+                    Text("确认")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { renamingId = null }) {
+                    Text("取消")
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -236,6 +280,7 @@ private fun KnowledgeSourceCard(
     isDeleting: Boolean,
     isEmbedding: Boolean,
     onDelete: () -> Unit,
+    onRename: () -> Unit,
     onEmbed: () -> Unit,
 ) {
     Card(
@@ -296,6 +341,13 @@ private fun KnowledgeSourceCard(
                         tint = MaterialTheme.colorScheme.error,
                     )
                 }
+            }
+            IconButton(onClick = onRename) {
+                Icon(
+                    HugeIcons.PencilEdit01,
+                    contentDescription = "重命名",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             if (isEmbedding) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -455,46 +507,80 @@ private fun FileImportContent(
     scope: kotlinx.coroutines.CoroutineScope,
     onDone: () -> Unit,
 ) {
-    var importing by remember { mutableStateOf(false) }
+    var stage by remember { mutableStateOf(0) } // 0=选择, 1=预览, 2=导入中
     var status by remember { mutableStateOf("") }
+    var previewText by remember { mutableStateOf("") }
+    var selectedUri by remember { mutableStateOf<Uri?>(null) }
+    var fileName by remember { mutableStateOf("") }
 
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            importing = true
-            status = "正在导入..."
             scope.launch {
-                val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "未知文件"
-                kbService.importFile(uri, fileName)
-                importing = false
-                status = "导入完成"
-                onDone()
+                val name = uri.lastPathSegment?.substringAfterLast('/') ?: "未知文件"
+                fileName = name
+                selectedUri = uri
+                previewText = kbService.previewDocument(uri) ?: "(无法预览)"
+                stage = 1
             }
         }
     }
 
     Column {
-        Text("支持 PDF、DOCX、EPUB、PPTX、TXT 格式", style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = { filePicker.launch(arrayOf(
-                "application/pdf",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "application/epub+zip",
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                "text/plain",
-            )) },
-            enabled = !importing,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (importing) {
+        if (stage == 0) {
+            Text("支持 PDF、DOCX、EPUB、PPTX、TXT 格式", style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = { filePicker.launch(arrayOf(
+                    "application/pdf",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/epub+zip",
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    "text/plain",
+                )) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(HugeIcons.File02, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("选择文件")
+            }
+        } else if (stage == 1) {
+            Text(fileName, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 150.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Text(
+                    text = previewText,
+                    modifier = Modifier.padding(8.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    stage = 2
+                    status = "正在导入..."
+                    scope.launch {
+                        kbService.importFile(selectedUri!!, fileName)
+                        status = "导入完成"
+                        onDone()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("确认导入")
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
+                Text(status, style = MaterialTheme.typography.bodySmall)
             }
-            Icon(HugeIcons.File02, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(if (importing) status else "选择文件")
         }
     }
 }

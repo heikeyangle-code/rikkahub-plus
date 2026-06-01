@@ -97,7 +97,7 @@ class KnowledgeBaseService(
             dao.insertSource(source)
 
             // 2. 分块
-            val result = chunker.chunkDocument(text, chunkSize, overlap)
+            val result = chunker.chunkDocumentSemantic(text, chunkSize, overlap)
             val chunks = result.chunks.mapIndexed { index, chunk ->
                 KnowledgeChunkEntity(
                     id = "${sourceId}_$index",
@@ -185,7 +185,7 @@ class KnowledgeBaseService(
                     )
                     dao.insertSource(source)
 
-                    val result = chunker.chunkDocument(text, chunkSize, overlap)
+                    val result = chunker.chunkDocumentSemantic(text, chunkSize, overlap)
                     val chunks = result.chunks.mapIndexed { index, chunk ->
                         KnowledgeChunkEntity(
                             id = "${sourceId}_$index",
@@ -249,7 +249,7 @@ class KnowledgeBaseService(
             )
             dao.insertSource(source)
 
-            val result = chunker.chunkDocument(text, chunkSize, overlap)
+            val result = chunker.chunkDocumentSemantic(text, chunkSize, overlap)
             val chunks = result.chunks.mapIndexed { index, chunk ->
                 KnowledgeChunkEntity(
                     id = "${sourceId}_$index",
@@ -297,7 +297,7 @@ class KnowledgeBaseService(
             )
             dao.insertSource(source)
 
-            val result = chunker.chunkDocument(text, chunkSize, overlap)
+            val result = chunker.chunkDocumentSemantic(text, chunkSize, overlap)
             val chunks = result.chunks.mapIndexed { index, chunk ->
                 KnowledgeChunkEntity(
                     id = "${sourceId}_$index",
@@ -552,6 +552,27 @@ class KnowledgeBaseService(
             ensureEmbeddings(settings)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to embed source $sourceId", e)
+        }
+    }
+
+    /** 重命名知识源 */
+    suspend fun renameSource(sourceId: String, newName: String) = withContext(Dispatchers.IO) {
+        try {
+            val source = dao.getSourceById(sourceId) ?: return@withContext
+            dao.insertSource(source.copy(name = newName))
+            Log.i(TAG, "Renamed source $sourceId → $newName")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to rename source $sourceId", e)
+        }
+    }
+
+    /** 文档预览：提取文本前300字符用于预览 */
+    suspend fun previewDocument(uri: Uri): String? = withContext(Dispatchers.IO) {
+        try {
+            readDocument(uri)?.take(300)
+        } catch (e: Exception) {
+            Log.e(TAG, "Preview failed", e)
+            null
         }
     }
 
