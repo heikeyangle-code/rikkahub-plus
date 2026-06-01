@@ -31,6 +31,7 @@ class KnowledgeBaseTransformer(
             val results = knowledgeBaseService.search(
                 query = query,
                 assistantId = assistant.id.toString(),
+                settings = ctx.settings,
                 topK = 5,
                 scoreThreshold = 0.25f,
             )

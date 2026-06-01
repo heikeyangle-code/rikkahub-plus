@@ -45,8 +45,8 @@ class KnowledgeBaseService(
     fun getSourcesForAssistantFlow(assistantId: String): Flow<List<KnowledgeSourceEntity>> =
         dao.getSourcesForAssistantFlow(assistantId)
 
-    suspend fun getSourcesForAssistant(assistantId: String): List<KnowledgeSourceEntity> =
-        dao.getSourcesForAssistantFlow(assistantId).let { emptyList() } // fallback
+    suspend fun getSourcesForAssistantOnce(assistantId: String): List<KnowledgeSourceEntity> =
+        dao.getAllSources().filter { it.assistantId == null || it.assistantId == assistantId }
 
     suspend fun deleteSource(sourceId: String) = withContext(Dispatchers.IO) {
         dao.deleteChunksBySource(sourceId)
@@ -277,6 +277,7 @@ class KnowledgeBaseService(
     suspend fun search(
         query: String,
         assistantId: String? = null,
+        settings: Settings? = null,
         topK: Int = 5,
         scoreThreshold: Float = 0.25f,
     ): List<KnowledgeSearchResult> = withContext(Dispatchers.IO) {
@@ -306,17 +307,12 @@ class KnowledgeBaseService(
             Log.w(TAG, "FTS5 search failed: ${e.message}")
         }
 
-        // 2. Embedding 语义搜索
-        try {
-            val embeddedChunks = if (assistantId != null) {
-                dao.getEmbeddedChunksForAssistant(assistantId)
-            } else {
-                dao.getAllEmbeddedChunks()
-            }
-            if (embeddedChunks.isNotEmpty()) {
-                val model = findEmbeddingModel(null) // 复用已有embedding
+        // 2. Embedding 语义搜索（需要 settings）
+        if (settings != null) {
+            try {
+                val model = findEmbeddingModel(settings)
                 if (model != null) {
-                    val provider = model.findProvider(emptyList())
+                    val provider = model.findProvider(settings.providers)
                     if (provider != null) {
                         val providerImpl = providerManager.getProviderByType(provider)
                         val queryEmbedding = providerImpl.generateEmbedding(EmbeddingGenerationParams(
@@ -325,6 +321,11 @@ class KnowledgeBaseService(
                         )).embeddings.firstOrNull()
 
                         if (queryEmbedding != null) {
+                            val embeddedChunks = if (assistantId != null) {
+                                dao.getEmbeddedChunksForAssistant(assistantId)
+                            } else {
+                                dao.getAllEmbeddedChunks()
+                            }
                             embeddedChunks.forEach { chunk ->
                                 val chunkEmbedding = chunk.embedding?.let { KnowledgeChunkEntity.bytesToFloats(it) }
                                 if (chunkEmbedding != null && chunkEmbedding.size == queryEmbedding.size) {
@@ -344,9 +345,9 @@ class KnowledgeBaseService(
                         }
                     }
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "Embedding search failed: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Embedding search failed: ${e.message}")
         }
 
         // 3. 合并排序
