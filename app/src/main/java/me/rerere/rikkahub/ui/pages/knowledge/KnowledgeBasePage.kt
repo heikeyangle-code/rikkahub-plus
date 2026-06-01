@@ -1099,19 +1099,25 @@ private fun ChatHistoryImportContent(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         items(conversations.take(20), key = { it.id.toString() }) { conv ->
-            Surface(
+                    Surface(
                 onClick = {
                     if (!importing) {
                         importing = true
                         status = "正在导入..."
                         scope.launch {
-                            val id = kbService.importChatHistory(conv, null)
-                            importing = false
-                            if (id != null) {
-                                status = "导入完成"
-                                onDone()
+                            val fullConv = conversationRepo.getConversationById(conv.id)
+                            if (fullConv != null) {
+                                val id = kbService.importChatHistory(fullConv, null)
+                                importing = false
+                                if (id != null) {
+                                    status = "导入完成"
+                                    onDone()
+                                } else {
+                                    status = "导入失败：聊天记录为空"
+                                }
                             } else {
-                                status = "导入失败：聊天记录为空"
+                                importing = false
+                                status = "导入失败：找不到对话"
                             }
                         }
                     }
