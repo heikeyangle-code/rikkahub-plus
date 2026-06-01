@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +49,31 @@ fun AuthorsNotePage() {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // 内容输入
+            // 快速预设
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text("快速预设", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                        authorsNotePresets.forEach { (label, content) ->
+                            AssistChip(
+                                onClick = {
+                                    scope.launch {
+                                        settingsStore.update(settings.copy(authorNote = content))
+                                    }
+                                },
+                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                leadingIcon = { Text("✨", style = MaterialTheme.typography.labelSmall) },
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
             // 内容输入
             Card(
                 shape = RoundedCornerShape(12.dp),

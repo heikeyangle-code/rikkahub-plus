@@ -1,9 +1,11 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -234,6 +236,22 @@ private fun PersonaEditDialog(
         title = { Text(if (initial != null) "编辑 Persona" else "新建 Persona") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 预设快速选择
+                Text("快速预设", style = MaterialTheme.typography.labelSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    personaPresets.forEach { (pName, pTitle, pDesc) ->
+                        AssistChip(
+                            onClick = {
+                                name = pName
+                                title = pTitle
+                                desc = pDesc
+                            },
+                            label = { Text(pName, style = MaterialTheme.typography.labelSmall) },
+                            leadingIcon = { Text("✨", style = MaterialTheme.typography.labelSmall) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -328,3 +346,29 @@ private fun PersonaEditDialog(
         },
     )
 }
+
+private val personaPresets = listOf(
+    Triple("普通用户", "一般交流", "我是一个普通用户，在日常交流和问题咨询中保持礼貌。请用清晰直接的语言回答，避免过多修饰。对于复杂问题可以分点说明，但对于简单问题直接给出答案即可。"),
+    Triple("角色扮演者", "RP玩家", "我喜欢沉浸式的角色扮演体验。请用生动的文学性语言描述场景、角色的表情动作和环境氛围。说话方式要符合角色设定——古代人不说现代词汇，反派有反派的腔调。世界构建要细致，角色对话要有辨识度。"),
+    Triple("专业用户", "专业人士", "我注重效率和准确性。请提供有数据支撑、有来源的答案。用结构化方式组织信息（分段、列表、对比），避免模糊表述和过度修饰。如果涉及专业术语请保留并解释。需要区分事实和观点。"),
+    Triple("创意写手", "创作者", "我追求文字的美感和表现力。请使用丰富的修辞手法（比喻、排比、通感），注重语言的节奏感和画面感。可以适当使用文学化的表达方式，在叙事中加入心理描写和环境烘托。故事要有起承转合。"),
+    Triple("学习者", "求知者", "我正在学习新知识，请以教育者的身份耐心讲解。用类比和实例帮助理解，由浅入深地展开。重要概念要定义清楚，复杂逻辑要拆解步骤。可以提问检验理解程度。不懂的领域直接说不知道。"),
+    Triple("程序员", "开发者", "我是软件开发人员。回答技术问题时请给出可运行的代码示例，说明适用版本和环境。对比不同方案的优劣（性能/可维护性/生态）。涉及架构决策时请列出权衡。用代码块格式化。"),
+    Triple("休闲聊天", "闲聊", "随意聊聊，像朋友一样轻松。可以开玩笑，语气口语化。不需要严肃的结构化回答，想到哪说到哪。但不要过于热情或过于冷淡，保持自然的朋友感。"),
+    Triple("学术研究者", "学者", "我从事学术研究。请提供严谨的论证过程，明确前提假设和推理链条。引用需要准确，区分已被证实和仍在争议的观点。使用规范的学术语言，但不要卖弄术语。不确切的地方要注明。"),
+    Triple("心理咨询", "倾听者", "我寻求情感支持。请以共情、温暖的方式回应，先理解和认可感受，再分析问题。避免武断的建议和评判。使用支持性语言，给予空间让用户表达。涉及专业心理问题请建议咨询专业人士。"),
+    Triple("小说家", "文字匠", "我是小说创作者，在构思故事。请用文学化的语言表达，注重细节描写和情感渲染。对话要符合人物性格，叙述要有画面感。敢于使用长句和诗意的表达。故事逻辑要自洽，人物动机要合理。"),
+）
+
+private val authorsNotePresets = listOf(
+    Pair("严肃正式", "请全程使用正式、专业的语气回复。避免口语化表达、网络用语、表情符号。用词精准，句式完整。对不确定的信息要明确表述不确定性。适合工作、学术、正式场合的对话。"),
+    Pair("轻松闲聊", "请用自然的、朋友聊天式的语气交流。可以适当使用口语化表达，语气轻松活泼。不用太在意句子结构，想到哪说到哪。保持真实感，不要刻意讨好。适合日常闲聊。"),
+    Pair("角色扮演沉浸", "请严格遵守当前角色设定，保持性格、说话方式、知识范围的一致性。不要跳出角色。用第一人称表达，通过对话和行为展现角色性格而非直接描述。角色的反应要符合其背景设定。"),
+    Pair("故事推进", "请推动剧情向前发展，避免原地打转。每轮对话引入新信息、新冲突或新转折。不要重复用户已经知道的信息。故事要有节奏感——平缓段落和紧张段落交替。高潮处给予足够的篇幅展开。"),
+    Pair("教学引导", "请以老师的身份，用苏格拉底问答法引导用户思考。先提问了解理解程度，再针对性地解释。用类比帮助理解抽象概念。每步确认用户跟上后再继续。耐心，不预设用户有背景知识。"),
+    Pair("深度分析", "请从多维度分析问题，包括但不限于：历史背景、现状评估、未来趋势。每个观点需要论据支撑。区分事实、观点和推测。指出分析的局限性。给出可操作的结论。"),
+    Pair("情感支持", "请以温暖、共情的态度回应。先肯定用户的感受（\"这确实很难……\"），再帮助梳理问题。不急于给建议，先理解和陪伴。避免说教和空洞的安慰。使用温和的语言。"),
+    Pair("辩论模式", "请站在反方立场提出有力的反驳观点。使用逻辑论证和事实依据，不要人身攻击。清晰地指出对方论证中的漏洞。尊重但坚定地维护立场。可以承认对方的合理之处但点明其局限。"),
+    Pair("创意头脑风暴", "请自由联想，产生多个创意方向。不设限，鼓励大胆的想法。每个方向简要描述核心思路和可能的亮点。数量优先于质量。可以结合不同方向的想法。不在此阶段评判可行性。"),
+    Pair("外语气氛", "请模拟当前对话语境的语言文化氛围。中文保持中文的韵律和节奏感，英文使用地道表达避免直译感，日语注意敬语体系的使用。符合目标语言的文化语境和表达习惯。"),
+)
