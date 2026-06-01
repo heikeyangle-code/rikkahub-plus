@@ -90,14 +90,6 @@ class KnowledgeBaseService(
     fun getSourcesForAssistantFlow(assistantId: String): Flow<List<KnowledgeSourceEntity>> =
         dao.getSourcesForAssistantFlow(assistantId)
 
-    suspend fun getSourcesForAssistantOnce(assistantId: String): List<KnowledgeSourceEntity> =
-        dao.getSourcesForAssistantFlow(assistantId).let { flow ->
-            // 一次性获取，直接用 Room DAO 的 suspend 版
-            dao.getAllSources().filter {
-                it.assistantId == null || it.id in dao.getSourceIdsForAssistant(assistantId)
-            }
-        }
-
     suspend fun deleteSource(sourceId: String) = withContext(Dispatchers.IO) {
         dao.deleteChunksBySource(sourceId)
         dao.deleteSource(sourceId)

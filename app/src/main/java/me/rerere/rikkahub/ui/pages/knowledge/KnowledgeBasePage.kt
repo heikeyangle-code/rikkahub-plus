@@ -1,11 +1,9 @@
 package me.rerere.rikkahub.ui.pages.knowledge
 
-import android.util.Log
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -28,7 +26,6 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Folder02
-import me.rerere.hugeicons.stroke.Link02
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.Note
 import me.rerere.hugeicons.stroke.PencilEdit01
