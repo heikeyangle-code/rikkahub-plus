@@ -31,10 +31,12 @@ import me.rerere.hugeicons.stroke.Link02
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.Note
 import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.data.db.entity.KnowledgeSourceEntity
 import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
 import me.rerere.rikkahub.data.model.KnowledgeSourceType
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
@@ -158,10 +160,13 @@ fun KnowledgeBasePage() {
                                 )
                             }
                             AnimatedVisibility(visible = kbSettings.enabled) {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Spacer(Modifier.height(4.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Spacer(Modifier.height(2.dp))
+
+                                    // 注入条数
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("注入条数:", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(60.dp))
+                                        Text("注入条数", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, modifier = Modifier.width(64.dp))
+                                        Spacer(Modifier.width(4.dp))
                                         Slider(
                                             value = kbSettings.chunkCount.toFloat(),
                                             onValueChange = { v ->
@@ -177,8 +182,11 @@ fun KnowledgeBasePage() {
                                         )
                                         Text("${kbSettings.chunkCount}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(24.dp))
                                     }
+
+                                    // Token预算
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Token预算:", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(60.dp))
+                                        Text("Token预算", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, modifier = Modifier.width(64.dp))
+                                        Spacer(Modifier.width(4.dp))
                                         Slider(
                                             value = kbSettings.tokenBudget.toFloat(),
                                             onValueChange = { v ->
@@ -193,6 +201,103 @@ fun KnowledgeBasePage() {
                                             modifier = Modifier.weight(1f),
                                         )
                                         Text("${kbSettings.tokenBudget}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(36.dp))
+                                    }
+
+                                    // 相似度阈值
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("相似度阈值", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, modifier = Modifier.width(64.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Slider(
+                                            value = kbSettings.scoreThreshold,
+                                            onValueChange = { v ->
+                                                scope.launch {
+                                                    settingsStore.update { s ->
+                                                        s.copy(kbInjectionSettings = kbSettings.copy(scoreThreshold = v))
+                                                    }
+                                                }
+                                            },
+                                            valueRange = 0.05f..0.95f,
+                                            steps = 17,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Text("%.2f".format(kbSettings.scoreThreshold), style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(36.dp))
+                                    }
+
+                                    // Embedding 模型选择
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Embedding 模型", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                            Text("用于向量化知识库内容", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        ModelSelector(
+                                            modelId = settings.embeddingModelId,
+                                            providers = settings.providers,
+                                            type = ModelType.EMBEDDING,
+                                            allowClear = true,
+                                            onSelect = { model ->
+                                                scope.launch {
+                                                    settingsStore.update { s ->
+                                                        s.copy(embeddingModelId = if (model.modelId.isBlank()) null else model.id)
+                                                    }
+                                                }
+                                            },
+                                        )
+                                    }
+
+                                    Divider(Modifier.padding(vertical = 2.dp))
+
+                                    // 混合搜索
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("混合搜索", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                            Text("FTS5 + 向量语义同时搜索", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Switch(
+                                            checked = kbSettings.useHybridSearch,
+                                            onCheckedChange = { v ->
+                                                scope.launch {
+                                                    settingsStore.update { s ->
+                                                        s.copy(kbInjectionSettings = kbSettings.copy(useHybridSearch = v))
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+
+                                    // Query Rewrite
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Query Rewrite", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                            Text("自动生成搜索变体提高召回率", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Switch(
+                                            checked = kbSettings.useQueryRewrite,
+                                            onCheckedChange = { v ->
+                                                scope.launch {
+                                                    settingsStore.update { s ->
+                                                        s.copy(kbInjectionSettings = kbSettings.copy(useQueryRewrite = v))
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+
+                                    // 跨轮去重
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("跨轮去重", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                            Text("避免多轮对话中重复注入相同内容", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Switch(
+                                            checked = kbSettings.enableDedup,
+                                            onCheckedChange = { v ->
+                                                scope.launch {
+                                                    settingsStore.update { s ->
+                                                        s.copy(kbInjectionSettings = kbSettings.copy(enableDedup = v))
+                                                    }
+                                                }
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -542,10 +647,11 @@ private fun KnowledgeImportDialog(
                     )
                 }
                 Divider()
-                // 选择导入类型
-                Row(
+                // 选择导入类型（用 FlowRow 防止溢出）
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ImportTypeChip(
                         selected = selectedType is ImportType.File,
@@ -581,6 +687,13 @@ private fun KnowledgeImportDialog(
                     is ImportType.TextNote -> TextNoteImportContent(knowledgeBaseService, scope, onDismiss)
                     is ImportType.BatchFolder -> BatchFolderImportContent(knowledgeBaseService, scope, onDismiss, null)
                 }
+
+                Divider()
+                Text(
+                    "提示：导入的知识源默认对所有助理可见，可在助理设置中单独按助理启用知识库",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                )
             }
         },
         confirmButton = {},
@@ -674,14 +787,19 @@ private fun FileImportContent(
                     stage = 2
                     status = "正在导入..."
                     scope.launch {
-                        kbService.importFile(selectedUri!!, fileName)
-                        status = "导入完成"
-                        onDone()
+                        val id = kbService.importFile(selectedUri!!, fileName)
+                        if (id != null) {
+                            status = "导入完成"
+                            onDone()
+                        } else {
+                            status = "导入失败：无法读取文件内容"
+                            stage = 1
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("确认导入")
+                Text(if (status.startsWith("导入失败")) status else "确认导入")
             }
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -724,10 +842,14 @@ private fun ChatHistoryImportContent(
                         importing = true
                         status = "正在导入..."
                         scope.launch {
-                            kbService.importChatHistory(conv, null)
+                            val id = kbService.importChatHistory(conv, null)
                             importing = false
-                            status = "导入完成"
-                            onDone()
+                            if (id != null) {
+                                status = "导入完成"
+                                onDone()
+                            } else {
+                                status = "导入失败：聊天记录为空"
+                            }
                         }
                     }
                 },
@@ -805,13 +927,17 @@ private fun TextNoteImportContent(
                     importing = true
                     status = "正在导入..."
                     scope.launch {
-                        kbService.importText(
+                        val id = kbService.importText(
                             title = title.ifBlank { "笔记" },
                             text = content,
                         )
                         importing = false
-                        status = "导入完成"
-                        onDone()
+                        if (id != null) {
+                            status = "导入完成"
+                            onDone()
+                        } else {
+                            status = "导入失败：内容为空"
+                        }
                     }
                 }
             },

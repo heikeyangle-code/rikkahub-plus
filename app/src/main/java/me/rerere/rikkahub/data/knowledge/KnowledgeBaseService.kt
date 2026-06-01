@@ -3,8 +3,6 @@ package me.rerere.rikkahub.data.knowledge
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import androidx.core.net.toFile
-import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -820,18 +818,29 @@ class KnowledgeBaseService(
 
     private fun readDocument(uri: Uri): String? {
         return try {
-            val file = uri.toFile()
-            if (!file.exists() || !file.isFile) return null
-            if (file.length() > 10 * 1024 * 1024) return null // 10MB limit
+            // content:// URI 必须用 ContentResolver 读取，不能用 uri.toFile()
+            val inputStream = context.contentResolver.openInputStream(uri)
+                ?: return null
+            val tempFile = File(context.cacheDir, "kb_import_${Uuid.random().toHexString()}")
+            try {
+                tempFile.outputStream().use { output ->
+                    inputStream.copyTo(output)
+                }
+                if (tempFile.length() > 10 * 1024 * 1024) return null // 10MB limit
 
-            val name = file.name.lowercase()
-            when {
-                name.endsWith(".pdf") -> PdfParser.parserPdf(file)
-                name.endsWith(".docx") -> DocxParser.parse(file)
-                name.endsWith(".pptx") -> PptxParser.parse(file)
-                name.endsWith(".epub") -> EpubParser.parse(file)
-                name.endsWith(".txt") || name.endsWith(".md") -> file.readText()
-                else -> file.readText() // fallback
+                val name = uri.lastPathSegment?.lowercase() ?: ""
+                val result = when {
+                    name.endsWith(".pdf") -> PdfParser.parserPdf(tempFile)
+                    name.endsWith(".docx") -> DocxParser.parse(tempFile)
+                    name.endsWith(".pptx") -> PptxParser.parse(tempFile)
+                    name.endsWith(".epub") -> EpubParser.parse(tempFile)
+                    name.endsWith(".txt") || name.endsWith(".md") -> tempFile.readText()
+                    else -> tempFile.readText() // fallback
+                }
+                result
+            } finally {
+                tempFile.delete()
+                inputStream.close()
             }
         } catch (e: Exception) {
             Log.e(TAG, "readDocument failed", e)

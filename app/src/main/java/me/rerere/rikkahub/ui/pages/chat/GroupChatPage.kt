@@ -16,9 +16,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.uuid.Uuid
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
@@ -27,6 +29,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.*
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.components.ai.ChatInput
+import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -287,17 +290,33 @@ fun GroupChatPage(groupId: String) {
                                             queueStatus = "正在生成 ${members.find { it.id == sid }?.name ?: "..."} 的回复（${idx + 1}/${allPicked.size}）"
                                             val speaker = members.find { it.id == sid } ?: continue
                                             val freshConv = chatService.getConversationFlow(currentConvId).value
-                                            val history = buildHistoryWithNames(freshConv.messageNodes, freshConv.speakerMap, members)
+                                            // 去掉最后一条用户消息（prompt 已有不重复）
+                                            val historyMinusLastUser = buildList {
+                                                val nodes = freshConv.messageNodes
+                                                val lastUserIdx = nodes.indexOfLast { it.role == MessageRole.USER }
+                                                for ((i, node) in nodes.withIndex()) {
+                                                    if (i == lastUserIdx) break
+                                                    add(node)
+                                                }
+                                            }
+                                            val history = buildHistoryWithNames(historyMinusLastUser, freshConv.speakerMap, members)
 
                                             val effectiveSpeaker = if (selectedModelId != null) {
                                                 speaker.copy(chatModelId = selectedModelId)
                                             } else speaker
-                                            val response = chatService.generateForAssistant(
-                                                assistant = effectiveSpeaker,
-                                                settings = settings,
-                                                prompt = text,
-                                                history = history,
-                                            )
+                                            val response = try {
+                                                chatService.generateForAssistant(
+                                                    assistant = effectiveSpeaker,
+                                                    settings = settings,
+                                                    prompt = text,
+                                                    history = history,
+                                                )
+                                            } catch (e: Exception) {
+                                                queueStatus = "${speaker.name} 生成失败: ${e.message?.take(40) ?: "未知错误"}"
+                                                e.printStackTrace()
+                                                delay(2000)
+                                                continue
+                                            }
                                             if (response.isBlank()) continue
 
                                             val freshConv2 = chatService.getConversationFlow(currentConvId).value
@@ -394,5 +413,176 @@ fun GroupChatPage(groupId: String) {
                 )
             }
         }
+    }
+
+    // —— 群聊设置对话框 ——
+    if (showSettings) {
+        ModalBottomSheet(
+            onDismissRequest = { showSettings = false },
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                    // 模型选择
+                    Column {
+                        Text("模型", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        ModelSelector(
+                            modelId = selectedModelId,
+                            providers = settings.providers,
+                            type = ModelType.CHAT,
+                            onSelect = { model -> selectedModelId = model.id },
+                        )
+                    }
+
+                    Divider()
+
+                    // 激活策略
+                    Column {
+                        Text("激活策略", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            FilterChip(
+                                selected = gc.activationStrategy == GroupActivationStrategy.NATURAL,
+                                onClick = {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(activationStrategy = GroupActivationStrategy.NATURAL) else it })
+                                    }
+                                },
+                                label = { Text("自然") },
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            FilterChip(
+                                selected = gc.activationStrategy == GroupActivationStrategy.LIST,
+                                onClick = {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(activationStrategy = GroupActivationStrategy.LIST) else it })
+                                    }
+                                },
+                                label = { Text("轮换") },
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            FilterChip(
+                                selected = gc.activationStrategy == GroupActivationStrategy.MANUAL,
+                                onClick = {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(activationStrategy = GroupActivationStrategy.MANUAL) else it })
+                                    }
+                                },
+                                label = { Text("手动") },
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            FilterChip(
+                                selected = gc.activationStrategy == GroupActivationStrategy.POOLED,
+                                onClick = {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(activationStrategy = GroupActivationStrategy.POOLED) else it })
+                                    }
+                                },
+                                label = { Text("加权") },
+                            )
+                        }
+                    }
+
+                    // 生成模式
+                    Column {
+                        Text("生成模式", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            FilterChip(
+                                selected = gc.generationMode == GroupGenerationMode.SWAP,
+                                onClick = {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(generationMode = GroupGenerationMode.SWAP) else it })
+                                    }
+                                },
+                                label = { Text("替换") },
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            FilterChip(
+                                selected = gc.generationMode == GroupGenerationMode.APPEND,
+                                onClick = {
+                                    settingsStore.update { s ->
+                                        s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(generationMode = GroupGenerationMode.APPEND) else it })
+                                    }
+                                },
+                                label = { Text("追加") },
+                            )
+                        }
+                    }
+
+                    // 允许自回复
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("允许自回复", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                            Text("AI可以连续发言", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = gc.allowSelfResponses,
+                            onCheckedChange = { v ->
+                                settingsStore.update { s ->
+                                    s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(allowSelfResponses = v) else it })
+                                }
+                            }
+                        )
+                    }
+
+                    Divider()
+
+                    // 成员列表
+                    Text("成员设置", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+                    members.forEach { m ->
+                        val isEnabled = m.id !in gc.disabledMemberIds
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ) {
+                            Column(Modifier.padding(8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    UIAvatar(
+                                        value = m.avatar,
+                                        name = m.name,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(m.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                        Text(if (isEnabled) "已启用" else "已禁用", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Switch(
+                                        checked = isEnabled,
+                                        onCheckedChange = { v ->
+                                            settingsStore.update { s ->
+                                                val newDisabled = if (v) gc.disabledMemberIds - m.id else gc.disabledMemberIds + m.id
+                                                s.copy(groupChats = s.groupChats.map { if (it.id == gcId) it.copy(disabledMemberIds = newDisabled) else it })
+                                            }
+                                        }
+                                    )
+                                }
+                                if (isEnabled && gc.activationStrategy == GroupActivationStrategy.NATURAL) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("话多程度", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(56.dp))
+                                        Slider(
+                                            value = m.talkativeness,
+                                            onValueChange = { v ->
+                                                settingsStore.update { s ->
+                                                    s.copy(assistants = s.assistants.map { if (it.id == m.id) it.copy(talkativeness = v) else it })
+                                                }
+                                            },
+                                            valueRange = 0f..1f,
+                                            steps = 19,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Text("%.1f".format(m.talkativeness), style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(24.dp))
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                    }
+                }
+            }
     }
 }
