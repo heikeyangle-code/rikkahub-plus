@@ -8,5 +8,5 @@ plugins {
     alias(libs.plugins.firebase.crashlytics) apply false
     alias(libs.plugins.android.test) apply false
     alias(libs.plugins.baselineprofile) apply false
-    id("com.chaquo.python") version "15.0.1" apply false
+    id("com.chaquo.python") version "16.1.0" apply false
 }
