@@ -545,6 +545,7 @@ class ChatService(
                     }
                 },
                 assistant = assistant,
+                maxSteps = assistant.totalStepsLimit,
                 conversationSystemPrompt = conversation.customSystemPrompt,
                 conversationModeInjectionIds = conversation.modeInjectionIds,
                 conversationLorebookIds = conversation.lorebookIds,

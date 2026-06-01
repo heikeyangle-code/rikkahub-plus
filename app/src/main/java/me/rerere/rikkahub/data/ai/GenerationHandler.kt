@@ -267,7 +267,7 @@ class GenerationHandler(
                     val deferreds = toolsToProcess.map { tool ->
                         async {
                             tool to runCatching {
-                                kotlinx.coroutines.withTimeout(60_000) {
+                                kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) {
                                     executeToolCall(tool, toolsInternal, json)
                                 }
                             }

@@ -53,7 +53,9 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
         val workdir = context.filesDir.absolutePath
 
         val rawResult = withContext(Dispatchers.IO) {
-            executor.callAttr("execute", code, workdir).toString()
+            kotlinx.coroutines.withTimeout(timeoutSec * 1000L) {
+                executor.callAttr("execute", code, workdir).toString()
+            }
         }
 
         // Try to parse JSON result from Python
