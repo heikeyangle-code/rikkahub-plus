@@ -413,12 +413,6 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                                             defaultLight = "#919191",
                                         )
                                     }
-                                    // Preview
-                                    val previewText = stringResource(R.string.setting_display_page_quote_color_preview)
-                                    MarkdownBlock(
-                                        content = previewText,
-                                        style = LocalTextStyle.current.copy(fontSize = 13.sp),
-                                    )
                                 }
                             },
                         )
