@@ -27,7 +27,7 @@ import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Folder02
 import me.rerere.hugeicons.stroke.Link02
-import me.rerere.hugeicons.stroke.MessageTextCircle01
+import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.Note
 import me.rerere.rikkahub.data.db.entity.KnowledgeSourceEntity
 import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
@@ -250,7 +250,7 @@ private fun KnowledgeSourceCard(
             Icon(
                 imageVector = when (source.type) {
                     "FILE" -> HugeIcons.File02
-                    "CHAT" -> HugeIcons.MessageTextCircle01
+                    "CHAT" -> HugeIcons.BubbleChatQuestion
                     "TEXT" -> HugeIcons.Note
                     "BATCH" -> HugeIcons.Folder02
                     else -> HugeIcons.File02
@@ -324,6 +324,7 @@ private fun KnowledgeImportDialog(
     val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore = koinInject()
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
     var autoEmbed by remember { mutableStateOf(settings.displaySetting.autoEmbedOnImport) }
+    var embeddingEnabled by remember { mutableStateOf(settings.displaySetting.embeddingEnabled) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -355,6 +356,31 @@ private fun KnowledgeImportDialog(
                         },
                     )
                 }
+                // 向量搜索总开关
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("启用向量搜索", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "关则仅使用文本搜索，不调API、不产生向量费用",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = embeddingEnabled,
+                        onCheckedChange = {
+                            embeddingEnabled = it
+                            scope.launch {
+                                settingsStore.update { s ->
+                                    s.copy(displaySetting = s.displaySetting.copy(embeddingEnabled = it))
+                                }
+                            }
+                        },
+                    )
+                }
                 Divider()
                 // 选择导入类型
                 Row(
@@ -369,7 +395,7 @@ private fun KnowledgeImportDialog(
                     )
                     ImportTypeChip(
                         selected = selectedType is ImportType.ChatHistory,
-                        icon = HugeIcons.MessageTextCircle01,
+                        icon = HugeIcons.BubbleChatQuestion,
                         label = "聊天记录",
                         onClick = { selectedType = ImportType.ChatHistory },
                     )
@@ -393,7 +419,7 @@ private fun KnowledgeImportDialog(
                     is ImportType.File -> FileImportContent(knowledgeBaseService, scope, onDismiss)
                     is ImportType.ChatHistory -> ChatHistoryImportContent(knowledgeBaseService, scope, onDismiss)
                     is ImportType.TextNote -> TextNoteImportContent(knowledgeBaseService, scope, onDismiss)
-                    is ImportType.BatchFolder -> BatchFolderImportContent(knowledgeBaseService, scope, onDismiss)
+                    is ImportType.BatchFolder -> BatchFolderImportContent(knowledgeBaseService, scope, onDismiss, null)
                 }
             }
         },
@@ -482,7 +508,7 @@ private fun ChatHistoryImportContent(
     onDone: () -> Unit,
 ) {
     val conversationRepo: me.rerere.rikkahub.data.repository.ConversationRepository = koinInject()
-    val conversations by conversationRepo.getAllConversationsFlow()
+    val conversations by conversationRepo.searchConversations("")
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
     var importing by remember { mutableStateOf(false) }
@@ -504,7 +530,7 @@ private fun ChatHistoryImportContent(
                         importing = true
                         status = "正在导入..."
                         scope.launch {
-                            kbService.importChatHistory(conv)
+                            kbService.importChatHistory(conv, null)
                             importing = false
                             status = "导入完成"
                             onDone()
@@ -519,7 +545,7 @@ private fun ChatHistoryImportContent(
                     modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(HugeIcons.MessageTextCircle01, contentDescription = null,
+                    Icon(HugeIcons.BubbleChatQuestion, contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))

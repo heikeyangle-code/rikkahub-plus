@@ -624,6 +624,7 @@ data class DisplaySetting(
     val quoteColor: String = "",  // empty = theme-follow, otherwise hex like "#E18A24"
     val italicsColor: String = "",  // empty = default (#919191), otherwise hex
     val autoEmbedOnImport: Boolean = true,  // 导入后自动向量化
+    val embeddingEnabled: Boolean = true,   // 向量搜索总开关（关则仅使用FTS5文本搜索）
 )
 
 @Serializable

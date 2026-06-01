@@ -27,6 +27,7 @@ import me.rerere.rikkahub.data.model.KnowledgeChunk
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.ai.core.MessageRole
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.Conversation
 import java.io.File
@@ -223,7 +224,7 @@ class KnowledgeBaseService(
         try {
             val text = buildString {
                 conversation.messageNodes.forEach { node ->
-                    val speaker = if (node.role.isAssistant) "AI" else "User"
+                    val speaker = if (node.role == MessageRole.ASSISTANT) "AI" else "User"
                     node.messages.forEach { msg ->
                         val msgText = msg.toText()
                         if (msgText.isNotBlank()) {
@@ -242,6 +243,7 @@ class KnowledgeBaseService(
                 name = title,
                 type = KnowledgeSourceType.CHAT.name,
                 assistantId = assistantId,
+                filePath = null,
                 fileSize = text.length.toLong(),
                 createdAt = System.currentTimeMillis(),
             )
@@ -289,6 +291,7 @@ class KnowledgeBaseService(
                 name = title,
                 type = KnowledgeSourceType.TEXT.name,
                 assistantId = assistantId,
+                filePath = null,
                 fileSize = text.length.toLong(),
                 createdAt = System.currentTimeMillis(),
             )
@@ -322,8 +325,9 @@ class KnowledgeBaseService(
     // ---- Embedding（批量异步） ----
 
     private suspend fun ensureEmbeddings(settings: Settings) = withContext(Dispatchers.IO) {
+        if (!settings.displaySetting.embeddingEnabled) return@withContext
         // 只embed未处理的chunks
-        val unembedded = writableDb.rawQuery(
+        val unembedded = writableDb.query(
             "SELECT id, source_id, chunk_index, text, sentence_start, sentence_end FROM knowledge_chunks WHERE embedding IS NULL",
             null
         )
@@ -406,7 +410,7 @@ class KnowledgeBaseService(
                     .filter { it.length >= 2 }
                     .joinToString(" AND ")
                 if (ftsQuery.isNotBlank()) {
-                    val cursor = writableDb.rawQuery("""
+                    val cursor = writableDb.query("""
                         SELECT kc.id, kc.source_id, kc.chunk_index, kc.text, kc.sentence_start, kc.sentence_end
                         FROM knowledge_fts kf
                         INNER JOIN knowledge_chunks kc ON kc.id = kf.chunk_id
@@ -592,6 +596,7 @@ class KnowledgeBaseService(
     }
 
     private fun findEmbeddingModel(settings: Settings): me.rerere.ai.provider.Model? {
+        if (!settings.displaySetting.embeddingEnabled) return null
         // 优先使用专用的embedding模型
         val embeddingId = settings.embeddingModelId
         if (embeddingId != null) {
