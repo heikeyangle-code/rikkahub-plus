@@ -261,7 +261,7 @@ if (skill.mcpServers.isNotEmpty()) {
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        Lucide.RefreshCw,
+                                        HugeIcons.Refresh01,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
                                         tint = MaterialTheme.colorScheme.primary,
