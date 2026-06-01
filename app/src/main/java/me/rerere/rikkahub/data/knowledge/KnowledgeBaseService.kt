@@ -415,6 +415,7 @@ class KnowledgeBaseService(
         }
         Log.i(TAG, "Embedding complete: ${chunks.size} chunks")
         embeddingProgress.value = null
+        null
     }
 
     // ---- 检索 ----
