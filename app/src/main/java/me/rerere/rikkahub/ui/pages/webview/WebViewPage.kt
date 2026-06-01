@@ -50,6 +50,7 @@ fun WebViewPage(url: String, content: String) {
                 builtInZoomControls = true
                 displayZoomControls = false
                 useWideViewPort = true
+                loadWithOverviewMode = true
             })
     } else {
         rememberWebViewState(
@@ -60,6 +61,7 @@ fun WebViewPage(url: String, content: String) {
                 builtInZoomControls = true
                 displayZoomControls = false
                 useWideViewPort = true
+                loadWithOverviewMode = true
             }
         )
     }
