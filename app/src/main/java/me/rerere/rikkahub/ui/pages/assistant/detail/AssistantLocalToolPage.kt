@@ -133,6 +133,28 @@ private fun AssistantLocalToolContent(
                 }
             )
         }
+        AnimatedVisibility(visible = assistant.enableKnowledgeBase) {
+            CardGroup {
+                item(
+                    headlineContent = { Text("Embedding 模型") },
+                    supportingContent = { Text("用于将知识库内容向量化搜索，不选则使用全局模型或聊天模型") },
+                    trailingContent = {
+                        ModelSelector(
+                            modelId = assistant.embeddingModelId,
+                            providers = settings.providers,
+                            type = me.rerere.ai.provider.ModelType.CHAT,
+                            allowClear = true,
+                            onSelect = { model ->
+                                onUpdate(assistant.copy(
+                                    embeddingModelId = if (model.modelId.isNullOrBlank()) null
+                                    else model.id
+                                ))
+                            }
+                        )
+                    }
+                )
+            }
+        }
         AnimatedVisibility(visible = assistant.enableSubAgent) {
             CardGroup {
                 item(
