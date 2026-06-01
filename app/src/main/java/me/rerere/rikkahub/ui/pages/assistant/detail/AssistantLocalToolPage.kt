@@ -25,15 +25,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.db.entity.KnowledgeSourceEntity
-import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 
 @Composable
@@ -45,10 +42,7 @@ fun AssistantLocalToolPage(id: String) {
     )
     val assistant by vm.assistant.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val kbService: KnowledgeBaseService = koinInject()
-    val sources by kbService.getAllSourcesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -70,15 +64,7 @@ fun AssistantLocalToolPage(id: String) {
             modifier = Modifier.padding(innerPadding),
             assistant = assistant,
             settings = settings,
-            sources = sources,
-            assistantId = vm.assistant.value.id.toString(),
-            scope = scope,
-            onUpdate = { vm.update(it) },
-            onToggleSource = { sourceId, bind ->
-                scope.launch {
-                    kbService.assignSourceToAssistant(sourceId, if (bind) id else null)
-                }
-            },
+            onUpdate = { vm.update(it) }
         )
     }
 }
@@ -88,11 +74,7 @@ private fun AssistantLocalToolContent(
     modifier: Modifier = Modifier,
     assistant: Assistant,
     settings: Settings,
-    sources: List<KnowledgeSourceEntity>,
-    assistantId: String,
-    scope: kotlinx.coroutines.CoroutineScope,
-    onUpdate: (Assistant) -> Unit,
-    onToggleSource: (sourceId: String, bind: Boolean) -> Unit,
+    onUpdate: (Assistant) -> Unit
 ) {
     fun toggleLocalTool(option: LocalToolOption, enabled: Boolean) {
         val newLocalTools = if (enabled) {
@@ -154,54 +136,25 @@ private fun AssistantLocalToolContent(
             )
         }
         AnimatedVisibility(visible = assistant.enableKnowledgeBase) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                CardGroup {
-                    item(
-                        headlineContent = { Text("Embedding 模型") },
-                        supportingContent = { Text("用于将知识库内容向量化搜索，不选则使用全局模型或聊天模型") },
-                        trailingContent = {
-                            ModelSelector(
-                                modelId = assistant.embeddingModelId,
-                                providers = settings.providers,
-                                type = me.rerere.ai.provider.ModelType.CHAT,
-                                allowClear = true,
-                                onSelect = { model ->
-                                    onUpdate(assistant.copy(
-                                        embeddingModelId = if (model.modelId.isNullOrBlank()) null
-                                        else model.id
-                                    ))
-                                }
-                            )
-                        }
-                    )
-                }
-                if (sources.isNotEmpty()) {
-                    CardGroup {
-                        sources.forEach { source ->
-                            val isBound = source.assistantId == assistantId
-                            item(
-                                headlineContent = { Text(source.name.ifBlank { "未命名" }) },
-                                supportingContent = {
-                                    Text(
-                                        when (source.type) {
-                                            "FILE" -> "文件 · ${source.chunkCount}块"
-                                            "CHAT" -> "聊天记录 · ${source.chunkCount}块"
-                                            "TEXT" -> "笔记 · ${source.chunkCount}块"
-                                            "BATCH" -> "批量 · ${source.chunkCount}块"
-                                            else -> "${source.type} · ${source.chunkCount}块"
-                                        }
-                                    )
-                                },
-                                trailingContent = {
-                                    Switch(
-                                        checked = isBound,
-                                        onCheckedChange = { onToggleSource(source.id, it) }
-                                    )
-                                }
-                            )
-                        }
+            CardGroup {
+                item(
+                    headlineContent = { Text("Embedding 模型") },
+                    supportingContent = { Text("用于将知识库内容向量化搜索，不选则使用全局模型或聊天模型") },
+                    trailingContent = {
+                        ModelSelector(
+                            modelId = assistant.embeddingModelId,
+                            providers = settings.providers,
+                            type = me.rerere.ai.provider.ModelType.CHAT,
+                            allowClear = true,
+                            onSelect = { model ->
+                                onUpdate(assistant.copy(
+                                    embeddingModelId = if (model.modelId.isNullOrBlank()) null
+                                    else model.id
+                                ))
+                            }
+                        )
                     }
-                }
+                )
             }
         }
         AnimatedVisibility(visible = assistant.enableSubAgent) {

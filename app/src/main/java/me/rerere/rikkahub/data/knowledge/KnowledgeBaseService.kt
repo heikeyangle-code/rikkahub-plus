@@ -43,30 +43,7 @@ class KnowledgeBaseService(
 ) {
     private val dao: KnowledgeBaseDao = database.knowledgeBaseDao()
     private val writableDb get() = database.openHelper.writableDatabase
-
-    init {
-        // 确保 FTS5 表存在（不在 @Entity 中，仅通过 Migration_20_21 的 raw SQL 创建，
-        // 但该迁移从未注册到 AppDatabase，导致新装/未走迁移的数据库没有此表）
-        try {
-            writableDb.execSQL("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS `knowledge_fts` USING fts5(
-                    `text`,
-                    `chunk_id` UNINDEXED,
-                    `source_id` UNINDEXED,
-                    tokenize='unicode61'
-                )
-            """)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to create knowledge_fts FTS table", e)
-        }
-    }
-
     // ---- 数据源管理 ----
-
-    suspend fun assignSourceToAssistant(sourceId: String, assistantId: String?) {
-        val source = dao.getSourceById(sourceId) ?: return
-        dao.insertSource(source.copy(assistantId = assistantId))
-    }
 
     fun getAllSourcesFlow(): Flow<List<KnowledgeSourceEntity>> = dao.getAllSourcesFlow()
 
@@ -79,12 +56,8 @@ class KnowledgeBaseService(
     suspend fun deleteSource(sourceId: String) = withContext(Dispatchers.IO) {
         dao.deleteChunksBySource(sourceId)
         dao.deleteSource(sourceId)
-        // 清理FTS（表可能不存在，如旧版DB未正确迁移）
-        try {
-            writableDb.execSQL("DELETE FROM knowledge_fts WHERE source_id = ?", arrayOf(sourceId))
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to delete FTS entries for $sourceId", e)
-        }
+        // 清理FTS
+        writableDb.execSQL("DELETE FROM knowledge_fts WHERE source_id = ?", arrayOf(sourceId))
     }
 
     // ---- 文件导入 ----
@@ -96,7 +69,6 @@ class KnowledgeBaseService(
         chunkSize: Int = 10,
         overlap: Int = 2,
     ): String? = withContext(Dispatchers.IO) {
-        val sourceId = Uuid.random().toString()
         try {
             val text = readDocument(uri) ?: run {
                 Log.e(TAG, "Failed to read document: $fileName")
@@ -107,6 +79,7 @@ class KnowledgeBaseService(
                 return@withContext null
             }
 
+            val sourceId = Uuid.random().toString()
             val sourceName = fileName.substringBeforeLast(".")
 
             // 1. 创建知识源
@@ -166,9 +139,6 @@ class KnowledgeBaseService(
             sourceId
         } catch (e: Exception) {
             Log.e(TAG, "Failed to import file: $fileName", e)
-            // 清理已插入的源和chunks（避免显示空文件名但点删除崩溃）
-            try { dao.deleteSource(sourceId) } catch (_: Exception) {}
-            try { dao.deleteChunksBySource(sourceId) } catch (_: Exception) {}
             null
         }
     }
