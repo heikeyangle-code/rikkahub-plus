@@ -43,6 +43,7 @@ import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Book01
 import me.rerere.hugeicons.stroke.Book03
+import me.rerere.hugeicons.stroke.BookOpen02
 import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Clapping01
@@ -227,6 +228,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = { Icon(HugeIcons.MessageMultiple01, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_group_chat_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_group_chat)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.KnowledgeBase) },
+                        leadingContent = { Icon(HugeIcons.BookOpen02, null) },
+                        supportingContent = { Text("管理知识库，导入文件/聊天记录/笔记") },
+                        headlineContent = { Text("知识库") },
                     )
                 }
             }
