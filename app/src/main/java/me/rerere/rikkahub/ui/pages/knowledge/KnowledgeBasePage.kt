@@ -126,6 +126,16 @@ fun KnowledgeBasePage() {
                 }
             }
         } else {
+            // 在Composable域计算filteredSources，不能在LazyColumn的LazyListScope里用remember
+            val filteredSources = remember(sources, assistantFilter) {
+                sources.filter { source ->
+                    when (assistantFilter) {
+                        null -> true
+                        "global" -> source.assistantId == null
+                        else -> source.assistantId == assistantFilter.toLongOrNull()
+                    }
+                }
+            }
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -518,15 +528,6 @@ fun KnowledgeBasePage() {
                         }
                     }
                     // 过滤后的来源列表
-                    val filteredSources = remember(sources, assistantFilter) {
-                        sources.filter { source ->
-                            when (assistantFilter) {
-                                null -> true
-                                "global" -> source.assistantId == null
-                                else -> source.assistantId == null
-                            }
-                        }
-                    }
                     items(filteredSources, key = { it.id }) { source ->
                         KnowledgeSourceCard(
                             source = source,
