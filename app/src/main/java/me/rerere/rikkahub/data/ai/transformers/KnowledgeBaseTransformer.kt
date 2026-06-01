@@ -36,7 +36,7 @@ class KnowledgeBaseTransformer(
             // 搜（走 RRF + 去重 + Token预算）
             val results = knowledgeBaseService.searchForInjection(
                 query = query,
-                assistantId = if (assistant.enableKnowledgeBase) assistant.id.toString() else null,
+                assistantId = assistant.id.toString(),
                 settings = settings,
             )
 
