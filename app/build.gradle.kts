@@ -14,6 +14,29 @@ plugins {
     id("com.chaquo.python")
 }
 
+// Python 引擎配置 — Chaquopy 新 DSL
+chaquopy {
+    defaultConfig {
+        version = "3.11"
+        pip {
+            install("requests")
+            install("Pillow")
+            install("pyyaml")
+            install("beautifulsoup4")
+            install("markdown")
+            install("jinja2")
+            install("python-docx")
+            install("pypdf")
+            install("openpyxl")
+            install("python-pptx")
+            install("pandas")
+            install("numpy")
+            install("matplotlib")
+            install("pytz")
+        }
+    }
+}
+
 android {
     namespace = "me.rerere.rikkahub"
     compileSdk = 37
@@ -27,27 +50,6 @@ android {
 
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
-        }
-
-        // Python 引擎配置
-        python {
-            version = "3.11"
-            pip {
-                install("requests")
-                install("Pillow")
-                install("pyyaml")
-                install("beautifulsoup4")
-                install("markdown")
-                install("jinja2")
-                install("python-docx")
-                install("pypdf")
-                install("openpyxl")
-                install("python-pptx")
-                install("pandas")
-                install("numpy")
-                install("matplotlib")
-                install("pytz")
-            }
         }
     }
 
