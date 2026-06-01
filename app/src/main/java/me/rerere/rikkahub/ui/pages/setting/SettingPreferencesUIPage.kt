@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -73,6 +74,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.Select
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -415,10 +417,14 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                                     }
                                     // Preview
                                     val previewText = stringResource(R.string.setting_display_page_quote_color_preview)
-                                    MarkdownBlock(
-                                        content = previewText,
-                                        style = LocalTextStyle.current.copy(fontSize = 13.sp),
-                                    )
+                                    CompositionLocalProvider(
+                                        LocalSettings provides settings.copy(displaySetting = displaySetting)
+                                    ) {
+                                        MarkdownBlock(
+                                            content = previewText,
+                                            style = LocalTextStyle.current.copy(fontSize = 13.sp),
+                                        )
+                                    }
                                 }
                             },
                         )
