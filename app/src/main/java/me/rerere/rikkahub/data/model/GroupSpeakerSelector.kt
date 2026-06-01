@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.model
 
 import kotlin.random.Random
+import kotlin.uuid.Uuid
 
 /**
  * 群聊发言人选择器 — 对齐酒馆 + AutoGen 方案
