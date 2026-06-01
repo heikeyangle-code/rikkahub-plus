@@ -367,14 +367,26 @@ class KnowledgeBaseService(
     ): List<KnowledgeSearchResult> = withContext(Dispatchers.IO) {
         val results = mutableMapOf<String, KnowledgeSearchResult>()
 
-        // 1. FTS5 精确搜索
+        // 0. Query Rewrite：生成多个搜索变体提高召回率
+        val queries = buildList {
+            add(query) // 原问题
+            // 变体1：去掉疑问词，只保留关键词
+            val stripped = query.replace(Regex("(?i)^(what|how|why|where|when|who|which|tell me|show me|给我|请问|如何|为什么|怎么|哪里|什么是|有哪些)\\s*"), "")
+            if (stripped.length >= 4 && stripped != query) add(stripped)
+            // 变体2：只取中英文词
+            val keywords = Regex("""[\w\u4e00-\u9fff]+""").findAll(query).map { it.value }.joinToString(" ")
+            if (keywords.length >= 4 && keywords != query) add(keywords)
+        }.distinct()
+
+        // 1. FTS5 精确搜索（所有变体）
         try {
-            val ftsQuery = query.trim()
-                .replace(Regex("""[^\w\u4e00-\u9fff\s]"""), " ") // 只保留中文、英文、数字、空格
-                .split(Regex("\\s+"))
-                .filter { it.length >= 2 }
-                .joinToString(" AND ")
-            if (ftsQuery.isNotBlank()) {
+            queries.forEach { q ->
+                val ftsQuery = q.trim()
+                    .replace(Regex("""[^\w\u4e00-\u9fff\s]"""), " ")
+                    .split(Regex("\\s+"))
+                    .filter { it.length >= 2 }
+                    .joinToString(" AND ")
+                if (ftsQuery.isNotBlank()) {
                 val cursor = writableDb.rawQuery("""
                     SELECT kc.id, kc.source_id, kc.chunk_index, kc.text, kc.sentence_start, kc.sentence_end
                     FROM knowledge_fts kf
