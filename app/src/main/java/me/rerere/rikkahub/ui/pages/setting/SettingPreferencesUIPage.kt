@@ -505,10 +505,10 @@ private fun ColorPicker(
 ) {
     val keys = presetKeys(presets)
     val initialKey = if (currentColor in keys) currentColor else "__custom__"
-    var selectedKey by remember { mutableStateOf(initialKey) }
+    var selectedKey by remember(currentColor) { mutableStateOf(initialKey) }
 
-    var customColor by remember { mutableStateOf(currentColor.ifBlank { defaultDark }) }
-    var hexInput by remember { mutableStateOf(customColor) }
+    var customColor by remember(currentColor) { mutableStateOf(currentColor.ifBlank { defaultDark }) }
+    var hexInput by remember(currentColor) { mutableStateOf(customColor) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Preset color chips - 2 rows of 4
