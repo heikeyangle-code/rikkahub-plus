@@ -69,7 +69,7 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
 
         // Inject Android bridge so Python code can call app services
         val bridge = PythonBridge(context)
-        executor.set("_bridge", bridge as Any)
+        executor.set("_bridge", py.getModule("java").callAttr("jobj", bridge))
 
         val rawResult = withContext(Dispatchers.IO) {
             kotlinx.coroutines.withTimeout(timeoutSec * 1000L) {
