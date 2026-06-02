@@ -59,7 +59,7 @@ class GenerationForegroundService : Service() {
             .setContentText(text.ifEmpty { "生成中..." })
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .build()
     }

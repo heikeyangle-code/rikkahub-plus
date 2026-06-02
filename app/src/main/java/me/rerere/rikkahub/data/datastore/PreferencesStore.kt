@@ -611,7 +611,7 @@ data class DisplaySetting(
     val fontSizeRatio: Float = 1.0f,
     val enableMessageGenerationHapticEffect: Boolean = false,
     val skipCropImage: Boolean = false,
-    val enableNotificationOnMessageGeneration: Boolean = false,
+    val enableNotificationOnMessageGeneration: Boolean = true,
     val enableLiveUpdateNotification: Boolean = false,
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = false,
