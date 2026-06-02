@@ -21,12 +21,8 @@ fun createShellTools(): List<Tool> {
         Tool(
             name = "execute_command",
             description = """
-                Execute a shell command on the Android device. Use file_read/write/list/copy/move for file operations.
-                DO NOT use for reading/writing/listing files — use the file_* tools instead.
-                Returns stdout, stderr, and exit code as a JSON object.
+                Execute a shell command on the Android device. Returns stdout, stderr, and exit code as a JSON object.
                 Commands run in the app's sandbox — no root, no system-wide access.
-                Use for: logcat, device info, grep, zip.
-                Avoid: interactive commands (they will hang), long-running commands (30s timeout).
             """.trimIndent().replace("\n", " "),
             needsApproval = false,
             parameters = {

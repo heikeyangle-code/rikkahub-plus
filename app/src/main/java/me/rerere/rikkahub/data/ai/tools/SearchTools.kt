@@ -23,7 +23,6 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                 name = "search_web",
                 description = """
                     Search the web for up-to-date or specific information.
-                    Use this when the user asks for the latest news, current facts, or needs verification.
                     Generate focused keywords and run multiple searches if needed.
                     Today is ${LocalDate.now().toLocalString(true)}.
 
@@ -83,8 +82,6 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                     name = "scrape_web",
                     description = """
                         Scrape a URL for detailed page content.
-                        Use this when the user requests content from a specific page or when search snippets are insufficient.
-                        Avoid using it for common questions unless the user asks.
                         """.trimIndent(),
                     parameters = {
                         val options = settings.searchServices.getOrElse(

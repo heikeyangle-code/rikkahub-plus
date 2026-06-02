@@ -19,7 +19,6 @@ fun createDataProcessTool(): Tool = Tool(
         - base64: Encode or decode Base64
         - token_count: Estimate token count of text
         - diff: Compare two texts and show differences
-        Use this when the user asks to format JSON, encode/decode Base64, count tokens, or compare text.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

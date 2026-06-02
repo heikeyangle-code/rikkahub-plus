@@ -194,7 +194,6 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
             description = """
                 Read or write plain text from the device clipboard.
                 Use action: read or write. For write, provide text.
-                Do NOT write to the clipboard unless the user has explicitly requested it.
             """.trimIndent().replace("\n", " "),
             parameters = {
                 InputSchema.Obj(
@@ -250,7 +249,6 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
             name = "text_to_speech",
             description = """
                 Speak text aloud to the user using the device's text-to-speech engine.
-                Use this when the user asks you to read something aloud, or when audio output is appropriate.
                 The tool returns immediately; audio plays in the background on the device.
                 Provide natural, readable text without markdown formatting.
             """.trimIndent().replace("\n", " "),
@@ -281,7 +279,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         Tool(
             name = "ask_user",
             description = """
-                Ask the user one or more questions when you need clarification, additional information, or confirmation.
+                Ask the user one or more questions.
                 Each question can optionally provide a list of suggested options for the user to choose from.
                 The user may select an option or provide their own free-text answer for each question.
                 The answers will be returned as a JSON object mapping question IDs to the user's responses.
@@ -353,7 +351,6 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 Show a file to the user by opening the system share sheet.
                 The file is copied to a temporary location and a share dialog is opened
                 so the user can save, send, or open the file with another app.
-                Use this when the user wants to receive a file you created.
             """.trimIndent().replace("\n", " "),
             parameters = {
                 InputSchema.Obj(
