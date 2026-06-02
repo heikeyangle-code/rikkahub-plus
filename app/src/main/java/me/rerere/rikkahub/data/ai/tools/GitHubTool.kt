@@ -65,6 +65,10 @@ private fun ghDescribe(url: String): String {
         path.contains("/repos/") && path.contains("/git/") -> "→ 操作 Git 数据..."
         path.contains("/repos/") && path.contains("/statuses") -> "→ 更新 commit 状态..."
         path.contains("/search/") -> "→ 搜索中..."
+        path.contains("/topics") -> "→ 管理主题..."
+        path.contains("/emails") -> "→ 管理邮箱..."
+        path.contains("/followers") || path.contains("/following") -> "→ 管理关注..."
+        path.contains("/orgs") -> "→ 查看组织..."
         path.contains("/gists/") -> "→ 操作 Gist..."
         path.contains("/gists") -> "→ 操作 Gist..."
         path.contains("/user") || path.contains("/users") -> "→ 获取用户信息..."
@@ -107,7 +111,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         // Collaborators
                         add("add_collaborator"); add("remove_collaborator"); add("list_collaborators")
                         // Issues
-                        add("list_issues"); add("create_issue"); add("issue_comment"); add("issue_update")
+                        add("list_issues"); add("list_issues_all"); add("create_issue"); add("issue_comment"); add("issue_update")
                         add("issue_labels"); add("issue_assign"); add("issue_lock"); add("issue_unlock")
                         // PRs
                         add("pr_list"); add("pr_view"); add("pr_create"); add("pr_update"); add("pr_review")
@@ -131,6 +135,12 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         add("list_notifications"); add("mark_notification_read")
                         // Other
                         add("create_gist"); add("list_gists"); add("update_gist"); add("delete_gist"); add("user_info"); add("rate_limit")
+                        // User management
+                        add("list_emails"); add("add_email"); add("delete_email")
+                        add("list_followers"); add("list_following"); add("follow_user"); add("unfollow_user")
+                        add("list_user_orgs")
+                        // Topic search
+                        add("search_topics")
                         // Releases
                         add("create_release")
                         // Webhooks
@@ -306,15 +316,9 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             return c
         }
 
-        fun readResp(c: HttpURLConnection, okRange: IntRange = 200..299): String {
-            val code = c.responseCode
-            return if (code in okRange) c.inputStream.bufferedReader().readText()
-            else (c.errorStream?.bufferedReader()?.readText() ?: "HTTP $code")
-        }
-
         fun close(c: HttpURLConnection) { try { c.disconnect() } catch (_: Exception) {} }
 
-        /** 带重试的 GET 请求（只重试网络错误，HTTP 4xx/5xx 不重试） */
+        /** 带重试的 GET 请求 */
         fun gh(url: String): String {
             val desc = ghDescribe(url)
             GhProgress.status = desc
@@ -506,6 +510,14 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("id", jint(si(o,"id"))); put("user", jstr(slogin(o,"user")))
                 put("body", jstr(sj(o,"body").take(200))); put("path", jstr(sj(o,"path")))
                 put("line", jint(si(o,"line"))); put("created", jstr(sj(o,"created_at").take(10)))
+            }
+            "email" -> buildJsonObject {
+                put("email", jstr(sj(o,"email"))); put("primary", jbool(sb(o,"primary")))
+                put("verified", jbool(sb(o,"verified"))); put("visibility", jstr(sj(o,"visibility")))
+            }
+            "org" -> buildJsonObject {
+                put("login", jstr(sj(o,"login"))); put("description", jstr(sj(o,"description").take(200)))
+                put("url", jstr(sj(o,"html_url"))); put("avatar_url", jstr(sj(o,"avatar_url")))
             }
             else -> o
         }
@@ -741,6 +753,10 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val st = obj["state"]?.jsonPrimitive?.contentOrNull ?: "open"
                 if (fullRepo.isBlank()) error("owner and repo required")
                 fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/issues?state=$st", limit), "issue")
+            }
+            "list_issues_all" -> {
+                val st = obj["state"]?.jsonPrimitive?.contentOrNull ?: "open"
+                fmtClean(ghPaginated("https://api.github.com/issues?state=$st&filter=all", limit), "issue")
             }
             "create_issue" -> {
                 val title = obj["title"]?.jsonPrimitive?.contentOrNull ?: error("title required")
@@ -1482,6 +1498,54 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 } else {
                     error("specify number (thread id) or set all=true")
                 }
+            }
+
+            // ═══════════════════════════════════════════
+            // USER MANAGEMENT
+            // ═══════════════════════════════════════════
+            "list_emails" -> {
+                fmtClean(ghPaginated("https://api.github.com/user/emails", limit), "email")
+            }
+            "add_email" -> {
+                val email = obj["comment"]?.jsonPrimitive?.contentOrNull ?: error("comment (email) required")
+                gh("POST", "https://api.github.com/user/emails",
+                    """{"emails":["$email"]}""")
+                "邮箱 $email 已添加"
+            }
+            "delete_email" -> {
+                val email = obj["comment"]?.jsonPrimitive?.contentOrNull ?: error("comment (email) required")
+                gh("DELETE", "https://api.github.com/user/emails",
+                    """{"emails":["$email"]}""")
+                "邮箱 $email 已删除"
+            }
+            "list_followers" -> {
+                val username = obj["owner"]?.jsonPrimitive?.contentOrNull
+                val url = if (username.isNullOrBlank()) "https://api.github.com/user/followers"
+                else "https://api.github.com/users/$username/followers"
+                fmtClean(ghPaginated(url, limit), "reviewer")
+            }
+            "list_following" -> {
+                val username = obj["owner"]?.jsonPrimitive?.contentOrNull
+                val url = if (username.isNullOrBlank()) "https://api.github.com/user/following"
+                else "https://api.github.com/users/$username/following"
+                fmtClean(ghPaginated(url, limit), "reviewer")
+            }
+            "follow_user" -> {
+                val username = obj["owner"]?.jsonPrimitive?.contentOrNull ?: error("owner (username) required")
+                gh("PUT", "https://api.github.com/user/following/$username")
+                "已关注 $username"
+            }
+            "unfollow_user" -> {
+                val username = obj["owner"]?.jsonPrimitive?.contentOrNull ?: error("owner (username) required")
+                gh("DELETE", "https://api.github.com/user/following/$username")
+                "已取消关注 $username"
+            }
+            "list_user_orgs" -> {
+                fmtClean(ghPaginated("https://api.github.com/user/orgs", limit), "org")
+            }
+            "search_topics" -> {
+                val q = obj["q"]?.jsonPrimitive?.contentOrNull ?: error("q required")
+                ghPaginated("https://api.github.com/search/topics?q=${encode(q)}", limit)
             }
 
             // ═══════════════════════════════════════════
