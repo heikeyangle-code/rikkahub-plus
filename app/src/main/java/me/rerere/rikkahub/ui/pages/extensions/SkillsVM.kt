@@ -643,6 +643,16 @@ class SkillsVM(
                 }
 
                 val results = mutableListOf<GitHubSkillInfo>()
+                // 收集同仓库所有已安装 skill 的 SHA
+                val allSkillShas = source.skillShas.toMutableMap()
+                for (installed in skillManager.listSkills()) {
+                    if (installed.name == skillName) continue
+                    val otherSource = getSkillSource(installed.name)
+                    if (otherSource?.repoUrl == source.repoUrl) {
+                        allSkillShas.putAll(otherSource.skillShas)
+                    }
+                }
+
                 for (i in 0 until tree.length()) {
                     val item = tree.getJSONObject(i)
                     val path = item.optString("path", "")
@@ -654,8 +664,7 @@ class SkillsVM(
                         val name = fm["name"] ?: path.split("/").dropLast(1).lastOrNull() ?: "unknown"
                         val desc = fm["description"] ?: ""
                         val dirPath = path.removeSuffix("SKILL.md").trimEnd('/')
-                        val oldDirHash = source.skillShas[name]
-                        // 如果本地确实有这个 skill 但没 SHA 记录，说明是同仓库的兄弟 skill
+                        val oldDirHash = allSkillShas[name]
                         val locallyInstalled = skillManager.listSkills().any { it.name == name }
                         val newDirHash = computeDirHash(tree, dirPath)
                         val hasUpdate = oldDirHash != null && oldDirHash != newDirHash
