@@ -646,24 +646,25 @@ class SkillsVM(
                 for (i in 0 until tree.length()) {
                     val item = tree.getJSONObject(i)
                     val path = item.optString("path", "")
+                    val blobSha = item.optString("sha", "")
                     if (path.endsWith("SKILL.md")) {
                         val dlUrl = "https://raw.githubusercontent.com/${info.owner}/${info.repo}/$branch/$path"
                         val content = downloadText(dlUrl) ?: continue
                         val fm = SkillFrontmatterParser.parse(content)
                         val name = fm["name"] ?: path.split("/").dropLast(1).lastOrNull() ?: "unknown"
-                        // 只检查当前 skill 的更新
-                        if (name != skillName) continue
+                        val desc = fm["description"] ?: ""
                         val dirPath = path.removeSuffix("SKILL.md").trimEnd('/')
                         val oldDirHash = source.skillShas[name]
+                        // 如果本地确实有这个 skill 但没 SHA 记录，说明是同仓库的兄弟 skill
+                        val locallyInstalled = skillManager.listSkills().any { it.name == name }
                         val newDirHash = computeDirHash(tree, dirPath)
                         val hasUpdate = oldDirHash != null && oldDirHash != newDirHash
-                        val isNew = oldDirHash == null
+                        val isNew = oldDirHash == null && !locallyInstalled
                         results.add(GitHubSkillInfo(
-                            name = name, description = fm["description"] ?: "",
+                            name = name, description = desc,
                             dirPath = dirPath, mdPath = path, blobSha = newDirHash,
                             hasUpdate = hasUpdate, isNew = isNew,
                         ))
-                        break
                     }
                 }
                 withContext(Dispatchers.Main) {
