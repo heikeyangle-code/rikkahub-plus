@@ -86,7 +86,11 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         add("search_repo"); add("search_code"); add("search_issue"); add("search_user"); add("search_commits"); add("trending")
                         // Repo info
                         add("get_repo"); add("list_my_repos"); add("list_org_repos"); add("list_user_repos"); add("compare_repos"); add("list_tags"); add("list_releases"); add("list_contributors")
-                        add("repo_languages"); add("create_repo"); add("fork_repo"); add("star_repo"); add("unstar_repo")
+                        add("repo_languages"); add("create_repo"); add("fork_repo"); add("star_repo"); add("unstar_repo"); add("update_repo"); add("delete_repo")
+                        // Labels
+                        add("list_labels"); add("create_label"); add("update_label"); add("delete_label")
+                        // Milestones
+                        add("list_milestones"); add("create_milestone")
                         // Collaborators
                         add("add_collaborator"); add("remove_collaborator"); add("list_collaborators")
                         // Issues
@@ -103,14 +107,21 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         add("read_file"); add("list_files"); add("get_readme"); add("file_meta")
                         add("commit"); add("commit_files"); add("delete_file")
                         add("diff_local_with_github")
+                        // PRs
+                        add("pr_list"); add("pr_view"); add("pr_create"); add("pr_update"); add("pr_review")
+                        add("pr_merge"); add("pr_comment"); add("pr_request_reviewers"); add("list_review_comments")
                         // Git data
                         add("list_branches"); add("delete_branch"); add("create_branch"); add("list_commits"); add("get_commit")
-                        add("compare_commits"); add("get_diff"); add("commit_status"); add("revert_commit")
+                        add("compare_commits"); add("get_diff"); add("commit_status"); add("revert_commit"); add("merge_branch")
                         add("list_commit_comments"); add("create_commit_comment")
                         // Notifications
                         add("list_notifications"); add("mark_notification_read")
                         // Other
-                        add("create_gist"); add("user_info"); add("rate_limit")
+                        add("create_gist"); add("list_gists"); add("update_gist"); add("delete_gist"); add("user_info"); add("rate_limit")
+                        // Releases
+                        add("create_release")
+                        // Webhooks
+                        add("list_webhooks"); add("create_webhook"); add("delete_webhook")
                     })
                     put("description", "Operation to perform — see individual param descriptions for required fields")
                 })
@@ -246,6 +257,18 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     put("type", "string")
                     put("description", "JSON object payload (for create_repository_dispatch)")
                 })
+                put("tag_name", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Tag name (for create_release)")
+                })
+                put("due_on", buildJsonObject {
+                    put("type", "string")
+                    put("description", "ISO 8601 due date (for create_milestone)")
+                })
+                put("config_url", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Webhook callback URL (for create_webhook)")
+                })
                 put("all", buildJsonObject {
                     put("type", "boolean")
                     put("description", "Mark all notifications as read (for mark_notification_read, default: false)")
@@ -285,7 +308,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             val c = conn(url)
             try {
                 val code = c.responseCode
-                val text = if (code == 200) c.inputStream.bufferedReader().readText()
+                val text = if (code in 200..299) c.inputStream.bufferedReader().readText()
                 else { val err = c.errorStream?.bufferedReader()?.readText() ?: "HTTP $code"; close(c); throw RuntimeException(err.take(500)) }
                 close(c); return text
             } catch (e: Exception) { close(c); throw e }
@@ -419,6 +442,28 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("path", jstr(sj(o,"path"))); put("line", jint(si(o,"line")))
                 put("created", jstr(sj(o,"created_at").take(10)))
             }
+            "milestone" -> buildJsonObject {
+                put("number", jint(si(o,"number"))); put("title", jstr(sj(o,"title").take(120)))
+                put("state", jstr(sj(o,"state"))); put("description", jstr(sj(o,"description").take(200)))
+                put("due_on", jstr(sj(o,"due_on").take(10))); put("open_issues", jint(si(o,"open_issues")))
+                put("closed_issues", jint(si(o,"closed_issues")))
+            }
+            "gist_item" -> buildJsonObject {
+                put("id", jstr(sj(o,"id"))); put("description", jstr(sj(o,"description").take(200)))
+                put("files", jstr(o["files"]?.jsonObject?.keys?.joinToString(", ") ?: ""))
+                put("public", jbool(sb(o,"public"))); put("created", jstr(sj(o,"created_at").take(10)))
+            }
+            "webhook" -> buildJsonObject {
+                put("id", jint(si(o,"id"))); put("name", jstr(sj(o,"name")))
+                put("active", jbool(sb(o,"active")))
+                put("events", jstr(o["events"]?.jsonArray?.joinToString(",") { it.jsonPrimitive.content } ?: ""))
+                put("url", jstr(o["config"]?.jsonObject?.get("url")?.jsonPrimitive?.contentOrNull ?: ""))
+            }
+            "review_comment" -> buildJsonObject {
+                put("id", jint(si(o,"id"))); put("user", jstr(slogin(o,"user")))
+                put("body", jstr(sj(o,"body").take(200))); put("path", jstr(sj(o,"path")))
+                put("line", jint(si(o,"line"))); put("created", jstr(sj(o,"created_at").take(10)))
+            }
             else -> o
         }
 
@@ -459,7 +504,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "search_commits" -> {
                 val q = obj["q"]?.jsonPrimitive?.contentOrNull ?: error("q required")
-                ghPaginated("https://api.github.com/search/commits?q=${encode(q)}", limit)
+                fmtClean(ghPaginated("https://api.github.com/search/commits?q=${encode(q)}", limit), "commit")
             }
             "trending" -> {
                 val lang = obj["language"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -568,6 +613,20 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 gh("DELETE", "https://api.github.com/user/starred/$fullRepo")
                 "已取消收藏 $fullRepo"
             }
+            "update_repo" -> {
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val payload = buildJsonObject {
+                    obj["description"]?.jsonPrimitive?.contentOrNull?.let { put("description", it) }
+                    obj["private"]?.jsonPrimitive?.booleanOrNull?.let { put("private", it) }
+                }.toString()
+                gh("PATCH", "https://api.github.com/repos/$fullRepo", payload)
+                "仓库 $fullRepo 已更新"
+            }
+            "delete_repo" -> {
+                if (fullRepo.isBlank()) error("owner and repo required")
+                gh("DELETE", "https://api.github.com/repos/$fullRepo")
+                "仓库 $fullRepo 已删除"
+            }
 
             // ═══════════════════════════════════════════
             // COLLABORATORS
@@ -670,6 +729,60 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     "Issue #$num 分配已清除"
                 }
             }
+
+            // ═══════════════════════════════════════════
+            // LABELS
+            // ═══════════════════════════════════════════
+            "list_labels" -> {
+                if (fullRepo.isBlank()) error("owner and repo required")
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/labels", limit), "label")
+            }
+            "create_label" -> {
+                val name = obj["labels"]?.jsonPrimitive?.contentOrNull ?: error("labels (label name) required")
+                val color = obj["state"]?.jsonPrimitive?.contentOrNull ?: "ededed"
+                val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
+                if (fullRepo.isBlank()) error("owner and repo required")
+                gh("POST", "https://api.github.com/repos/$fullRepo/labels",
+                    """{"name":"$name","color":"$color","description":"$desc"}""")
+                "标签 $name 已创建"
+            }
+            "update_label" -> {
+                val name = obj["labels"]?.jsonPrimitive?.contentOrNull ?: error("labels (label name) required")
+                val newName = obj["title"]?.jsonPrimitive?.contentOrNull
+                val color = obj["state"]?.jsonPrimitive?.contentOrNull
+                val desc = obj["description"]?.jsonPrimitive?.contentOrNull
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val payload = buildJsonObject {
+                    if (newName != null) put("new_name", newName)
+                    if (color != null) put("color", color)
+                    if (desc != null) put("description", desc)
+                }.toString()
+                gh("PATCH", "https://api.github.com/repos/$fullRepo/labels/${encode(name)}", payload)
+                "标签 $name 已更新"
+            }
+            "delete_label" -> {
+                val name = obj["labels"]?.jsonPrimitive?.contentOrNull ?: error("labels (label name) required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                gh("DELETE", "https://api.github.com/repos/$fullRepo/labels/${encode(name)}")
+                "标签 $name 已删除"
+            }
+
+            // ═══════════════════════════════════════════
+            // MILESTONES
+            // ═══════════════════════════════════════════
+            "list_milestones" -> {
+                val st = obj["state"]?.jsonPrimitive?.contentOrNull ?: "open"
+                if (fullRepo.isBlank()) error("owner and repo required")
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/milestones?state=$st", limit), "milestone")
+            }
+            "create_milestone" -> {
+                val title = obj["title"]?.jsonPrimitive?.contentOrNull ?: error("title required")
+                val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
+                val dueOn = obj["due_on"]?.jsonPrimitive?.contentOrNull ?: ""
+                if (fullRepo.isBlank()) error("owner and repo required")
+                gh("POST", "https://api.github.com/repos/$fullRepo/milestones",
+                    """{"title":"$title","description":"$desc","due_on":"$dueOn"}""")
+                "里程碑 \"$title\" 已创建"
 
             // ═══════════════════════════════════════════
             // PULL REQUESTS
@@ -776,6 +889,11 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 } else {
                     fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/pulls/$num/requested_reviewers", limit), "reviewer")
                 }
+            }
+            "list_review_comments" -> {
+                val num = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/pulls/$num/comments", limit), "review_comment")
             }
 
             // ═══════════════════════════════════════════
@@ -1150,11 +1268,22 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: ""
                 val base = obj["base"]?.jsonPrimitive?.contentOrNull
                 if (base != null) {
-                    gh("https://api.github.com/repos/$fullRepo/compare/$base...$branch")
+                    val raw = parseJSON(gh("https://api.github.com/repos/$fullRepo/compare/$base...$branch"))
+                    val files = raw["files"]?.jsonArray ?: JsonArray(emptyList())
+                    buildJsonArray {
+                        files.forEach { f ->
+                            val fo = f.jsonObject
+                            add(buildJsonObject {
+                                put("path", jstr(sj(fo,"filename"))); put("status", jstr(sj(fo,"status")))
+                                put("additions", jint(si(fo,"additions"))); put("deletions", jint(si(fo,"deletions")))
+                                put("patch", jstr(sj(fo,"patch").take(500)))
+                            })
+                        }
+                    }.toString().take(20000)
                 } else if (path.isNotBlank()) {
                     gh("https://api.github.com/repos/$fullRepo/commits?path=${encode(path)}&sha=$branch&per_page=1")
                 } else {
-                    gh("https://api.github.com/repos/$fullRepo/commits/$branch")
+                    fmtOne(gh("https://api.github.com/repos/$fullRepo/commits/$branch"), "commit")
                 }
             }
             "commit_status" -> {
@@ -1176,7 +1305,22 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     "状态已更新: $state ($context)"
                 } else {
                     // Get combined status
-                    gh("https://api.github.com/repos/$fullRepo/commits/$sha/status")
+                    val raw = parseJSON(gh("https://api.github.com/repos/$fullRepo/commits/$sha/status"))
+                    buildJsonObject {
+                        put("state", jstr(sj(raw,"state")))
+                        put("total_count", jint(si(raw,"total_count")))
+                        val statuses = raw["statuses"]?.jsonArray ?: JsonArray(emptyList())
+                        put("statuses", buildJsonArray {
+                            statuses.forEach { s ->
+                                val so = s.jsonObject
+                                add(buildJsonObject {
+                                    put("context", jstr(sj(so,"context")))
+                                    put("state", jstr(sj(so,"state")))
+                                    put("description", jstr(sj(so,"description").take(100)))
+                                })
+                            }
+                        })
+                    }.toString()
                 }
             }
             "revert_commit" -> {
@@ -1202,6 +1346,18 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 gh("PATCH", "https://api.github.com/repos/$fullRepo/git/refs/heads/$branch",
                     """{"sha":"$newCommitSha","force":false}""")
                 "已还原 ${sha.take(7)}，新 commit: ${newCommitSha.take(8)}"
+            }
+            "merge_branch" -> {
+                val head = obj["head"]?.jsonPrimitive?.contentOrNull ?: error("head (source branch) required")
+                val baseBranch = obj["base"]?.jsonPrimitive?.contentOrNull ?: error("base (target branch) required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val payload = buildJsonObject {
+                    put("head", head); put("base", baseBranch)
+                    obj["comment"]?.jsonPrimitive?.contentOrNull?.let { put("commit_message", it) }
+                }.toString()
+                val result = gh("POST", "https://api.github.com/repos/$fullRepo/merges", payload)
+                val o = try { parseJSON(result) } catch (_: Exception) { null }
+                "已合并 $head → $baseBranch: ${sj(o,"sha")?.take(8) ?: result.take(100)}"
             }
 
             // ═══════════════════════════════════════════
@@ -1244,6 +1400,71 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val result = gh("POST", "https://api.github.com/gists", payload)
                 val o = try { parseJSON(result) } catch (_: Exception) { null }
                 "Gist 已创建: ${sj(o,"html_url")}"
+            }
+            "list_gists" -> {
+                val username = obj["owner"]?.jsonPrimitive?.contentOrNull
+                val url = if (username.isNullOrBlank()) "https://api.github.com/gists"
+                else "https://api.github.com/users/$username/gists"
+                fmtClean(ghPaginated(url, limit), "gist_item")
+            }
+            "update_gist" -> {
+                val gistId = obj["sha"]?.jsonPrimitive?.contentOrNull ?: error("sha (gist_id) required")
+                val content = obj["content"]?.jsonPrimitive?.contentOrNull
+                val filename = obj["path"]?.jsonPrimitive?.contentOrNull
+                val desc = obj["description"]?.jsonPrimitive?.contentOrNull
+                val payload = buildJsonObject {
+                    if (desc != null) put("description", desc)
+                    if (content != null && filename != null) {
+                        put("files", buildJsonObject {
+                            put(filename, buildJsonObject { put("content", content) })
+                        })
+                    }
+                }.toString()
+                gh("PATCH", "https://api.github.com/gists/$gistId", payload)
+                "Gist $gistId 已更新"
+            }
+            "delete_gist" -> {
+                val gistId = obj["sha"]?.jsonPrimitive?.contentOrNull ?: error("sha (gist_id) required")
+                gh("DELETE", "https://api.github.com/gists/$gistId")
+                "Gist $gistId 已删除"
+            }
+            "create_release" -> {
+                val tagName = obj["tag_name"]?.jsonPrimitive?.contentOrNull ?: error("tag_name required")
+                val relName = obj["title"]?.jsonPrimitive?.contentOrNull ?: tagName
+                val body = obj["body"]?.jsonPrimitive?.contentOrNull ?: ""
+                val isPrerelease = obj["state"]?.jsonPrimitive?.contentOrNull == "prerelease"
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val payload = buildJsonObject {
+                    put("tag_name", tagName); put("name", relName); put("body", body)
+                    put("prerelease", isPrerelease)
+                }.toString()
+                val result = gh("POST", "https://api.github.com/repos/$fullRepo/releases", payload)
+                val o = try { parseJSON(result) } catch (_: Exception) { null }
+                "Release $relName 已创建: ${sj(o,"html_url")}"
+            }
+            "list_webhooks" -> {
+                if (fullRepo.isBlank()) error("owner and repo required")
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/hooks", limit), "webhook")
+            }
+            "create_webhook" -> {
+                val url = obj["config_url"]?.jsonPrimitive?.contentOrNull ?: error("config_url required")
+                val events = obj["comment"]?.jsonPrimitive?.contentOrNull ?: "push"
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val payload = buildJsonObject {
+                    put("name", "web"); put("active", true)
+                    put("events", buildJsonArray { events.split(",").forEach { add(it.trim()) } })
+                    put("config", buildJsonObject {
+                        put("url", url); put("content_type", "json")
+                    })
+                }.toString()
+                gh("POST", "https://api.github.com/repos/$fullRepo/hooks", payload)
+                "Webhook 已创建 ($url)"
+            }
+            "delete_webhook" -> {
+                val hookId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (hook_id) required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                gh("DELETE", "https://api.github.com/repos/$fullRepo/hooks/$hookId")
+                "Webhook #$hookId 已删除"
             }
             "user_info" -> {
                 val username = obj["owner"]?.jsonPrimitive?.contentOrNull
