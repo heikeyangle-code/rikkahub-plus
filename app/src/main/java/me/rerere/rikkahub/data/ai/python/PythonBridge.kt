@@ -9,6 +9,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.KnowledgeSource
 import me.rerere.rikkahub.data.model.KnowledgeSourceType
 import me.rerere.rikkahub.data.model.TavernCharacterData
+import me.rerere.rikkahub.data.model.TavernEmbeddedBook
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.settings.SettingsStore
 import org.koin.java.KoinJavaComponent
@@ -19,6 +20,10 @@ class PythonBridge(private val context: Context) {
     private val db by lazy { KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java) }
     private val settingsStore by lazy { KoinJavaComponent.get<SettingsStore>(SettingsStore::class.java) }
     private val conversationRepo by lazy { KoinJavaComponent.get<ConversationRepository>(ConversationRepository::class.java) }
+
+    // 辅助函数：获取或创建 tavernData / embeddedBook
+    private fun td(a: Assistant) = a.tavernData ?: TavernCharacterData()
+    private fun book(a: Assistant) = td(a).embeddedBook ?: TavernEmbeddedBook()
 
     // ============================================================
     // 知识库
@@ -184,10 +189,6 @@ class PythonBridge(private val context: Context) {
                 "js_timeout", "jsTimeout" -> a.copy(jsTimeout = int())
                 "shell_timeout", "shellTimeout" -> a.copy(shellTimeout = int())
 
-                // -- 杂项 --
-                "talkativeness" -> a.copy(talkativeness = float().coerceIn(0f, 1f))
-                "background" -> a.copy(background = if (value == "无" || value.isEmpty()) null else value)
-
                 // -- 角色卡字段 --
                 "use_assistant_avatar", "useAssistantAvatar" -> a.copy(useAssistantAvatar = bool())
                 "tavern_name" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(name = value))
@@ -201,6 +202,16 @@ class PythonBridge(private val context: Context) {
                 "tavern_creator_notes", "tavernCreatorNotes" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(creatorNotes = value))
                 "tavern_version", "tavernCharacterVersion" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(characterVersion = value))
                 "tavern_post_history", "postHistoryInstructions" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(postHistoryInstructions = value))
+
+                // -- 内嵌世界书 --
+                "book_name" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(name = value)))
+                "book_description" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(description = value)))
+                "book_scan_depth", "bookScanDepth" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(scanDepth = int())))
+                "book_token_budget", "bookTokenBudget" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(tokenBudget = int())))
+                "book_recursive", "bookRecursiveScanning" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(recursiveScanning = bool())))
+
+                // -- 杂项 --
+                "background" -> a.copy(background = if (value == "无" || value.isEmpty()) null else value)
 
                 else -> return@runBlocking "Error: 未知设置 $key"
             }
