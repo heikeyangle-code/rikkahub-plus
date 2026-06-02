@@ -585,7 +585,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 }
             } catch (_: Exception) { null } ?: JsonArray(emptyList())
             val total = try { Json.parseToJsonElement(raw).jsonObject["total_count"]?.jsonPrimitive?.intOrNull } catch (_: Exception) { null }
-            val cleaned = buildJsonArray { arr.forEach { add(cleanItem(it.jsonObject, type)) } }
+            val cleaned = buildJsonArray { arr.forEach { if (it is JsonObject) add(cleanItem(it, type)) } }
             val result = buildJsonObject {
                 if (total != null) put("total", jint(total))
                 put("results", cleaned)
