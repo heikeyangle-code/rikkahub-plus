@@ -95,16 +95,20 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         add("search_repo"); add("search_code"); add("search_issue"); add("search_user"); add("search_commits"); add("trending")
                         // Repo info
                         add("get_repo"); add("list_my_repos"); add("list_org_repos"); add("list_user_repos"); add("compare_repos"); add("list_tags"); add("list_releases"); add("list_contributors")
-                        add("repo_languages"); add("create_repo"); add("fork_repo"); add("star_repo"); add("unstar_repo"); add("update_repo"); add("delete_repo")
+                        add("repo_languages"); add("get_repo_license"); add("create_repo"); add("fork_repo"); add("list_forked_repos"); add("star_repo"); add("unstar_repo"); add("update_repo"); add("delete_repo")
+                        // Topics
+                        add("get_repo_topics"); add("replace_topics")
+                        // Events
+                        add("list_repo_events")
                         // Labels
                         add("list_labels"); add("create_label"); add("update_label"); add("delete_label")
                         // Milestones
-                        add("list_milestones"); add("create_milestone")
+                        add("list_milestones"); add("create_milestone"); add("update_milestone")
                         // Collaborators
                         add("add_collaborator"); add("remove_collaborator"); add("list_collaborators")
                         // Issues
                         add("list_issues"); add("create_issue"); add("issue_comment"); add("issue_update")
-                        add("issue_labels"); add("issue_assign")
+                        add("issue_labels"); add("issue_assign"); add("issue_lock"); add("issue_unlock")
                         // PRs
                         add("pr_list"); add("pr_view"); add("pr_create"); add("pr_update"); add("pr_review")
                         add("pr_merge"); add("pr_comment"); add("pr_request_reviewers")
@@ -349,6 +353,75 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
 
         fun parseJSON(s: String) = Json.parseToJsonElement(s).jsonObject
 
+        /** 带重试的 GET 请求（只重试网络错误，HTTP 4xx/5xx 不重试） */
+        fun gh(url: String): String {
+            val desc = ghDescribe(url)
+            GhProgress.status = desc
+            GhProgress.processingRef?.value = "GitHub: $desc"
+            var lastE: Exception? = null
+            for (attempt in 0..2) {
+                if (attempt > 0) Thread.sleep((attempt * 1000).toLong())
+                try {
+                    val c = conn(url)
+                    val code = c.responseCode
+                    if (code in 200..299) { val t = c.inputStream.bufferedReader().readText(); close(c); return t }
+                    val err = c.errorStream?.bufferedReader()?.readText() ?: "HTTP $code"
+                    close(c); throw RuntimeException(err.take(500))
+                } catch (e: RuntimeException) { throw e }
+                catch (e: Exception) { lastE = e }
+            }
+            throw lastE ?: RuntimeException("gh failed: $url")
+        }
+
+        /** 带重试的 HTTP 请求（只重试网络错误） */
+        fun gh(method: String, url: String, body: String = ""): String {
+            val desc = ghDescribe(url)
+            GhProgress.status = desc
+            GhProgress.processingRef?.value = "GitHub: $desc"
+            var lastE: Exception? = null
+            for (attempt in 0..2) {
+                if (attempt > 0) Thread.sleep((attempt * 1000).toLong())
+                try {
+                    val c = conn(url).apply {
+                        requestMethod = method
+                        doOutput = body.isNotBlank()
+                        if (body.isNotBlank()) { setRequestProperty("Content-Type", "application/json"); outputStream.write(body.toByteArray()) }
+                    }
+                    val code = c.responseCode
+                    if (code in 200..299) { val t = c.inputStream.bufferedReader().readText(); close(c); return t }
+                    val err = c.errorStream?.bufferedReader()?.readText() ?: "HTTP $code"
+                    close(c); throw RuntimeException(err.take(500))
+                } catch (e: RuntimeException) { throw e }
+                catch (e: Exception) { lastE = e }
+            }
+            throw lastE ?: RuntimeException("gh failed: $url")
+        }
+
+        /** 下载二进制内容（支持重定向），用于 job logs / artifacts */
+        fun ghDownload(url: String): ByteArray {
+            var lastE: Exception? = null
+            for (attempt in 0..2) {
+                if (attempt > 0) Thread.sleep((attempt * 1000).toLong())
+                try {
+                    val c = conn(url).apply { instanceFollowRedirects = true; readTimeout = 60_000 }
+                    val code = c.responseCode
+                    if (code != 200) { close(c); error("Download failed (HTTP $code)") }
+                    val bytes = c.inputStream.readBytes(); close(c); return bytes
+                } catch (e: RuntimeException) { throw e }
+                catch (e: Exception) { lastE = e }
+            }
+            throw lastE ?: RuntimeException("Download failed: $url")
+        }
+
+        fun ghPaginated(url: String, limit: Int): String {
+            val actualUrl = if (url.contains("?")) "$url&per_page=$limit" else "$url?per_page=$limit"
+            return gh(actualUrl)
+        }
+
+        fun encode(s: String) = URLEncoder.encode(s, "UTF-8")
+
+        fun parseJSON(s: String) = Json.parseToJsonElement(s).jsonObject
+
         // ── Common params ──
         val owner = obj["owner"]?.jsonPrimitive?.contentOrNull ?: ""
         val repo = obj["repo"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -485,8 +558,13 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     else -> el.jsonArray
                 }
             } catch (_: Exception) { null } ?: JsonArray(emptyList())
+            val total = try { Json.parseToJsonElement(raw).jsonObject["total_count"]?.jsonPrimitive?.intOrNull } catch (_: Exception) { null }
             val cleaned = buildJsonArray { arr.forEach { add(cleanItem(it.jsonObject, type)) } }
-            return cleaned.toString().take(20000)
+            val result = buildJsonObject {
+                if (total != null) put("total", jint(total))
+                put("results", cleaned)
+            }
+            return result.toString().take(20000)
         }
 
         fun fmtOne(raw: String, type: String): String = cleanItem(parseJSON(raw), type).toString()
@@ -585,6 +663,31 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 if (fullRepo.isBlank()) error("owner and repo required")
                 gh("https://api.github.com/repos/$fullRepo/languages")
             }
+            "get_repo_license" -> {
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val raw = parseJSON(gh("https://api.github.com/repos/$fullRepo/license"))
+                val lic = raw["license"]?.jsonObject
+                buildJsonObject {
+                    put("key", jstr(sj(lic,"spdx_id"))); put("name", jstr(sj(lic,"name")))
+                    put("url", jstr(sj(lic,"url"))); put("html_url", jstr(sj(raw,"html_url")))
+                }.toString()
+            }
+            "get_repo_topics" -> {
+                if (fullRepo.isBlank()) error("owner and repo required")
+                gh("https://api.github.com/repos/$fullRepo/topics")
+            }
+            "replace_topics" -> {
+                val topics = obj["labels"]?.jsonPrimitive?.contentOrNull ?: error("labels (comma-separated topics) required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val topicList = topics.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                gh("PUT", "https://api.github.com/repos/$fullRepo/topics",
+                    buildJsonObject { put("names", buildJsonArray { topicList.forEach { add(it) } }) }.toString())
+                "仓库主题已更新"
+            }
+            "list_repo_events" -> {
+                if (fullRepo.isBlank()) error("owner and repo required")
+                ghPaginated("https://api.github.com/repos/$fullRepo/events", limit)
+            }
             "create_repo" -> {
                 val name = obj["repo"]?.jsonPrimitive?.contentOrNull ?: error("repo required")
                 val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -611,6 +714,16 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 else gh("POST", url, """{"organization":"$orgName"}""")
                 val o = try { parseJSON(result) } catch (_: Exception) { null }
                 "仓库已 Fork: ${sj(o,"html_url")}"
+            }
+            "list_forked_repos" -> {
+                if (fullRepo.isBlank()) error("owner and repo required")
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/forks", limit), "repo")
+            }
+            "list_user_starred" -> {
+                val username = obj["owner"]?.jsonPrimitive?.contentOrNull
+                val url = if (username.isNullOrBlank()) "https://api.github.com/user/starred"
+                else "https://api.github.com/users/$username/starred"
+                fmtClean(ghPaginated(url, limit), "repo")
             }
             "star_repo" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
@@ -738,6 +851,19 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     "Issue #$num 分配已清除"
                 }
             }
+            "issue_lock" -> {
+                val num = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                gh("PUT", "https://api.github.com/repos/$fullRepo/issues/$num/lock",
+                    """{"lock_reason":"off-topic"}""")
+                "Issue #$num 已锁定"
+            }
+            "issue_unlock" -> {
+                val num = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                gh("DELETE", "https://api.github.com/repos/$fullRepo/issues/$num/lock")
+                "Issue #$num 已解锁"
+            }
 
             // ═══════════════════════════════════════════
             // LABELS
@@ -792,6 +918,19 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 gh("POST", "https://api.github.com/repos/$fullRepo/milestones",
                     """{"title":"$title","description":"$desc","due_on":"$dueOn"}""")
                 "里程碑 \"$title\" 已创建"
+            }
+            "update_milestone" -> {
+                val num = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val payload = buildJsonObject {
+                    obj["title"]?.jsonPrimitive?.contentOrNull?.let { put("title", it) }
+                    obj["description"]?.jsonPrimitive?.contentOrNull?.let { put("description", it) }
+                    obj["state"]?.jsonPrimitive?.contentOrNull?.let { put("state", it) }
+                    obj["due_on"]?.jsonPrimitive?.contentOrNull?.let { put("due_on", it) }
+                }.toString()
+                gh("PATCH", "https://api.github.com/repos/$fullRepo/milestones/$num", payload)
+                "里程碑 #$num 已更新"
+            }
 
             // ═══════════════════════════════════════════
             // PULL REQUESTS
@@ -874,6 +1013,14 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     else "PR #$num 合并失败: ${parseJSON(result)["message"]?.jsonPrimitive?.contentOrNull}"
                 } catch (_: Exception) { "PR #$num 合并结果: $result" }
             }
+            "check_pr_merged" -> {
+                val num = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val c = conn("https://api.github.com/repos/$fullRepo/pulls/$num/merge")
+                val merged = c.responseCode == 204
+                close(c)
+                if (merged) "PR #$num 已合并" else "PR #$num 未合并"
+            }
             "pr_comment" -> {
                 val num = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number required")
                 val comment = obj["comment"]?.jsonPrimitive?.contentOrNull
@@ -925,13 +1072,8 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "ci_job_log" -> {
                 val jobId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (job_id) required")
                 if (fullRepo.isBlank()) error("owner and repo required")
-                val c = conn("https://api.github.com/repos/$fullRepo/actions/jobs/$jobId/logs")
-                c.instanceFollowRedirects = true
-                c.readTimeout = 60_000
-                val code = c.responseCode
-                if (code != 200) { close(c); error("Log download failed (HTTP $code)") }
-                val log = c.inputStream.bufferedReader().readText(); close(c)
-                log.take(50000)
+                val log = ghDownload("https://api.github.com/repos/$fullRepo/actions/jobs/$jobId/logs")
+                log.decodeToString().take(50000)
             }
             "ci_artifacts" -> {
                 val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
@@ -941,12 +1083,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "download_artifact" -> {
                 val artId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (artifact_id) required")
                 if (fullRepo.isBlank()) error("owner and repo required")
-                val c = conn("https://api.github.com/repos/$fullRepo/actions/artifacts/$artId/zip")
-                c.instanceFollowRedirects = true
-                c.readTimeout = 60_000
-                val code = c.responseCode
-                if (code != 200) { close(c); error("Artifact download failed (HTTP $code)") }
-                val zipBytes = c.inputStream.readBytes(); close(c)
+                val zipBytes = ghDownload("https://api.github.com/repos/$fullRepo/actions/artifacts/$artId/zip")
                 val zis = java.util.zip.ZipInputStream(zipBytes.inputStream())
                 val entries = mutableListOf<Pair<String, String>>()
                 var e = zis.nextEntry
@@ -996,23 +1133,18 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                                     .let { "No log artifact. Available:\n$it" }
                             } else {
                                 val artId = logArtifact.jsonObject["id"]?.jsonPrimitive?.intOrNull ?: 0
-                                val c = conn("https://api.github.com/repos/$fullRepo/actions/artifacts/$artId/zip")
-                                c.instanceFollowRedirects = true
-                                c.readTimeout = 60_000
-                                if (c.responseCode != 200) { close(c); "Download failed (HTTP ${c.responseCode})" } else {
-                                    val zipBytes = c.inputStream.readBytes(); close(c)
-                                    val zis = java.util.zip.ZipInputStream(zipBytes.inputStream())
-                                    val logEntries = mutableListOf<Pair<String, String>>()
-                                    var e = zis.nextEntry
-                                    while (e != null) {
-                                        if (!e.isDirectory && (e.name.endsWith(".log") || e.name.endsWith(".txt")))
-                                            logEntries.add(e.name to zis.readBytes().toString(Charsets.UTF_8).take(30000))
-                                        zis.closeEntry(); e = zis.nextEntry
-                                    }
-                                    zis.close()
-                                    if (logEntries.isEmpty()) "No .log/.txt files in artifact"
-                                    else logEntries.joinToString("\n\n${"=".repeat(40)}\n\n") { (n, t) -> "=== $n ===\n$t" }.take(50000)
+                                val zipBytes = ghDownload("https://api.github.com/repos/$fullRepo/actions/artifacts/$artId/zip")
+                                val zis = java.util.zip.ZipInputStream(zipBytes.inputStream())
+                                val logEntries = mutableListOf<Pair<String, String>>()
+                                var e = zis.nextEntry
+                                while (e != null) {
+                                    if (!e.isDirectory && (e.name.endsWith(".log") || e.name.endsWith(".txt")))
+                                        logEntries.add(e.name to zis.readBytes().toString(Charsets.UTF_8).take(30000))
+                                    zis.closeEntry(); e = zis.nextEntry
                                 }
+                                zis.close()
+                                if (logEntries.isEmpty()) "No .log/.txt files in artifact"
+                                else logEntries.joinToString("\n\n${"=".repeat(40)}\n\n") { (n, t) -> "=== $n ===\n$t" }.take(50000)
                             }
                         }
                     }
@@ -1450,6 +1582,24 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val result = gh("POST", "https://api.github.com/repos/$fullRepo/releases", payload)
                 val o = try { parseJSON(result) } catch (_: Exception) { null }
                 "Release $relName 已创建: ${sj(o,"html_url")}"
+            }
+            "update_release" -> {
+                val relId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (release_id) required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val payload = buildJsonObject {
+                    obj["tag_name"]?.jsonPrimitive?.contentOrNull?.let { put("tag_name", it) }
+                    obj["title"]?.jsonPrimitive?.contentOrNull?.let { put("name", it) }
+                    obj["body"]?.jsonPrimitive?.contentOrNull?.let { put("body", it) }
+                    obj["state"]?.jsonPrimitive?.contentOrNull?.let { put("prerelease", it == "prerelease") }
+                }.toString()
+                gh("PATCH", "https://api.github.com/repos/$fullRepo/releases/$relId", payload)
+                "Release #$relId 已更新"
+            }
+            "delete_release" -> {
+                val relId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (release_id) required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                gh("DELETE", "https://api.github.com/repos/$fullRepo/releases/$relId")
+                "Release #$relId 已删除"
             }
             "list_webhooks" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
