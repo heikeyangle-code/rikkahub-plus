@@ -642,9 +642,8 @@ class SkillsVM(
                     withContext(Dispatchers.Main) { onResult(false, emptyList(), "读取仓库失败") }; return@launch
                 }
 
-                // 构建本地已安装 skill 名字 -> 目录哈希 映射
-                // 优先查 .rikkahub_source.json，没有则用 skill 目录名匹配
-                val installedNames = skillManager.listSkills().map { it.name.trim().lowercase() to it.name }.toMap()
+                val results = mutableListOf<GitHubSkillInfo>()
+                // 收集同仓库所有已安装 skill 的 SHA，用于检测有更新的 skill
                 val allSkillShas = source.skillShas.toMutableMap()
                 for (installed in skillManager.listSkills()) {
                     if (installed.name == skillName) continue
@@ -654,7 +653,9 @@ class SkillsVM(
                     }
                 }
 
-                val results = mutableListOf<GitHubSkillInfo>()
+                // 本地所有已安装 skill 名
+                val installedNames = skillManager.listSkills().map { it.name }.toSet()
+
                 for (i in 0 until tree.length()) {
                     val item = tree.getJSONObject(i)
                     val path = item.optString("path", "")
@@ -663,23 +664,14 @@ class SkillsVM(
                         val dlUrl = "https://raw.githubusercontent.com/${info.owner}/${info.repo}/$branch/$path"
                         val content = downloadText(dlUrl) ?: continue
                         val fm = SkillFrontmatterParser.parse(content)
-                        val remoteName = fm["name"] ?: ""
-                        val dirPath = path.removeSuffix("SKILL.md").trimEnd('/')
-                        val dirName = dirPath.split("/").lastOrNull() ?: ""
-                        // 用远程 frontmatter name 匹配本地安装的 skill，忽略大小写/首尾空格
-                        val name = remoteName.ifBlank { dirName }.ifBlank { "unknown" }
-                        val nameKey = remoteName.ifBlank { dirName }.trim().lowercase()
+                        val name = fm["name"] ?: path.split("/").dropLast(1).lastOrNull() ?: "unknown"
                         val desc = fm["description"] ?: ""
-
+                        val dirPath = path.removeSuffix("SKILL.md").trimEnd('/')
                         val oldDirHash = allSkillShas[name]
-                        val locallyInstalled = installedNames.containsKey(nameKey)
-                            // 也按目录名兜底匹配
-                            || skillManager.listSkills().any {
-                                it.name.trim().lowercase() == nameKey || it.name == dirName
-                            }
+                        val locallyInstalled = name in installedNames
                         val newDirHash = computeDirHash(tree, dirPath)
                         val hasUpdate = oldDirHash != null && oldDirHash != newDirHash
-                        // isNew: 真没安装过的才算新增
+                        // 只有本地真没装过的才算新增，不依赖哈希记录
                         val isNew = !locallyInstalled
                         results.add(GitHubSkillInfo(
                             name = name, description = desc,
