@@ -37,8 +37,8 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         return File(defaultDir, path)
     }
 
-    val skillsHint = if (skillDirs.isNotEmpty()) {
-        " These are your working directories: ${skillDirs.joinToString()}. Use use_skill to load skills, NOT file_list/file_read."
+    val writeHint = if (skillDirs.isNotEmpty()) {
+        " Skills directory: ${skillDirs.joinToString()}. Use this path to save new skills."
     } else ""
 
     return listOf(
@@ -47,7 +47,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
             name = "file_read",
             description = "Read a file from the Android filesystem. Returns the file content as text. " +
                 "PREFERRED over execute_command for reading files. " +
-                "Absolute paths work as-is. Relative paths are resolved against enabled skill directories first, then ${defaultDir}.$skillsHint",
+                "Absolute paths work as-is. Relative paths resolve against skill dirs first, then ${defaultDir}.",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -86,7 +86,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
             name = "file_write",
             description = "Create or overwrite a file on the Android filesystem. " +
                     "PREFERRED over execute_command for writing files. " +
-                    "Relative paths go to skill dirs first, then ${defaultDir}.$skillsHint",
+                    "Relative paths go to skill dirs first, then ${defaultDir}.$writeHint",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -162,7 +162,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_copy",
             description = "Copy a file or directory from source to destination. " +
-                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.$skillsHint",
+                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -199,7 +199,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_move",
             description = "Move or rename a file or directory. " +
-                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.$skillsHint",
+                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -241,7 +241,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_mkdir",
             description = "Create a new directory (and parent directories if needed). " +
-                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.$skillsHint",
+                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -275,7 +275,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
             name = "file_delete",
             description = "Delete a file or directory from the Android filesystem. " +
                     "Directories are deleted recursively (all contents removed). " +
-                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}.$skillsHint. " +
+                    "Absolute paths work as-is. Relative paths resolve to skill dirs first, then ${defaultDir}. " +
                     "WARNING: This is destructive and irreversible.",
             parameters = {
                 InputSchema.Obj(
