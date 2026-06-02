@@ -218,7 +218,11 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val title = obj["title"]?.jsonPrimitive?.contentOrNull ?: error("title required")
                 val body = obj["body"]?.jsonPrimitive?.contentOrNull ?: ""
                 if (fullRepo.isBlank()) error("owner and repo required")
-                gh("https://api.github.com/repos/$fullRepo/issues")
+                val payload = buildJsonObject {
+                    put("title", title)
+                    put("body", body)
+                }.toString()
+                gh("POST", "https://api.github.com/repos/$fullRepo/issues", payload)
             }
             "pr_list" -> {
                 val st = obj["state"]?.jsonPrimitive?.contentOrNull ?: "open"
@@ -470,6 +474,37 @@ $files"""
                 val resp = if (code in 200..299) conn.inputStream.bufferedReader().readText() else (conn.errorStream?.bufferedReader()?.readText() ?: "HTTP $code")
                 conn.disconnect()
                 resp
+            }
+            "revert_commit" -> {
+                val sha = obj["sha"]?.jsonPrimitive?.contentOrNull ?: error("sha required")
+                val branch = obj["branch"]?.jsonPrimitive?.contentOrNull ?: "main"
+                if (fullRepo.isBlank()) error("owner and repo required")
+                // Get the commit to revert
+                val commitData = gh("https://api.github.com/repos/$fullRepo/git/commits/$sha")
+                val commitJson = Json.parseToJsonElement(commitData).jsonObject
+                val parentSha = commitJson["parents"]?.jsonArray?.firstOrNull()
+                    ?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull
+                    ?: error("Cannot find parent commit")
+                val treeSha = commitJson["tree"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull
+                    ?: error("Cannot find tree SHA")
+                // Get parent's tree to create a revert
+                val parentData = gh("https://api.github.com/repos/$fullRepo/git/commits/$parentSha")
+                val parentTreeSha = Json.parseToJsonElement(parentData).jsonObject["tree"]
+                    ?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull
+                    ?: error("Cannot find parent tree SHA")
+                // Create new tree that matches parent (effectively reverting changes)
+                val newTree = gh("POST", "https://api.github.com/repos/$fullRepo/git/trees",
+                    """{"base_tree":"$parentTreeSha","tree":[]}""")
+                val newTreeSha = Json.parseToJsonElement(newTree).jsonObject["sha"]?.jsonPrimitive?.contentOrNull ?: ""
+                // Create revert commit
+                val revertMsg = "Revert ${sha.take(7)}"
+                val newCommit = gh("POST", "https://api.github.com/repos/$fullRepo/git/commits",
+                    """{"message":"$revertMsg","tree":"$newTreeSha","parents":["$parentSha"]}""")
+                val newCommitSha = Json.parseToJsonElement(newCommit).jsonObject["sha"]?.jsonPrimitive?.contentOrNull ?: ""
+                // Update branch ref
+                gh("PATCH", "https://api.github.com/repos/$fullRepo/git/refs/heads/$branch",
+                    """{"sha":"$newCommitSha","force":false}""")
+                "OK: reverted $sha on $branch, new commit $newCommitSha"
             }
             "list_branches" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")

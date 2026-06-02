@@ -25,6 +25,7 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
     elif from_format == 'md' and to_format == 'docx':
         from docx import Document
         doc = Document()
+        text = open(input_path, 'r', encoding='utf-8').read() if input_path else input_text
         for line in text.split('\n'):
             s = line.strip()
             if s.startswith('# '): doc.add_heading(s[2:], level=1)
