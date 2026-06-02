@@ -348,8 +348,14 @@ private fun generateQrSvg(content: String, size: Int): String {
 }
 
 private fun generateColorSchemeSvg(baseHex: String, scheme: String): String {
-    fun parseHex(h: String): Int = h.removePrefix("#").let {
-        Integer.parseInt(it, 16)
+    fun parseHex(h: String): Int {
+        val cleaned = h.removePrefix("#")
+        val full = when (cleaned.length) {
+            3 -> cleaned.map { "$it$it" }.joinToString("") // #FFF → #FFFFFF
+            6 -> cleaned
+            else -> error("Invalid color: $h (must be 3 or 6 hex digits)")
+        }
+        return try { Integer.parseInt(full, 16) } catch (_: NumberFormatException) { error("Invalid hex color: $h") }
     }
     fun hsl(h: Float, s: Float, l: Float): String {
         val c = (1 - kotlin.math.abs(2 * l - 1)) * s

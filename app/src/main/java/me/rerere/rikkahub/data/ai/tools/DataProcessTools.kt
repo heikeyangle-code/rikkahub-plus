@@ -129,24 +129,47 @@ private fun estimateTokens(text: String): Int = when {
     }
 }
 
-/** 简单的逐行差异对比 */
+/** 基于 LCS（最长公共子序列）的差异对比 */
 private fun computeDiff(text1: String, text2: String): String {
     val lines1 = text1.lines()
     val lines2 = text2.lines()
-    val maxLen = maxOf(lines1.size, lines2.size)
+    val n = lines1.size; val m = lines2.size
+
+    // Build LCS table
+    val dp = Array(n + 1) { IntArray(m + 1) }
+    for (i in 1..n) {
+        for (j in 1..m) {
+            dp[i][j] = if (lines1[i - 1] == lines2[j - 1])
+                dp[i - 1][j - 1] + 1
+            else
+                maxOf(dp[i - 1][j], dp[i][j - 1])
+        }
+    }
+
+    // Backtrack to find differences
     val sb = StringBuilder()
     var changes = 0
+    var i = n; var j = m
+    val diffLines = mutableListOf<Pair<Int, String>>() // (-lineNum or +lineNum, text)
 
-    for (i in 0 until maxLen) {
-        val l1 = lines1.getOrElse(i) { "" }
-        val l2 = lines2.getOrElse(i) { "" }
-        if (l1 != l2) {
-            changes++
-            val lineNum = i + 1
-            if (i < lines1.size) sb.appendLine("-$lineNum: $l1")
-            if (i < lines2.size) sb.appendLine("+$lineNum: $l2")
-            sb.appendLine()
+    while (i > 0 || j > 0) {
+        when {
+            i > 0 && j > 0 && lines1[i - 1] == lines2[j - 1] -> { i--; j-- }
+            j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j]) -> {
+                diffLines.add(0, lines2[j - 1] to "+${j}")
+                j--
+            }
+            i > 0 -> {
+                diffLines.add(0, lines1[i - 1] to "-${i}")
+                i--
+            }
         }
+    }
+
+    for ((text, marker) in diffLines) {
+        changes++
+        if (marker.startsWith("+")) sb.appendLine("+${marker.drop(1)}: $text")
+        else sb.appendLine("-${marker.drop(1)}: $text")
     }
 
     return if (changes == 0) {

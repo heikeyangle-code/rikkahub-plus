@@ -58,9 +58,11 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
         val code = args.jsonObject["code"]?.jsonPrimitive?.content
             ?: error("code parameter is required")
 
-        // Start Python if needed
+        // Start Python if needed (must be on main thread for Chaquopy init)
         if (!Python.isStarted()) {
-            Python.start(AndroidPlatform(context))
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                Python.start(AndroidPlatform(context))
+            }
         }
 
         val py = Python.getInstance()

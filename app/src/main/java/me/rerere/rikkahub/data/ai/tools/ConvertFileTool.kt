@@ -109,17 +109,27 @@ fun createConvertFileTool(context: Context): Tool = Tool(
             val text = inputFile?.readText() ?: inputText
             val result = when (fromFormat to toFormat) {
                 "txt" to "md" -> text
-                "txt" to "html" -> text.replace("&", "&amp;").replace("<", "&lt;")
-                    .replace(Regex("(?m)^(#{1,6})\\s+(.+)$")) {
-                        val level = it.groupValues[1].length
-                        "<h$level>${it.groupValues[2]}</h$level>"
-                    }
-                    .replace(Regex("(?m)^[-*]\\s+(.+)$")) { "<li>${it.groupValues[1]}</li>" }
-                    .replace("\n\n", "\n</p>\n<p>\n")
-                    .let { "<p>\n$it\n</p>" }
+                "txt" to "html" -> {
+                    val escaped = text
+                        .replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;")
+                    val body = escaped
+                        .replace(Regex("(?m)^(#{1,6})\\s+(.+)$")) {
+                            val level = it.groupValues[1].length
+                            "<h$level>${it.groupValues[2].replace("&", "&amp;").replace("<", "&lt;")}</h$level>"
+                        }
+                        .replace(Regex("(?m)^[-*]\\s+(.+)$")) { "<li>${it.groupValues[1]}</li>" }
+                        .split("\\n\\n".toRegex()).joinToString("") { "<p>$it</p>\\n" }
+                    "<!DOCTYPE html>\\n<html lang=\\\"zh\\\">\\n<head><meta charset=\\\"utf-8\\\">\\n<title>Converted</title></head>\\n<body>\\n$body\\n</body>\\n</html>"
+                }
                 "md" to "txt" -> text
                 "md" to "html" -> {
-                    val html = text.replace("&", "&amp;").replace("<", "&lt;")
+                    val escaped = text
+                        .replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;")
+                    var html = escaped
                         .replace(Regex("(?m)^(#{1,6})\\s+(.+)$")) {
                             "<h${it.groupValues[1].length}>${it.groupValues[2]}</h${it.groupValues[1].length}>"
                         }
@@ -128,13 +138,13 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                         .replace(Regex("(?m)^```(\\w*)\\s*$"), "<pre><code>")
                         .replace(Regex("(?m)^```$"), "</code></pre>")
                         .replace(Regex("(?m)^[-*]\\s+(.+)$"), "<li>\$1</li>")
-                        .replace("\n\n", "\n</p>\n<p>\n")
-                    "<p>\n$html\n</p>"
+                        .replace(Regex("(?m)^>\\s+(.+)$"), "<blockquote>\$1</blockquote>")
+                    html = html.split("\\n\\n".toRegex()).joinToString("") { "<p>$it</p>\\n" }
+                    "<!DOCTYPE html>\\n<html lang=\\\"zh\\\">\\n<head><meta charset=\\\"utf-8\\\">\\n<title>Converted Markdown</title></head>\\n<body>\\n$html\\n</body>\\n</html>"
                 }
                 "html" to "md" -> {
-                    // Simple HTML to text: strip tags, preserve line breaks
                     text.replace(Regex("<[^>]+>"), "")
-                        .replace(Regex("\\n{3,}"), "\n\n")
+                        .replace(Regex("\\n{3,}"), "\\n\\n")
                 }
                 "html" to "txt" -> text.replace(Regex("<[^>]+>"), "").trim()
                 else -> inputText ?: text

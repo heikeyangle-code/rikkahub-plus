@@ -129,20 +129,42 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                     count++
                 }
                 cursor.close()
-                val total = cursor.count
+                // Total from cursor is unreliable after iteration, use count
+                val totalMsg = buildString {
+                    append("Returned $count rows")
+                    if (count == limit) append(" (limit reached)")
+                }
                 val result = buildJsonObject {
                     put("columns", buildJsonArray { colNames.forEach { add(it) } })
                     put("rows", buildJsonArray { rows.forEach { add(it) } })
-                    put("total", total)
                     put("returned", count)
+                    put("note", totalMsg)
                 }
                 listOf(UIMessagePart.Text(result.toString()))
             }
             "search" -> {
                 val keyword = obj["keyword"]?.jsonPrimitive?.contentOrNull ?: error("keyword required")
                 val searchPattern = "%$keyword%"
+                val results = mutableListOf<JsonObject>()
+
+                // FTS5 search on message_fts (much faster than LIKE)
+                try {
+                    val ftsCursor = database.openHelper.writableDatabase.rawQuery(
+                        "SELECT conversation_id, snippet(message_fts, '<b>', '</b>', '...', -1, 30) AS snippet " +
+                        "FROM message_fts WHERE message_fts MATCH ? LIMIT ${limit.coerceAtMost(20)}",
+                        arrayOf(keyword)
+                    )
+                    while (ftsCursor.moveToNext()) {
+                        results.add(buildJsonObject {
+                            put("table", "messages")
+                            put("snippet", ftsCursor.getString(1)?.take(200) ?: "")
+                        })
+                    }
+                    ftsCursor.close()
+                } catch (_: Exception) { /* FTS table might not exist */ }
+
+                // LIKE search on other tables
                 val tablesToSearch = listOf(
-                    "messages" to "content",
                     "knowledge_chunks" to "text",
                     "knowledge_base_entries" to listOf("title", "content"),
                     "assistant_memories" to "content",

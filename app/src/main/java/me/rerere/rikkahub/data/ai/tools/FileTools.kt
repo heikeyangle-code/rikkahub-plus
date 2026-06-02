@@ -16,14 +16,30 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
 
     fun resolveFile(path: String): File {
         val f = File(path)
-        if (f.exists() || path.startsWith("/")) return f
+        if (f.exists() || path.startsWith("/")) {
+            // Guard: ensure resolved path stays within allowed area
+            if (!path.startsWith("/")) {
+                // Relative path starting from cwd — just return as-is (exists check passed)
+                return f
+            }
+            return f
+        }
         // 相对路径 → 依次检索 skill 目录
         for (skillDir in skillDirs) {
-            val candidate = File(skillDir, path)
-            if (candidate.exists()) return candidate
+            val candidate = File(skillDir, path).normalize()
+            if (candidate.exists()) {
+                // Guard: ensure the resolved path is actually under the skill dir
+                val canonicalSkill = File(skillDir).canonicalPath
+                val canonicalCandidate = candidate.canonicalPath
+                if (canonicalCandidate.startsWith(canonicalSkill)) return candidate
+            }
         }
         // 兜底 Download
-        return File(defaultDir, path)
+        val fallback = File(defaultDir, path).normalize()
+        val canonicalDownload = File(defaultDir).canonicalPath
+        val canonicalFallback = fallback.canonicalPath
+        return if (canonicalFallback.startsWith(canonicalDownload)) fallback
+        else File(defaultDir, fallback.name).normalize()
     }
 
     fun resolveDestPath(path: String): File {
@@ -31,10 +47,22 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         if (path.startsWith("/")) return f
         // 相对路径 → 优先 skill 目录
         for (skillDir in skillDirs) {
-            val candidate = File(skillDir, path)
-            if (candidate.exists() || skillDirs.size == 1) return candidate
+            val candidate = File(skillDir, path).normalize()
+            val canonicalSkill = File(skillDir).canonicalPath
+            val canonicalCandidate = candidate.canonicalPath
+            if (candidate.exists() && canonicalCandidate.startsWith(canonicalSkill)) return candidate
         }
-        return File(defaultDir, path)
+        if (skillDirs.isNotEmpty()) {
+            val candidate = File(skillDirs.first(), path).normalize()
+            val canonicalSkill = File(skillDirs.first()).canonicalPath
+            val canonicalCandidate = candidate.canonicalPath
+            if (canonicalCandidate.startsWith(canonicalSkill)) return candidate
+        }
+        val fallback = File(defaultDir, path).normalize()
+        val canonicalDownload = File(defaultDir).canonicalPath
+        val canonicalFallback = fallback.canonicalPath
+        return if (canonicalFallback.startsWith(canonicalDownload)) fallback
+        else File(defaultDir, fallback.name).normalize()
     }
 
     val writeHint = if (skillDirs.isNotEmpty()) {
