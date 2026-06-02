@@ -23,7 +23,7 @@ fun createGitHubTool(settingsStore: SettingsStore): Tool = Tool(
                         add("pr_list"); add("pr_view"); add("pr_create"); add("pr_review"); add("pr_merge")
                         add("ci_status"); add("rerun_workflow"); add("list_workflows"); add("workflow_dispatch")
                         add("read_file"); add("list_files"); add("get_readme"); add("get_diff")
-                        add("commit"); add("commit_files"); add("create_branch"); add("list_branches")
+                        add("commit"); add("commit_files"); add("revert_commit"); add("create_branch"); add("list_branches")
                         add("compare_repos"); add("search_issue"); add("search_user")
                     })
                     put("description", "Operation to perform")
@@ -109,6 +109,19 @@ fun createGitHubTool(settingsStore: SettingsStore): Tool = Tool(
                 put("comment", buildJsonObject {
                     put("type", "string")
                     put("description", "Review comment body (for pr_review)")
+                })
+                put("pr_path", buildJsonObject {
+                    put("type", "string")
+                    put("description", "File path for inline PR review comment")
+                })
+                put("pr_line", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Line number for inline PR review comment")
+                })
+                put("pr_side", buildJsonObject {
+                    put("type", "string")
+                    put("enum", buildJsonArray { add("LEFT"); add("RIGHT") })
+                    put("description", "Which side of the diff (for inline review)")
                 })
                 put("files", buildJsonObject {
                     put("type", "string")
