@@ -519,6 +519,15 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("login", jstr(sj(o,"login"))); put("description", jstr(sj(o,"description").take(200)))
                 put("url", jstr(sj(o,"html_url"))); put("avatar_url", jstr(sj(o,"avatar_url")))
             }
+            "event" -> buildJsonObject {
+                put("type", jstr(sj(o,"type"))); put("actor", jstr(slogin(o,"actor")))
+                put("repo", jstr(o["repo"]?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull ?: ""))
+                put("created", jstr(sj(o,"created_at").take(10)))
+            }
+            "topic" -> buildJsonObject {
+                put("name", jstr(sj(o,"name"))); put("description", jstr(sj(o,"description").take(200)))
+                put("score", jint((o["score"]?.jsonPrimitive?.doubleOrNull ?: 0.0).toInt()))
+            }
             else -> o
         }
 
@@ -634,7 +643,17 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "repo_languages" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                gh("https://api.github.com/repos/$fullRepo/languages")
+                val raw = parseJSON(gh("https://api.github.com/repos/$fullRepo/languages"))
+                val sorted = raw.entries.sortedByDescending { it.value.jsonPrimitive.intOrNull ?: 0 }
+                buildJsonObject {
+                    put("languages", buildJsonArray {
+                        sorted.forEach { (lang, bytes) ->
+                            add(buildJsonObject {
+                                put("name", jstr(lang)); put("bytes", jint(bytes.jsonPrimitive.intOrNull ?: 0))
+                            })
+                        }
+                    })
+                }.toString()
             }
             "get_repo_license" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
@@ -647,7 +666,11 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "get_repo_topics" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                gh("https://api.github.com/repos/$fullRepo/topics")
+                val raw = parseJSON(gh("https://api.github.com/repos/$fullRepo/topics"))
+                val names = raw["names"]?.jsonArray ?: JsonArray(emptyList())
+                buildJsonObject {
+                    put("names", buildJsonArray { names.forEach { add(it) } })
+                }.toString()
             }
             "replace_topics" -> {
                 val topics = obj["labels"]?.jsonPrimitive?.contentOrNull ?: error("labels (comma-separated topics) required")
@@ -659,7 +682,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "list_repo_events" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                ghPaginated("https://api.github.com/repos/$fullRepo/events", limit)
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/events", limit), "event")
             }
             "create_repo" -> {
                 val name = obj["repo"]?.jsonPrimitive?.contentOrNull ?: error("repo required")
@@ -1399,7 +1422,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         }
                     }.toString().take(20000)
                 } else if (path.isNotBlank()) {
-                    gh("https://api.github.com/repos/$fullRepo/commits?path=${encode(path)}&sha=$branch&per_page=1")
+                    fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/commits?path=${encode(path)}&sha=$branch", limit), "commit")
                 } else {
                     fmtOne(gh("https://api.github.com/repos/$fullRepo/commits/$branch"), "commit")
                 }
@@ -1545,7 +1568,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "search_topics" -> {
                 val q = obj["q"]?.jsonPrimitive?.contentOrNull ?: error("q required")
-                ghPaginated("https://api.github.com/search/topics?q=${encode(q)}", limit)
+                fmtClean(ghPaginated("https://api.github.com/search/topics?q=${encode(q)}", limit), "topic")
             }
 
             // ═══════════════════════════════════════════
