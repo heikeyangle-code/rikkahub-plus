@@ -60,7 +60,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                 val result = buildJsonArray {
                     for (table in tableNames) {
                         try {
-                            val cursor = database.openHelper.writableDatabase.rawQuery(
+                            val cursor = database.openHelper.writableDatabase.query(
                                 "SELECT COUNT(*) FROM \"$table\"", null
                             )
                             cursor.moveToFirst()
@@ -83,7 +83,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
             "schema" -> {
                 val table = obj["table"]?.jsonPrimitive?.contentOrNull ?: error("table required")
                 val cursor = try {
-                    database.openHelper.writableDatabase.rawQuery("PRAGMA table_info(\"$table\")", null)
+                    database.openHelper.writableDatabase.query("PRAGMA table_info(\"$table\")", null)
                 } catch (e: Exception) {
                     error("Table '$table' not found or not accessible: ${e.message?.take(100)}")
                 }
@@ -105,7 +105,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                     error("Only SELECT and PRAGMA queries are allowed")
                 }
                 val cursor = try {
-                    database.openHelper.writableDatabase.rawQuery(sql, null)
+                    database.openHelper.writableDatabase.query(sql, null)
                 } catch (e: Exception) {
                     error("SQL error: ${e.message?.take(200)}")
                 }
@@ -149,10 +149,10 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
 
                 // FTS5 search on message_fts (much faster than LIKE)
                 try {
-                    val ftsCursor = database.openHelper.writableDatabase.rawQuery(
+                    val ftsCursor = database.openHelper.writableDatabase.query(
                         "SELECT conversation_id, snippet(message_fts, '<b>', '</b>', '...', -1, 30) AS snippet " +
                         "FROM message_fts WHERE message_fts MATCH ? LIMIT ${limit.coerceAtMost(20)}",
-                        arrayOf(keyword)
+                            arrayOf<Any?>(keyword)
                     )
                     while (ftsCursor.moveToNext()) {
                         results.add(buildJsonObject {
@@ -180,9 +180,9 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                         else -> continue
                     }
                     val whereClause = colList.joinToString(" OR ") { "\"$it\" LIKE ?" }
-                    val placeholders = colList.map { searchPattern }.toTypedArray()
+                    val placeholders = colList.map { searchPattern }.toTypedArray<Any?>()
                     try {
-                        val cursor = database.openHelper.writableDatabase.rawQuery(
+                        val cursor = database.openHelper.writableDatabase.query(
                             "SELECT rowid, * FROM \"$table\" WHERE $whereClause LIMIT ${limit.coerceAtMost(20)}",
                             placeholders
                         )
@@ -220,7 +220,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                 val table = obj["table"]?.jsonPrimitive?.contentOrNull ?: error("table required")
                 val format = obj["format"]?.jsonPrimitive?.contentOrNull ?: "json"
                 val cursor = try {
-                    database.openHelper.writableDatabase.rawQuery("SELECT * FROM \"$table\" LIMIT $limit", null)
+                    database.openHelper.writableDatabase.query("SELECT * FROM \"$table\" LIMIT $limit", null)
                 } catch (e: Exception) {
                     error("Table '$table' not found: ${e.message?.take(100)}")
                 }

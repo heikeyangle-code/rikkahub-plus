@@ -431,7 +431,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val filesJson = ghPaginated("https://api.github.com/repos/$fullRepo/pulls/$num/files", limit.coerceAtMost(30))
                 // Format nicely for AI consumption
                 buildJsonObject {
-                    put("number", prJson["number"]?.jsonPrimitive)
+                    put("number", prJson["number"]?.jsonPrimitive ?: JsonNull)
                     put("title", prJson["title"]?.jsonPrimitive?.contentOrNull ?: "")
                     put("state", prJson["state"]?.jsonPrimitive?.contentOrNull ?: "")
                     put("body", prJson["body"]?.jsonPrimitive?.contentOrNull?.take(2000) ?: "")
@@ -759,7 +759,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "list_commits" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                val path = obj["path"]?.jsonPrimitive?.contentOrNull
+                val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: ""
                 val url = "https://api.github.com/repos/$fullRepo/commits?sha=$branch" +
                     (if (path.isNotBlank()) "&path=${encode(path)}" else "")
                 ghPaginated(url, limit)
