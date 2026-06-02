@@ -89,7 +89,27 @@ class GenerationHandler(
 
         var messages: List<UIMessage> = messages
 
-        for (stepIndex in 0 until maxSteps) {
+    private fun describeTool(name: String): String = when {
+        name.startsWith("github_") -> "🔧 GitHub → 正在操作..."
+        name.startsWith("execute_python") -> "🔧 Python → 正在执行代码..."
+        name.startsWith("execute_command") -> "🔧 Shell → 正在执行命令..."
+        name.startsWith("file_") -> "🔧 文件 → 正在操作..."
+        name.startsWith("data_process") -> "🔧 数据 → 正在处理..."
+        name.startsWith("database_") -> "🔧 数据库 → 正在查询..."
+        name.startsWith("search_web") || name.startsWith("scrape_") -> "🔧 搜索 → 正在搜索..."
+        name.startsWith("convert_file") -> "🔧 转换 → 正在转换格式..."
+        name.startsWith("create_asset") -> "🔧 创作 → 正在生成..."
+        name.startsWith("use_skill") -> "🔧 知识 → 正在读取..."
+        name.startsWith("clipboard") -> "🔧 剪贴板 → 正在操作..."
+        name.startsWith("get_time") -> "🔧 时间 → 获取中..."
+        name.startsWith("text_to_speech") -> "🔧 语音 → 正在朗读..."
+        name.startsWith("present_file") -> "🔧 文件 → 正在分享..."
+        name.startsWith("eval_javascript") -> "🔧 JS → 正在执行..."
+        name.startsWith("memory_") -> "🔧 记忆 → 正在处理..."
+        else -> "🔧 $name → 正在处理..."
+    }
+
+    for (stepIndex in 0 until maxSteps) {
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
 
             val toolsInternal = buildList {
@@ -114,6 +134,31 @@ class GenerationHandler(
                     ).let(this::addAll)
                 }
                 addAll(tools)
+            }
+            // Wrap tools with status tracking
+            val statusTrackedTools = toolsInternal.map { tool ->
+                if (tool.name == "ask_user") tool else tool.copy(
+                    execute = { args ->
+                        processingStatus.value = describeTool(tool.name)
+                        if (tool.name.contains("github")) {
+                            me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = processingStatus
+                        }
+                        try {
+                            val result = tool.execute(args)
+                            if (tool.name.contains("github")) {
+                                me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
+                            }
+                            processingStatus.value = null
+                            result
+                        } catch (e: Exception) {
+                            if (tool.name.contains("github")) {
+                                me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
+                            }
+                            processingStatus.value = null
+                            throw e
+                        }
+                    }
+                )
             }
 
             // Check if we have tool calls ready to continue after user interaction.
@@ -153,7 +198,7 @@ class GenerationHandler(
                     model = model,
                     providerImpl = providerImpl,
                     provider = provider,
-                    tools = toolsInternal,
+                    tools = statusTrackedTools,
                     memories = memories ?: emptyList(),
                     stream = assistant.streamOutput,
                     processingStatus = processingStatus,
@@ -203,7 +248,7 @@ class GenerationHandler(
                 // Check for tools that need approval
                 var hasPendingApproval = false
                 val updatedTools = uniqueTools.map { tool ->
-                    val toolDef = toolsInternal.find { it.name == tool.toolName }
+                    val toolDef = statusTrackedTools.find { it.name == tool.toolName }
                     when {
                         // Tool needs approval and state is Auto -> set to Pending
                         toolDef?.needsApproval == true && tool.approvalState is ToolApprovalState.Auto -> {

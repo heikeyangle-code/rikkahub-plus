@@ -5,6 +5,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.AppDatabase
+import androidx.sqlite.db.SimpleSQLiteQuery
 
 fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
     name = "database_query",
@@ -49,6 +50,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
         val obj = args.jsonObject
         val action = obj["action"]?.jsonPrimitive?.contentOrNull ?: error("action required")
         val limit = obj["limit"]?.jsonPrimitive?.intOrNull ?: 50
+        val db = database.openHelper.writableDatabase
 
         when (action) {
             "tables" -> {
@@ -60,9 +62,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                 val result = buildJsonArray {
                     for (table in tableNames) {
                         try {
-                            val cursor = database.openHelper.writableDatabase.query(
-                                "SELECT COUNT(*) FROM \"$table\"", null
-                            )
+                            val cursor = db.query(SimpleSQLiteQuery("SELECT COUNT(*) FROM \"$table\""))
                             cursor.moveToFirst()
                             val count = cursor.getInt(0)
                             cursor.close()
@@ -83,7 +83,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
             "schema" -> {
                 val table = obj["table"]?.jsonPrimitive?.contentOrNull ?: error("table required")
                 val cursor = try {
-                    database.openHelper.writableDatabase.query("PRAGMA table_info(\"$table\")", null)
+                    db.query(SimpleSQLiteQuery("PRAGMA table_info(\"$table\")"))
                 } catch (e: Exception) {
                     error("Table '$table' not found or not accessible: ${e.message?.take(100)}")
                 }
@@ -105,7 +105,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                     error("Only SELECT and PRAGMA queries are allowed")
                 }
                 val cursor = try {
-                    database.openHelper.writableDatabase.query(sql, null)
+                    db.query(SimpleSQLiteQuery(sql))
                 } catch (e: Exception) {
                     error("SQL error: ${e.message?.take(200)}")
                 }
@@ -129,7 +129,6 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                     count++
                 }
                 cursor.close()
-                // Total from cursor is unreliable after iteration, use count
                 val totalMsg = buildString {
                     append("Returned $count rows")
                     if (count == limit) append(" (limit reached)")
@@ -149,11 +148,11 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
 
                 // FTS5 search on message_fts (much faster than LIKE)
                 try {
-                    val ftsCursor = database.openHelper.writableDatabase.query(
+                    val ftsCursor = db.query(SimpleSQLiteQuery(
                         "SELECT conversation_id, snippet(message_fts, '<b>', '</b>', '...', -1, 30) AS snippet " +
                         "FROM message_fts WHERE message_fts MATCH ? LIMIT ${limit.coerceAtMost(20)}",
-                            arrayOf<Any?>(keyword)
-                    )
+                        arrayOf<Any?>(keyword)
+                    ))
                     while (ftsCursor.moveToNext()) {
                         results.add(buildJsonObject {
                             put("table", "messages")
@@ -171,7 +170,6 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                     "conversations" to listOf("title"),
                     "lorebook_entries" to listOf("name", "content"),
                 )
-                val results = mutableListOf<JsonObject>()
 
                 for ((table, columns) in tablesToSearch) {
                     val colList = when (columns) {
@@ -182,10 +180,10 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                     val whereClause = colList.joinToString(" OR ") { "\"$it\" LIKE ?" }
                     val placeholders = colList.map { searchPattern }.toTypedArray<Any?>()
                     try {
-                        val cursor = database.openHelper.writableDatabase.query(
+                        val cursor = db.query(SimpleSQLiteQuery(
                             "SELECT rowid, * FROM \"$table\" WHERE $whereClause LIMIT ${limit.coerceAtMost(20)}",
                             placeholders
-                        )
+                        ))
                         while (cursor.moveToNext()) {
                             val colNames = cursor.columnNames
                             val firstContent = colList.firstOrNull { col ->
@@ -220,7 +218,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                 val table = obj["table"]?.jsonPrimitive?.contentOrNull ?: error("table required")
                 val format = obj["format"]?.jsonPrimitive?.contentOrNull ?: "json"
                 val cursor = try {
-                    database.openHelper.writableDatabase.query("SELECT * FROM \"$table\" LIMIT $limit", null)
+                    db.query(SimpleSQLiteQuery("SELECT * FROM \"$table\" LIMIT $limit"))
                 } catch (e: Exception) {
                     error("Table '$table' not found: ${e.message?.take(100)}")
                 }

@@ -150,7 +150,7 @@ private fun computeDiff(text1: String, text2: String): String {
     val sb = StringBuilder()
     var changes = 0
     var i = n; var j = m
-    val diffLines = mutableListOf<Pair<Int, String>>() // (-lineNum or +lineNum, text)
+    val diffLines = mutableListOf<Pair<String, String>>() // (-lineNum or +lineNum, text)
 
     while (i > 0 || j > 0) {
         when {

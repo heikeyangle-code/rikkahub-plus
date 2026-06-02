@@ -9,6 +9,60 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
+/** GitHubTool 内部进度报告 — 被框架层 processingStatus 自动映射 */
+object GhProgress {
+    @Volatile
+    var status: String? = null
+    @Volatile
+    var processingRef: kotlinx.coroutines.flow.MutableStateFlow<String?>? = null
+}
+
+/** GitHub API URL → 人话描述 */
+private fun ghDescribe(url: String): String {
+    val path = url.substringAfter("https://api.github.com").substringBefore("?").substringBefore("&")
+    return when {
+        path.contains("/actions/runs/") && path.contains("/jobs/") -> "→ 查看 job 日志..."
+        path.contains("/actions/runs/") && path.contains("/artifacts") -> "→ 下载构建产物..."
+        path.contains("/actions/runs/") && path.contains("/cancel") -> "→ 取消运行中..."
+        path.contains("/actions/runs/") && path.contains("/rerun") -> "→ 重新运行..."
+        path.contains("/actions/runs/") && path.contains("/jobs") -> "→ 获取运行详情..."
+        path.contains("/actions/runs/") -> "→ 查看 CI 运行..."
+        path.contains("/actions/jobs/") && path.contains("/logs") -> "→ 拉取构建日志..."
+        path.contains("/actions/workflows/") && path.contains("/dispatches") -> "→ 触发工作流..."
+        path.contains("/actions/workflows") -> "→ 列出工作流..."
+        path.contains("/issues/") && (path.contains("/comments") || path.contains("/labels") || path.contains("/assignees")) -> "→ 操作议题..."
+        path.contains("/issues") && path.matches(Regex(".*/issues/\\d+$")) -> "→ 获取议题详情..."
+        path.contains("/issues") -> "→ 查询议题..."
+        path.contains("/pulls/") && path.contains("/reviews") -> "→ 提交审查..."
+        path.contains("/pulls/") && path.contains("/merge") -> "→ 合并 PR..."
+        path.contains("/pulls/") && path.contains("/requested_reviewers") -> "→ 请求审查者..."
+        path.contains("/pulls/") && path.matches(Regex(".*/pulls/\\d+$")) -> "→ 获取 PR 详情..."
+        path.contains("/pulls") -> "→ 查询 PR..."
+        path.contains("/commits/") && path.contains("/status") -> "→ 查看 commit 状态..."
+        path.contains("/commits") -> "→ 获取 commit..."
+        path.contains("/compare/") -> "→ 比较分支差异..."
+        path.contains("/contents/") -> "→ 读取文件..."
+        path.contains("/repos/") && path.contains("/readme") -> "→ 读取 README..."
+        path.contains("/repos/") && path.contains("/branches") -> "→ 获取分支列表..."
+        path.contains("/repos/") && path.contains("/tags") -> "→ 获取标签..."
+        path.contains("/repos/") && path.contains("/releases") -> "→ 获取发布版本..."
+        path.contains("/repos/") && path.contains("/contributors") -> "→ 获取贡献者..."
+        path.contains("/repos/") && path.contains("/languages") -> "→ 获取语言统计..."
+        path.contains("/repos/") && path.contains("/forks") -> "→ Fork 仓库..."
+        path.contains("/repos/") && path.contains("/git/") && path.contains("/trees") -> "→ 创建 Git 树..."
+        path.contains("/repos/") && path.contains("/git/") && path.contains("/blobs") -> "→ 创建 Git Blob..."
+        path.contains("/repos/") && path.contains("/git/") && path.contains("/commits") -> "→ 创建提交..."
+        path.contains("/repos/") && path.contains("/git/refs") -> "→ 更新 Git 引用..."
+        path.contains("/repos/") && path.contains("/git/") -> "→ 操作 Git 数据..."
+        path.contains("/repos/") && path.contains("/statuses") -> "→ 更新 commit 状态..."
+        path.contains("/search/") -> "→ 搜索中..."
+        path.contains("/gists") -> "→ 操作 Gist..."
+        path.contains("/user") || path.contains("/users") -> "→ 获取用户信息..."
+        path.contains("/rate_limit") -> "→ 检查 API 限额..."
+        else -> "→ $path..."
+    }
+}
+
 fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, enableAutoFixCi: Boolean = false): Tool = Tool(
     name = "github_tool",
     description = "Interact with GitHub REST API: search repos/code/users/issues, manage issues/PRs " +
@@ -198,6 +252,9 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
         fun close(c: HttpURLConnection) { try { c.disconnect() } catch (_: Exception) {} }
 
         fun gh(url: String): String {
+            val desc = ghDescribe(url)
+            GhProgress.status = desc
+            GhProgress.processingRef?.value = "🔧 GitHub  $desc"
             val c = conn(url)
             try {
                 val code = c.responseCode
@@ -208,6 +265,9 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
         }
 
         fun gh(method: String, url: String, body: String = ""): String {
+            val desc = ghDescribe(url)
+            GhProgress.status = desc
+            GhProgress.processingRef?.value = "🔧 GitHub  $desc"
             val c = conn(url).apply {
                 requestMethod = method
                 doOutput = body.isNotBlank()
