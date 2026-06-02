@@ -320,9 +320,11 @@ fun GroupChatPage(groupId: String) {
 
                                             // 构建带角色名前缀的历史
                                             val history = buildHistoryWithNames(historyNodes, currentConv.speakerMap, members)
-                                            // 去掉最后一条用户消息（prompt里已经有了）
+                                            // 去掉最后一条用户消息（prompt里已经有了），保留其他上下文
                                             val lastUserIdx = history.indexOfLast { it.role == MessageRole.USER }
-                                            val historyWithoutLastUser = if (lastUserIdx >= 0) history.subList(0, lastUserIdx) else history
+                                            val historyWithoutLastUser = if (lastUserIdx >= 0) {
+                                                history.filterIndexed { idx, _ -> idx != lastUserIdx }
+                                            } else history
 
                                             try {
                                                 val response = chatService.generateForAssistant(
@@ -386,8 +388,8 @@ fun GroupChatPage(groupId: String) {
                                                 val lastAsstMsg = freshConv.messageNodes.lastOrNull { it.role == MessageRole.ASSISTANT }
                                                 val autoText = lastAsstMsg?.let { messageText(it) } ?: ""
                                                 if (autoText.isNotBlank()) {
-                                                    // 自动触发下一轮（用 AI 回复作为 prompt）
-                                                    runAutoChat(currentConvId, gc, members, enabledMembers, chatService, settingsStore, settings, autoText, scope, generationJob)
+                                                    // 自动触发下一轮
+                                                    runAutoChat(currentConvId, gc, members, enabledMembers, chatService, settingsStore, settings, scope)
                                                 }
                                             }
                                         }
@@ -739,9 +741,6 @@ private fun ScrollableColumn(
     )
 }
 
-/**
- * 自动接话循环
- */
 private suspend fun runAutoChat(
     convId: Uuid,
     gc: GroupChat,
@@ -750,36 +749,41 @@ private suspend fun runAutoChat(
     chatService: ChatService,
     settingsStore: SettingsStore,
     settings: me.rerere.rikkahub.data.datastore.Settings,
-    triggerText: String,
     scope: kotlinx.coroutines.CoroutineScope,
-    parentJob: kotlinx.coroutines.Job?,
 ) {
     val autoDelay = gc.autoModeDelay
     if (autoDelay <= 0) return
 
-    while (scope.isActive) {
+    var consecutiveEmpty = 0
+    val maxRounds = 5
+
+    while (scope.isActive && consecutiveEmpty < 3) {
         val conv = chatService.getConversationFlow(convId).value
         val lastSpeakerId = conv.messageNodes.lastOrNull()?.let { conv.speakerMap[it.id] }
+
+        // 以最后一条AI回复作为triggerText供选人匹配
+        val lastText = conv.messageNodes.lastOrNull()?.let { messageText(it) } ?: ""
+        if (lastText.isBlank()) { consecutiveEmpty++; kotlinx.coroutines.delay(autoDelay * 1000L); continue }
 
         // 选人
         val picked = GroupSpeakerSelector.pick(
             strategy = gc.activationStrategy,
             members = members,
             enabledMembers = enabledMembers,
-            userInput = triggerText,
+            userInput = lastText,
             lastSpeakerId = lastSpeakerId,
             speakerHistory = getSpeakerHistory(conv.messageNodes, conv.speakerMap),
             allowSelfResponses = gc.allowSelfResponses,
             speakerWeights = gc.speakerWeights,
         )
-        if (picked.isEmpty()) break
+        if (picked.isEmpty()) { consecutiveEmpty++; kotlinx.coroutines.delay(autoDelay * 1000L); continue }
 
-        // 逐个生成
+        var generatedCount = 0
         for ((idx, sid) in picked.withIndex()) {
             if (!scope.isActive) return
             val speaker = members.find { it.id == sid } ?: continue
+            if (generatedCount >= maxRounds) break
 
-            // 占位消息
             val placeholderNode = UIMessage.assistant("").toMessageNode()
             chatService.updateConversationState(convId) { c ->
                 c.copy(
@@ -795,15 +799,16 @@ private suspend fun runAutoChat(
             val currentConv = chatService.getConversationFlow(convId).value
             val historyNodes = currentConv.messageNodes.dropLast(1)
             val history = buildHistoryWithNames(historyNodes, currentConv.speakerMap, members)
-            val lastUserIdx = history.indexOfLast { it.role == MessageRole.USER }
-            val historyWithoutLastUser = if (lastUserIdx >= 0) history.subList(0, lastUserIdx) else history
+            // 自动接话模式下以最后一条AI回复作为prompt
+            val prompt = history.lastOrNull()?.let { it.toText() } ?: lastText
+            val historyWithoutLast = history.dropLast(1)
 
             try {
                 chatService.generateForAssistant(
                     assistant = effectiveSpeaker,
                     settings = settings,
-                    prompt = triggerText,
-                    history = historyWithoutLastUser,
+                    prompt = prompt,
+                    history = historyWithoutLast,
                     onChunk = { partialText, parts ->
                         chatService.updateConversationState(convId) { c ->
                             val nodes = c.messageNodes.toMutableList()
@@ -823,6 +828,7 @@ private suspend fun runAutoChat(
                         }
                     },
                 )
+                generatedCount++
             } catch (e: Exception) {
                 chatService.updateConversationState(convId) { c ->
                     c.copy(
@@ -833,7 +839,9 @@ private suspend fun runAutoChat(
             }
         }
 
-        // 等待下次自动接话
+        if (generatedCount == 0) consecutiveEmpty++
+        else consecutiveEmpty = 0
+
         kotlinx.coroutines.delay(autoDelay * 1000L)
     }
 }
