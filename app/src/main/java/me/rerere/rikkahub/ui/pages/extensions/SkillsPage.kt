@@ -761,13 +761,8 @@ private fun downloadAll(
     val total = skills.size
     val completed = java.util.concurrent.atomic.AtomicInteger(0)
     val errors = java.util.concurrent.atomic.AtomicReference<String?>(null)
-    val started = java.util.concurrent.atomic.AtomicInteger(0)
-
-    // 先显示"启动中"不要让人觉得是串行
-    onProgress(0, total, "并行启动 ${total} 个下载")
 
     for ((i, skill) in skills.withIndex()) {
-        started.incrementAndGet()
         vm.downloadSkillFromGitHub(repoUrl, skill) { ok, msg ->
             if (!ok && errors.get() == null) errors.set(msg)
             val done = completed.incrementAndGet()
