@@ -16,10 +16,10 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
             properties = buildJsonObject {
                 put("action", buildJsonObject {
                     put("type", "string")
-                    put("enum", buildJsonArray {
-                        add("tables"); add("schema"); add("query"); add("search"); add("export")
-                    })
-                    put("description", "Operation: tables=list tables+row counts, schema=view table fields, query=run SQL, search=full text search, export=export table")
+                put("enum", buildJsonArray {
+                    add("tables"); add("schema"); add("query"); add("search"); add("export"); add("peek")
+                })
+                put("description", "Operation: tables=list tables+row counts, schema=view table fields, query=run SQL, search=full text search, export=export table, peek=show first N rows")
                 })
                 put("table", buildJsonObject {
                     put("type", "string")
@@ -148,10 +148,12 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
 
                 // FTS5 search on message_fts (much faster than LIKE)
                 try {
+                    val safeKeyword = keyword.replace("\"", " ").split(" ").filter { it.isNotBlank() }
+                        .joinToString(" ") { "\"$it\"" }
                     val ftsCursor = db.query(SimpleSQLiteQuery(
                         "SELECT conversation_id, snippet(message_fts, '<b>', '</b>', '...', -1, 30) AS snippet " +
                         "FROM message_fts WHERE message_fts MATCH ? LIMIT ${limit.coerceAtMost(20)}",
-                        arrayOf<Any?>(keyword)
+                        arrayOf<Any?>(safeKeyword)
                     ))
                     while (ftsCursor.moveToNext()) {
                         results.add(buildJsonObject {
@@ -212,7 +214,38 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                             appendLine("  [$table] ${snippet.take(120)}")
                         }
                     }
-                ))
+                )))
+            }
+            "peek" -> {
+                val table = obj["table"]?.jsonPrimitive?.contentOrNull ?: error("table required")
+                val cursor = try {
+                    db.query(SimpleSQLiteQuery("SELECT * FROM \"$table\" LIMIT $limit"))
+                } catch (e: Exception) {
+                    error("Table '$table' not found: ${e.message?.take(100)}")
+                }
+                val colNames = cursor.columnNames
+                val rows = mutableListOf<JsonObject>()
+                while (cursor.moveToNext()) {
+                    val row = buildJsonObject {
+                        for (col in colNames) {
+                            val idx = cursor.getColumnIndexOrThrow(col)
+                            when (cursor.getType(idx)) {
+                                android.database.Cursor.FIELD_TYPE_NULL -> put(col, JsonNull)
+                                android.database.Cursor.FIELD_TYPE_INTEGER -> put(col, JsonPrimitive(cursor.getLong(idx)))
+                                android.database.Cursor.FIELD_TYPE_FLOAT -> put(col, JsonPrimitive(cursor.getDouble(idx)))
+                                android.database.Cursor.FIELD_TYPE_BLOB -> put(col, JsonPrimitive("[BLOB ${cursor.getBlob(idx).size} bytes]"))
+                                else -> put(col, JsonPrimitive(cursor.getString(idx)?.take(500) ?: ""))
+                            }
+                        }
+                    }
+                    rows.add(row)
+                }
+                cursor.close()
+                listOf(UIMessagePart.Text(buildJsonObject {
+                    put("columns", buildJsonArray { colNames.forEach { add(it) } })
+                    put("rows", buildJsonArray { rows.forEach { add(it) } })
+                    put("returned", rows.size)
+                }.toString()))
             }
             "export" -> {
                 val table = obj["table"]?.jsonPrimitive?.contentOrNull ?: error("table required")
@@ -232,6 +265,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                                 android.database.Cursor.FIELD_TYPE_NULL -> put(col, JsonNull)
                                 android.database.Cursor.FIELD_TYPE_INTEGER -> put(col, JsonPrimitive(cursor.getLong(idx)))
                                 android.database.Cursor.FIELD_TYPE_FLOAT -> put(col, JsonPrimitive(cursor.getDouble(idx)))
+                                android.database.Cursor.FIELD_TYPE_BLOB -> put(col, JsonPrimitive("[BLOB ${cursor.getBlob(idx).size} bytes]"))
                                 else -> put(col, JsonPrimitive(cursor.getString(idx) ?: ""))
                             }
                         }

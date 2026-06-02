@@ -54,9 +54,17 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                     put("type", "string")
                     put("description", "Comma-separated file paths to merge into one (text outputs only)")
                 })
+                put("quality", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Image quality 1-100 (for jpg/webp, default: 90)")
+                })
+                put("max_width", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Max image width in pixels (resize, default: keep original)")
+                })
                 put("options", buildJsonObject {
                     put("type", "string")
-                    put("description", "JSON: {\"sheet\":\"Sheet1\", \"page_range\":\"1-3\", \"password\":\"...\", \"flatten\":true}")
+                    put("description", "JSON options: sheet name, page_range, password, flatten")
                 })
             },
             required = listOf("to_format"),
@@ -147,7 +155,7 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                         .replace(Regex("\\n{3,}"), "\\n\\n")
                 }
                 "html" to "txt" -> text.replace(Regex("<[^>]+>"), "").trim()
-                else -> inputText ?: text
+                else -> text
             }
             val outFile = if (outputPath.isNotBlank()) File(outputPath)
             else File(downloadDir, "${inputFile?.nameWithoutExtension ?: "output"}.$toFormat")
@@ -161,11 +169,19 @@ fun createConvertFileTool(context: Context): Tool = Tool(
             val imgFile = inputFile ?: error("Image file required")
             val bitmap = BitmapFactory.decodeFile(imgFile.absolutePath)
                 ?: error("Cannot decode image: $imgFile")
+            val quality = obj["quality"]?.jsonPrimitive?.intOrNull ?: 90
+            val maxWidth = obj["max_width"]?.jsonPrimitive?.intOrNull
+            val scaled = if (maxWidth != null && maxWidth > 0 && bitmap.width > maxWidth) {
+                val ratio = maxWidth.toFloat() / bitmap.width
+                Bitmap.createScaledBitmap(bitmap, maxWidth, (bitmap.height * ratio).toInt(), true)
+            } else bitmap
             val outFile = if (outputPath.isNotBlank()) File(outputPath)
             else File(downloadDir, "${imgFile.nameWithoutExtension}.$toFormat")
             val fmt = when (toFormat) { "jpg" -> Bitmap.CompressFormat.JPEG; "webp" -> Bitmap.CompressFormat.WEBP
                 else -> Bitmap.CompressFormat.PNG }
-            outFile.outputStream().use { bitmap.compress(fmt, 90, it) }
+            outFile.outputStream().use { scaled.compress(fmt, quality.coerceIn(1, 100), it) }
+            if (scaled !== bitmap) scaled.recycle()
+            bitmap.recycle()
             return@Tool listOf(UIMessagePart.Text("OK: ${imgFile.name} → ${outFile.absolutePath}"))
         }
 
