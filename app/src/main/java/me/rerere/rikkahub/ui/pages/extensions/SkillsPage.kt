@@ -706,7 +706,7 @@ fun SkillsPage() {
                             isDownloading = true
                             val toDownload = selectedSkillIndices.map { scannedSkills[it] }
                             vm.setDownloadStatus("准备下载...")
-                            downloadNext(0, toDownload, scanRepoUrl, vm,
+                            downloadAll(toDownload, scanRepoUrl, vm,
                                 onProgress = { cur, total, name ->
                                     vm.setDownloadStatus("正在下载 ($cur/$total): $name")
                                 },
@@ -750,26 +750,26 @@ fun SkillsPage() {
     }
 }
 
-/** 逐个下载 skill */
-private fun downloadNext(
-    index: Int,
+/** 并行下载所有选中的 skill */
+private fun downloadAll(
     skills: List<SkillsVM.GitHubSkillInfo>,
     repoUrl: String,
     vm: SkillsVM,
     onProgress: (current: Int, total: Int, name: String) -> Unit,
     onDone: (Int, String?) -> Unit,
 ) {
-    if (index >= skills.size) {
-        onDone(index, null)
-        return
-    }
-    onProgress(index + 1, skills.size, skills[index].name)
-    vm.downloadSkillFromGitHub(repoUrl, skills[index]) { ok, msg ->
-        val count = if (ok) (index + 1) else index
-        if (!ok) {
-            onDone(count, msg)
-        } else {
-            downloadNext(index + 1, skills, repoUrl, vm, onProgress, onDone)
+    val total = skills.size
+    val completed = java.util.concurrent.atomic.AtomicInteger(0)
+    val errors = java.util.concurrent.atomic.AtomicReference<String?>(null)
+
+    for ((i, skill) in skills.withIndex()) {
+        vm.downloadSkillFromGitHub(repoUrl, skill) { ok, msg ->
+            if (!ok && errors.get() == null) errors.set(msg)
+            val done = completed.incrementAndGet()
+            onProgress(done, total, if (ok) skill.name else "失败: ${msg?.take(20)}")
+            if (done == total) {
+                onDone(done, errors.get())
+            }
         }
     }
 }
