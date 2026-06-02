@@ -106,6 +106,8 @@ fun SkillsPage() {
     var selectedSkillIndices by remember { mutableStateOf(setOf<Int>()) }
     var isDownloading by remember { mutableStateOf(false) }
     var scanRepoUrl by remember { mutableStateOf("") }
+    val settings by vm.settingsFlow.collectAsStateWithLifecycle()
+    var githubToken by remember(settings) { mutableStateOf(settings.githubToken) }
     val downloadStatus by vm.downloadStatus.collectAsStateWithLifecycle()
 
     // 搜索和筛选
@@ -523,6 +525,15 @@ fun SkillsPage() {
                         placeholder = { Text("https://github.com/owner/repo") },
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        enabled = !isScanning,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = githubToken,
+                        onValueChange = { vm.updateGithubToken(it) },
+                        placeholder = { Text("GitHub Token（可选，提升 API 限额到 5000/小时）") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
                         enabled = !isScanning,
                     )
                     if (isScanning) {

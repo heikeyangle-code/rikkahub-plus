@@ -34,9 +34,16 @@ class SkillsVM(
     val skills = _skills.asStateFlow()
     private val _downloadStatus = MutableStateFlow<String?>(null)
     val downloadStatus = _downloadStatus.asStateFlow()
+    val settingsFlow = settingsStore.settingsFlow
 
     fun setDownloadStatus(status: String?) {
         _downloadStatus.value = status
+    }
+
+    fun updateGithubToken(token: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsStore.update { it.copy(githubToken = token) }
+        }
     }
 
     init {
@@ -949,6 +956,10 @@ class SkillsVM(
         connection.readTimeout = 30_000
         connection.setRequestProperty("User-Agent", "Rikkahub/1.0")
         connection.setRequestProperty("Accept", "application/vnd.github+json")
+        val token = settingsStore.settingsFlow.value.githubToken
+        if (token.isNotBlank()) {
+            connection.setRequestProperty("Authorization", "token $token")
+        }
         return try {
             if (connection.responseCode == 200) connection.inputStream.bufferedReader().readText()
             else null
