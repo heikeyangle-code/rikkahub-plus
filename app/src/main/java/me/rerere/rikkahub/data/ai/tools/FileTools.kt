@@ -41,6 +41,10 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         " Skills dir: ${skillDirs.joinToString()}. For saving new skills to a skill directory, use this path."
     } else ""
 
+    val moveHint = if (skillDirs.isNotEmpty()) {
+        " Skills dir: ${skillDirs.joinToString()}. Use this as destination to move/copy skills into the working directory."
+    } else ""
+
     return listOf(
         // ── file_read ──
         Tool(
@@ -155,7 +159,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_copy",
             description = "Copy a file or directory from source to destination. " +
-                    "Absolute paths work as-is. Relative paths go to ${defaultDir}.",
+                    "Absolute paths work as-is. Relative paths go to ${defaultDir}.$moveHint",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -192,7 +196,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         Tool(
             name = "file_move",
             description = "Move or rename a file or directory. " +
-                    "Absolute paths work as-is. Relative paths go to ${defaultDir}.",
+                    "Absolute paths work as-is. Relative paths go to ${defaultDir}.$moveHint",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
