@@ -95,8 +95,9 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         // Files
                         add("read_file"); add("list_files"); add("get_readme"); add("file_meta")
                         add("commit"); add("commit_files"); add("delete_file")
+                        add("diff_local_with_github")
                         // Git data
-                        add("list_branches"); add("create_branch"); add("list_commits"); add("get_commit")
+                        add("list_branches"); add("create_branch"); add("create_backup"); add("list_commits"); add("get_commit")
                         add("compare_commits"); add("get_diff"); add("commit_status"); add("revert_commit")
                         // Other
                         add("create_gist"); add("user_info"); add("rate_limit")
@@ -135,6 +136,10 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("path", buildJsonObject {
                     put("type", "string")
                     put("description", "File path in repo")
+                })
+                put("repo_path", buildJsonObject {
+                    put("type", "string")
+                    put("description", "File path in GitHub repo (for diff_local_with_github). Defaults to same as local path.")
                 })
                 put("title", buildJsonObject {
                     put("type", "string")
@@ -808,6 +813,26 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     """{"message":"$message","sha":"$fileSha","branch":"$branch"}""")
                 "OK: deleted $path on $branch"
             }
+            "diff_local_with_github" -> {
+                val localPath = obj["path"]?.jsonPrimitive?.contentOrNull ?: error("path (local file) required")
+                val repoPath = obj["repo_path"]?.jsonPrimitive?.contentOrNull ?: localPath
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val localFile = java.io.File(localPath)
+                if (!localFile.exists()) error("Local file not found: $localPath")
+                val localContent = localFile.readText()
+                val remoteContent = try {
+                    val raw = gh("https://api.github.com/repos/$fullRepo/contents/$repoPath?ref=$branch")
+                    val j = parseJSON(raw)
+                    val enc = j["encoding"]?.jsonPrimitive?.contentOrNull
+                    val c = j["content"]?.jsonPrimitive?.contentOrNull ?: ""
+                    if (enc == "base64") String(java.util.Base64.getMimeDecoder().decode(c)) else ""
+                } catch (_: Exception) { "" }
+                // Compute diff
+                val localLines = localContent.lines()
+                val remoteLines = if (remoteContent.isNotBlank()) remoteContent.lines() else emptyList()
+                val diff = computeSimpleDiff(remoteLines, localLines)
+                "📋 本地 vs GitHub ($branch/$repoPath):\n$diff"
+            }
 
             // ═══════════════════════════════════════════
             // GIT DATA
@@ -825,6 +850,19 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     ?: error("Cannot find source branch SHA")
                 gh("POST", "https://api.github.com/repos/$fullRepo/git/refs",
                     """{"ref":"refs/heads/$newBranch","sha":"$sha"}""")
+            }
+            "create_backup" -> {
+                val base = obj["base"]?.jsonPrimitive?.contentOrNull ?: branch
+                val label = obj["message"]?.jsonPrimitive?.contentOrNull?.take(30)?.replace(Regex("[^a-zA-Z0-9_\\-]"), "_") ?: "before_change"
+                val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
+                val backupBranch = "backup/${timestamp}_${label}"
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val refData = gh("https://api.github.com/repos/$fullRepo/git/ref/heads/$base")
+                val sha = parseJSON(refData)["object"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull
+                    ?: error("Cannot find branch SHA")
+                gh("POST", "https://api.github.com/repos/$fullRepo/git/refs",
+                    """{"ref":"refs/heads/$backupBranch","sha":"$sha"}""")
+                "✅ 已创建备份分支: $backupBranch"
             }
             "list_commits" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
@@ -848,7 +886,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "get_diff" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                val path = obj["path"]?.jsonPrimitive?.contentOrNull
+                val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: ""
                 val base = obj["base"]?.jsonPrimitive?.contentOrNull
                 if (base != null) {
                     // Compare two refs and return diff
@@ -936,3 +974,31 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
         listOf(UIMessagePart.Text(result.take(50000)))
     },
 )
+
+/** 简单逐行差异（用于 diff_local_with_github） */
+private fun computeSimpleDiff(oldLines: List<String>, newLines: List<String>): String {
+    val n = oldLines.size; val m = newLines.size
+    val dp = Array(n + 1) { IntArray(m + 1) }
+    for (i in 1..n)
+        for (j in 1..m)
+            dp[i][j] = if (oldLines[i - 1] == newLines[j - 1]) dp[i - 1][j - 1] + 1
+            else maxOf(dp[i - 1][j], dp[i][j - 1])
+    val sb = StringBuilder()
+    var i = n; var j = m
+    val diffs = mutableListOf<String>()
+    while (i > 0 || j > 0) {
+        when {
+            i > 0 && j > 0 && oldLines[i - 1] == newLines[j - 1] -> { i--; j-- }
+            j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j]) -> {
+                diffs.add(0, "+${j}: ${newLines[j - 1]}")
+                j--
+            }
+            i > 0 -> {
+                diffs.add(0, "-${i}: ${oldLines[i - 1]}")
+                i--
+            }
+        }
+    }
+    diffs.forEach { sb.appendLine(it) }
+    return sb.toString().take(10000).ifEmpty { "✅ 本地与远程一致" }
+}

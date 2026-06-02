@@ -89,7 +89,7 @@ class GenerationHandler(
 
         var messages: List<UIMessage> = messages
 
-    private fun describeTool(name: String): String = when {
+    fun describeTool(name: String): String = when {
         name.startsWith("github_") -> "🔧 GitHub → 正在操作..."
         name.startsWith("execute_python") -> "🔧 Python → 正在执行代码..."
         name.startsWith("execute_command") -> "🔧 Shell → 正在执行命令..."
