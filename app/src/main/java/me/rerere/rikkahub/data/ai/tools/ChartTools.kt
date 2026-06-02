@@ -18,13 +18,14 @@ fun createAssetTool(saveDir: String): Tool = Tool(
     description = """
         Generate visual content and save it as a file on the device.
         Types:
-        - html_page: Full HTML page with CSS/JS.
+        - html_page: Full HTML page with CSS/JS. BEST for web design, slides, portfolios, dashboards.
         - diagram: Flowchart/sequence diagram, rendered as Mermaid HTML page.
-        - chart: SVG bar/line/pie chart from numeric data.
+        - chart: Quick SVG bar/line/pie chart from numeric data. Basic styling, suitable for fast previews.
         - qrcode: QR code from text/URL → .svg
-        - color_scheme: Color palette from a base color → .svg
+        - color_scheme: Color palette from a base color using color theory math → .svg.
+          AI cannot easily replicate this — use this type for color schemes.
         - code_screenshot: Carbon-style code screenshot → .svg
-        - timeline: SVG timeline from chronological events.
+        - timeline: Basic SVG timeline from chronological events.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

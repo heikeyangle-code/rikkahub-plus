@@ -305,103 +305,48 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
             },
         ),
 
-        // ── file_search ──
+        // ── file_search（按名称或内容）──
         Tool(
             name = "file_search",
-            description = "Search for files on the Android filesystem by name pattern (glob). " +
-                    "Returns matching file paths. Use this when the user wants to find a file but doesn't know where it is. " +
-                    "Only searches under the app's accessible paths and Download directory.",
+            description = "Search for files on the Android filesystem by name or content.",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
+                        put("mode", buildJsonObject {
+                            put("type", "string")
+                            put("enum", buildJsonArray { add("name"); add("content") })
+                            put("description", "name=by filename (glob), content=search inside files (default: name)")
+                        })
                         put("pattern", buildJsonObject {
                             put("type", "string")
-                            put("description", "File name pattern (e.g. '*.pdf', '*report*', 'photo*.jpg')")
+                            put("description", "Search pattern: filename glob (mode=name) or text/regex (mode=content)")
                         })
                         put("root", buildJsonObject {
                             put("type", "string")
-                            put("description", "Optional root directory to search under. Default: /storage/emulated/0/Download")
+                            put("description", "Directory to search under (default: /storage/emulated/0/Download)")
                         })
                         put("max_results", buildJsonObject {
                             put("type", "integer")
-                            put("description", "Maximum number of results to return (default: 20, max: 100)")
+                            put("description", "Max results (default: 20, max: 100)")
                         })
+                        // name-mode params
                         put("type_filter", buildJsonObject {
                             put("type", "string")
                             put("enum", buildJsonArray { add("all"); add("file"); add("dir") })
-                            put("description", "Filter by file/directory type (default: all)")
+                            put("description", "For mode=name: filter by file/directory type (default: all)")
                         })
-                    },
-                    required = listOf("pattern"),
-                )
-            },
-            execute = { args ->
-                val obj = args.jsonObject
-                val pattern = obj["pattern"]?.jsonPrimitive?.contentOrNull ?: error("pattern required")
-                val root = obj["root"]?.jsonPrimitive?.contentOrNull ?: "/storage/emulated/0/Download"
-                val maxResults = (obj["max_results"]?.jsonPrimitive?.intOrNull ?: 20).coerceIn(1, 100)
-                val typeFilter = obj["type_filter"]?.jsonPrimitive?.contentOrNull ?: "all"
-
-                val rootDir = File(root)
-                if (!rootDir.exists()) error("Directory not found: $root")
-                if (!rootDir.isDirectory) error("Not a directory: $root")
-
-                val regex = pattern.toGlobRegex()
-                val results = mutableListOf<String>()
-                val walker = rootDir.walkTopDown().filter { f ->
-                    if (results.size >= maxResults) return@filter false
-                    if (typeFilter == "file" && f.isDirectory) return@filter false
-                    if (typeFilter == "dir" && f.isFile) return@filter false
-                    regex.matches(f.name)
-                }
-                for (f in walker) {
-                    if (results.size >= maxResults) break
-                    val icon = if (f.isDirectory) "📁" else "📄"
-                    val size = if (f.isFile) " (${fmtSize(f.length())})" else ""
-                    results.add("$icon ${f.absolutePath}$size")
-                }
-
-                if (results.isEmpty()) {
-                    listOf(UIMessagePart.Text("No files matching '$pattern' found under $root"))
-                } else {
-                    listOf(UIMessagePart.Text("Found ${results.size} result(s) for '$pattern':\n${results.joinToString("\n")}"))
-                }
-            },
-        ),
-
-        // ── grep_search（在文件内容中搜索文本）──
-        Tool(
-            name = "grep_search",
-            description = "Search for text content inside files on the Android filesystem (like grep -r). " +
-                    "Supports plain text or regex patterns. Can filter by file glob pattern. " +
-                    "Returns matching file paths, line numbers, and the matching lines with context. " +
-                    "Use this when the user wants to find code, configuration, or any text inside files.",
-            parameters = {
-                InputSchema.Obj(
-                    properties = buildJsonObject {
-                        put("pattern", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Text or regex pattern to search for")
-                        })
-                        put("root", buildJsonObject {
-                            put("type", "string")
-                            put("description", "Root directory to search under (default: /storage/emulated/0/Download)")
-                        })
+                        // content-mode params
                         put("file_pattern", buildJsonObject {
                             put("type", "string")
-                            put("description", "Optional file filter (glob), e.g. '*.kt', '*.json', 'build.gradle*'")
+                            put("description", "For mode=content: only search files matching this glob (e.g. *.kt, *.json)")
                         })
                         put("use_regex", buildJsonObject {
                             put("type", "boolean")
-                            put("description", "Set true if pattern is a regex, false for plain text (default: false)")
+                            put("description", "For mode=content: true if pattern is regex, false for plain text (default: false)")
                         })
                         put("context", buildJsonObject {
                             put("type", "integer")
-                            put("description", "Number of context lines before/after each match (default: 2)")
-                        })
-                        put("max_results", buildJsonObject {
-                            put("type", "integer")
-                            put("description", "Max results (default: 30)")
+                            put("description", "For mode=content: context lines before/after each match (default: 2)")
                         })
                     },
                     required = listOf("pattern"),
@@ -409,65 +354,88 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
             },
             execute = { args ->
                 val obj = args.jsonObject
+                val mode = obj["mode"]?.jsonPrimitive?.contentOrNull ?: "name"
                 val pattern = obj["pattern"]?.jsonPrimitive?.contentOrNull ?: error("pattern required")
                 val root = obj["root"]?.jsonPrimitive?.contentOrNull ?: "/storage/emulated/0/Download"
-                val fileGlob = obj["file_pattern"]?.jsonPrimitive?.contentOrNull ?: ""
-                val useRegex = obj["use_regex"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
-                val contextLines = (obj["context"]?.jsonPrimitive?.intOrNull ?: 2).coerceIn(0, 10)
-                val maxResults = (obj["max_results"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 200)
+                val maxResults = (obj["max_results"]?.jsonPrimitive?.intOrNull ?: 20).coerceIn(1, 100)
 
                 val rootDir = File(root)
                 if (!rootDir.exists()) error("Directory not found: $root")
                 if (!rootDir.isDirectory) error("Not a directory: $root")
 
-                val searchRegex = if (useRegex) {
-                    try { Regex(pattern, setOf(RegexOption.IGNORE_CASE)) }
-                    catch (e: Exception) { error("Invalid regex: ${e.message}") }
+                if (mode == "name") {
+                    // ── 按文件名搜索 ──
+                    val typeFilter = obj["type_filter"]?.jsonPrimitive?.contentOrNull ?: "all"
+                    val regex = pattern.toGlobRegex()
+                    val results = mutableListOf<String>()
+                    val walker = rootDir.walkTopDown().filter { f ->
+                        if (results.size >= maxResults) return@filter false
+                        if (typeFilter == "file" && f.isDirectory) return@filter false
+                        if (typeFilter == "dir" && f.isFile) return@filter false
+                        regex.matches(f.name)
+                    }
+                    for (f in walker) {
+                        if (results.size >= maxResults) break
+                        val icon = if (f.isDirectory) "📁" else "📄"
+                        val size = if (f.isFile) " (${formatSize(f.length())})" else ""
+                        results.add("$icon ${f.absolutePath}$size")
+                    }
+                    if (results.isEmpty()) {
+                        listOf(UIMessagePart.Text("No files matching '$pattern' found under $root"))
+                    } else {
+                        listOf(UIMessagePart.Text("Found ${results.size} result(s) for '$pattern':\n${results.joinToString("\n")}"))
+                    }
                 } else {
-                    Regex(Regex.escape(pattern), RegexOption.IGNORE_CASE)
-                }
-                val fileFilter = if (fileGlob.isNotBlank()) fileGlob.toGlobRegexForFile() else null
+                    // ── 按内容搜索 ──
+                    val fileGlob = obj["file_pattern"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val useRegex = obj["use_regex"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+                    val contextLines = (obj["context"]?.jsonPrimitive?.intOrNull ?: 2).coerceIn(0, 10)
+                    val cMaxResults = maxResults.coerceAtMost(200)
 
-                val results = mutableListOf<String>()
-                val sb = StringBuilder()
+                    val searchRegex = if (useRegex) {
+                        try { Regex(pattern, setOf(RegexOption.IGNORE_CASE)) }
+                        catch (e: Exception) { error("Invalid regex: ${e.message}") }
+                    } else {
+                        Regex(Regex.escape(pattern), RegexOption.IGNORE_CASE)
+                    }
+                    val fileFilter = if (fileGlob.isNotBlank()) fileGlob.toGlobRegexForFile() else null
 
-                try {
-                    rootDir.walkTopDown()
-                        .filter { it.isFile && it.length() > 0 && it.length() <= 512_000 }
-                        .filter { f -> fileFilter?.matches(f.name) ?: true }
-                        .forEach { file ->
-                            if (results.size >= maxResults) return@forEach
-                            try {
-                                val lines = file.readLines()
-                                var matchCount = 0
-                                lines.forEachIndexed { lineNum, line ->
-                                    if (matchCount >= 5 || results.size >= maxResults) return@forEachIndexed
-                                    if (searchRegex.containsMatchIn(line)) {
-                                        matchCount++
-                                        val relPath = file.absolutePath.removePrefix(rootDir.absolutePath).trimStart('/')
-                                        val tag = if (fileFilter != null) "" else relPath.takeLastWhile { it != '/' }
-                                        results.add("${file.absolutePath}:${lineNum + 1}")
-                                        // Context before
-                                        for (c in (lineNum - contextLines).coerceAtLeast(0) until lineNum) {
-                                            sb.appendLine("  ${c + 1}: ${lines[c].take(120)}")
+                    val results = mutableListOf<String>()
+                    val sb = StringBuilder()
+                    try {
+                        rootDir.walkTopDown()
+                            .filter { it.isFile && it.length() > 0 && it.length() <= 512_000 }
+                            .filter { f -> fileFilter?.matches(f.name) ?: true }
+                            .forEach { file ->
+                                if (results.size >= cMaxResults) return@forEach
+                                try {
+                                    val lines = file.readLines()
+                                    var matchCount = 0
+                                    lines.forEachIndexed { lineNum, line ->
+                                        if (matchCount >= 5 || results.size >= cMaxResults) return@forEachIndexed
+                                        if (searchRegex.containsMatchIn(line)) {
+                                            matchCount++
+                                            results.add("${file.absolutePath}:${lineNum + 1}")
+                                            for (c in (lineNum - contextLines).coerceAtLeast(0) until lineNum) {
+                                                sb.appendLine("  ${c + 1}: ${lines[c].take(120)}")
+                                            }
+                                            sb.appendLine("→ ${lineNum + 1}: ${line.take(120)}")
+                                            for (c in (lineNum + 1)..(lineNum + contextLines).coerceAtMost(lines.size - 1)) {
+                                                sb.appendLine("  ${c + 1}: ${lines[c].take(120)}")
+                                            }
+                                            sb.appendLine()
                                         }
-                                        sb.appendLine("→ ${lineNum + 1}: ${line.take(120)}")
-                                        // Context after
-                                        for (c in (lineNum + 1)..(lineNum + contextLines).coerceAtMost(lines.size - 1)) {
-                                            sb.appendLine("  ${c + 1}: ${lines[c].take(120)}")
-                                        }
-                                        sb.appendLine()
                                     }
-                                }
-                            } catch (_: Exception) { /* skip unreadable files */ }
-                        }
-                } catch (_: Exception) { /* walk errors */ }
+                                } catch (_: Exception) { /* skip unreadable files */ }
+                            }
+                    } catch (_: Exception) { /* walk errors */ }
 
-                if (results.isEmpty()) {
-                    listOf(UIMessagePart.Text("No matches found for '$pattern' under $root${if (fileGlob.isNotBlank()) " in files matching '$fileGlob'" else ""}"))
-                } else {
-                    val summary = "Found ${results.size} match(es) for '$pattern'${if (fileGlob.isNotBlank()) " in $fileGlob files" else ""}:\n"
-                    listOf(UIMessagePart.Text(summary + sb.toString().take(15000)))
+                    if (results.isEmpty()) {
+                        listOf(UIMessagePart.Text("No matches found for '$pattern' under $root${if (fileGlob.isNotBlank()) " in files matching '$fileGlob'" else ""}"))
+                    } else {
+                        val summary = "Found ${results.size} match(es) for '$pattern'${if (fileGlob.isNotBlank()) " in $fileGlob files" else ""}:\n"
+                        listOf(UIMessagePart.Text(summary + sb.toString().take(15000)))
+                    }
                 }
             },
         ),

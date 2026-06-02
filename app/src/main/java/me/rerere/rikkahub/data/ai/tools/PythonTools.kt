@@ -21,7 +21,7 @@ import java.io.File
 fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
     name = "execute_python",
     description = """
-        Execute Python code in the app's embedded Python environment.
+        Execute Python code to process data, call APIs, or generate files.
         Use get_app_info() to see app paths, or use file_read/file_write tools.
         Libraries: requests (HTTP), beautifulsoup4 (HTML), markdown, python-docx (Word),
         pypdf (PDF), openpyxl (Excel), python-pptx (PowerPoint).
