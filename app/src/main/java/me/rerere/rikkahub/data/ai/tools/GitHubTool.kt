@@ -577,6 +577,8 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val el = Json.parseToJsonElement(raw)
                 when {
                     el.jsonObject["items"]?.jsonArray != null -> el.jsonObject["items"]?.jsonArray
+                    el.jsonObject["workflow_runs"]?.jsonArray != null -> el.jsonObject["workflow_runs"]?.jsonArray
+                    el.jsonObject["jobs"]?.jsonArray != null -> el.jsonObject["jobs"]?.jsonArray
                     el.jsonObject["${type}s"]?.jsonArray != null -> el.jsonObject["${type}s"]?.jsonArray
                     else -> el.jsonArray
                 }
