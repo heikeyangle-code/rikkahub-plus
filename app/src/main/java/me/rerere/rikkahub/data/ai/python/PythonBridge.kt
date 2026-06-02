@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.python
 
 import android.content.Context
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.db.AppDatabase
@@ -10,6 +11,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.TavernCharacterData
 import me.rerere.rikkahub.data.model.TavernEmbeddedBook
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.ai.ui.UIMessagePart
 import org.koin.java.KoinJavaComponent
 import kotlin.uuid.Uuid
 
@@ -37,7 +39,7 @@ class PythonBridge(private val context: Context) {
 
     fun queryKnowledgeBase(query: String, limit: Int = 10): String = runBlocking {
         try {
-            db.knowledgeSourceDao().getAllSources().take(limit).joinToString("\n---\n") {
+            db.knowledgeBaseDao().getAllSources().take(limit).joinToString("\n---\n") {
                 "[${it.id}] ${it.name}\n"
             }
         } catch (e: Exception) { "Error: ${e.message}" }
@@ -52,7 +54,7 @@ class PythonBridge(private val context: Context) {
 
     fun listKnowledgeEntries(limit: Int = 20): String = runBlocking {
         try {
-            db.knowledgeSourceDao().getAllSources().take(limit).joinToString("\n") {
+            db.knowledgeBaseDao().getAllSources().take(limit).joinToString("\n") {
                 "[${it.id}] ${it.name} (${it.type})"
             }
         } catch (e: Exception) { "Error: ${e.message}" }
@@ -71,16 +73,18 @@ class PythonBridge(private val context: Context) {
 
     fun listConversations(limit: Int = 10): String = runBlocking {
         try {
-            conversationRepo.getAllConversations().take(limit).joinToString("\n") {
-                "[${it.id}] ${it.title ?: "无标题"} | ${it.messageCount}条消息"
+            db.conversationDao().getAll().first().take(limit).joinToString("\n") {
+                "[${it.id}] ${it.title.ifEmpty { "无标题" }}"
             }
         } catch (e: Exception) { "Error: ${e.message}" }
     }
 
     fun getConversationMessages(conversationId: String, limit: Int = 50): String = runBlocking {
         try {
-            conversationRepo.getMessages(conversationId).take(limit).joinToString("\n---\n") {
-                "${it.role}: ${it.content?.take(300) ?: "(工具调用)"}"
+            val conv = conversationRepo.getConversationById(Uuid.parse(conversationId))
+                ?: return@runBlocking "Error: 对话 $conversationId 不存在"
+            conv.currentMessages.take(limit).joinToString("\n---\n") {
+                "${it.role}: ${it.parts.filterIsInstance<UIMessagePart.Text>().joinToString("") { it.text }.take(300) ?: "(工具调用)"}"
             }
         } catch (e: Exception) { "Error: ${e.message}" }
     }
@@ -133,10 +137,9 @@ class PythonBridge(private val context: Context) {
             if (idx == -1) return@runBlocking "Error: 助理 $assistantId 不存在"
             val a = s.assistants[idx]
 
-            fun err(msg: String = "无效值") { throw IllegalArgumentException(msg) }
-            fun bool() = value.toBooleanStrictOrNull() ?: err("需要 true/false")
-            fun int() = value.toIntOrNull() ?: err("需要整数")
-            fun float() = value.toFloatOrNull() ?: err("需要数字")
+            fun bool() = value.toBooleanStrictOrNull() ?: throw IllegalArgumentException("需要 true/false")
+            fun int() = value.toIntOrNull() ?: throw IllegalArgumentException("需要整数")
+            fun float() = value.toFloatOrNull() ?: throw IllegalArgumentException("需要数字")
 
             val updated = when (key) {
                 "name" -> a.copy(name = value)
@@ -151,7 +154,6 @@ class PythonBridge(private val context: Context) {
                 "enable_knowledge_base", "enableKnowledgeBase" -> a.copy(enableKnowledgeBase = bool())
                 "enable_parallel_tools", "enableParallelToolExecution" -> a.copy(enableParallelToolExecution = bool())
                 "enable_sub_agent", "enableSubAgent" -> a.copy(enableSubAgent = bool())
-                "enable_web_search", "enableWebSearch" -> a.copy(enableWebSearch = bool())
                 "total_steps", "totalStepsLimit" -> a.copy(totalStepsLimit = int())
                 "tool_timeout", "toolExecTimeout" -> a.copy(toolExecTimeout = int())
                 "js_timeout", "jsTimeout" -> a.copy(jsTimeout = int())
@@ -190,7 +192,7 @@ class PythonBridge(private val context: Context) {
             }
 
             val newAssistants = s.assistants.toMutableList().apply { set(idx, updated) }
-            settingsStore.updateSettings(s.copy(assistants = newAssistants))
+            settingsStore.update(s.copy(assistants = newAssistants))
             "ok: $key = $value"
         } catch (e: Exception) { if (e.message?.startsWith("Error:") == true) e.message!! else "Error: ${e.message}" }
     }
@@ -218,8 +220,8 @@ class PythonBridge(private val context: Context) {
     fun updateSetting(key: String, value: String): String = runBlocking {
         try {
             val s = settingsStore.settingsFlow.value
-            fun bool() = value.toBooleanStrictOrNull() ?: return@runBlocking "Error: 需要 true/false"
-            fun int() = value.toIntOrNull() ?: return@runBlocking "Error: 需要整数"
+            fun bool() = value.toBooleanStrictOrNull() ?: throw IllegalArgumentException("需要 true/false")
+            fun int() = value.toIntOrNull() ?: throw IllegalArgumentException("需要整数")
 
             val updated = when (key) {
                 "theme" -> s.copy(themeId = value)
@@ -230,7 +232,7 @@ class PythonBridge(private val context: Context) {
                 "web_server_port", "webServerPort" -> s.copy(webServerPort = int())
                 else -> return@runBlocking "Error: 未知设置 $key"
             }
-            settingsStore.updateSettings(updated)
+            settingsStore.update(updated)
             "ok: $key = $value"
         } catch (e: Exception) { "Error: ${e.message}" }
     }
