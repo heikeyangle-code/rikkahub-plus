@@ -37,6 +37,7 @@ data class Assistant(
     val customBodies: List<CustomBody> = emptyList(),
     val mcpServers: Set<Uuid> = emptySet(),
     val localTools: List<LocalToolOption> = listOf(
+        LocalToolOption.TimeInfo,
         LocalToolOption.FileTools,
     ),
     val background: String? = null,
