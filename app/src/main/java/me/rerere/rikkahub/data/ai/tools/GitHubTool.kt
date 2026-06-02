@@ -462,7 +462,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "commit" -> buildJsonObject {
                 put("sha", jstr(sj(o,"sha").take(7)))
                 put("message", jstr(o["commit"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull?.take(80) ?: ""))
-                put("author", jstr(slogin(o,"author"))); put("date", jstr(sj(o,"commit").let { parseJSON(it)["committer"]?.jsonObject?.get("date")?.jsonPrimitive?.contentOrNull?.take(10) ?: "" }))
+                put("author", jstr(slogin(o,"author"))); put("date", jstr(o["commit"]?.jsonObject?.get("committer")?.jsonObject?.get("date")?.jsonPrimitive?.contentOrNull?.take(10) ?: ""))
                 put("url", jstr(sj(o,"html_url"))); put("parent_count", jint((o["parents"]?.jsonArray?.size ?: 0)))
             }
             "branch" -> buildJsonObject {
@@ -494,7 +494,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "code" -> buildJsonObject {
                 put("path", jstr(sj(o,"path"))); put("name", jstr(sj(o,"name")))
-                put("repo", jstr(sj(o,"repository")?.substringAfterLast("/") ?: ""))
+                put("repo", jstr(o["repository"]?.jsonObject?.get("full_name")?.jsonPrimitive?.contentOrNull?.substringAfterLast("/") ?: ""))
             }
             "user" -> buildJsonObject {
                 put("login", jstr(sj(o,"login"))); put("type", jstr(sj(o,"type"))); put("score", jint((o["score"]?.jsonPrimitive?.doubleOrNull ?: 0.0).toInt()))
@@ -576,6 +576,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             val arr = try {
                 val el = Json.parseToJsonElement(raw)
                 when {
+                    el is JsonArray -> el
                     el.jsonObject["items"]?.jsonArray != null -> el.jsonObject["items"]?.jsonArray
                     el.jsonObject["workflow_runs"]?.jsonArray != null -> el.jsonObject["workflow_runs"]?.jsonArray
                     el.jsonObject["jobs"]?.jsonArray != null -> el.jsonObject["jobs"]?.jsonArray
@@ -794,8 +795,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             // ═══════════════════════════════════════════
             "list_collaborators" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                val perm = obj["state"]?.jsonPrimitive?.contentOrNull ?: "all"
-                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/collaborators?permission=$perm", limit), "reviewer")
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/collaborators", limit), "reviewer")
             }
             "add_collaborator" -> {
                 val username = obj["username"]?.jsonPrimitive?.contentOrNull ?: error("username required")
