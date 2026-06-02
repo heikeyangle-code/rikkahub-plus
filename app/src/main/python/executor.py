@@ -4,12 +4,19 @@ Executes Python code with stdout capture, matplotlib auto-save,
 and result file detection.
 
 Available built-in functions (call these from your code):
-  query_knowledge_base(query, limit=10)    - Search knowledge base
-  add_knowledge_entry(title, content)      - Add entry to knowledge base
-  list_knowledge_entries(limit=20)          - List knowledge base
-  list_conversations(limit=10)              - List recent conversations
-  get_conversation_messages(conv_id)        - Read conversation messages
-  get_app_info()                            - App info
+  query_knowledge_base(query, limit=10)         - Search knowledge base
+  add_knowledge_entry(title, content)           - Add entry to knowledge base
+  update_knowledge_entry(id, title, content)    - Update knowledge entry
+  delete_knowledge_entry(id)                    - Delete knowledge entry
+  list_knowledge_entries(limit=20)               - List knowledge base entries
+  list_conversations(limit=10)                   - List recent conversations
+  get_conversation_messages(conv_id)             - Read conversation messages
+  list_assistants()                              - List all assistants & their key settings
+  get_assistant_settings(assistant_id)           - Read full assistant settings
+  update_assistant_setting(id, key, value)       - Change any assistant setting
+  get_setting(key)                               - Read global app setting
+  update_setting(key, value)                     - Change global app setting
+  get_app_info()                                 - App version & paths
 """
 
 import sys
@@ -53,6 +60,43 @@ def get_conversation_messages(conversation_id, limit=50):
 def get_app_info():
     """Get app information."""
     if _bridge: return _bridge.getAppInfo()
+    return "Bridge not available"
+
+def list_assistants():
+    """List all assistants with their settings."""
+    if _bridge: return _bridge.listAssistants()
+    return "Bridge not available"
+
+def get_assistant_settings(assistant_id):
+    """Get settings for a specific assistant."""
+    if _bridge: return _bridge.getAssistantSettings(assistant_id)
+    return "Bridge not available"
+
+def update_assistant_setting(assistant_id, key, value):
+    """Update an assistant setting. Keys: name, model, system_prompt,
+    total_steps, tool_timeout, js_timeout, shell_timeout, temperature,
+    enable_web_search, sub_agent."""
+    if _bridge: return _bridge.updateAssistantSetting(assistant_id, key, value)
+    return "Bridge not available"
+
+def update_knowledge_entry(entry_id, title=None, content=None):
+    """Update a knowledge base entry."""
+    if _bridge: return _bridge.updateKnowledgeEntry(entry_id, title, content)
+    return "Bridge not available"
+
+def delete_knowledge_entry(entry_id):
+    """Delete a knowledge base entry."""
+    if _bridge: return _bridge.deleteKnowledgeEntry(entry_id)
+    return "Bridge not available"
+
+def get_setting(key):
+    """Read a global app setting."""
+    if _bridge: return _bridge.getSetting(key)
+    return "Bridge not available"
+
+def update_setting(key, value):
+    """Change a global app setting."""
+    if _bridge: return _bridge.updateSetting(key, value)
     return "Bridge not available"
 
 # ============================================================

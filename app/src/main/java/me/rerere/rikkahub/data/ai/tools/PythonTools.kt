@@ -27,12 +27,19 @@ requests (HTTP), beautifulsoup4 (HTML), python-docx (Word), pypdf (PDF), openpyx
 python-pptx (PowerPoint), jinja2 (templates), markdown, pyyaml, pytz.
 Standard library: json, csv, re, math, datetime, hashlib, base64, zipfile, pathlib.
 Built-in bridge functions (no import needed):
-  query_knowledge_base(query, limit=10)    - Search knowledge base
-  add_knowledge_entry(title, content)      - Add entry to knowledge base
-  list_knowledge_entries(limit=20)          - List knowledge base
-  list_conversations(limit=10)              - List recent conversations
-  get_conversation_messages(conv_id)        - Read conversation messages
-  get_app_info()                            - Get app info
+  query_knowledge_base(query, limit=10)         - Search knowledge base
+  add_knowledge_entry(title, content)           - Add entry to knowledge base
+  update_knowledge_entry(id, title, content)    - Update knowledge entry
+  delete_knowledge_entry(id)                    - Delete knowledge entry
+  list_knowledge_entries(limit=20)               - List knowledge base
+  list_conversations(limit=10)                   - List recent conversations
+  get_conversation_messages(conv_id)             - Read conversation messages
+  list_assistants()                              - List all assistants
+  get_assistant_settings(assistant_id)           - Read assistant settings
+  update_assistant_setting(id, key, value)       - Change assistant setting
+  get_setting(key)                               - Read global setting
+  update_setting(key, value)                     - Change global setting
+  get_app_info()                                 - Get app info
 Generated files (charts, documents, images) are automatically detected and returned."""
     needsApproval = false,
     parameters = {
