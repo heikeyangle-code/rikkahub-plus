@@ -356,7 +356,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "commit" -> buildJsonObject {
                 put("sha", jstr(sj(o,"sha").take(7)))
                 put("message", jstr(o["commit"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull?.take(80) ?: ""))
-                put("author", jstr(slogin(o,"author"))); put("date", jstr(sj(o,"commit")?.let { parseJSON(it)["committer"]?.jsonObject?.get("date")?.jsonPrimitive?.contentOrNull?.take(10) ?: "" }))
+                put("author", jstr(slogin(o,"author"))); put("date", jstr(sj(o,"commit").let { parseJSON(it)["committer"]?.jsonObject?.get("date")?.jsonPrimitive?.contentOrNull?.take(10) ?: "" }))
             }
             "branch" -> buildJsonObject { put("name", jstr(sj(o,"name"))) }
             "file" -> buildJsonObject {
@@ -432,7 +432,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 }
             } catch (_: Exception) { null } ?: JsonArray(emptyList())
             val cleaned = buildJsonArray { arr.forEach { add(cleanItem(it.jsonObject, type)) } }
-            cleaned.toString().take(20000)
+            return cleaned.toString().take(20000)
         }
 
         fun fmtOne(raw: String, type: String): String = cleanItem(parseJSON(raw), type).toString()
