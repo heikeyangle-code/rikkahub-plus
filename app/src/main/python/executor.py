@@ -82,12 +82,36 @@ def execute(code: str, workdir: str) -> str:
     except Exception:
         pass
 
+    # Pre-configure matplotlib
+    try:
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        plt.rcParams['figure.facecolor'] = 'white'
+        plt.rcParams['axes.facecolor'] = 'white'
+        plt.rcParams['savefig.facecolor'] = 'white'
+    except ImportError:
+        pass
+
     try:
         try:
             result = eval(code)
         except SyntaxError:
             exec(code)
             result = None
+
+        # Auto-save matplotlib figures
+        try:
+            import matplotlib.pyplot as plt
+            for i, fig_num in enumerate(plt.get_fignums()):
+                fig = plt.figure(fig_num)
+                fname = f"figure_{i+1}.png" if plt.get_fignums() else "figure.png"
+                fig.savefig(os.path.join(workdir, fname), dpi=150,
+                           bbox_inches='tight', facecolor='white', edgecolor='none')
+                output_files.append(fname)
+                plt.close(fig)
+        except ImportError:
+            pass
 
     except Exception as e:
         error = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"

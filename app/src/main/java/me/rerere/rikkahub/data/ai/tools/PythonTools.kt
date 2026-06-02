@@ -22,7 +22,9 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
     name = "execute_python",
     description = """\
 Execute Python code on the device to process data, analyze files, generate charts, or call APIs.
-Libraries: requests (HTTP), beautifulsoup4 (HTML), markdown, pyyaml.
+Available libraries: pandas, numpy, matplotlib (charts auto-saved as PNG), Pillow (images),
+requests (HTTP), beautifulsoup4 (HTML), python-docx (Word), pypdf (PDF), openpyxl (Excel),
+python-pptx (PowerPoint), jinja2 (templates), markdown, pyyaml, pytz.
 Standard library: json, csv, re, math, datetime, hashlib, base64, zipfile, pathlib.
 Built-in bridge functions (no import needed):
   query_knowledge_base(query, limit=10)    - Search knowledge base
