@@ -230,5 +230,6 @@ class PythonBridge(private val context: Context) {
         appendLine("App: Rikkahub")
         appendLine("Version: ${context.packageManager.getPackageInfo(context.packageName, 0).versionName}")
         appendLine("FilesDir: ${context.filesDir.absolutePath}")
+        appendLine("SkillsDir: ${context.filesDir.resolve("skills").absolutePath}")
     }
 }
