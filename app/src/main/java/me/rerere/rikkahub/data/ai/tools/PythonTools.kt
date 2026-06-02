@@ -22,8 +22,7 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
     name = "execute_python",
     description = """
         Execute Python code to process data, call APIs, or generate files.
-        Working directory: context.filesDir (internal app storage).
-        Use get_app_info() to see exact paths.
+        Use get_app_info() to see app paths, or use file_read/file_write tools.
         Libraries: requests (HTTP), beautifulsoup4 (HTML), markdown, python-docx (Word),
         pypdf (PDF), openpyxl (Excel), python-pptx (PowerPoint).
         Standard library: json, csv, re, math, datetime, statistics, hashlib, base64, zipfile, pathlib.
