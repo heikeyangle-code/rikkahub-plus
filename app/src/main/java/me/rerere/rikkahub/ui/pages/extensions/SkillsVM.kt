@@ -967,34 +967,26 @@ class SkillsVM(
     }
 
     private fun downloadText(url: String): String? {
-        val maxRetries = 3
-        for (attempt in 1..maxRetries) {
-            if (attempt > 1) {
-                try { Thread.sleep(2000L) } catch (_: InterruptedException) { return null }
+        try {
+            val connection = URL(url).openConnection() as HttpURLConnection
+            connection.connectTimeout = 15_000
+            connection.readTimeout = 30_000
+            connection.setRequestProperty("User-Agent", "Rikkahub/1.0")
+            connection.setRequestProperty("Accept", "application/vnd.github+json")
+            val token = settingsStore.settingsFlow.value.githubToken
+            if (token.isNotBlank()) {
+                connection.setRequestProperty("Authorization", "token $token")
             }
-            try {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.connectTimeout = 15_000
-                connection.readTimeout = 30_000
-                connection.setRequestProperty("User-Agent", "Rikkahub/1.0")
-                connection.setRequestProperty("Accept", "application/vnd.github+json")
-                val token = settingsStore.settingsFlow.value.githubToken
-                if (token.isNotBlank()) {
-                    connection.setRequestProperty("Authorization", "token $token")
-                }
-                val code = connection.responseCode
-                if (code == 200) {
-                    val text = connection.inputStream.bufferedReader().readText()
-                    connection.disconnect()
-                    return text
-                }
+            val code = connection.responseCode
+            if (code == 200) {
+                val text = connection.inputStream.bufferedReader().readText()
                 connection.disconnect()
-                android.util.Log.w("SkillsVM", "downloadText attempt $attempt: HTTP $code for $url")
-            } catch (e: Exception) {
-                android.util.Log.w("SkillsVM", "downloadText attempt $attempt failed: ${e.message}")
-                if (attempt == maxRetries) return null
+                return text
             }
+            connection.disconnect()
+            return null
+        } catch (e: Exception) {
+            return null
         }
-        return null
     }
 }
