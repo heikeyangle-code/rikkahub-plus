@@ -85,6 +85,7 @@ fun GroupChatPage(groupId: String) {
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()
+    val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
 
     val gcId = Uuid.parse(groupId)
     val gc = settings.groupChats.find { it.id == gcId } ?: return
@@ -492,10 +493,9 @@ fun GroupChatPage(groupId: String) {
                         }
                     },
                     onFork = {
-                        val nav = me.rerere.rikkahub.ui.context.LocalNavController.current
                         scope.launch {
                             val fork = chatService.forkConversationAtMessage(currentConvId, node.messages[node.selectIndex].id)
-                            me.rerere.rikkahub.utils.navigateToChatPage(nav, chatId = fork.id)
+                            me.rerere.rikkahub.utils.navigateToChatPage(navController, chatId = fork.id)
                         }
                     },
                     onImpersonate = { inputState.setMessageText(messageText(node)) },
