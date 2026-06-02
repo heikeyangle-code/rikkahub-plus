@@ -2,26 +2,25 @@ package me.rerere.rikkahub.data.ai.python
 
 import android.content.Context
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
-import me.rerere.ai.core.ReasoningLevel
-import me.rerere.rikkahub.data.database.AppDatabase
+import me.rerere.rikkahub.data.db.AppDatabase
+import me.rerere.rikkahub.data.db.dao.KnowledgeSourceEntity
+import me.rerere.rikkahub.data.db.entity.KnowledgeChunkEntity
+import me.rerere.rikkahub.data.datastore.PreferencesStore
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.KnowledgeSource
 import me.rerere.rikkahub.data.model.KnowledgeSourceType
 import me.rerere.rikkahub.data.model.TavernCharacterData
 import me.rerere.rikkahub.data.model.TavernEmbeddedBook
 import me.rerere.rikkahub.data.repository.ConversationRepository
-import me.rerere.rikkahub.data.settings.SettingsStore
 import org.koin.java.KoinJavaComponent
 import kotlin.uuid.Uuid
 
 class PythonBridge(private val context: Context) {
 
     private val db by lazy { KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java) }
-    private val settingsStore by lazy { KoinJavaComponent.get<SettingsStore>(SettingsStore::class.java) }
+    private val settingsStore by lazy { KoinJavaComponent.get<PreferencesStore>(PreferencesStore::class.java) }
     private val conversationRepo by lazy { KoinJavaComponent.get<ConversationRepository>(ConversationRepository::class.java) }
 
-    // 辅助函数：获取或创建 tavernData / embeddedBook
     private fun td(a: Assistant) = a.tavernData ?: TavernCharacterData()
     private fun book(a: Assistant) = td(a).embeddedBook ?: TavernEmbeddedBook()
 
@@ -32,7 +31,7 @@ class PythonBridge(private val context: Context) {
     fun queryKnowledgeBase(query: String, limit: Int = 10): String = runBlocking {
         try {
             db.knowledgeSourceDao().search(query, limit).joinToString("\n---\n") {
-                "[${it.id}] ${it.title ?: "无标题"}\n${it.content?.take(500) ?: "无内容"}"
+                "[${it.id}] ${it.name ?: "无标题"}\n${it.content?.take(500) ?: "无内容"}"
             }
         } catch (e: Exception) { "Error: ${e.message}" }
     }
@@ -48,7 +47,7 @@ class PythonBridge(private val context: Context) {
     fun listKnowledgeEntries(limit: Int = 20): String = runBlocking {
         try {
             db.knowledgeSourceDao().getAll(limit).joinToString("\n") {
-                "[${it.id}] ${it.title ?: "无标题"} (${it.source})"
+                "[${it.id}] ${it.name ?: "无标题"} (${it.type})"
             }
         } catch (e: Exception) { "Error: ${e.message}" }
     }
@@ -56,13 +55,14 @@ class PythonBridge(private val context: Context) {
     fun updateKnowledgeEntry(id: String, title: String? = null, content: String? = null): String = runBlocking {
         try {
             val e = db.knowledgeSourceDao().getById(id) ?: return@runBlocking "Error: 条目 $id 不存在"
-            db.knowledgeSourceDao().update(e.copy(title = title ?: e.title, content = content ?: e.content))
+            db.knowledgeSourceDao().update(e.copy(name = title ?: e.name))
             "ok"
         } catch (e: Exception) { "Error: ${e.message}" }
     }
 
     fun deleteKnowledgeEntry(id: String): String = runBlocking {
-        try { db.knowledgeSourceDao().deleteById(id); "ok" } catch (e: Exception) { "Error: ${e.message}" }
+        try { db.knowledgeSourceDao().deleteById(id); "ok" }
+        catch (e: Exception) { "Error: ${e.message}" }
     }
 
     // ============================================================
@@ -86,15 +86,14 @@ class PythonBridge(private val context: Context) {
     }
 
     // ============================================================
-    // 助理设置（改）
+    // 助理设置
     // ============================================================
 
     fun listAssistants(): String = runBlocking {
         try {
             settingsStore.settingsFlow.value.assistants.joinToString("\n") { a ->
                 "[${a.id}] ${a.name} | 模型:${a.chatModelId?.toString()?.take(8) ?: "默认"} | " +
-                "轮数:${a.totalStepsLimit} | 工具超时:${a.toolExecTimeout}s | " +
-                "温度:${a.temperature ?: "默认"} | 记忆:${a.enableMemory} | 流式:${a.streamOutput}"
+                "轮数:${a.totalStepsLimit} | 超时:${a.toolExecTimeout}s"
             }
         } catch (e: Exception) { "Error: ${e.message}" }
     }
@@ -110,119 +109,81 @@ class PythonBridge(private val context: Context) {
                 appendLine("System Prompt: ${a.systemPrompt?.take(200) ?: "无"}")
                 appendLine("温度: ${a.temperature ?: "默认"}")
                 appendLine("TopP: ${a.topP ?: "默认"}")
-                appendLine("最大Token数: ${a.maxTokens ?: "不限制"}")
-                appendLine("上下文消息数: ${a.contextMessageSize}")
+                appendLine("最大Token: ${a.maxTokens ?: "不限制"}")
+                appendLine("上下文长度: ${a.contextMessageSize}")
                 appendLine("流式输出: ${a.streamOutput}")
                 appendLine("启用记忆: ${a.enableMemory}")
-                appendLine("共享全局记忆: ${a.useGlobalMemory}")
-                appendLine("引用近期对话: ${a.enableRecentChatsReference}")
-                appendLine("推理级别: ${a.reasoningLevel}")
-                appendLine("消息模板: ${a.messageTemplate.take(100)}")
-                appendLine("上下文模板: ${a.contextTemplate.take(100)}")
-                appendLine("并行执行工具: ${a.enableParallelToolExecution}")
+                appendLine("并行执行: ${a.enableParallelToolExecution}")
                 appendLine("子Agent: ${a.enableSubAgent}")
-                appendLine("启用知识库: ${a.enableKnowledgeBase}")
+                appendLine("知识库: ${a.enableKnowledgeBase}")
                 appendLine("总轮数上限: ${a.totalStepsLimit}")
-                appendLine("同工具上限: ${a.toolRecurringLimit}")
-                appendLine("子Agent步数: ${a.subAgentMaxSteps}")
                 appendLine("工具超时: ${a.toolExecTimeout}s")
                 appendLine("JS超时: ${a.jsTimeout}s")
                 appendLine("Shell超时: ${a.shellTimeout}s")
                 appendLine("时间提醒: ${a.enableTimeReminder}")
-                appendLine("群聊发言倾向: ${a.talkativeness}")
                 appendLine("角色卡: ${if (a.tavernData != null) "有" else "无"}")
-                appendLine("已启用的技能: ${a.enabledSkills.joinToString(",")}")
-                appendLine("MCP服务器数: ${a.mcpServers.size}")
-                appendLine("本地工具: ${a.localTools.joinToString(",")}")
             }
         } catch (e: Exception) { "Error: ${e.message}" }
     }
 
     fun updateAssistantSetting(assistantId: String, key: String, value: String): String = runBlocking {
         try {
-            val settings = settingsStore.settingsFlow.value
-            val idx = settings.assistants.indexOfFirst { it.id.toString() == assistantId }
+            val s = settingsStore.settingsFlow.value
+            val idx = s.assistants.indexOfFirst { it.id.toString() == assistantId }
             if (idx == -1) return@runBlocking "Error: 助理 $assistantId 不存在"
-            val a = settings.assistants[idx]
+            val a = s.assistants[idx]
 
-            fun err(msg: String = "无效值: $value"): Nothing = throw IllegalArgumentException(msg)
+            fun err(msg: String = "无效值") { throw IllegalArgumentException(msg) }
             fun bool() = value.toBooleanStrictOrNull() ?: err("需要 true/false")
             fun int() = value.toIntOrNull() ?: err("需要整数")
             fun float() = value.toFloatOrNull() ?: err("需要数字")
 
             val updated = when (key) {
-                // -- 基本 --
                 "name" -> a.copy(name = value)
-                "model_id", "chatModelId" -> a.copy(chatModelId = Uuid.parse(value))
+                "chatModelId", "model_id" -> a.copy(chatModelId = Uuid.parse(value))
                 "system_prompt", "systemPrompt" -> a.copy(systemPrompt = value)
-                "message_template", "messageTemplate" -> a.copy(messageTemplate = value)
-                "context_template", "contextTemplate" -> a.copy(contextTemplate = value)
-
-                // -- 生成参数 --
                 "temperature" -> a.copy(temperature = float())
                 "top_p", "topP" -> a.copy(topP = float())
-                "max_tokens", "maxTokens" -> a.copy(maxTokens = if (value == "0" || value == "不限制") null else int())
+                "max_tokens", "maxTokens" -> a.copy(maxTokens = int())
                 "context_size", "contextMessageSize" -> a.copy(contextMessageSize = int())
                 "stream_output", "streamOutput" -> a.copy(streamOutput = bool())
-                "reasoning_level", "reasoningLevel" -> a.copy(
-                    reasoningLevel = try { ReasoningLevel.valueOf(value.uppercase()) }
-                    catch (_: Exception) { err("可选: auto, low, medium, high") }
-                )
-
-                // -- 记忆/上下文 --
                 "enable_memory", "enableMemory" -> a.copy(enableMemory = bool())
-                "use_global_memory", "useGlobalMemory" -> a.copy(useGlobalMemory = bool())
-                "enable_recent_chats", "enableRecentChatsReference" -> a.copy(enableRecentChatsReference = bool())
-                "time_reminder", "enableTimeReminder" -> a.copy(enableTimeReminder = bool())
-
-                // -- 功能开关 --
                 "enable_knowledge_base", "enableKnowledgeBase" -> a.copy(enableKnowledgeBase = bool())
                 "enable_parallel_tools", "enableParallelToolExecution" -> a.copy(enableParallelToolExecution = bool())
-                "enable_sub_agent", "subAgent", "enableSubAgent" -> a.copy(enableSubAgent = bool())
+                "enable_sub_agent", "enableSubAgent" -> a.copy(enableSubAgent = bool())
                 "enable_web_search", "enableWebSearch" -> a.copy(enableWebSearch = bool())
-
-                // -- 限制参数 --
                 "total_steps", "totalStepsLimit" -> a.copy(totalStepsLimit = int())
-                "tool_recurring_limit", "toolRecurringLimit" -> a.copy(toolRecurringLimit = int())
-                "sub_agent_steps", "subAgentMaxSteps" -> a.copy(subAgentMaxSteps = int())
                 "tool_timeout", "toolExecTimeout" -> a.copy(toolExecTimeout = int())
                 "js_timeout", "jsTimeout" -> a.copy(jsTimeout = int())
                 "shell_timeout", "shellTimeout" -> a.copy(shellTimeout = int())
+                "background" -> a.copy(background = if (value.isEmpty()) null else value)
 
-                // -- 角色卡字段 --
-                "use_assistant_avatar", "useAssistantAvatar" -> a.copy(useAssistantAvatar = bool())
-                "tavern_name" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(name = value))
-                "tavern_description" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(description = value))
-                "tavern_personality" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(personality = value))
-                "tavern_scenario" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(scenario = value))
-                "tavern_first_message", "tavern_first_msg" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(firstMessage = value))
-                "tavern_system_prompt", "tavernSystemPrompt" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(systemPrompt = value))
-                "tavern_mes_example", "tavernMesExample" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(mesExample = value))
-                "tavern_creator" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(creator = value))
-                "tavern_creator_notes", "tavernCreatorNotes" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(creatorNotes = value))
-                "tavern_version", "tavernCharacterVersion" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(characterVersion = value))
-                "tavern_post_history", "postHistoryInstructions" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(postHistoryInstructions = value))
+                // 角色卡
+                "tavern_name" -> a.copy(tavernData = td(a).copy(name = value))
+                "tavern_description" -> a.copy(tavernData = td(a).copy(description = value))
+                "tavern_personality" -> a.copy(tavernData = td(a).copy(personality = value))
+                "tavern_scenario" -> a.copy(tavernData = td(a).copy(scenario = value))
+                "tavern_first_message" -> a.copy(tavernData = td(a).copy(firstMessage = value))
+                "tavern_system_prompt" -> a.copy(tavernData = td(a).copy(systemPrompt = value))
+                "tavern_mes_example" -> a.copy(tavernData = td(a).copy(mesExample = value))
 
-                // -- 内嵌世界书 --
+                // 内嵌世界书
                 "book_name" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(name = value)))
                 "book_description" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(description = value)))
-                "book_scan_depth", "bookScanDepth" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(scanDepth = int())))
-                "book_token_budget", "bookTokenBudget" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(tokenBudget = int())))
-                "book_recursive", "bookRecursiveScanning" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(recursiveScanning = bool())))
-
-                // -- 杂项 --
-                "background" -> a.copy(background = if (value == "无" || value.isEmpty()) null else value)
+                "book_scan_depth" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(scanDepth = int())))
+                "book_token_budget" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(tokenBudget = int())))
 
                 else -> return@runBlocking "Error: 未知设置 $key"
             }
 
-            settingsStore.updateSettings(settings.copy(assistants = settings.assistants.toMutableList().apply { set(idx, updated) }))
+            val newAssistants = s.assistants.toMutableList().apply { set(idx, updated) }
+            settingsStore.updateSettings(s.copy(assistants = newAssistants))
             "ok: $key = $value"
         } catch (e: Exception) { if (e.message?.startsWith("Error:") == true) e.message!! else "Error: ${e.message}" }
     }
 
     // ============================================================
-    // 全局设置（读 + 改）
+    // 全局设置
     // ============================================================
 
     fun getSetting(key: String): String = runBlocking {
@@ -231,11 +192,9 @@ class PythonBridge(private val context: Context) {
             when (key) {
                 "theme" -> s.themeId
                 "dynamic_color", "dynamicColor" -> s.dynamicColor.toString()
-                "developer_mode", "developerMode" -> s.developerMode.toString()
                 "web_search", "enableWebSearch" -> s.enableWebSearch.toString()
                 "default_chat_model", "chatModelId" -> s.chatModelId.toString()
                 "embedding_model", "embeddingModelId" -> s.embeddingModelId?.toString() ?: "使用聊天模型"
-                "active_assistant", "assistantId" -> s.assistantId.toString()
                 "web_server_enabled", "webServerEnabled" -> s.webServerEnabled.toString()
                 "web_server_port", "webServerPort" -> s.webServerPort.toString()
                 else -> "未知 key: $key"
@@ -252,10 +211,8 @@ class PythonBridge(private val context: Context) {
             val updated = when (key) {
                 "theme" -> s.copy(themeId = value)
                 "dynamic_color", "dynamicColor" -> s.copy(dynamicColor = bool())
-                "developer_mode", "developerMode" -> s.copy(developerMode = bool())
                 "web_search", "enableWebSearch" -> s.copy(enableWebSearch = bool())
                 "default_chat_model", "chatModelId" -> s.copy(chatModelId = Uuid.parse(value))
-                "embedding_model", "embeddingModelId" -> s.copy(embeddingModelId = if (value.isEmpty()) null else Uuid.parse(value))
                 "web_server_enabled", "webServerEnabled" -> s.copy(webServerEnabled = bool())
                 "web_server_port", "webServerPort" -> s.copy(webServerPort = int())
                 else -> return@runBlocking "Error: 未知设置 $key"
