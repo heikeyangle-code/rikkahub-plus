@@ -17,12 +17,18 @@ fun createAssetTool(saveDir: String): Tool = Tool(
     name = "create_asset",
     description = """
         Generate visual content and save it as a file on the device.
-        Supported types:
-        - chart: bar/line/pie charts from numeric data → .svg
+        Choose the best type based on what the user needs:
+        - html_page: Full HTML page with CSS/JS. BEST for web design, slides, portfolios, dashboards.
+        - diagram: Flowchart/sequence diagram, rendered as Mermaid HTML page.
+        - chart: Quick SVG bar/line/pie chart from numeric data. Basic styling, suitable for fast previews.
+          For professional/interactive data viz, generate an HTML page with Chart.js/D3.js instead.
         - qrcode: QR code from text/URL → .svg
-        - color_scheme: color palette from a base color → .svg
-        - timeline: chronological timeline from events → .svg
-        Use this when the user asks you to create a chart, QR code, or visualize data.
+        - color_scheme: Color palette from a base color using color theory math → .svg.
+          AI cannot easily replicate this — always use this type for color schemes.
+        - code_screenshot: Carbon-style code screenshot → .svg
+        - timeline: Basic SVG timeline from chronological events.
+        Use html_page when the user asks for a web page, website, landing page, or anything visual that needs full design freedom.
+        Use diagram for flowcharts and sequence diagrams.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
