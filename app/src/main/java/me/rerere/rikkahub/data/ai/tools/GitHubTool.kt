@@ -718,8 +718,10 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val json = parseJSON(content)
                 val encoding = json["encoding"]?.jsonPrimitive?.contentOrNull
                 val rawContent = json["content"]?.jsonPrimitive?.contentOrNull ?: ""
-                if (encoding == "base64") String(java.util.Base64.getMimeDecoder().decode(rawContent))
+                val sha = json["sha"]?.jsonPrimitive?.contentOrNull ?: ""
+                val decoded = if (encoding == "base64") String(java.util.Base64.getMimeDecoder().decode(rawContent))
                 else content
+                "[SHA: $sha]\n$decoded"
             }
             "list_files" -> {
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -741,8 +743,15 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: error("path required")
                 val message = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
                 val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: error("content required")
-                val fileSha = obj["sha"]?.jsonPrimitive?.contentOrNull
+                var fileSha = obj["sha"]?.jsonPrimitive?.contentOrNull
                 if (fullRepo.isBlank()) error("owner and repo required")
+                // Auto-fetch SHA if not provided (required for updating existing files)
+                if (fileSha == null) {
+                    try {
+                        val current = gh("https://api.github.com/repos/$fullRepo/contents/$path?ref=$branch")
+                        fileSha = parseJSON(current)["sha"]?.jsonPrimitive?.contentOrNull
+                    } catch (_: Exception) { /* file doesn't exist yet — that's OK for new files */ }
+                }
                 val payload = buildJsonObject {
                     put("message", message)
                     put("content", java.util.Base64.getEncoder().encodeToString(content.toByteArray()))
