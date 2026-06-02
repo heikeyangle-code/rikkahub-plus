@@ -99,7 +99,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         add("search_repo"); add("search_code"); add("search_issue"); add("search_user"); add("search_commits"); add("trending")
                         // Repo info
                         add("get_repo"); add("list_my_repos"); add("list_org_repos"); add("list_user_repos"); add("compare_repos"); add("list_tags"); add("list_releases"); add("list_contributors")
-                        add("repo_languages"); add("get_repo_license"); add("create_repo"); add("fork_repo"); add("list_forked_repos"); add("star_repo"); add("unstar_repo"); add("update_repo"); add("delete_repo")
+                        add("repo_languages"); add("get_repo_license"); add("create_repo"); add("fork_repo"); add("list_forked_repos"); add("list_user_starred"); add("star_repo"); add("unstar_repo"); add("update_repo"); add("delete_repo")
                         // Topics
                         add("get_repo_topics"); add("replace_topics")
                         // Events
@@ -126,7 +126,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         add("diff_local_with_github")
                         // PRs
                         add("pr_list"); add("pr_view"); add("pr_create"); add("pr_update"); add("pr_review")
-                        add("pr_merge"); add("pr_comment"); add("pr_request_reviewers"); add("list_review_comments")
+                        add("pr_merge"); add("pr_comment"); add("pr_request_reviewers"); add("list_review_comments"); add("check_pr_merged")
                         // Git data
                         add("list_branches"); add("delete_branch"); add("create_branch"); add("list_commits"); add("get_commit")
                         add("compare_commits"); add("get_diff"); add("commit_status"); add("revert_commit"); add("merge_branch")
@@ -142,7 +142,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         // Topic search
                         add("search_topics")
                         // Releases
-                        add("create_release")
+                        add("create_release"); add("update_release"); add("delete_release")
                         // Webhooks
                         add("list_webhooks"); add("create_webhook"); add("delete_webhook")
                     })
