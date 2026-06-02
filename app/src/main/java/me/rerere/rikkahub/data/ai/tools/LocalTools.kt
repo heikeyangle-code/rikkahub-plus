@@ -150,8 +150,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                     }
                     future.get(15, java.util.concurrent.TimeUnit.SECONDS)
                 } catch (e: java.util.concurrent.TimeoutException) {
-                    jsContext.destroy()
                     error("JavaScript execution timed out after 15 seconds")
+                } finally {
+                    jsContext.destroy()
                 }
                 val payload = buildJsonObject {
                     if (logs.isNotEmpty()) {

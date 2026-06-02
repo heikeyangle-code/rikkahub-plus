@@ -7,6 +7,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
@@ -48,28 +50,31 @@ fun createShellTools(): List<Tool> {
                 } catch (e: Exception) {
                     error("Failed to start command: ${e.message}")
                 }
-                // Read stdout and stderr in parallel to avoid deadlock
-                val (stdout, stderr) = coroutineScope {
-                    val stdoutDeferred = async {
-                        process.inputStream.bufferedReader().readText()
+                try {
+                    withTimeout(30_000L) {
+                        // Read stdout and stderr in parallel to avoid deadlock
+                        val (stdout, stderr) = coroutineScope {
+                            val stdoutDeferred = async {
+                                process.inputStream.bufferedReader().readText()
+                            }
+                            val stderrDeferred = async {
+                                process.errorStream.bufferedReader().readText()
+                            }
+                            stdoutDeferred.await() to stderrDeferred.await()
+                        }
+                        process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)
+                        val exitCode = process.exitValue()
+                        val payload = buildJsonObject {
+                            put("stdout", kotlinx.serialization.json.JsonPrimitive(stdout))
+                            put("stderr", kotlinx.serialization.json.JsonPrimitive(stderr))
+                            put("exit_code", kotlinx.serialization.json.JsonPrimitive(exitCode))
+                        }
+                        listOf(UIMessagePart.Text(payload.toString()))
                     }
-                    val stderrDeferred = async {
-                        process.errorStream.bufferedReader().readText()
-                    }
-                    stdoutDeferred.await() to stderrDeferred.await()
-                }
-                val exitCode = if (process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) {
-                    process.exitValue()
-                } else {
+                } catch (e: TimeoutCancellationException) {
                     process.destroyForcibly()
-                    -1
+                    error("Command timed out after 30 seconds")
                 }
-                val payload = buildJsonObject {
-                    put("stdout", kotlinx.serialization.json.JsonPrimitive(stdout))
-                    put("stderr", kotlinx.serialization.json.JsonPrimitive(stderr))
-                    put("exit_code", kotlinx.serialization.json.JsonPrimitive(exitCode))
-                }
-                listOf(UIMessagePart.Text(payload.toString()))
             },
         )
     )
