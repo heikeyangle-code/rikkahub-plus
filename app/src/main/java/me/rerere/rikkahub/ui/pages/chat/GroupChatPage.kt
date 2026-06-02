@@ -492,12 +492,10 @@ fun GroupChatPage(groupId: String) {
                         }
                     },
                     onFork = {
+                        val nav = me.rerere.rikkahub.ui.context.LocalNavController.current
                         scope.launch {
                             val fork = chatService.forkConversationAtMessage(currentConvId, node.messages[node.selectIndex].id)
-                            me.rerere.rikkahub.utils.navigateToChatPage(
-                                me.rerere.rikkahub.ui.context.LocalNavController.current,
-                                chatId = fork.id,
-                            )
+                            me.rerere.rikkahub.utils.navigateToChatPage(nav, chatId = fork.id)
                         }
                     },
                     onImpersonate = { inputState.setMessageText(messageText(node)) },
