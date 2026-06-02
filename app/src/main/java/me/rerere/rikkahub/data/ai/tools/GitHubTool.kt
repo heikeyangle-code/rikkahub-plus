@@ -409,12 +409,14 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("forks", jint(si(o,"forks_count"))); put("issues", jint(si(o,"open_issues_count")))
                 put("language", jstr(sj(o,"language"))); put("description", jstr(sj(o,"description").take(200)))
                 put("private", jbool(sb(o,"private"))); put("updated", jstr(sj(o,"updated_at").take(10)))
+                put("url", jstr(sj(o,"html_url"))); put("default_branch", jstr(sj(o,"default_branch")))
             }
             "issue" -> buildJsonObject {
                 put("number", jint(si(o,"number"))); put("title", jstr(sj(o,"title").take(120)))
                 put("state", jstr(sj(o,"state"))); put("user", jstr(slogin(o,"user")))
                 put("created", jstr(sj(o,"created_at").take(10)))
                 put("comments", jint(si(o,"comments"))); put("labels", jstr(o["labels"]?.jsonArray?.joinToString(",") { sj(it.jsonObject,"name") } ?: ""))
+                put("url", jstr(sj(o,"html_url")))
             }
             "pr" -> buildJsonObject {
                 put("number", jint(si(o,"number"))); put("title", jstr(sj(o,"title").take(120)))
@@ -422,11 +424,13 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("head", jstr(o["head"]?.jsonObject?.get("ref")?.jsonPrimitive?.contentOrNull ?: ""))
                 put("base", jstr(o["base"]?.jsonObject?.get("ref")?.jsonPrimitive?.contentOrNull ?: ""))
                 put("draft", jbool(sb(o,"draft"))); put("created", jstr(sj(o,"created_at").take(10)))
+                put("url", jstr(sj(o,"html_url")))
             }
             "commit" -> buildJsonObject {
                 put("sha", jstr(sj(o,"sha").take(7)))
                 put("message", jstr(o["commit"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull?.take(80) ?: ""))
                 put("author", jstr(slogin(o,"author"))); put("date", jstr(sj(o,"commit").let { parseJSON(it)["committer"]?.jsonObject?.get("date")?.jsonPrimitive?.contentOrNull?.take(10) ?: "" }))
+                put("url", jstr(sj(o,"html_url")))
             }
             "branch" -> buildJsonObject { put("name", jstr(sj(o,"name"))) }
             "file" -> buildJsonObject {
