@@ -21,11 +21,10 @@ import java.io.File
 fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
     name = "execute_python",
     description = """\
-Execute Python code on the device to process data, analyze files, generate charts, or call APIs.
-Available libraries: pandas, numpy, matplotlib (charts auto-saved as PNG), Pillow (images),
-requests (HTTP), beautifulsoup4 (HTML), python-docx (Word), pypdf (PDF), openpyxl (Excel),
-python-pptx (PowerPoint), jinja2 (templates), markdown, pyyaml, pytz.
-Standard library: json, csv, re, math, datetime, hashlib, base64, zipfile, pathlib.
+Execute Python code to process data, call APIs, or generate files.
+Libraries: requests (HTTP), beautifulsoup4 (HTML), markdown, python-docx (Word),
+pypdf (PDF), openpyxl (Excel), python-pptx (PowerPoint).
+Standard library: json, csv, re, math, datetime, statistics, hashlib, base64, zipfile, pathlib.
 Built-in bridge functions (no import needed):
   query_knowledge_base(query, limit=10)         - Search knowledge base
   add_knowledge_entry(title, content)           - Add entry to knowledge base
