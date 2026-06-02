@@ -621,8 +621,14 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "trending" -> {
                 val lang = obj["language"]?.jsonPrimitive?.contentOrNull ?: ""
+                val since = obj["since"]?.jsonPrimitive?.contentOrNull ?: "daily"
+                val sinceParam = when (since) {
+                    "weekly" -> "created:>7d"
+                    "monthly" -> "created:>30d"
+                    else -> "created:>1d"
+                }
                 val langParam = if (lang.isNotBlank()) "+language:$lang" else ""
-                fmtClean(ghPaginated("https://api.github.com/search/repositories?q=created:>30d$langParam&sort=stars&order=desc", limit), "repo")
+                fmtClean(ghPaginated("https://api.github.com/search/repositories?q=$sinceParam$langParam&sort=stars&order=desc", limit), "repo")
             }
 
             // ═══════════════════════════════════════════
