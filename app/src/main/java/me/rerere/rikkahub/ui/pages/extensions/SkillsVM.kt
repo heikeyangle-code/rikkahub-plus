@@ -46,6 +46,12 @@ class SkillsVM(
         }
     }
 
+    fun refreshSkills() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _skills.value = skillManager.listSkills()
+        }
+    }
+
     init {
         loadSkills()
     }
