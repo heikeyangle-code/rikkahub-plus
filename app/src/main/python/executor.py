@@ -25,7 +25,7 @@ import os
 from io import StringIO
 import traceback
 
-# Bridge to Android services - set by Kotlin before execute() is called
+# Bridge to Android services - set from Kotlin via execute() parameter
 _bridge = None
 
 # ============================================================
@@ -103,8 +103,10 @@ def update_setting(key, value):
 # Main executor
 # ============================================================
 
-def execute(code: str, workdir: str) -> str:
+def execute(code: str, workdir: str, bridge=None) -> str:
     """Execute Python code, return JSON with results."""
+    global _bridge
+    _bridge = bridge
     old_stdout = sys.stdout
     old_stderr = sys.stderr
     sys.stdout = StringIO()

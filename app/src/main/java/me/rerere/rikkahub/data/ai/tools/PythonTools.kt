@@ -67,13 +67,12 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
         val executor = py.getModule("executor")
         val workdir = context.filesDir.absolutePath
 
-        // Inject Android bridge so Python code can call app services
+        // Inject Android bridge (passed as parameter to execute())
         val bridge = PythonBridge(context)
-        executor.callAttr("__setattr__", "_bridge", bridge)
 
         val rawResult = withContext(Dispatchers.IO) {
             kotlinx.coroutines.withTimeout(timeoutSec * 1000L) {
-                executor.callAttr("execute", code, workdir).toString()
+                executor.callAttr("execute", code, workdir, bridge).toString()
             }
         }
 
