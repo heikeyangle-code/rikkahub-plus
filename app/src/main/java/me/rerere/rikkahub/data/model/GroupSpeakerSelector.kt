@@ -14,9 +14,9 @@ import kotlin.uuid.Uuid
 object GroupSpeakerSelector {
 
     private fun extractWords(text: String): Set<String> {
-        return text.split(Regex("[\\s,，。！？.!?、；;：:/\\\\()（）\\[\\]【】{}「」『』\"'「」]+"))
+        return text.split(Regex("[\\s,，。！？.!?、；;：:/\\\\()（）\\[\\]【】{}「」『』\"']+"))
             .map { it.trim() }
-            .filter { it.length >= 1 }
+            .filter { it.length >= 2 }
             .toSet()
     }
 
@@ -69,8 +69,11 @@ object GroupSpeakerSelector {
             }
         }
 
-        // 3. 至少选 2 人（成员数 >= 2 且当前选中不足 2 时）
-        if (activated.size < 2 && members.size >= 2) {
+        // 3. 用户已通过名字指定了某人 → 不加随机人"
+        if (userInput.isNotBlank() && findMentionedMembers(userInput, members, null).isNotEmpty()) {
+            // 已有名字匹配，不强制增补
+        } else if (activated.size < 2 && members.size >= 2) {
+            // 至少选 2 人（成员数 >= 2 且当前选中不足 2 时）
             val candidates = members.filter { it.id !in activated && (bannedId == null || it.id != bannedId) }
             val toAdd = candidates.shuffled().take(2 - activated.size)
             activated.addAll(toAdd.map { it.id })

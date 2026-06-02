@@ -261,7 +261,6 @@ fun GroupChatPage(groupId: String) {
                                 if (text.isBlank() || isGenerating) return@ChatInput
 
                                 generationJob?.cancel()
-                                inputState.clearInput()
                                 isGenerating = true
 
                                 // 选人
@@ -283,6 +282,7 @@ fun GroupChatPage(groupId: String) {
 
                                 // 语音识别用
                                 val inputContents = inputState.getContents()
+                                inputState.clearInput()
 
                                 generationJob = scope.launch {
                                     try {
@@ -394,6 +394,9 @@ fun GroupChatPage(groupId: String) {
                                     } catch (e: Exception) {
                                         e.printStackTrace()
                                     } finally {
+                                        // 持久化群聊会话
+                                        val finalConv = chatService.getConversationFlow(currentConvId).value
+                                        chatService.saveConversation(currentConvId, finalConv)
                                         isGenerating = false
                                         queueStatus = ""
                                         queueMembers = emptyList()
@@ -439,7 +442,7 @@ fun GroupChatPage(groupId: String) {
                     node = node,
                     assistant = speaker ?: members.firstOrNull(),
                     model = null,
-                    loading = isGenerating && index == messageNodes.lastIndex,
+                    loading = isGenerating && index >= messageNodes.lastIndex - 2,
                     lastMessage = index == messageNodes.lastIndex,
                     onRegenerate = { chatService.regenerateAtMessage(currentConvId, node.messages.first()) },
                     onEdit = {},

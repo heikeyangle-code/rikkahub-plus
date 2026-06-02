@@ -86,7 +86,6 @@ private data class McpServerConfig(
 
 /**
  * 列出 commands/ 目录下的 .md 文件
- * 列出 commands/ 目录下的 .md 文件
  */
 fun listCommands(skillDir: File): List<CommandFile> {
     val dir = skillDir.resolve("commands")

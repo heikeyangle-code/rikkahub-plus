@@ -113,9 +113,6 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         // Issues
                         add("list_issues"); add("list_issues_all"); add("create_issue"); add("issue_comment"); add("issue_update")
                         add("issue_labels"); add("issue_assign"); add("issue_lock"); add("issue_unlock")
-                        // PRs
-                        add("pr_list"); add("pr_view"); add("pr_create"); add("pr_update"); add("pr_review")
-                        add("pr_merge"); add("pr_comment"); add("pr_request_reviewers")
                         // CI/Actions
                         add("ci_status"); add("ci_jobs"); add("ci_job_log"); add("ci_artifacts"); add("download_artifact")
                         add("ci_log"); add("ci_cancel"); add("rerun_workflow"); add("list_workflows"); add("workflow_dispatch")
