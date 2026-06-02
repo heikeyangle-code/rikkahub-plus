@@ -81,6 +81,18 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("shell_tools")
     data object ShellTools : LocalToolOption()
+
+    @Serializable
+    @SerialName("github_tools")
+    data object GitHubTools : LocalToolOption()
+
+    @Serializable
+    @SerialName("convert_file")
+    data object ConvertFile : LocalToolOption()
+
+    @Serializable
+    @SerialName("database_query")
+    data object DatabaseQuery : LocalToolOption()
 }
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {

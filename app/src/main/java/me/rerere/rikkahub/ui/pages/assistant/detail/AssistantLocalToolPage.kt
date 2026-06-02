@@ -456,6 +456,36 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = { Text("GitHub") },
+                supportingContent = { Text("允许 AI 搜索代码、查 CI、管理 PR/Issue（需配置 Token）") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.GitHubTools),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.GitHubTools, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("文件转换") },
+                supportingContent = { Text("允许 AI 转换文档格式（PDF/Word/Excel/PPT/MD/HTML/CSV/JSON/图片）") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.ConvertFile),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.ConvertFile, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("数据库查询") },
+                supportingContent = { Text("允许 AI 查询本地数据库（对话记录/知识库/设置）") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.DatabaseQuery),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.DatabaseQuery, it) }
+                    )
+                }
+            )
         }
     }
 }

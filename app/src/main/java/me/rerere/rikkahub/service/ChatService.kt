@@ -68,6 +68,9 @@ import me.rerere.rikkahub.data.ai.tools.createDataProcessTool
 import me.rerere.rikkahub.data.ai.tools.createFileTools
 import me.rerere.rikkahub.data.ai.tools.createShellTools
 import me.rerere.rikkahub.data.ai.tools.createPythonTool
+import me.rerere.rikkahub.data.ai.tools.createGitHubTool
+import me.rerere.rikkahub.data.ai.tools.createConvertFileTool
+import me.rerere.rikkahub.data.ai.tools.createDatabaseQueryTool
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -581,6 +584,15 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.PythonEngine)) {
                         add(createPythonTool(context, assistant.toolExecTimeout))
                     }
+                    if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
+                        add(createGitHubTool(settingsStore))
+                    }
+                    if (assistant.localTools.contains(LocalToolOption.ConvertFile)) {
+                        add(createConvertFileTool(context))
+                    }
+                    if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) {
+                        add(createDatabaseQueryTool(database))
+                    }
                     if (assistant.enabledSkills.isNotEmpty()) {
                         addAll(
                             createSkillTools(
@@ -1068,6 +1080,15 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                 addAll(localTools.getTools(assistant.localTools))
                 if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
                     addAll(createShellTools())
+                }
+                if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
+                    add(createGitHubTool(settingsStore))
+                }
+                if (assistant.localTools.contains(LocalToolOption.ConvertFile)) {
+                    add(createConvertFileTool(context))
+                }
+                if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) {
+                    add(createDatabaseQueryTool(database))
                 }
                 if (assistant.enabledSkills.isNotEmpty()) {
                     addAll(

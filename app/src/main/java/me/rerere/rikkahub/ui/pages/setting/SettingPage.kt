@@ -44,6 +44,7 @@ import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Book01
 import me.rerere.hugeicons.stroke.Book03
 import me.rerere.hugeicons.stroke.BookOpen02
+import me.rerere.hugeicons.stroke.BookmarkAdd01
 import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Clapping01
@@ -272,6 +273,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = { Icon(HugeIcons.McpServer, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
+                    )
+                    item(
+                        onClick = { showGithubDialog = true },
+                        leadingContent = { Icon(HugeIcons.BookmarkAdd01, null) },
+                        supportingContent = { Text("搜索仓库、管理PR、查CI状态") },
+                        headlineContent = { Text("GitHub") },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingWeb) },
