@@ -214,7 +214,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                             appendLine("  [$table] ${snippet.take(120)}")
                         }
                     }
-                )))
+                ))
             }
             "peek" -> {
                 val table = obj["table"]?.jsonPrimitive?.contentOrNull ?: error("table required")

@@ -394,7 +394,14 @@ private fun ChatPageContent(
                             inputState.clearInput()
                         }
                     },
-                    onLongSendClick = { },
+                    onLongSendClick = {
+                        if (inputState.isEditing()) {
+                            vm.handleMessageEdit(inputState.getContents(), inputState.editingMessage!!)
+                        } else {
+                            vm.handleMessageSend(content = inputState.getContents(), answer = false)
+                        }
+                        inputState.clearInput()
+                    },
                 )
             },
         ) { innerPadding ->
