@@ -97,7 +97,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         add("commit"); add("commit_files"); add("delete_file")
                         add("diff_local_with_github")
                         // Git data
-                        add("list_branches"); add("create_branch"); add("create_backup"); add("list_commits"); add("get_commit")
+                        add("list_branches"); add("create_branch"); add("list_commits"); add("get_commit")
                         add("compare_commits"); add("get_diff"); add("commit_status"); add("revert_commit")
                         // Other
                         add("create_gist"); add("user_info"); add("rate_limit")
@@ -850,19 +850,6 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     ?: error("Cannot find source branch SHA")
                 gh("POST", "https://api.github.com/repos/$fullRepo/git/refs",
                     """{"ref":"refs/heads/$newBranch","sha":"$sha"}""")
-            }
-            "create_backup" -> {
-                val base = obj["base"]?.jsonPrimitive?.contentOrNull ?: branch
-                val label = obj["message"]?.jsonPrimitive?.contentOrNull?.take(30)?.replace(Regex("[^a-zA-Z0-9_\\-]"), "_") ?: "before_change"
-                val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
-                val backupBranch = "backup/${timestamp}_${label}"
-                if (fullRepo.isBlank()) error("owner and repo required")
-                val refData = gh("https://api.github.com/repos/$fullRepo/git/ref/heads/$base")
-                val sha = parseJSON(refData)["object"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull
-                    ?: error("Cannot find branch SHA")
-                gh("POST", "https://api.github.com/repos/$fullRepo/git/refs",
-                    """{"ref":"refs/heads/$backupBranch","sha":"$sha"}""")
-                "✅ 已创建备份分支: $backupBranch"
             }
             "list_commits" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
