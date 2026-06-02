@@ -19,20 +19,10 @@ chaquopy {
     defaultConfig {
         version = "3.11"
         pip {
-            install("requests")
-            install("Pillow")
-            install("pyyaml")
-            install("beautifulsoup4")
-            install("markdown")
-            install("jinja2")
-            install("python-docx")
-            install("pypdf")
-            install("openpyxl")
-            install("python-pptx")
-            install("pandas")
-            install("numpy")
-            install("matplotlib")
-            install("pytz")
+            install("requests")         // HTTP API 调用
+            install("beautifulsoup4")   // HTML 解析
+            install("markdown")         // Markdown 转换
+            install("pyyaml")           // YAML 读写
         }
     }
 }

@@ -2,12 +2,62 @@
 Python executor for Rikkahub.
 Executes Python code with stdout capture, matplotlib auto-save,
 and result file detection.
+
+Available built-in functions (call these from your code):
+  query_knowledge_base(query, limit=10)    - Search knowledge base
+  add_knowledge_entry(title, content)      - Add entry to knowledge base
+  list_knowledge_entries(limit=20)          - List knowledge base
+  list_conversations(limit=10)              - List recent conversations
+  get_conversation_messages(conv_id)        - Read conversation messages
+  get_app_info()                            - App info
 """
+
 import sys
 import json
 import os
 from io import StringIO
 import traceback
+
+# Bridge to Android services - set by Kotlin before execute() is called
+_bridge = None
+
+# ============================================================
+# Bridge wrapper functions
+# ============================================================
+
+def query_knowledge_base(query, limit=10):
+    """Search knowledge base. Returns matching entries."""
+    if _bridge: return _bridge.queryKnowledgeBase(query, limit)
+    return "Bridge not available"
+
+def add_knowledge_entry(title, content, assistant_id=None):
+    """Add an entry to the knowledge base."""
+    if _bridge: return _bridge.addKnowledgeEntry(title, content, assistant_id)
+    return "Bridge not available"
+
+def list_knowledge_entries(limit=20):
+    """List all knowledge base entries."""
+    if _bridge: return _bridge.listKnowledgeEntries(limit)
+    return "Bridge not available"
+
+def list_conversations(limit=10):
+    """List recent conversations."""
+    if _bridge: return _bridge.listConversations(limit)
+    return "Bridge not available"
+
+def get_conversation_messages(conversation_id, limit=50):
+    """Get messages from a conversation."""
+    if _bridge: return _bridge.getConversationMessages(conversation_id, limit)
+    return "Bridge not available"
+
+def get_app_info():
+    """Get app information."""
+    if _bridge: return _bridge.getAppInfo()
+    return "Bridge not available"
+
+# ============================================================
+# Main executor
+# ============================================================
 
 def execute(code: str, workdir: str) -> str:
     """Execute Python code, return JSON with results."""
@@ -32,36 +82,12 @@ def execute(code: str, workdir: str) -> str:
     except Exception:
         pass
 
-    # Pre-configure matplotlib
-    try:
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-        plt.rcParams['figure.facecolor'] = 'white'
-        plt.rcParams['axes.facecolor'] = 'white'
-        plt.rcParams['savefig.facecolor'] = 'white'
-    except ImportError:
-        pass
-
     try:
         try:
             result = eval(code)
         except SyntaxError:
             exec(code)
             result = None
-
-        # Auto-save matplotlib figures
-        try:
-            import matplotlib.pyplot as plt
-            for i, fig_num in enumerate(plt.get_fignums()):
-                fig = plt.figure(fig_num)
-                fname = f"figure_{i+1}.png" if plt.get_fignums() else "figure.png"
-                fig.savefig(os.path.join(workdir, fname), dpi=150,
-                           bbox_inches='tight', facecolor='white', edgecolor='none')
-                output_files.append(fname)
-                plt.close(fig)
-        except ImportError:
-            pass
 
     except Exception as e:
         error = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"

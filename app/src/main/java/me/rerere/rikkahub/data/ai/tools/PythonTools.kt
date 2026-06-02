@@ -15,19 +15,23 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.python.PythonBridge
 import java.io.File
 
 fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
     name = "execute_python",
-    description = """
-        Execute Python code on the device to process data, analyze files, generate charts, or call APIs.
-        Available libraries: pandas, numpy, matplotlib (charts auto-saved as PNG), Pillow (images),
-        requests (HTTP), beautifulsoup4 (HTML), python-docx (Word), pypdf (PDF), openpyxl (Excel),
-        python-pptx (PowerPoint), jinja2 (templates), markdown, pyyaml, pytz.
-        Standard library: json, csv, re, math, datetime, hashlib, base64, zipfile, pathlib.
-        The result is the return value of the last expression.
-        Generated files (charts, documents, images) are automatically detected and returned.
-    """.trimIndent().replace("\n", " "),
+    description = """\
+Execute Python code on the device to process data, analyze files, generate charts, or call APIs.
+Libraries: requests (HTTP), beautifulsoup4 (HTML), markdown, pyyaml.
+Standard library: json, csv, re, math, datetime, hashlib, base64, zipfile, pathlib.
+Built-in bridge functions (no import needed):
+  query_knowledge_base(query, limit=10)    - Search knowledge base
+  add_knowledge_entry(title, content)      - Add entry to knowledge base
+  list_knowledge_entries(limit=20)          - List knowledge base
+  list_conversations(limit=10)              - List recent conversations
+  get_conversation_messages(conv_id)        - Read conversation messages
+  get_app_info()                            - Get app info
+Generated files (charts, documents, images) are automatically detected and returned."""
     needsApproval = false,
     parameters = {
         InputSchema.Obj(
@@ -52,6 +56,10 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
         val py = Python.getInstance()
         val executor = py.getModule("executor")
         val workdir = context.filesDir.absolutePath
+
+        // Inject Android bridge so Python code can call app services
+        val bridge = PythonBridge(context)
+        executor.set("_bridge", bridge)
 
         val rawResult = withContext(Dispatchers.IO) {
             kotlinx.coroutines.withTimeout(timeoutSec * 1000L) {
