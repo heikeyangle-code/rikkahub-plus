@@ -766,7 +766,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                                 n.contains("build", true) || n.contains("log", true)
                             }
                             if (logArtifact == null) {
-                                items.joinToString("\n") { a -> "  📦 ${a.jsonObject["name"]?.jsonPrimitive?.contentOrNull ?: "?"}" }
+                items.joinToString("\n") { a -> "  ${a.jsonObject["name"]?.jsonPrimitive?.contentOrNull ?: "?"}" }
                                     .let { "No log artifact. Available:\n$it" }
                             } else {
                                 val artId = logArtifact.jsonObject["id"]?.jsonPrimitive?.intOrNull ?: 0
@@ -941,7 +941,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val localLines = localContent.lines()
                 val remoteLines = if (remoteContent.isNotBlank()) remoteContent.lines() else emptyList()
                 val diff = computeSimpleDiff(remoteLines, localLines)
-                "📋 本地 vs GitHub ($branch/$repoPath):\n$diff"
+                                "本地 vs GitHub ($branch/$repoPath):\n$diff"
             }
 
             // ═══════════════════════════════════════════
@@ -1071,8 +1071,13 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val username = obj["owner"]?.jsonPrimitive?.contentOrNull
                 val raw = if (username.isNullOrBlank()) gh("https://api.github.com/user")
                 else gh("https://api.github.com/users/$username")
-                val o = parseJSON(raw)
-                "👤 ${sj(o,"login")} (${sj(o,"name")}) 📝 ${sj(o,"bio").take(100)} 📍${sj(o,"location")} 🐙${sj(o,"html_url")} 📅${sj(o,"created_at").take(10)}"
+                val o = try { parseJSON(raw) } catch (_: Exception) { null }
+                if (o != null) buildJsonObject {
+                    put("login", jstr(sj(o,"login"))); put("name", jstr(sj(o,"name")))
+                    put("bio", jstr(sj(o,"bio").take(100))); put("location", jstr(sj(o,"location")))
+                    put("url", jstr(sj(o,"html_url"))); put("created", jstr(sj(o,"created_at").take(10)))
+                    put("public_repos", jint(si(o,"public_repos"))); put("followers", jint(si(o,"followers")))
+                }.toString() else raw
             }
             "rate_limit" -> {
                 val raw = gh("https://api.github.com/rate_limit")
