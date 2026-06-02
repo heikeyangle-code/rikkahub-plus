@@ -449,7 +449,9 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("state", jstr(sj(o,"state"))); put("user", jstr(slogin(o,"user")))
                 put("created", jstr(sj(o,"created_at").take(10)))
                 put("comments", jint(si(o,"comments"))); put("labels", jstr(o["labels"]?.jsonArray?.joinToString(",") { sj(it.jsonObject,"name") } ?: ""))
-                put("url", jstr(sj(o,"html_url")))
+                put("url", jstr(sj(o,"html_url"))); put("body", jstr(sj(o,"body").take(200)))
+                put("updated", jstr(sj(o,"updated_at").take(10)))
+                put("milestone", jstr(o["milestone"]?.jsonObject?.get("title")?.jsonPrimitive?.contentOrNull ?: ""))
             }
             "pr" -> buildJsonObject {
                 put("number", jint(si(o,"number"))); put("title", jstr(sj(o,"title").take(120)))
@@ -457,18 +459,22 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("head", jstr(o["head"]?.jsonObject?.get("ref")?.jsonPrimitive?.contentOrNull ?: ""))
                 put("base", jstr(o["base"]?.jsonObject?.get("ref")?.jsonPrimitive?.contentOrNull ?: ""))
                 put("draft", jbool(sb(o,"draft"))); put("created", jstr(sj(o,"created_at").take(10)))
-                put("url", jstr(sj(o,"html_url")))
+                put("url", jstr(sj(o,"html_url"))); put("body", jstr(sj(o,"body").take(200)))
+                put("mergeable", jstr(sj(o,"mergeable"))); put("mergeable_state", jstr(sj(o,"mergeable_state")))
             }
             "commit" -> buildJsonObject {
                 put("sha", jstr(sj(o,"sha").take(7)))
                 put("message", jstr(o["commit"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull?.take(80) ?: ""))
                 put("author", jstr(slogin(o,"author"))); put("date", jstr(sj(o,"commit").let { parseJSON(it)["committer"]?.jsonObject?.get("date")?.jsonPrimitive?.contentOrNull?.take(10) ?: "" }))
-                put("url", jstr(sj(o,"html_url")))
+                put("url", jstr(sj(o,"html_url"))); put("parent_count", jint((o["parents"]?.jsonArray?.size ?: 0)))
             }
-            "branch" -> buildJsonObject { put("name", jstr(sj(o,"name"))) }
+            "branch" -> buildJsonObject {
+                put("name", jstr(sj(o,"name"))); put("sha", jstr(o["commit"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull?.take(7) ?: ""))
+                put("protected", jbool(sb(o,"protected")))
+            }
             "file" -> buildJsonObject {
                 put("name", jstr(sj(o,"name"))); put("type", jstr(sj(o,"type")))
-                put("size", jint(si(o,"size"))); put("path", jstr(sj(o,"path")))
+                put("size", jint(si(o,"size"))); put("path", jstr(sj(o,"path"))); put("sha", jstr(sj(o,"sha").take(7)))
             }
             "tag" -> buildJsonObject {
                 put("name", jstr(sj(o,"name")))
@@ -477,7 +483,8 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "release" -> buildJsonObject {
                 put("tag", jstr(sj(o,"tag_name"))); put("name", jstr(sj(o,"name") ?: sj(o,"tag_name")))
                 put("prerelease", jbool(sb(o,"prerelease"))); put("published", jstr(sj(o,"published_at").take(10)))
-                put("body", jstr(sj(o,"body").take(200)))
+                put("body", jstr(sj(o,"body").take(200))); put("url", jstr(sj(o,"html_url")))
+                put("author", jstr(slogin(o,"author")))
             }
             "contributor" -> buildJsonObject {
                 put("login", jstr(slogin(o,"author") ?: sj(o,"login"))); put("contributions", jint(si(o,"contributions")))
