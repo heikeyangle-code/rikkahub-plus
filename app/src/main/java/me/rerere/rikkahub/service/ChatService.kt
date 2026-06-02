@@ -5,6 +5,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import me.rerere.rikkahub.data.db.AppDatabase
+import org.koin.java.KoinJavaComponent
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
@@ -162,6 +164,10 @@ class ChatService(
     // 统一会话管理
     private val sessions = ConcurrentHashMap<Uuid, ConversationSession>()
     private val _sessionsVersion = MutableStateFlow(0L)
+
+    private val database: AppDatabase by lazy {
+        KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java)
+    }
 
     // 错误状态
     private val _errors = MutableStateFlow<List<ChatError>>(emptyList())

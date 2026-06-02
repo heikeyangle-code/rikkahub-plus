@@ -4,7 +4,7 @@ import kotlinx.serialization.json.*
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.rikkahub.data.database.AppDatabase
+import me.rerere.rikkahub.data.db.AppDatabase
 
 fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
     name = "database_query",
