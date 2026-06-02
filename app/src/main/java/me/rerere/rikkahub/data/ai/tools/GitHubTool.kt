@@ -368,6 +368,12 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "user" -> buildJsonObject {
                 put("login", jstr(sj(o,"login"))); put("type", jstr(sj(o,"type"))); put("score", jint((o["score"]?.jsonPrimitive?.doubleOrNull ?: 0.0).toInt()))
             }
+            "comment" -> buildJsonObject {
+                put("user", jstr(slogin(o,"user"))); put("body", jstr(sj(o,"body").take(200)))
+                put("created", jstr(sj(o,"created_at").take(10)))
+            }
+            "label" -> buildJsonObject { put("name", jstr(sj(o,"name"))); put("color", jstr(sj(o,"color"))) }
+            "reviewer" -> buildJsonObject { put("login", jstr(sj(o,"login"))); put("type", jstr(sj(o,"type"))) }
             else -> o
         }
 
@@ -536,9 +542,10 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     // Add comment
                     gh("POST", "https://api.github.com/repos/$fullRepo/issues/$num/comments",
                         """{"body":${JsonPrimitive(comment)}}""")
+                    "✅ 已添加评论"
                 } else {
                     // List comments
-                    ghPaginated("https://api.github.com/repos/$fullRepo/issues/$num/comments", limit)
+                    fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/issues/$num/comments", limit), "comment")
                 }
             }
             "issue_update" -> {
@@ -561,9 +568,10 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     val labelArray = labels.split(",").map { it.trim() }.filter { it.isNotBlank() }
                     gh("PUT", "https://api.github.com/repos/$fullRepo/issues/$num/labels",
                         buildJsonArray { labelArray.forEach { add(it) } }.toString())
+                    "✅ 已设置标签: $labels"
                 } else {
                     // List labels for this issue
-                    ghPaginated("https://api.github.com/repos/$fullRepo/issues/$num/labels", limit)
+                    fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/issues/$num/labels", limit), "label")
                 }
             }
             "issue_assign" -> {
@@ -661,8 +669,9 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 if (comment != null) {
                     gh("POST", "https://api.github.com/repos/$fullRepo/issues/$num/comments",
                         """{"body":${JsonPrimitive(comment)}}""")
+                    "✅ 已添加评论"
                 } else {
-                    ghPaginated("https://api.github.com/repos/$fullRepo/issues/$num/comments", limit)
+                    fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/issues/$num/comments", limit), "comment")
                 }
             }
             "pr_request_reviewers" -> {
@@ -673,8 +682,9 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     val rList = reviewers.split(",").map { it.trim() }.filter { it.isNotBlank() }
                     gh("POST", "https://api.github.com/repos/$fullRepo/pulls/$num/requested_reviewers",
                         buildJsonObject { put("reviewers", buildJsonArray { rList.forEach { add(it) } }) }.toString())
+                    "✅ 已请求审查: $reviewers"
                 } else {
-                    ghPaginated("https://api.github.com/repos/$fullRepo/pulls/$num/requested_reviewers", limit)
+                    fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/pulls/$num/requested_reviewers", limit), "reviewer")
                 }
             }
 
