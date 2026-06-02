@@ -8,6 +8,7 @@ import me.rerere.rikkahub.data.database.AppDatabase
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.KnowledgeSource
 import me.rerere.rikkahub.data.model.KnowledgeSourceType
+import me.rerere.rikkahub.data.model.TavernCharacterData
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.settings.SettingsStore
 import org.koin.java.KoinJavaComponent
@@ -187,7 +188,21 @@ class PythonBridge(private val context: Context) {
                 "talkativeness" -> a.copy(talkativeness = float().coerceIn(0f, 1f))
                 "background" -> a.copy(background = if (value == "无" || value.isEmpty()) null else value)
 
-                else -> return@runBlocking "Error: 未知设置 $key。支持: name, chatModelId, system_prompt, temperature, top_p, max_tokens, context_size, stream_output, reasoning_level, enable_memory, use_global_memory, enable_recent_chats, enable_knowledge_base, enable_parallel_tools, enable_sub_agent, enable_web_search, total_steps, tool_recurring_limit, sub_agent_steps, tool_timeout, js_timeout, shell_timeout, talkativeness, message_template, context_template, time_reminder, background"
+                // -- 角色卡字段 --
+                "use_assistant_avatar", "useAssistantAvatar" -> a.copy(useAssistantAvatar = bool())
+                "tavern_name" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(name = value))
+                "tavern_description" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(description = value))
+                "tavern_personality" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(personality = value))
+                "tavern_scenario" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(scenario = value))
+                "tavern_first_message", "tavern_first_msg" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(firstMessage = value))
+                "tavern_system_prompt", "tavernSystemPrompt" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(systemPrompt = value))
+                "tavern_mes_example", "tavernMesExample" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(mesExample = value))
+                "tavern_creator" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(creator = value))
+                "tavern_creator_notes", "tavernCreatorNotes" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(creatorNotes = value))
+                "tavern_version", "tavernCharacterVersion" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(characterVersion = value))
+                "tavern_post_history", "postHistoryInstructions" -> a.copy(tavernData = (a.tavernData ?: TavernCharacterData()).copy(postHistoryInstructions = value))
+
+                else -> return@runBlocking "Error: 未知设置 $key"
             }
 
             settingsStore.updateSettings(settings.copy(assistants = settings.assistants.toMutableList().apply { set(idx, updated) }))
