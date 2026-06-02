@@ -466,6 +466,28 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
+                item(
+                    headlineContent = { Text("  自动修复 CI") },
+                    supportingContent = { Text("CI 失败时 AI 自动读日志→修代码→重提") },
+                    trailingContent = {
+                        Switch(
+                            checked = assistant.enableAutoFixCi,
+                            onCheckedChange = { onUpdate(assistant.copy(enableAutoFixCi = it)) }
+                        )
+                    }
+                )
+                item(
+                    headlineContent = { Text("  CI 超时(秒)") },
+                    supportingContent = { Text("GitHub 操作超时，默认 120 秒") },
+                    trailingContent = {
+                        androidx.compose.material3.Text(
+                            text = "${assistant.enableCiTimeout}s",
+                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                )
+            }
             item(
                 headlineContent = { Text("文件转换") },
                 supportingContent = { Text("允许 AI 转换文档格式（PDF/Word/Excel/PPT/MD/HTML/CSV/JSON/图片）") },

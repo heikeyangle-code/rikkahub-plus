@@ -21,7 +21,7 @@ fun createGitHubTool(settingsStore: SettingsStore): Tool = Tool(
                         add("search_repo"); add("search_code"); add("trending")
                         add("get_repo"); add("list_issues"); add("create_issue")
                         add("pr_list"); add("pr_view"); add("pr_create"); add("pr_review"); add("pr_merge")
-                        add("ci_status"); add("rerun_workflow"); add("list_workflows"); add("workflow_dispatch")
+                        add("ci_status"); add("ci_log"); add("rerun_workflow"); add("list_workflows"); add("workflow_dispatch")
                         add("read_file"); add("list_files"); add("get_readme"); add("get_diff")
                         add("commit"); add("commit_files"); add("revert_commit"); add("create_branch"); add("list_branches")
                         add("compare_repos"); add("search_issue"); add("search_user")
@@ -301,6 +301,45 @@ $files"""
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val runs = ghPaginated("https://api.github.com/repos/$fullRepo/actions/runs", limit)
                 runs
+            }
+            "ci_log" -> {
+                val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                val artifacts = gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId/artifacts")
+                val items = Json.parseToJsonElement(artifacts).jsonObject["artifacts"]?.jsonArray
+                if (items.isNullOrEmpty()) { "No artifacts for run #$runId" } else {
+                    val logArtifact = items.firstOrNull { a ->
+                        val n = a.jsonObject["name"]?.jsonPrimitive?.contentOrNull ?: ""
+                        n.contains("build", true) || n.contains("log", true)
+                    }
+                    if (logArtifact == null) {
+                        items.joinToString("\n") { a ->
+                            "  📦 ${a.jsonObject["name"]?.jsonPrimitive?.contentOrNull ?: "?"}"
+                        }.let { "No log artifact found. Available:\n$it" }
+                    } else {
+                        val artId = logArtifact.jsonObject["id"]?.jsonPrimitive?.intOrNull ?: 0
+                        val conn = URL("https://api.github.com/repos/$fullRepo/actions/artifacts/$artId/zip").openConnection() as HttpURLConnection
+                        conn.instanceFollowRedirects = true
+                        conn.connectTimeout = 15_000; conn.readTimeout = 60_000
+                        conn.setRequestProperty("User-Agent", "Rikkahub/1.0")
+                        conn.setRequestProperty("Accept", "application/vnd.github+json")
+                        if (token.isNotBlank()) conn.setRequestProperty("Authorization", "token $token")
+                        if (conn.responseCode != 200) { conn.disconnect(); "Download failed (HTTP ${conn.responseCode})" } else {
+                            val zipBytes = conn.inputStream.readBytes(); conn.disconnect()
+                            val zis = java.util.zip.ZipInputStream(zipBytes.inputStream())
+                            val logs = mutableListOf<Pair<String, String>>()
+                            var e = zis.nextEntry
+                            while (e != null) {
+                                if (!e.isDirectory && (e.name.endsWith(".log") || e.name.endsWith(".txt")))
+                                    logs.add(e.name to zis.readBytes().toString(Charsets.UTF_8).take(30000))
+                                zis.closeEntry(); e = zis.nextEntry
+                            }
+                            zis.close()
+                            if (logs.isEmpty()) "No .log/.txt files in artifact"
+                            else logs.joinToString("\n\n${"=".repeat(40)}\n\n") { (n, t) -> "=== $n ===\n$t" }.take(50000)
+                        }
+                    }
+                }
             }
             "rerun_workflow" -> {
                 val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
