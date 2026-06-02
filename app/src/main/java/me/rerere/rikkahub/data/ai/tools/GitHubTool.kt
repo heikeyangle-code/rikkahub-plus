@@ -420,10 +420,10 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
         val limit = obj["limit"]?.jsonPrimitive?.intOrNull ?: 10
 
         // ── JSON formatters ──
-        fun sj(o: JsonObject?, key: String) = o?.get(key)?.jsonPrimitive?.contentOrNull ?: ""
-        fun si(o: JsonObject?, key: String) = o?.get(key)?.jsonPrimitive?.intOrNull ?: 0
-        fun sb(o: JsonObject?, key: String) = o?.get(key)?.jsonPrimitive?.booleanOrNull ?: false
-        fun slogin(o: JsonObject?, key: String) = o?.get(key)?.jsonObject?.get("login")?.jsonPrimitive?.contentOrNull ?: ""
+        fun sj(o: JsonObject?, key: String) = (o?.get(key) as? JsonPrimitive)?.contentOrNull ?: ""
+        fun si(o: JsonObject?, key: String) = (o?.get(key) as? JsonPrimitive)?.intOrNull ?: 0
+        fun sb(o: JsonObject?, key: String) = (o?.get(key) as? JsonPrimitive)?.booleanOrNull ?: false
+        fun slogin(o: JsonObject?, key: String) = ((o?.get(key) as? JsonObject)?.get("login") as? JsonPrimitive)?.contentOrNull ?: ""
         fun jstr(v: String) = JsonPrimitive(v)
         fun jint(v: Int) = JsonPrimitive(v)
         fun jbool(v: Boolean) = JsonPrimitive(v)
@@ -1161,9 +1161,17 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         } catch (_: Exception) { null }
                     }
                     if (logs.isNotEmpty()) {
-                        logs.joinToString("\n\n${"=".repeat(40)}\n\n") { (n, t) ->
-                            "=== $n ===\n${t.take(30000)}"
-                        }.take(50000)
+                        val logText = logs.joinToString("\n\n${"=".repeat(40)}\n\n") { (n, t) ->
+                            "=== $n ===\n$t"
+                        }
+                        val startLine = obj["start_line"]?.jsonPrimitive?.intOrNull
+                        val endLine = obj["end_line"]?.jsonPrimitive?.intOrNull
+                        if (startLine != null || endLine != null) {
+                            val lines = logText.lines()
+                            val s = (startLine ?: 1).coerceIn(1, maxOf(lines.size, 1))
+                            val e = (endLine ?: lines.size).coerceIn(s, maxOf(lines.size, 1))
+                            lines.subList(s - 1, e).joinToString("\n")
+                        } else logText
                     } else {
                         // Fallback: try artifact download
                         val artifacts = gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId/artifacts")
@@ -1238,6 +1246,8 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             // ═══════════════════════════════════════════
             "read_file" -> {
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: error("path required")
+                val startLine = obj["start_line"]?.jsonPrimitive?.intOrNull
+                val endLine = obj["end_line"]?.jsonPrimitive?.intOrNull
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val content = gh("https://api.github.com/repos/$fullRepo/contents/$path?ref=$branch")
                 val json = parseJSON(content)
@@ -1246,7 +1256,14 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val sha = json["sha"]?.jsonPrimitive?.contentOrNull ?: ""
                 val decoded = if (encoding == "base64") String(java.util.Base64.getMimeDecoder().decode(rawContent))
                 else content
-                "[SHA: $sha]\n$decoded"
+                if (startLine != null || endLine != null) {
+                    val lines = decoded.lines()
+                    val s = (startLine ?: 1).coerceIn(1, maxOf(lines.size, 1))
+                    val e = (endLine ?: lines.size).coerceIn(s, maxOf(lines.size, 1))
+                    "[SHA: $sha] [Lines $s-$e/${lines.size}]\n${lines.subList(s - 1, e).joinToString("\n")}"
+                } else {
+                    "[SHA: $sha]\n$decoded"
+                }
             }
             "list_files" -> {
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -1463,10 +1480,10 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                             add(buildJsonObject {
                                 put("path", jstr(sj(fo,"filename"))); put("status", jstr(sj(fo,"status")))
                                 put("additions", jint(si(fo,"additions"))); put("deletions", jint(si(fo,"deletions")))
-                                put("patch", jstr(sj(fo,"patch").take(500)))
+                                put("patch", jstr(sj(fo,"patch")))
                             })
                         }
-                    }.toString().take(20000)
+                    }.toString()
                 } else if (path.isNotBlank()) {
                     fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/commits?path=${encode(path)}&sha=$branch", limit), "commit")
                 } else {
@@ -1739,7 +1756,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
 
             else -> error("Unknown action: $action")
         }
-        listOf(UIMessagePart.Text(result.take(50000)))
+        listOf(UIMessagePart.Text(if (action in setOf("read_file","ci_log","get_diff")) result else result.take(50000)))
     },
 )
 
