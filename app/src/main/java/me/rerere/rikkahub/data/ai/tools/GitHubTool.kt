@@ -81,7 +81,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         // Search
                         add("search_repo"); add("search_code"); add("search_issue"); add("search_user"); add("trending")
                         // Repo info
-                        add("get_repo"); add("compare_repos"); add("list_tags"); add("list_releases"); add("list_contributors")
+                        add("get_repo"); add("list_my_repos"); add("list_org_repos"); add("list_user_repos"); add("compare_repos"); add("list_tags"); add("list_releases"); add("list_contributors")
                         add("repo_languages"); add("create_repo"); add("fork_repo")
                         // Issues
                         add("list_issues"); add("create_issue"); add("issue_comment"); add("issue_update")
@@ -97,7 +97,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         add("commit"); add("commit_files"); add("delete_file")
                         add("diff_local_with_github")
                         // Git data
-                        add("list_branches"); add("create_branch"); add("list_commits"); add("get_commit")
+                        add("list_branches"); add("delete_branch"); add("create_branch"); add("list_commits"); add("get_commit")
                         add("compare_commits"); add("get_diff"); add("commit_status"); add("revert_commit")
                         // Other
                         add("create_gist"); add("user_info"); add("rate_limit")
@@ -334,6 +334,18 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "get_repo" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
                 gh("https://api.github.com/repos/$fullRepo")
+            }
+            "list_my_repos" -> {
+                val type = obj["state"]?.jsonPrimitive?.contentOrNull ?: "all"
+                ghPaginated("https://api.github.com/user/repos?type=$type&sort=updated", limit)
+            }
+            "list_org_repos" -> {
+                val orgName = obj["owner"]?.jsonPrimitive?.contentOrNull ?: error("owner (org name) required")
+                ghPaginated("https://api.github.com/orgs/$orgName/repos?sort=updated", limit)
+            }
+            "list_user_repos" -> {
+                val username = obj["owner"]?.jsonPrimitive?.contentOrNull ?: error("owner (username) required")
+                ghPaginated("https://api.github.com/users/$username/repos?sort=updated", limit)
             }
             "compare_repos" -> {
                 val o2 = obj["owner2"]?.jsonPrimitive?.contentOrNull ?: error("owner2 required")
@@ -850,6 +862,12 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     ?: error("Cannot find source branch SHA")
                 gh("POST", "https://api.github.com/repos/$fullRepo/git/refs",
                     """{"ref":"refs/heads/$newBranch","sha":"$sha"}""")
+            }
+            "delete_branch" -> {
+                val delBranch = obj["branch"]?.jsonPrimitive?.contentOrNull ?: error("branch required")
+                if (fullRepo.isBlank()) error("owner and repo required")
+                gh("DELETE", "https://api.github.com/repos/$fullRepo/git/refs/heads/$delBranch")
+                "OK: deleted branch $delBranch"
             }
             "list_commits" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
