@@ -38,7 +38,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
     }
 
     val skillsHint = if (skillDirs.isNotEmpty()) {
-        " These are your working directories: ${skillDirs.joinToString()}."
+        " These are your working directories: ${skillDirs.joinToString()}. Use use_skill to load skills, NOT file_list/file_read."
     } else ""
 
     return listOf(

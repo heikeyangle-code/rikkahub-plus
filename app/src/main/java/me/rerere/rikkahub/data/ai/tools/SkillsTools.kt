@@ -24,7 +24,10 @@ fun createSkillTools(
     return listOf(
         Tool(
             name = "use_skill",
-            description = "Load a skill's instructions and linked files. Call when a task matches a skill.",
+            description = "Call a skill by name. DO NOT browse skill directories or read files first — " +
+                "just pass the exact skill name and this tool loads everything needed. " +
+                "Available skills are listed in <available_skills> below. " +
+                "For example: use_skill(name=\"driving-test-master\") loads it instantly.",
             systemPrompt = { _, _ ->
                 buildString {
                     appendLine("## Skills")
