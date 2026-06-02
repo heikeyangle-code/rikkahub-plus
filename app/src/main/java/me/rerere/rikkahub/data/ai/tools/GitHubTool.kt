@@ -8,10 +8,12 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import java.net.HttpURLConnection
 import java.net.URL
 
-fun createGitHubTool(settingsStore: SettingsStore): Tool = Tool(
+fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, enableAutoFixCi: Boolean = false): Tool = Tool(
     name = "github_tool",
     description = "Interact with GitHub: search repos/code, manage issues/PRs, check CI, read files, and more. " +
-            "Uses the GitHub REST API. Requires a GitHub token configured in Settings.",
+            "Uses the GitHub REST API. Requires a GitHub token configured in Settings." +
+            if (enableAutoFixCi) " Auto-fix CI is enabled: when CI fails, read logs, fix code, and re-push."
+            else "",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -138,8 +140,8 @@ fun createGitHubTool(settingsStore: SettingsStore): Tool = Tool(
 
         fun gh(url: String): String {
             val conn = URL(url).openConnection() as HttpURLConnection
-            conn.connectTimeout = 15_000
-            conn.readTimeout = 30_000
+            conn.connectTimeout = (defaultTimeout * 1000 / 2).toInt()
+            conn.readTimeout = defaultTimeout * 1000
             conn.setRequestProperty("User-Agent", "Rikkahub/1.0")
             conn.setRequestProperty("Accept", "application/vnd.github+json")
             if (token.isNotBlank()) conn.setRequestProperty("Authorization", "token $token")
@@ -159,8 +161,8 @@ fun createGitHubTool(settingsStore: SettingsStore): Tool = Tool(
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.requestMethod = method
             conn.doOutput = body.isNotBlank()
-            conn.connectTimeout = 15_000
-            conn.readTimeout = 30_000
+            conn.connectTimeout = (defaultTimeout * 1000 / 2).toInt()
+            conn.readTimeout = defaultTimeout * 1000
             conn.setRequestProperty("User-Agent", "Rikkahub/1.0")
             conn.setRequestProperty("Accept", "application/vnd.github+json")
             conn.setRequestProperty("Content-Type", "application/json")

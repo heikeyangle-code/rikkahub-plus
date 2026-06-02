@@ -91,6 +91,9 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     val navController = LocalNavController.current
     val settings by vm.settings.collectAsStateWithLifecycle()
     val filesManager: FilesManager = koinInject()
+    var showGithubDialog by androidx.compose.runtime.remember { mutableStateOf(false) }
+    var githubTokenInput by androidx.compose.runtime.remember(settings) { mutableStateOf(settings.githubToken) }
+    val context = LocalContext.current
 
     if (settings.launchCount > 100 && (settings.launchCount - settings.sponsorAlertDismissedAt) >= 50) {
         AlertDialog(
@@ -404,6 +407,37 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 }
             }
         }
+    }
+
+    if (showGithubDialog) {
+        AlertDialog(
+            onDismissRequest = { showGithubDialog = false },
+            icon = { Icon(HugeIcons.BookmarkAdd01, null) },
+            title = { Text("GitHub 配置") },
+            text = {
+                Column {
+                    Text("输入 Token 以启用搜索仓库、CI 查看、PR 管理。", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = githubTokenInput,
+                        onValueChange = { githubTokenInput = it },
+                        label = { Text("GitHub Token") },
+                        placeholder = { Text("ghp_...") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.updateSettings(settings.copy(githubToken = githubTokenInput))
+                    showGithubDialog = false
+                }) { Text("保存") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGithubDialog = false }) { Text("取消") }
+            },
+        )
     }
 }
 

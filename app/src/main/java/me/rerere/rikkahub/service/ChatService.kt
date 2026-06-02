@@ -585,7 +585,7 @@ class ChatService(
                         add(createPythonTool(context, assistant.toolExecTimeout))
                     }
                     if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
-                        add(createGitHubTool(settingsStore))
+                        add(createGitHubTool(settingsStore, assistant.enableCiTimeout, assistant.enableAutoFixCi))
                     }
                     if (assistant.localTools.contains(LocalToolOption.ConvertFile)) {
                         add(createConvertFileTool(context))
@@ -1082,7 +1082,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                     addAll(createShellTools())
                 }
                 if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
-                    add(createGitHubTool(settingsStore))
+                    add(createGitHubTool(settingsStore, assistant.enableCiTimeout, assistant.enableAutoFixCi))
                 }
                 if (assistant.localTools.contains(LocalToolOption.ConvertFile)) {
                     add(createConvertFileTool(context))
