@@ -4,7 +4,7 @@ import android.content.Context
 import kotlinx.coroutines.runBlocking
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.db.AppDatabase
-import me.rerere.rikkahub.data.datastore.PreferencesStore
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.TavernCharacterData
@@ -16,7 +16,7 @@ import kotlin.uuid.Uuid
 class PythonBridge(private val context: Context) {
 
     private val db by lazy { KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java) }
-    private val settingsStore by lazy { KoinJavaComponent.get<PreferencesStore>(PreferencesStore::class.java) }
+    private val settingsStore by lazy { KoinJavaComponent.get<SettingsStore>(SettingsStore::class.java) }
     private val conversationRepo by lazy { KoinJavaComponent.get<ConversationRepository>(ConversationRepository::class.java) }
     private val kbService by lazy { KoinJavaComponent.get<KnowledgeBaseService>(KnowledgeBaseService::class.java) }
 
