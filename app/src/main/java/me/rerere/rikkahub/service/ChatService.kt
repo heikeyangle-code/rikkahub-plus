@@ -562,15 +562,25 @@ class ChatService(
                 outputTransformers = outputTransformers,
                 tools = buildList {
                     val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
-                    addAll(createFileTools(skillDirs))
-                    add(createAssetTool(context.filesDir.absolutePath))
-                    add(createDataProcessTool())
+                    if (assistant.localTools.contains(LocalToolOption.FileTools)) {
+                        addAll(createFileTools(skillDirs))
+                    }
+                    if (assistant.localTools.contains(LocalToolOption.AssetGenerator)) {
+                        add(createAssetTool(context.filesDir.absolutePath))
+                    }
+                    if (assistant.localTools.contains(LocalToolOption.DataProcess)) {
+                        add(createDataProcessTool())
+                    }
                     if (settings.enableWebSearch) {
                         addAll(createSearchTools(settings))
                     }
                     addAll(localTools.getTools(assistant.localTools))
-                    addAll(createShellTools())
-                    add(createPythonTool(context, assistant.toolExecTimeout))
+                    if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
+                        addAll(createShellTools())
+                    }
+                    if (assistant.localTools.contains(LocalToolOption.PythonEngine)) {
+                        add(createPythonTool(context, assistant.toolExecTimeout))
+                    }
                     if (assistant.enabledSkills.isNotEmpty()) {
                         addAll(
                             createSkillTools(
@@ -647,10 +657,12 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         if (settings.enableWebSearch) {
                                             addAll(createSearchTools(settings))
                                         }
-                                        addAll(
-                                            createFileTools(skillDirs)
-                                                .filter { it.name in listOf("file_read", "file_write", "file_list") }
-                                        )
+                                        if (assistant.localTools.contains(LocalToolOption.FileTools)) {
+                                            addAll(
+                                                createFileTools(skillDirs)
+                                                    .filter { it.name in listOf("file_read", "file_write", "file_list") }
+                                            )
+                                        }
                                         addAll(
                                             localTools.getTools(listOf(LocalToolOption.TimeInfo))
                                         )
@@ -1047,12 +1059,16 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                 memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
             },
             tools = buildList {
-                addAll(createFileTools(skillDirs))
+                if (assistant.localTools.contains(LocalToolOption.FileTools)) {
+                    addAll(createFileTools(skillDirs))
+                }
                 if (settings.enableWebSearch) {
                     addAll(createSearchTools(settings))
                 }
                 addAll(localTools.getTools(assistant.localTools))
-                addAll(createShellTools())
+                if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
+                    addAll(createShellTools())
+                }
                 if (assistant.enabledSkills.isNotEmpty()) {
                     addAll(
                         createSkillTools(

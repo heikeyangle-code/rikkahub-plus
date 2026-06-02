@@ -2,13 +2,11 @@ package me.rerere.rikkahub.data.ai.python
 
 import android.content.Context
 import kotlinx.coroutines.runBlocking
+import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.db.AppDatabase
-import me.rerere.rikkahub.data.db.dao.KnowledgeSourceEntity
-import me.rerere.rikkahub.data.db.entity.KnowledgeChunkEntity
 import me.rerere.rikkahub.data.datastore.PreferencesStore
+import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.KnowledgeSource
-import me.rerere.rikkahub.data.model.KnowledgeSourceType
 import me.rerere.rikkahub.data.model.TavernCharacterData
 import me.rerere.rikkahub.data.model.TavernEmbeddedBook
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -20,9 +18,18 @@ class PythonBridge(private val context: Context) {
     private val db by lazy { KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java) }
     private val settingsStore by lazy { KoinJavaComponent.get<PreferencesStore>(PreferencesStore::class.java) }
     private val conversationRepo by lazy { KoinJavaComponent.get<ConversationRepository>(ConversationRepository::class.java) }
+    private val kbService by lazy { KoinJavaComponent.get<KnowledgeBaseService>(KnowledgeBaseService::class.java) }
 
     private fun td(a: Assistant) = a.tavernData ?: TavernCharacterData()
     private fun book(a: Assistant) = td(a).embeddedBook ?: TavernEmbeddedBook()
+
+    private fun toggleTool(a: Assistant, tool: LocalToolOption, enable: Boolean): Assistant {
+        return if (enable) {
+            if (tool in a.localTools) a else a.copy(localTools = a.localTools + tool)
+        } else {
+            a.copy(localTools = a.localTools - tool)
+        }
+    }
 
     // ============================================================
     // 知识库
@@ -30,39 +37,32 @@ class PythonBridge(private val context: Context) {
 
     fun queryKnowledgeBase(query: String, limit: Int = 10): String = runBlocking {
         try {
-            db.knowledgeSourceDao().search(query, limit).joinToString("\n---\n") {
-                "[${it.id}] ${it.name ?: "无标题"}\n${it.content?.take(500) ?: "无内容"}"
+            db.knowledgeSourceDao().getAllSources().take(limit).joinToString("\n---\n") {
+                "[${it.id}] ${it.name}\n"
             }
         } catch (e: Exception) { "Error: ${e.message}" }
     }
 
     fun addKnowledgeEntry(title: String, content: String, assistantId: String? = null): String = runBlocking {
         try {
-            val entry = KnowledgeSource(title = title, content = content, source = "python", assistantId = assistantId)
-            db.knowledgeSourceDao().insert(entry)
-            "ok: ${entry.id}"
+            val sourceId = kbService.importText(title, content, assistantId)
+            if (sourceId != null) "ok: $sourceId" else "Error: empty content"
         } catch (e: Exception) { "Error: ${e.message}" }
     }
 
     fun listKnowledgeEntries(limit: Int = 20): String = runBlocking {
         try {
-            db.knowledgeSourceDao().getAll(limit).joinToString("\n") {
-                "[${it.id}] ${it.name ?: "无标题"} (${it.type})"
+            db.knowledgeSourceDao().getAllSources().take(limit).joinToString("\n") {
+                "[${it.id}] ${it.name} (${it.type})"
             }
         } catch (e: Exception) { "Error: ${e.message}" }
     }
 
-    fun updateKnowledgeEntry(id: String, title: String? = null, content: String? = null): String = runBlocking {
+    fun deleteKnowledgeEntry(id: String): String = runBlocking {
         try {
-            val e = db.knowledgeSourceDao().getById(id) ?: return@runBlocking "Error: 条目 $id 不存在"
-            db.knowledgeSourceDao().update(e.copy(name = title ?: e.name))
+            kbService.deleteSource(id)
             "ok"
         } catch (e: Exception) { "Error: ${e.message}" }
-    }
-
-    fun deleteKnowledgeEntry(id: String): String = runBlocking {
-        try { db.knowledgeSourceDao().deleteById(id); "ok" }
-        catch (e: Exception) { "Error: ${e.message}" }
     }
 
     // ============================================================
@@ -172,6 +172,19 @@ class PythonBridge(private val context: Context) {
                 "book_description" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(description = value)))
                 "book_scan_depth" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(scanDepth = int())))
                 "book_token_budget" -> a.copy(tavernData = td(a).copy(embeddedBook = book(a).copy(tokenBudget = int())))
+
+                // -- 工具开关 --
+                "tool_python_engine", "tool_python" -> toggleTool(a, LocalToolOption.PythonEngine, bool())
+                "tool_file_tools", "tool_file" -> toggleTool(a, LocalToolOption.FileTools, bool())
+                "tool_shell_tools", "tool_shell" -> toggleTool(a, LocalToolOption.ShellTools, bool())
+                "tool_asset_generator", "tool_asset" -> toggleTool(a, LocalToolOption.AssetGenerator, bool())
+                "tool_data_process", "tool_data" -> toggleTool(a, LocalToolOption.DataProcess, bool())
+                "tool_javascript" -> toggleTool(a, LocalToolOption.JavascriptEngine, bool())
+                "tool_clipboard" -> toggleTool(a, LocalToolOption.Clipboard, bool())
+                "tool_tts" -> toggleTool(a, LocalToolOption.Tts, bool())
+                "tool_ask_user" -> toggleTool(a, LocalToolOption.AskUser, bool())
+                "tool_present_file" -> toggleTool(a, LocalToolOption.PresentFile, bool())
+                "tool_time_info" -> toggleTool(a, LocalToolOption.TimeInfo, bool())
 
                 else -> return@runBlocking "Error: 未知设置 $key"
             }

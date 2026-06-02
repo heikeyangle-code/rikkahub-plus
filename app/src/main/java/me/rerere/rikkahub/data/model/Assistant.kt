@@ -36,7 +36,15 @@ data class Assistant(
     val customHeaders: List<CustomHeader> = emptyList(),
     val customBodies: List<CustomBody> = emptyList(),
     val mcpServers: Set<Uuid> = emptySet(),
-    val localTools: List<LocalToolOption> = listOf(LocalToolOption.TimeInfo, LocalToolOption.PresentFile),
+    val localTools: List<LocalToolOption> = listOf(
+        LocalToolOption.TimeInfo,
+        LocalToolOption.PresentFile,
+        LocalToolOption.PythonEngine,
+        LocalToolOption.AssetGenerator,
+        LocalToolOption.DataProcess,
+        LocalToolOption.FileTools,
+        LocalToolOption.ShellTools,
+    ),
     val background: String? = null,
     val backgroundOpacity: Float = 1.0f,
     val modeInjectionIds: Set<Uuid> = emptySet(),      // 关联的模式注入 ID

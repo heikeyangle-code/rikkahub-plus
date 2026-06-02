@@ -61,6 +61,26 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("present_file")
     data object PresentFile : LocalToolOption()
+
+    @Serializable
+    @SerialName("python_engine")
+    data object PythonEngine : LocalToolOption()
+
+    @Serializable
+    @SerialName("asset_generator")
+    data object AssetGenerator : LocalToolOption()
+
+    @Serializable
+    @SerialName("data_process")
+    data object DataProcess : LocalToolOption()
+
+    @Serializable
+    @SerialName("file_tools")
+    data object FileTools : LocalToolOption()
+
+    @Serializable
+    @SerialName("shell_tools")
+    data object ShellTools : LocalToolOption()
 }
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {

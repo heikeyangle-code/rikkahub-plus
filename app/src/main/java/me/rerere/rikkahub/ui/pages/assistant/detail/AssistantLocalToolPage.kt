@@ -406,6 +406,56 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = { Text("Python 引擎") },
+                supportingContent = { Text("允许 AI 执行 Python 代码处理数据、调用 API、生成文件") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.PythonEngine),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.PythonEngine, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("创作工具") },
+                supportingContent = { Text("允许 AI 生成图表、二维码、时间线、流程图等") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.AssetGenerator),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.AssetGenerator, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("数据处理") },
+                supportingContent = { Text("允许 AI 格式化 JSON、编码解码、比较文本差异等") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.DataProcess),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.DataProcess, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("文件工具") },
+                supportingContent = { Text("允许 AI 读取、写入、搜索设备文件") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.FileTools),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.FileTools, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("Shell 命令") },
+                supportingContent = { Text("允许 AI 执行 shell 命令") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.ShellTools),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.ShellTools, it) }
+                    )
+                }
+            )
         }
     }
 }
