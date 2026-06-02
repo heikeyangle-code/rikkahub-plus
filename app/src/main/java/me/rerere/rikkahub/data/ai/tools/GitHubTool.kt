@@ -314,45 +314,6 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
 
         fun close(c: HttpURLConnection) { try { c.disconnect() } catch (_: Exception) {} }
 
-        fun gh(url: String): String {
-            val desc = ghDescribe(url)
-            GhProgress.status = desc
-            GhProgress.processingRef?.value = "GitHub: $desc"
-            val c = conn(url)
-            try {
-                val code = c.responseCode
-                val text = if (code in 200..299) c.inputStream.bufferedReader().readText()
-                else { val err = c.errorStream?.bufferedReader()?.readText() ?: "HTTP $code"; close(c); throw RuntimeException(err.take(500)) }
-                close(c); return text
-            } catch (e: Exception) { close(c); throw e }
-        }
-
-        fun gh(method: String, url: String, body: String = ""): String {
-            val desc = ghDescribe(url)
-            GhProgress.status = desc
-            GhProgress.processingRef?.value = "GitHub: $desc"
-            val c = conn(url).apply {
-                requestMethod = method
-                doOutput = body.isNotBlank()
-                if (body.isNotBlank()) { setRequestProperty("Content-Type", "application/json"); outputStream.write(body.toByteArray()) }
-            }
-            try {
-                val code = c.responseCode
-                val text = if (code in 200..299) c.inputStream.bufferedReader().readText()
-                else { val err = c.errorStream?.bufferedReader()?.readText() ?: "HTTP $code"; close(c); throw RuntimeException(err.take(500)) }
-                close(c); return text
-            } catch (e: Exception) { close(c); throw e }
-        }
-
-        fun ghPaginated(url: String, limit: Int): String {
-            val actualUrl = if (url.contains("?")) "$url&per_page=$limit" else "$url?per_page=$limit"
-            return gh(actualUrl)
-        }
-
-        fun encode(s: String) = URLEncoder.encode(s, "UTF-8")
-
-        fun parseJSON(s: String) = Json.parseToJsonElement(s).jsonObject
-
         /** 带重试的 GET 请求（只重试网络错误，HTTP 4xx/5xx 不重试） */
         fun gh(url: String): String {
             val desc = ghDescribe(url)
