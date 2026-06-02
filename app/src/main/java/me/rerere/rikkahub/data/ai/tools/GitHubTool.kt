@@ -296,6 +296,34 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     put("type", "boolean")
                     put("description", "Mark all notifications as read (for mark_notification_read, default: false)")
                 })
+                put("run_id", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "CI run ID (for CI actions: ci_jobs, ci_artifacts, ci_log, ci_cancel, rerun_workflow, get_workflow_run)")
+                })
+                put("job_id", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "CI job ID (for ci_job_log)")
+                })
+                put("artifact_id", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Artifact ID (for download_artifact)")
+                })
+                put("hook_id", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Webhook ID (for delete_webhook)")
+                })
+                put("email", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Email address (for add_email/delete_email)")
+                })
+                put("username", buildJsonObject {
+                    put("type", "string")
+                    put("description", "GitHub username (for follow/unfollow/add_collaborator/remove_collaborator)")
+                })
+                put("gist_id", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Gist ID (for update_gist/delete_gist)")
+                })
             },
             required = listOf("action"),
         )
@@ -410,6 +438,11 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("language", jstr(sj(o,"language"))); put("description", jstr(sj(o,"description").take(200)))
                 put("private", jbool(sb(o,"private"))); put("updated", jstr(sj(o,"updated_at").take(10)))
                 put("url", jstr(sj(o,"html_url"))); put("default_branch", jstr(sj(o,"default_branch")))
+                put("owner", jstr(slogin(o,"owner"))); put("created", jstr(sj(o,"created_at").take(10)))
+                put("pushed", jstr(sj(o,"pushed_at").take(10)))
+                put("topics", jstr(o["topics"]?.jsonArray?.joinToString(",") { it.jsonPrimitive.content } ?: ""))
+                put("size", jint(si(o,"size"))); put("fork", jbool(sb(o,"fork")))
+                put("license", jstr(o["license"]?.jsonObject?.get("spdx_id")?.jsonPrimitive?.contentOrNull ?: ""))
             }
             "issue" -> buildJsonObject {
                 put("number", jint(si(o,"number"))); put("title", jstr(sj(o,"title").take(120)))
@@ -759,7 +792,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/collaborators?permission=$perm", limit), "reviewer")
             }
             "add_collaborator" -> {
-                val username = obj["owner"]?.jsonPrimitive?.contentOrNull ?: error("owner (username) required")
+                val username = obj["username"]?.jsonPrimitive?.contentOrNull ?: error("username required")
                 val perm = obj["state"]?.jsonPrimitive?.contentOrNull ?: "push"
                 if (fullRepo.isBlank()) error("owner and repo required")
                 gh("PUT", "https://api.github.com/repos/$fullRepo/collaborators/$username",
@@ -767,7 +800,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 "已添加协作者 $username (permission: $perm)"
             }
             "remove_collaborator" -> {
-                val username = obj["owner"]?.jsonPrimitive?.contentOrNull ?: error("owner (username) required")
+                val username = obj["username"]?.jsonPrimitive?.contentOrNull ?: error("username required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 gh("DELETE", "https://api.github.com/repos/$fullRepo/collaborators/$username")
                 "已移除协作者 $username"
@@ -1069,23 +1102,23 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 fmtOne(gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId"), "ci_run")
             }
             "ci_jobs" -> {
-                val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
+                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 fmtClean(gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId/jobs?per_page=50"), "ci_job")
             }
             "ci_job_log" -> {
-                val jobId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (job_id) required")
+                val jobId = obj["job_id"]?.jsonPrimitive?.intOrNull ?: error("job_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val log = ghDownload("https://api.github.com/repos/$fullRepo/actions/jobs/$jobId/logs")
                 log.decodeToString().take(50000)
             }
             "ci_artifacts" -> {
-                val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
+                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 fmtClean(gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId/artifacts"), "artifact")
             }
             "download_artifact" -> {
-                val artId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (artifact_id) required")
+                val artId = obj["artifact_id"]?.jsonPrimitive?.intOrNull ?: error("artifact_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val zipBytes = ghDownload("https://api.github.com/repos/$fullRepo/actions/artifacts/$artId/zip")
                 val zis = java.util.zip.ZipInputStream(zipBytes.inputStream())
@@ -1111,11 +1144,8 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         val id = jObj["id"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
                         val name = jObj["name"]?.jsonPrimitive?.contentOrNull ?: "job_$id"
                         try {
-                            val c = conn("https://api.github.com/repos/$fullRepo/actions/jobs/$id/logs")
-                            c.instanceFollowRedirects = true
-                            c.readTimeout = 60_000
-                            if (c.responseCode != 200) { close(c); null }
-                            else { val txt = c.inputStream.bufferedReader().readText(); close(c); name to txt }
+                            val bytes = ghDownload("https://api.github.com/repos/$fullRepo/actions/jobs/$id/logs")
+                            name to bytes.decodeToString()
                         } catch (_: Exception) { null }
                     }
                     if (logs.isNotEmpty()) {
@@ -1534,13 +1564,13 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 fmtClean(ghPaginated("https://api.github.com/user/emails", limit), "email")
             }
             "add_email" -> {
-                val email = obj["comment"]?.jsonPrimitive?.contentOrNull ?: error("comment (email) required")
+                val email = obj["email"]?.jsonPrimitive?.contentOrNull ?: error("email required")
                 gh("POST", "https://api.github.com/user/emails",
                     """{"emails":["$email"]}""")
                 "邮箱 $email 已添加"
             }
             "delete_email" -> {
-                val email = obj["comment"]?.jsonPrimitive?.contentOrNull ?: error("comment (email) required")
+                val email = obj["email"]?.jsonPrimitive?.contentOrNull ?: error("email required")
                 gh("DELETE", "https://api.github.com/user/emails",
                     """{"emails":["$email"]}""")
                 "邮箱 $email 已删除"
@@ -1558,12 +1588,12 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 fmtClean(ghPaginated(url, limit), "reviewer")
             }
             "follow_user" -> {
-                val username = obj["owner"]?.jsonPrimitive?.contentOrNull ?: error("owner (username) required")
+                val username = obj["username"]?.jsonPrimitive?.contentOrNull ?: error("username required")
                 gh("PUT", "https://api.github.com/user/following/$username")
                 "已关注 $username"
             }
             "unfollow_user" -> {
-                val username = obj["owner"]?.jsonPrimitive?.contentOrNull ?: error("owner (username) required")
+                val username = obj["username"]?.jsonPrimitive?.contentOrNull ?: error("username required")
                 gh("DELETE", "https://api.github.com/user/following/$username")
                 "已取消关注 $username"
             }
@@ -1595,13 +1625,13 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 "Gist 已创建: ${sj(o,"html_url")}"
             }
             "list_gists" -> {
-                val username = obj["owner"]?.jsonPrimitive?.contentOrNull
+                val username = obj["username"]?.jsonPrimitive?.contentOrNull
                 val url = if (username.isNullOrBlank()) "https://api.github.com/gists"
                 else "https://api.github.com/users/$username/gists"
                 fmtClean(ghPaginated(url, limit), "gist_item")
             }
             "update_gist" -> {
-                val gistId = obj["sha"]?.jsonPrimitive?.contentOrNull ?: error("sha (gist_id) required")
+                val gistId = obj["gist_id"]?.jsonPrimitive?.contentOrNull ?: error("gist_id required")
                 val content = obj["content"]?.jsonPrimitive?.contentOrNull
                 val filename = obj["path"]?.jsonPrimitive?.contentOrNull
                 val desc = obj["description"]?.jsonPrimitive?.contentOrNull
@@ -1617,7 +1647,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 "Gist $gistId 已更新"
             }
             "delete_gist" -> {
-                val gistId = obj["sha"]?.jsonPrimitive?.contentOrNull ?: error("sha (gist_id) required")
+                val gistId = obj["gist_id"]?.jsonPrimitive?.contentOrNull ?: error("gist_id required")
                 gh("DELETE", "https://api.github.com/gists/$gistId")
                 "Gist $gistId 已删除"
             }
@@ -1672,7 +1702,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 "Webhook 已创建 ($url)"
             }
             "delete_webhook" -> {
-                val hookId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (hook_id) required")
+                val hookId = obj["hook_id"]?.jsonPrimitive?.intOrNull ?: error("hook_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 gh("DELETE", "https://api.github.com/repos/$fullRepo/hooks/$hookId")
                 "Webhook #$hookId 已删除"
