@@ -302,30 +302,114 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
         val branch = obj["branch"]?.jsonPrimitive?.contentOrNull ?: "main"
         val limit = obj["limit"]?.jsonPrimitive?.intOrNull ?: 10
 
+        // ── JSON formatters ──
+        fun sj(o: JsonObject?, key: String) = o?.get(key)?.jsonPrimitive?.contentOrNull ?: ""
+        fun si(o: JsonObject?, key: String) = o?.get(key)?.jsonPrimitive?.intOrNull ?: 0
+        fun sb(o: JsonObject?, key: String) = o?.get(key)?.jsonPrimitive?.booleanOrNull ?: false
+        fun slogin(o: JsonObject?, key: String) = o?.get(key)?.jsonObject?.get("login")?.jsonPrimitive?.contentOrNull ?: ""
+        fun slimits(s: String) = s.take(500)
+        fun jarr(vararg items: Pair<String, JsonElement>) = buildJsonObject { items.forEach { (k, v) -> put(k, v) } }.toString()
+        fun jstr(v: String) = JsonPrimitive(v)
+        fun jint(v: Int) = JsonPrimitive(v)
+        fun jbool(v: Boolean) = JsonPrimitive(v)
+
+        fun cleanItem(o: JsonObject, type: String): JsonObject = when (type) {
+            "repo" -> buildJsonObject {
+                put("name", jstr(sj(o,"full_name"))); put("stars", jint(si(o,"stargazers_count")))
+                put("forks", jint(si(o,"forks_count"))); put("issues", jint(si(o,"open_issues_count")))
+                put("language", jstr(sj(o,"language"))); put("description", jstr(sj(o,"description").take(200)))
+                put("private", jbool(sb(o,"private"))); put("updated", jstr(sj(o,"updated_at").take(10)))
+            }
+            "issue" -> buildJsonObject {
+                put("number", jint(si(o,"number"))); put("title", jstr(sj(o,"title").take(120)))
+                put("state", jstr(sj(o,"state"))); put("user", jstr(slogin(o,"user")))
+                put("created", jstr(sj(o,"created_at").take(10)))
+                put("comments", jint(si(o,"comments"))); put("labels", jstr(o["labels"]?.jsonArray?.joinToString(",") { sj(it.jsonObject,"name") } ?: ""))
+            }
+            "pr" -> buildJsonObject {
+                put("number", jint(si(o,"number"))); put("title", jstr(sj(o,"title").take(120)))
+                put("state", jstr(sj(o,"state"))); put("user", jstr(slogin(o,"user")))
+                put("head", jstr(o["head"]?.jsonObject?.get("ref")?.jsonPrimitive?.contentOrNull ?: ""))
+                put("base", jstr(o["base"]?.jsonObject?.get("ref")?.jsonPrimitive?.contentOrNull ?: ""))
+                put("draft", jbool(sb(o,"draft"))); put("created", jstr(sj(o,"created_at").take(10)))
+            }
+            "commit" -> buildJsonObject {
+                put("sha", jstr(sj(o,"sha").take(7)))
+                put("message", jstr(o["commit"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull?.take(80) ?: ""))
+                put("author", jstr(slogin(o,"author"))); put("date", jstr(sj(o,"commit")?.let { parseJSON(it)["committer"]?.jsonObject?.get("date")?.jsonPrimitive?.contentOrNull?.take(10) ?: "" }))
+            }
+            "branch" -> buildJsonObject { put("name", jstr(sj(o,"name"))) }
+            "file" -> buildJsonObject {
+                put("name", jstr(sj(o,"name"))); put("type", jstr(sj(o,"type")))
+                put("size", jint(si(o,"size"))); put("path", jstr(sj(o,"path")))
+            }
+            "tag" -> buildJsonObject {
+                put("name", jstr(sj(o,"name")))
+                put("sha", jstr(o["commit"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull?.take(7) ?: ""))
+            }
+            "release" -> buildJsonObject {
+                put("tag", jstr(sj(o,"tag_name"))); put("name", jstr(sj(o,"name") ?: sj(o,"tag_name")))
+                put("prerelease", jbool(sb(o,"prerelease"))); put("published", jstr(sj(o,"published_at").take(10)))
+                put("body", jstr(sj(o,"body").take(200)))
+            }
+            "contributor" -> buildJsonObject {
+                put("login", jstr(slogin(o,"author") ?: sj(o,"login"))); put("contributions", jint(si(o,"contributions")))
+            }
+            "workflow" -> buildJsonObject {
+                put("name", jstr(sj(o,"name"))); put("path", jstr(sj(o,"path"))); put("state", jstr(sj(o,"state")))
+            }
+            "artifact" -> buildJsonObject {
+                put("name", jstr(sj(o,"name"))); put("size", jint(si(o,"size_in_bytes"))); put("id", jint(si(o,"id")))
+            }
+            "code" -> buildJsonObject {
+                put("path", jstr(sj(o,"path"))); put("name", jstr(sj(o,"name")))
+                put("repo", jstr(sj(o,"repository")?.substringAfterLast("/") ?: ""))
+            }
+            "user" -> buildJsonObject {
+                put("login", jstr(sj(o,"login"))); put("type", jstr(sj(o,"type"))); put("score", jint((o["score"]?.jsonPrimitive?.doubleOrNull ?: 0.0).toInt()))
+            }
+            else -> o
+        }
+
+        fun fmtClean(raw: String, type: String): String {
+            val arr = try {
+                val el = Json.parseToJsonElement(raw)
+                when {
+                    el.jsonObject["items"]?.jsonArray != null -> el.jsonObject["items"]?.jsonArray
+                    el.jsonObject["${type}s"]?.jsonArray != null -> el.jsonObject["${type}s"]?.jsonArray
+                    else -> el.jsonArray
+                }
+            } catch (_: Exception) { null } ?: JsonArray(emptyList())
+            val cleaned = buildJsonArray { arr.forEach { add(cleanItem(it.jsonObject, type)) } }
+            cleaned.toString().take(20000)
+        }
+
+        fun fmtOne(raw: String, type: String): String = cleanItem(parseJSON(raw), type).toString()
+
         val result = when (action) {
             // ═══════════════════════════════════════════
             // SEARCH
             // ═══════════════════════════════════════════
             "search_repo" -> {
                 val q = obj["q"]?.jsonPrimitive?.contentOrNull ?: error("q required")
-                ghPaginated("https://api.github.com/search/repositories?q=${encode(q)}", limit)
+                fmtClean(ghPaginated("https://api.github.com/search/repositories?q=${encode(q)}", limit), "repo")
             }
             "search_code" -> {
                 val q = obj["q"]?.jsonPrimitive?.contentOrNull ?: error("q required")
-                ghPaginated("https://api.github.com/search/code?q=${encode(q)}", limit)
+                fmtClean(ghPaginated("https://api.github.com/search/code?q=${encode(q)}", limit), "code")
             }
             "search_issue" -> {
                 val q = obj["q"]?.jsonPrimitive?.contentOrNull ?: error("q required")
-                ghPaginated("https://api.github.com/search/issues?q=${encode(q)}", limit)
+                fmtClean(ghPaginated("https://api.github.com/search/issues?q=${encode(q)}", limit), "issue")
             }
             "search_user" -> {
                 val q = obj["q"]?.jsonPrimitive?.contentOrNull ?: error("q required")
-                ghPaginated("https://api.github.com/search/users?q=${encode(q)}", limit)
+                fmtClean(ghPaginated("https://api.github.com/search/users?q=${encode(q)}", limit), "user")
             }
             "trending" -> {
                 val lang = obj["language"]?.jsonPrimitive?.contentOrNull ?: ""
                 val langParam = if (lang.isNotBlank()) "+language:$lang" else ""
-                ghPaginated("https://api.github.com/search/repositories?q=created:>30d$langParam&sort=stars&order=desc", limit)
+                fmtClean(ghPaginated("https://api.github.com/search/repositories?q=created:>30d$langParam&sort=stars&order=desc", limit), "repo")
             }
 
             // ═══════════════════════════════════════════
@@ -333,19 +417,19 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             // ═══════════════════════════════════════════
             "get_repo" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                gh("https://api.github.com/repos/$fullRepo")
+                fmtOne(gh("https://api.github.com/repos/$fullRepo"), "repo")
             }
             "list_my_repos" -> {
                 val type = obj["state"]?.jsonPrimitive?.contentOrNull ?: "all"
-                ghPaginated("https://api.github.com/user/repos?type=$type&sort=updated", limit)
+                fmtClean(ghPaginated("https://api.github.com/user/repos?type=$type&sort=updated", limit), "repo")
             }
             "list_org_repos" -> {
                 val orgName = obj["owner"]?.jsonPrimitive?.contentOrNull ?: error("owner (org name) required")
-                ghPaginated("https://api.github.com/orgs/$orgName/repos?sort=updated", limit)
+                fmtClean(ghPaginated("https://api.github.com/orgs/$orgName/repos?sort=updated", limit), "repo")
             }
             "list_user_repos" -> {
                 val username = obj["owner"]?.jsonPrimitive?.contentOrNull ?: error("owner (username) required")
-                ghPaginated("https://api.github.com/users/$username/repos?sort=updated", limit)
+                fmtClean(ghPaginated("https://api.github.com/users/$username/repos?sort=updated", limit), "repo")
             }
             "compare_repos" -> {
                 val o2 = obj["owner2"]?.jsonPrimitive?.contentOrNull ?: error("owner2 required")
@@ -378,15 +462,15 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "list_tags" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                ghPaginated("https://api.github.com/repos/$fullRepo/tags", limit)
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/tags", limit), "tag")
             }
             "list_releases" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                ghPaginated("https://api.github.com/repos/$fullRepo/releases", limit)
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/releases", limit), "release")
             }
             "list_contributors" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                ghPaginated("https://api.github.com/repos/$fullRepo/contributors", limit)
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/contributors", limit), "contributor")
             }
             "repo_languages" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
@@ -406,14 +490,18 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     put("private", isPrivate)
                     put("auto_init", autoInit)
                 }.toString()
-                gh("POST", url, payload)
+                val result = gh("POST", url, payload)
+                val o = try { parseJSON(result) } catch (_: Exception) { null }
+                "✅ 已创建仓库: ${sj(o,"html_url")}"
             }
             "fork_repo" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val orgName = obj["org"]?.jsonPrimitive?.contentOrNull
                 val url = "https://api.github.com/repos/$fullRepo/forks"
-                if (orgName.isNullOrBlank()) gh("POST", url, "{}")
+                val result = if (orgName.isNullOrBlank()) gh("POST", url, "{}")
                 else gh("POST", url, """{"organization":"$orgName"}""")
+                val o = try { parseJSON(result) } catch (_: Exception) { null }
+                "✅ 已 Fork: ${sj(o,"html_url")}"
             }
 
             // ═══════════════════════════════════════════
@@ -422,7 +510,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "list_issues" -> {
                 val st = obj["state"]?.jsonPrimitive?.contentOrNull ?: "open"
                 if (fullRepo.isBlank()) error("owner and repo required")
-                ghPaginated("https://api.github.com/repos/$fullRepo/issues?state=$st", limit)
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/issues?state=$st", limit), "issue")
             }
             "create_issue" -> {
                 val title = obj["title"]?.jsonPrimitive?.contentOrNull ?: error("title required")
@@ -499,7 +587,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "pr_list" -> {
                 val st = obj["state"]?.jsonPrimitive?.contentOrNull ?: "open"
                 if (fullRepo.isBlank()) error("owner and repo required")
-                ghPaginated("https://api.github.com/repos/$fullRepo/pulls?state=$st", limit)
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/pulls?state=$st", limit), "pr")
             }
             "pr_view" -> {
                 val num = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number required")
@@ -632,7 +720,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "ci_artifacts" -> {
                 val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
                 if (fullRepo.isBlank()) error("owner and repo required")
-                gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId/artifacts")
+                fmtClean(gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId/artifacts"), "artifact")
             }
             "ci_log" -> {
                 val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
@@ -715,7 +803,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "list_workflows" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                gh("https://api.github.com/repos/$fullRepo/actions/workflows")
+                fmtClean(gh("https://api.github.com/repos/$fullRepo/actions/workflows"), "workflow")
             }
             "workflow_dispatch" -> {
                 val workflowId = obj["path"]?.jsonPrimitive?.contentOrNull ?: error("path (workflow filename) required")
@@ -743,7 +831,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "list_files" -> {
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: ""
                 if (fullRepo.isBlank()) error("owner and repo required")
-                gh("https://api.github.com/repos/$fullRepo/contents/$path?ref=$branch")
+                fmtClean(gh("https://api.github.com/repos/$fullRepo/contents/$path?ref=$branch"), "file")
             }
             "get_readme" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
@@ -754,7 +842,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "file_meta" -> {
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: error("path required")
                 if (fullRepo.isBlank()) error("owner and repo required")
-                gh("https://api.github.com/repos/$fullRepo/contents/$path?ref=$branch")
+                fmtOne(gh("https://api.github.com/repos/$fullRepo/contents/$path?ref=$branch"), "file")
             }
             "commit" -> {
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: error("path required")
@@ -851,7 +939,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             // ═══════════════════════════════════════════
             "list_branches" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                ghPaginated("https://api.github.com/repos/$fullRepo/branches", limit)
+                fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/branches", limit), "branch")
             }
             "create_branch" -> {
                 val newBranch = obj["branch"]?.jsonPrimitive?.contentOrNull ?: error("branch required")
@@ -871,17 +959,17 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "list_commits" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
-                val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: ""
+                val commitPath = obj["path"]?.jsonPrimitive?.contentOrNull ?: ""
                 val url = "https://api.github.com/repos/$fullRepo/commits?sha=$branch" +
-                    (if (path.isNotBlank()) "&path=${encode(path)}" else "")
-                ghPaginated(url, limit)
+                    (if (commitPath.isNotBlank()) "&path=${encode(commitPath)}" else "")
+                fmtClean(ghPaginated(url, limit), "commit")
             }
             "get_commit" -> {
                 val sha = obj["sha"]?.jsonPrimitive?.contentOrNull
                 val ref = obj["branch"]?.jsonPrimitive?.contentOrNull ?: "main"
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val commitRef = sha ?: ref
-                gh("https://api.github.com/repos/$fullRepo/commits/$commitRef")
+                fmtOne(gh("https://api.github.com/repos/$fullRepo/commits/$commitRef"), "commit")
             }
             "compare_commits" -> {
                 val base = obj["base"]?.jsonPrimitive?.contentOrNull ?: error("base required")
@@ -965,14 +1053,22 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         put(filename, buildJsonObject { put("content", content) })
                     })
                 }.toString()
-                gh("POST", "https://api.github.com/gists", payload)
+                val result = gh("POST", "https://api.github.com/gists", payload)
+                val o = try { parseJSON(result) } catch (_: Exception) { null }
+                "✅ 已创建 Gist: ${sj(o,"html_url")}"
             }
             "user_info" -> {
                 val username = obj["owner"]?.jsonPrimitive?.contentOrNull
-                if (username.isNullOrBlank()) gh("https://api.github.com/user")
+                val raw = if (username.isNullOrBlank()) gh("https://api.github.com/user")
                 else gh("https://api.github.com/users/$username")
+                val o = parseJSON(raw)
+                "👤 ${sj(o,"login")} (${sj(o,"name")}) 📝 ${sj(o,"bio").take(100)} 📍${sj(o,"location")} 🐙${sj(o,"html_url")} 📅${sj(o,"created_at").take(10)}"
             }
-            "rate_limit" -> gh("https://api.github.com/rate_limit")
+            "rate_limit" -> {
+                val raw = gh("https://api.github.com/rate_limit")
+                val core = parseJSON(raw)["resources"]?.jsonObject?.get("core")?.jsonObject
+                "Core: ${si(core,"remaining")}/${si(core,"limit")} remaining, resets at ${sj(core,"reset")}"
+            }
 
             else -> error("Unknown action: $action")
         }
