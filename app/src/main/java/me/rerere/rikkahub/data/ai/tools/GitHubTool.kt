@@ -1109,7 +1109,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/actions/runs", limit), "ci_run")
             }
             "get_workflow_run" -> {
-                val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
+                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 fmtOne(gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId"), "ci_run")
             }
@@ -1145,7 +1145,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 else entries.joinToString("\n\n${"=".repeat(40)}\n\n") { (n, t) -> "=== $n ===\n$t" }.take(50000)
             }
             "ci_log" -> {
-                val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
+                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 // First try direct job logs (more reliable)
                 val jobsRaw = gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId/jobs?per_page=20")
@@ -1199,13 +1199,13 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 }
             }
             "ci_cancel" -> {
-                val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
+                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 gh("POST", "https://api.github.com/repos/$fullRepo/actions/runs/$runId/cancel")
                 "已取消运行 #$runId"
             }
             "rerun_workflow" -> {
-                val runId = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number (run_id) required")
+                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 gh("POST", "https://api.github.com/repos/$fullRepo/actions/runs/$runId/rerun", "{}")
                 "已触发重新运行 #$runId"
