@@ -43,7 +43,8 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
 
 private fun messageText(node: MessageNode): String =
-    node.messages.joinToString("\n") { it.toText() }
+    if (node.selectIndex in node.messages.indices) node.messages[node.selectIndex].toText()
+    else node.messages.firstOrNull()?.toText() ?: ""
 
 private fun buildHistoryWithNames(
     messageNodes: List<MessageNode>,
@@ -127,6 +128,13 @@ fun GroupChatPage(groupId: String) {
     val inputState = remember { ChatInputState() }
     val hazeState = rememberHazeState()
     var generationJob by remember { mutableStateOf<Job?>(null) }
+
+    // 退出页面时取消生成
+    DisposableEffect(Unit) {
+        onDispose {
+            generationJob?.cancel()
+        }
+    }
 
     val messageNodes = conversation?.messageNodes ?: emptyList()
     val speakerMap = conversation?.speakerMap ?: emptyMap()
@@ -257,11 +265,35 @@ fun GroupChatPage(groupId: String) {
                             onCompressContext = { _, _, _ -> scope.launch { } },
                             onCancelClick = { generationJob?.cancel(); isGenerating = false; queueStatus = ""; queueMembers = emptyList() },
                             onSendClick = {
-                                val text = inputState.getContents().joinToString("") { if (it is UIMessagePart.Text) it.text else "" }.trim()
-                                if (text.isBlank() || isGenerating) return@ChatInput
+                                val inputContents = inputState.getContents()
+                                val text = inputContents.joinToString("") { if (it is UIMessagePart.Text) it.text else "" }.trim()
+                                if ((text.isBlank() && inputContents.all { it is UIMessagePart.Text }) || isGenerating) return@ChatInput
 
                                 generationJob?.cancel()
                                 isGenerating = true
+
+                                // 编辑模式：直接更新消息，不走选人+生成
+                                if (inputState.isEditing()) {
+                                    val editMsgId = inputState.editingMessage!!
+                                    inputState.clearInput()
+                                    generationJob = scope.launch {
+                                        chatService.updateConversationState(currentConvId) { conv ->
+                                            val updatedNodes = conv.messageNodes.map { node ->
+                                                val idx = node.messages.indexOfFirst { it.id == editMsgId }
+                                                if (idx >= 0) {
+                                                    node.copy(
+                                                        messages = node.messages.mapIndexed { i, m ->
+                                                            if (i == idx) m.copy(parts = inputContents) else m
+                                                        }
+                                                    )
+                                                } else node
+                                            }
+                                            conv.copy(messageNodes = updatedNodes)
+                                        }
+                                        isGenerating = false
+                                    }
+                                    return@ChatInput
+                                }
 
                                 // 选人
                                 val allPicked = GroupSpeakerSelector.pick(
@@ -280,8 +312,6 @@ fun GroupChatPage(groupId: String) {
                                 queueMembers = allPicked.mapNotNull { id -> members.find { it.id == id }?.name }
                                 queueStatus = "等待 ${queueMembers.joinToString("、")} 回复..."
 
-                                // 语音识别用
-                                val inputContents = inputState.getContents()
                                 inputState.clearInput()
 
                                 generationJob = scope.launch {
@@ -446,12 +476,30 @@ fun GroupChatPage(groupId: String) {
                     model = null,
                     loading = isGenerating && index >= messageNodes.lastIndex - 2,
                     lastMessage = index == messageNodes.lastIndex,
-                    onRegenerate = { chatService.regenerateAtMessage(currentConvId, node.messages.first()) },
-                    onEdit = {},
+                    onRegenerate = { chatService.regenerateAtMessage(currentConvId, node.messages[node.selectIndex]) },
+                    onEdit = {
+                        val msg = node.messages[node.selectIndex]
+                        inputState.setContents(msg.parts)
+                        inputState.editingMessage = msg.id
+                    },
                     onDelete = { scope.launch { chatService.deleteMessage(currentConvId, node.messages.first().id) } },
                     onShare = {},
-                    onUpdate = {},
-                    onFork = { scope.launch { chatService.forkConversationAtMessage(currentConvId, node.messages.first().id) } },
+                    onUpdate = { newNode ->
+                        chatService.updateConversationState(currentConvId) { conv ->
+                            conv.copy(
+                                messageNodes = conv.messageNodes.map { if (it.id == newNode.id) newNode else it }
+                            )
+                        }
+                    },
+                    onFork = {
+                        scope.launch {
+                            val fork = chatService.forkConversationAtMessage(currentConvId, node.messages[node.selectIndex].id)
+                            me.rerere.rikkahub.utils.navigateToChatPage(
+                                me.rerere.rikkahub.ui.context.LocalNavController.current,
+                                chatId = fork.id,
+                            )
+                        }
+                    },
                     onImpersonate = { inputState.setMessageText(messageText(node)) },
                     onTranslate = { msg, locale -> chatService.translateMessage(currentConvId, msg, locale) },
                     onClearTranslation = { chatService.clearTranslationField(currentConvId, it.id) },

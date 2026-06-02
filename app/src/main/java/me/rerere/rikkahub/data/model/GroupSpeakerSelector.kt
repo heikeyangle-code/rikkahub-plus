@@ -198,7 +198,11 @@ object GroupSpeakerSelector {
             GroupActivationStrategy.POOLED -> pickPooled(
                 enabledMembers, lastSpeakerId, speakerHistory, allowSelfResponses, speakerWeights,
             )
-            GroupActivationStrategy.MANUAL -> listOfNotNull(manualSpeakerId)
+            GroupActivationStrategy.MANUAL -> {
+                val sid = manualSpeakerId
+                if (sid != null && enabledMembers.none { it.id == sid }) emptyList()
+                else listOfNotNull(sid)
+            }
         }
     }
 }
