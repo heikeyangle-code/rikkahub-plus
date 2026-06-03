@@ -1316,7 +1316,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     put("branch", branch)
                     if (fileSha != null) put("sha", fileSha)
                 }.toString()
-                val result = gh("PUT", "https://api.github.com/repos/$fullRepo/contents/$path", payload)
+                val result = gh("PUT", "https://api.github.com/repos/$fullRepo/contents/${encode(path)}", payload)
                 val o = try { parseJSON(result) } catch (_: Exception) { null }
                 val sha = (o?.get("commit") as? JsonObject)?.get("sha")?.jsonPrimitive?.contentOrNull?.take(8) ?: ""
                 "已提交 $path: $sha"
@@ -1369,7 +1369,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val message = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
                 val fileSha = obj["sha"]?.jsonPrimitive?.contentOrNull ?: error("sha (file SHA) required")
                 if (fullRepo.isBlank()) error("owner and repo required")
-                gh("DELETE", "https://api.github.com/repos/$fullRepo/contents/$path",
+                gh("DELETE", "https://api.github.com/repos/$fullRepo/contents/${encode(path)}",
                     """{"message":"$message","sha":"$fileSha","branch":"$branch"}""")
                 "已删除 $path"
             }
