@@ -3,6 +3,10 @@ package me.rerere.rikkahub.data.ai.agent
 import me.rerere.rikkahub.data.ai.tools.AgentColor
 import me.rerere.rikkahub.data.ai.tools.AgentDefinition
 import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.contentOrNull
 
 /**
  * AI 辅助 Agent 生成服务，对齐官方 generateAgent.ts。

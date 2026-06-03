@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.data.ai.agent
 
+import me.rerere.rikkahub.data.ai.tools.AgentDefinition
+
 /**
  * Agent 执行渲染系统，对齐官方 AgentTool/UI.tsx。
  *

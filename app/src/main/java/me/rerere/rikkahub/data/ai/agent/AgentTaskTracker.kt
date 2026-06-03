@@ -149,12 +149,12 @@ fun createDefaultActivityDescriptionResolver(): ActivityDescriptionResolver {
  * 更新进度并生成可读的活动描述。
  * 对齐官方 updateProgressFromMessage()。
  */
-fun updateProgressFromMessage(
-    agentCallId: String,
-    toolName: String,
-    input: Map<String, String> = emptyMap(),
-    resolver: ActivityDescriptionResolver = createDefaultActivityDescriptionResolver(),
-) {
-    val description = resolver.resolve(toolName, input) ?: toolName
-    recordToolUse(agentCallId, toolName, description)
-}
+    fun updateProgressFromMessage(
+        agentCallId: String,
+        toolName: String,
+        input: Map<String, String> = emptyMap(),
+        resolver: ActivityDescriptionResolver = createDefaultActivityDescriptionResolver(),
+    ) {
+        val description = resolver.resolve(toolName, input) ?: toolName
+        AgentTaskTracker.recordToolUse(agentCallId, toolName, description)
+    }

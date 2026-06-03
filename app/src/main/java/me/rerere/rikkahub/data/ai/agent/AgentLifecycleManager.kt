@@ -189,7 +189,7 @@ data class AgentNotification(
     val agentId: String,
     val agentType: String,
     val description: String,
-    val status: AgentLifecycleStatus,
+    val status: AgentLifecycleManager.AgentLifecycleStatus,
     val summary: String? = null,
     val result: String? = null,
     val error: String? = null,

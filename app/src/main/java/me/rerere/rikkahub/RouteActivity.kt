@@ -389,7 +389,6 @@ class RouteActivity : ComponentActivity() {
                                 AssistantAgentEditorPage(
                                     assistantId = key.id,
                                     editAgentType = key.agentType,
-                                    onBack = { navController.popBackStack() },
                                 )
                             }
 

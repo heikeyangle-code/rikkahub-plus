@@ -92,7 +92,7 @@ fun generateRequestId(requestType: String, agentId: String): String {
  * 对齐官方 isSubagentContext()。
  */
 fun isSubagentContext(): Boolean {
-    return AgentContextStore.get()?.agentType == "subagent"
+    return AgentContextStore.get()?.subagentName == "subagent"
         ?: false
 }
 

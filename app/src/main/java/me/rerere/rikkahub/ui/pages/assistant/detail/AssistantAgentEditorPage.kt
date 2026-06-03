@@ -59,7 +59,6 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 fun AssistantAgentEditorPage(
     assistantId: String,
     editAgentType: String? = null,
-    onBack: () -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val existingAgent = remember(editAgentType) { editAgentType?.let { AgentRegistry.get(it) } }
@@ -102,7 +101,7 @@ fun AssistantAgentEditorPage(
         topBar = {
             LargeFlexibleTopAppBar(
                 title = { Text(if (isEditing) "编辑 Agent" else "创建 Agent") },
-                navigationIcon = { BackButton(onClick = onBack) },
+                navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
                 actions = {

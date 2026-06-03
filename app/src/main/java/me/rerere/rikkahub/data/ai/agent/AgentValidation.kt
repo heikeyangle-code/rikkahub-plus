@@ -143,7 +143,7 @@ fun saveAgentToFile(agent: AgentDefinition, agentsDir: java.io.File): String {
     }
     
     file.writeText(content)
-    file.absolutePath
+    return file.absolutePath
 }
 
 /**
