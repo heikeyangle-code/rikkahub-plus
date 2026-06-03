@@ -54,11 +54,16 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
 
         when (action) {
             "tables" -> {
-                val tableNames = listOf(
-                    "conversations", "messages", "knowledge_base_entries", "knowledge_chunks",
-                    "assistant_memories", "assistants", "settings", "lorebooks", "lorebook_entries",
-                    "personas", "character_cards", "character_card_versions", "skill_metadata"
-                )
+                val tableNames = mutableListOf<String>()
+                try {
+                    val cursor = db.query(SimpleSQLiteQuery(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'room_%' AND name NOT LIKE 'android_%' ORDER BY name"
+                    ))
+                    while (cursor.moveToNext()) {
+                        tableNames.add(cursor.getString(0))
+                    }
+                    cursor.close()
+                } catch (_: Exception) { }
                 val result = buildJsonArray {
                     for (table in tableNames) {
                         try {
