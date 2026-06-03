@@ -56,6 +56,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 fun AssistantAgentPage(id: String) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var detailAgent by remember { mutableStateOf<AgentDefinition?>(null) }
+    val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
 
     // 按来源分组
     val grouped = remember {
@@ -98,6 +99,19 @@ fun AssistantAgentPage(id: String) {
         ) {
             Spacer(Modifier.height(8.dp))
 
+            // 创建新 Agent 按钮
+            CardGroup {
+                item(
+                    onClick = {
+                        navController.navigate(me.rerere.rikkahub.Screen.AssistantAgentEditor(id))
+                    },
+                    headlineContent = { Text("创建新 Agent") },
+                    supportingContent = { Text("定义自定义角色、工具和提示词") },
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
             // 整体介绍卡片
             CardGroup {
                 item(
@@ -121,7 +135,15 @@ fun AssistantAgentPage(id: String) {
                     agents.forEach { agent ->
                         val colorValue = Color(agent.color.hex)
                         item(
-                            onClick = { detailAgent = agent },
+                            onClick = {
+                                if (agent.isBuiltin) {
+                                    detailAgent = agent
+                                } else {
+                                    navController.navigate(
+                                        me.rerere.rikkahub.Screen.AssistantAgentEditor(id, agent.agentType)
+                                    )
+                                }
+                            },
                             leadingContent = {
                                 Box(
                                     modifier = Modifier

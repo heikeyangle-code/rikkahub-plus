@@ -83,6 +83,7 @@ import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantExtensionsPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantLocalToolPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMcpPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantAgentPage
+import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantAgentEditorPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMemoryPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantPromptPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantRequestPage
@@ -384,6 +385,14 @@ class RouteActivity : ComponentActivity() {
                                 AssistantAgentPage(key.id)
                             }
 
+                            entry<Screen.AssistantAgentEditor> { key ->
+                                AssistantAgentEditorPage(
+                                    assistantId = key.id,
+                                    editAgentType = key.agentType,
+                                    onBack = { navController.popBackStack() },
+                                )
+                            }
+
                             entry<Screen.AssistantInjections> { key ->
                                 AssistantExtensionsPage(key.id)
                             }
@@ -631,6 +640,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data class AssistantAgent(val id: String) : Screen
+
+    @Serializable
+    data class AssistantAgentEditor(val id: String, val agentType: String? = null) : Screen
 
     @Serializable
     data class AssistantInjections(val id: String) : Screen
