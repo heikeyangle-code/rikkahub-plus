@@ -28,6 +28,8 @@ fun createPlanModeTools(): List<Tool> = listOf(
         name = "enter_plan_mode",
         description = "Switch to planning mode (read-only). Create a step-by-step plan using task_create/todo_write. " +
             "Do NOT execute state-modifying tools while in plan mode.",
+        permissionMode = PermissionMode.READ_ONLY,
+        parameters = { InputSchema.Obj(properties = buildJsonObject { }) },
         execute = {
             PlanModeState.enterPlan()
             listOf(UIMessagePart.Text(
@@ -38,6 +40,8 @@ fun createPlanModeTools(): List<Tool> = listOf(
     Tool(
         name = "exit_plan_mode",
         description = "Exit planning mode and begin execution. Call after user approves the plan.",
+        permissionMode = PermissionMode.READ_ONLY,
+        parameters = { InputSchema.Obj(properties = buildJsonObject { }) },
         execute = {
             PlanModeState.exitPlan()
             listOf(UIMessagePart.Text(

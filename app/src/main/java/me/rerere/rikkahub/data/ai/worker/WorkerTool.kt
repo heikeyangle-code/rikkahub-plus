@@ -98,6 +98,11 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         name = "worker_get",
         description = "Get state of a worker by ID.",
         permissionMode = PermissionMode.READ_ONLY,
+        parameters = {{
+            InputSchema.Obj(properties = buildJsonObject {
+                put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
+            }, required = listOf("worker_id"))
+        }},
         execute = { args ->
             val wid = args.jsonObject["worker_id"]?.jsonPrimitive?.contentOrNull
                 ?: error("worker_id required")
@@ -113,6 +118,11 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         name = "worker_terminate",
         description = "Terminate a running worker.",
         permissionMode = PermissionMode.DANGER_FULL_ACCESS,
+        parameters = {{
+            InputSchema.Obj(properties = buildJsonObject {
+                put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
+            }, required = listOf("worker_id"))
+        }},
         execute = { args ->
             val wid = args.jsonObject["worker_id"]?.jsonPrimitive?.contentOrNull
                 ?: error("worker_id required")
@@ -126,6 +136,11 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         name = "worker_restart",
         description = "Restart a worker, reset to Spawning.",
         permissionMode = PermissionMode.DANGER_FULL_ACCESS,
+        parameters = {{
+            InputSchema.Obj(properties = buildJsonObject {
+                put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
+            }, required = listOf("worker_id"))
+        }},
         execute = { args ->
             val wid = args.jsonObject["worker_id"]?.jsonPrimitive?.contentOrNull
                 ?: error("worker_id required")

@@ -34,11 +34,11 @@ object TaskManager {
     @Volatile
     var activeTeam: String? = null
 
-    private var counter = 0
+    private var counter = AtomicInteger(0)
 
-    fun createTask(subject: String, description: String = "", dependsOn: List<String> = emptyList()): Task {
-        val id = "task-${++counter}"
-        val task = Task(id = id, subject = subject, description = description, dependsOn = dependsOn)
+    fun createTask(subject: String, description: String = "", dependsOn: List<String> = emptyList(), status: TaskStatus = TaskStatus.PENDING): Task {
+        val id = "task-${counter.incrementAndGet()}"
+        val task = Task(id = id, subject = subject, description = description, status = status, dependsOn = dependsOn)
         tasks[id] = task
         return task
     }
@@ -206,6 +206,11 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "task_stop", description = "Cancel a task.",
+        parameters = {{
+            InputSchema.Obj(properties = buildJsonObject {
+                put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
+            }, required = listOf("id"))
+        }},
         execute = { args ->
             val id = args.jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
             TaskManager.stopTask(id) ?: error("Task $id not found")
@@ -213,6 +218,11 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "task_output", description = "Get task result/output.", permissionMode = PermissionMode.READ_ONLY,
+        parameters = {{
+            InputSchema.Obj(properties = buildJsonObject {
+                put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
+            }, required = listOf("id"))
+        }},
         execute = { args ->
             val id = args.jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
             listOf(UIMessagePart.Text(TaskManager.taskOutput(id) ?: error("Task $id not found")))
@@ -237,13 +247,19 @@ fun createTaskTools(): List<Tool> = listOf(
             val results = todos.map { item ->
                 val obj = item.jsonObject; val s = obj["subject"]?.jsonPrimitive?.contentOrNull ?: ""
                 val st = obj["status"]?.jsonPrimitive?.contentOrNull ?: "pending"
-                TaskManager.createTask(s, status = TaskStatus.valueOf(st.uppercase()))
+                TaskManager.createTask(s, status = TaskStatus.valueOf(st.uppercase().replace("DONE", "COMPLETED")))
                 "${when (st) { "done" -> "✅"; "in_progress" -> "🔄"; else -> "⏳" }} $s"
             }
             listOf(UIMessagePart.Text(results.joinToString("\n")))
         },
     ),
     Tool(name = "team_create", description = "Create a team for coordinating agents.",
+        parameters = {{
+            InputSchema.Obj(properties = buildJsonObject {
+                put("name", buildJsonObject { put("type", "string"); put("description", "Team name") })
+                put("description", buildJsonObject { put("type", "string"); put("description", "Team purpose") })
+            }, required = listOf("name"))
+        }},
         execute = { args ->
             val obj = args.jsonObject; val name = obj["name"]?.jsonPrimitive?.contentOrNull ?: error("name required")
             TaskManager.createTeam(name, obj["description"]?.jsonPrimitive?.contentOrNull ?: "")
@@ -251,12 +267,24 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "team_delete", description = "Delete a team.",
+        parameters = {{
+            InputSchema.Obj(properties = buildJsonObject {
+                put("name", buildJsonObject { put("type", "string"); put("description", "Team name") })
+            }, required = listOf("name"))
+        }},
         execute = { args ->
             val name = args.jsonObject["name"]?.jsonPrimitive?.contentOrNull ?: error("name required")
             TaskManager.deleteTeam(name); listOf(UIMessagePart.Text("Team '$name' deleted"))
         },
     ),
     Tool(name = "send_message", description = "Send a message to another agent.",
+        parameters = {{
+            InputSchema.Obj(properties = buildJsonObject {
+                put("to", buildJsonObject { put("type", "string"); put("description", "Target agent name, or '*' for broadcast") })
+                put("message", buildJsonObject { put("type", "string"); put("description", "Message content") })
+                put("from", buildJsonObject { put("type", "string"); put("description", "Sender agent name (default: main_agent)") })
+            }, required = listOf("to", "message"))
+        }},
         execute = { args ->
             val obj = args.jsonObject; val to = obj["to"]?.jsonPrimitive?.contentOrNull ?: error("to required")
             val msg = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
@@ -265,7 +293,12 @@ fun createTaskTools(): List<Tool> = listOf(
             listOf(UIMessagePart.Text("[${m.id}] $from -> $to"))
         },
     ),
-    Tool(name = "read_messages", description = "Read messages for your agent. Clears inbox.", permissionMode = PermissionMode.READ_ONLY,
+    Tool(name = "read_messages", description = "Read messages for your agent. Clears inbox.",
+        parameters = {{
+            InputSchema.Obj(properties = buildJsonObject {
+                put("agent_name", buildJsonObject { put("type", "string"); put("description", "Your agent name") })
+            }, required = listOf("agent_name"))
+        }},
         execute = { args ->
             val name = args.jsonObject["agent_name"]?.jsonPrimitive?.contentOrNull ?: error("agent_name required")
             val msgs = TaskManager.readMessages(name); TaskManager.clearMessages(name)

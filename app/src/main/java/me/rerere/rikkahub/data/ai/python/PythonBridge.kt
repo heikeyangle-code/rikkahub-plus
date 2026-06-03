@@ -134,6 +134,7 @@ class PythonBridge(
                 appendLine("启用记忆: ${a.enableMemory}")
                 appendLine("并行执行: ${a.enableParallelToolExecution}")
                 appendLine("子Agent: ${a.enableSubAgent}")
+                appendLine("自动压缩: ${a.enableAutoCompact}")
                 appendLine("知识库: ${a.enableKnowledgeBase}")
                 appendLine("总轮数上限: ${a.totalStepsLimit}")
                 appendLine("工具超时: ${a.toolExecTimeout}s")
@@ -169,6 +170,7 @@ class PythonBridge(
                 "enable_knowledge_base", "enableKnowledgeBase" -> a.copy(enableKnowledgeBase = bool())
                 "enable_parallel_tools", "enableParallelToolExecution" -> a.copy(enableParallelToolExecution = bool())
                 "enable_sub_agent", "enableSubAgent" -> a.copy(enableSubAgent = bool())
+                "enable_auto_compact", "enableAutoCompact" -> a.copy(enableAutoCompact = bool())
                 "total_steps", "totalStepsLimit" -> a.copy(totalStepsLimit = int())
                 "tool_timeout", "toolExecTimeout" -> a.copy(toolExecTimeout = int())
                 "js_timeout", "jsTimeout" -> a.copy(jsTimeout = int())
@@ -202,6 +204,11 @@ class PythonBridge(
                 "tool_ask_user" -> toggleTool(a, LocalToolOption.AskUser, bool())
                 "tool_present_file" -> toggleTool(a, LocalToolOption.PresentFile, bool())
                 "tool_time_info" -> toggleTool(a, LocalToolOption.TimeInfo, bool())
+                "tool_task_tools" -> toggleTool(a, LocalToolOption.TaskTools, bool())
+                "tool_tool_search" -> toggleTool(a, LocalToolOption.ToolSearch, bool())
+                "tool_plan_mode" -> toggleTool(a, LocalToolOption.PlanMode, bool())
+                "tool_calculator" -> toggleTool(a, LocalToolOption.Calculator, bool())
+                "tool_worker_tools" -> toggleTool(a, LocalToolOption.WorkerTools, bool())
 
                 else -> return@runBlocking "Error: 未知设置 $key"
             }

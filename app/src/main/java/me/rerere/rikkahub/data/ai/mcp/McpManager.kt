@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.ClassDiscriminatorMode
@@ -210,12 +211,10 @@ class McpManager(
         clients.keys.toList().forEach { runCatching { sync(it) }.onFailure { it.printStackTrace() } }
     }
 
-    suspend fun removeClient(config: McpServerConfig) =() cancelReconnect(config.id)
-        clients.entries.filter { it.key.id == config.id }.forEach {
-            runCatching { it.value.close() }
-            clients.remove(it.key)
-            syncingStatus.emit(syncingStatus.value.toMutableMap().apply { remove(it.key.id) })
-        }
+    suspend fun removeClient(config: McpServerConfig) {
+        cancelReconnect(config.id)
+        clients.entries.removeAll { it.key.id == config.id }
+        syncingStatus.update { it.toMutableMap().apply { remove(config.id) } }
         reconnectAttempts.remove(config.id)
         cachedResources.remove(config.commonOptions.name)
     }
@@ -251,7 +250,7 @@ class McpManager(
     }
 
     private suspend fun setStatus(config: McpServerConfig, status: McpStatus) {
-        syncingStatus.emit(syncingStatus.value.toMutableMap().apply { put(config.id, status) })
+        syncingStatus.update { it.toMutableMap().apply { put(config.id, status) } }
     }
 
     fun getStatus(config: McpServerConfig): Flow<McpStatus> = syncingStatus.map { it[config.id] ?: McpStatus.Idle }
