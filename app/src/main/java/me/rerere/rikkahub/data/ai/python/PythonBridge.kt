@@ -15,8 +15,13 @@ import me.rerere.ai.ui.UIMessagePart
 import org.koin.java.KoinJavaComponent
 import kotlin.uuid.Uuid
 
-class PythonBridge(private val context: Context) {
+/** Python bridge 单例 — 所有方法纯函数式，不依赖实例状态 */
+object PythonBridge {
 
+    private var _context: Context? = null
+    fun init(context: Context) { _context = context }
+
+    private val ctx get() = _context ?: error("PythonBridge not initialized")
     private val db by lazy { KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java) }
     private val settingsStore by lazy { KoinJavaComponent.get<SettingsStore>(SettingsStore::class.java) }
     private val conversationRepo by lazy { KoinJavaComponent.get<ConversationRepository>(ConversationRepository::class.java) }
@@ -257,8 +262,8 @@ class PythonBridge(private val context: Context) {
 
     fun getAppInfo(): String = buildString {
         appendLine("App: Rikkahub")
-        appendLine("Version: ${context.packageManager.getPackageInfo(context.packageName, 0).versionName}")
-        appendLine("FilesDir: ${context.filesDir.absolutePath}")
-        appendLine("SkillsDir: ${context.filesDir.resolve("skills").absolutePath}")
+        appendLine("Version: ${ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName}")
+        appendLine("FilesDir: ${ctx.filesDir.absolutePath}")
+        appendLine("SkillsDir: ${ctx.filesDir.resolve("skills").absolutePath}")
     }
 }
