@@ -99,6 +99,7 @@ import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
 import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
 import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
 import me.rerere.rikkahub.ui.components.ui.Tooltip
+import me.rerere.rikkahub.ui.components.ai.AgentExecutionPanel
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
 import me.rerere.rikkahub.utils.plus
@@ -392,14 +393,28 @@ private fun ChatListNormal(
                         RabbitLoadingIndicator(
                             modifier = Modifier.size(28.dp)
                         )
-                        AnimatedVisibility(
-                            visible = processingStatus != null,
-                        ) {
-                            Text(
-                                text = processingStatus ?: "",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        // Agent 执行进度面板（替换原来的 processingStatus 文本）
+                        val runningAgents = remember { me.rerere.rikkahub.data.ai.agent.AgentTaskTracker.runningAgents() }
+                        val activeAgent = runningAgents.firstOrNull()
+                        if (activeAgent != null) {
+                            val (agentId, progress) = activeAgent
+                            val agentDef = remember(agentId) { me.rerere.rikkahub.data.ai.tools.AgentRegistry.get(progress.recentActivities.lastOrNull()?.toolName ?: "") }
+                            val agentColor = me.rerere.rikkahub.data.ai.tools.AgentColorManager.getColor(agentDef?.agentType ?: "")
+                            AgentExecutionPanel(
+                                agentId = agentId,
+                                agentType = agentDef?.agentType ?: "agent",
+                                agentColor = androidx.compose.ui.graphics.Color(agentDef?.color?.hex ?: me.rerere.rikkahub.data.ai.tools.AgentColor.BLUE.hex),
                             )
+                        } else {
+                            AnimatedVisibility(
+                                visible = processingStatus != null,
+                            ) {
+                                Text(
+                                    text = processingStatus ?: "",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
