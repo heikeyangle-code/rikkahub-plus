@@ -160,7 +160,7 @@ object TaskManager {
     private val msgCounter = java.util.concurrent.atomic.AtomicInteger(0)
 
     fun sendMessage(from: String, to: String, content: String): Message {
-        val msg = Message =msg-${msgCounter.incrementAndGet()}",
+        val msg = Message(id = "msg-${msgCounter.incrementAndGet()}",
             from = from,
             to = to,
             content = content,
@@ -540,7 +540,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
         execute = { args ->
             val obj = args.jsonObject
-            val to = obj["jsonPrimitive?.contentOrNull ?: error("to required")
+            val to = obj["to"]?.jsonPrimitive?.contentOrNull ?: error("to required")
             val msg = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
             val from = obj["from"]?.jsonPrimitive?.contentOrNull ?: "main_agent"
             val message = TaskManager.sendMessage(from, to, msg)
