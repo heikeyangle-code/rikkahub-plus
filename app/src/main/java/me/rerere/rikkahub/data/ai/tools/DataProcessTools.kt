@@ -85,10 +85,7 @@ fun createDataProcessTool(): Tool = Tool(
                     when (baseAction) {
                         "encode" -> android.util.Base64.encodeToString(input.toByteArray(), android.util.Base64.NO_WRAP)
                         "decode" -> {
-                            val clean = input.replace("\\s".toRegex(), "")
-                            if (!clean.matches(Regex("^[A-Za-z0-9+/]*={0,2}$")))
-                                error("Invalid Base64 input: contains non-Base64 characters")
-                            val decoded = android.util.Base64.decode(clean, android.util.Base64.DEFAULT)
+                            val decoded = android.util.Base64.decode(input, android.util.Base64.DEFAULT)
                             String(decoded)
                         }
                         else -> error("base64 action must be 'encode' or 'decode'")

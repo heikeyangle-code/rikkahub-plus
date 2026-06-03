@@ -251,8 +251,7 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                 appendLine("print(result)")
             }
             val executor = py.getModule("executor")
-            PythonBridge.init(context)
-            val bridge = PythonBridge
+            val bridge = PythonBridge(context)
             val raw = withContext(Dispatchers.IO) {
                 kotlinx.coroutines.withTimeout(60_000L) {
                     executor.callAttr("execute", pyScript, workdir, bridge).toString()
