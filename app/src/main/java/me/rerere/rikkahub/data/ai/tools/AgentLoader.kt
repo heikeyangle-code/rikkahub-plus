@@ -12,6 +12,27 @@ import me.rerere.rikkahub.data.ai.tools.AgentSource
  */
 object AgentLoader {
 
+    /** 缓存标记，用于判断是否需要重新加载 */
+    private var cacheVersion: Int = 0
+    private var cachedAgents: List<AgentDefinition>? = null
+
+    /**
+     * 清除 Agent 定义缓存。对齐官方 clearAgentDefinitionsCache()。
+     */
+    fun clearCache() {
+        cacheVersion++
+        cachedAgents = null
+    }
+
+    /**
+     * 获取缓存的 agent 列表。如果缓存有效则直接返回。
+     */
+    fun getCachedAgents(): List<AgentDefinition>? = cachedAgents
+
+    private fun updateCache(agents: List<AgentDefinition>) {
+        cachedAgents = agents.toList()
+    }
+
     /**
      * 从多来源加载并合并 agent。
      * 每次调用先清空非内置 agent，再按优先级加载。
@@ -64,6 +85,9 @@ object AgentLoader {
         AgentRegistry.list().forEach { agent ->
             AgentColorManager.setColor(agent.agentType, agent.color)
         }
+
+        // 更新缓存
+        updateCache(AgentRegistry.list())
     }
 
     /**

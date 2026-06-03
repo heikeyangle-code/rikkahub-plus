@@ -109,3 +109,52 @@ object AgentTaskTracker {
         return parts.joinToString(" | ")
     }
 }
+
+/**
+ * 活动描述解析器，对齐官方 ActivityDescriptionResolver。
+ * 根据工具名和输入参数生成可读的活动描述。
+ */
+fun interface ActivityDescriptionResolver {
+    fun resolve(toolName: String, input: Map<String, String>): String?
+}
+
+/**
+ * 创建默认的活动描述解析器。
+ * 对齐官方 createActivityDescriptionResolver()。
+ */
+fun createDefaultActivityDescriptionResolver(): ActivityDescriptionResolver {
+    return ActivityDescriptionResolver { toolName, input ->
+        when {
+            toolName.contains("read", ignoreCase = true) ->
+                "读取: ${input["path"]?.take(50) ?: toolName}"
+            toolName.contains("write", ignoreCase = true) ->
+                "写入: ${input["path"]?.take(50) ?: toolName}"
+            toolName.contains("search", ignoreCase = true) ||
+            toolName.contains("grep", ignoreCase = true) ||
+            toolName.contains("glob", ignoreCase = true) ||
+            toolName.contains("find", ignoreCase = true) ->
+                "搜索: ${input["query"]?.take(40) ?: input["pattern"]?.take(40) ?: toolName}"
+            toolName.contains("exec", ignoreCase = true) ||
+            toolName.contains("command", ignoreCase = true) ||
+            toolName.contains("bash", ignoreCase = true) ->
+                "执行: ${input["command"]?.take(40) ?: toolName}"
+            toolName.contains("list", ignoreCase = true) ->
+                "列出: ${input["dir"]?.take(40) ?: input["path"]?.take(40) ?: toolName}"
+            else -> toolName
+        }
+    }
+}
+
+/**
+ * 更新进度并生成可读的活动描述。
+ * 对齐官方 updateProgressFromMessage()。
+ */
+fun updateProgressFromMessage(
+    agentCallId: String,
+    toolName: String,
+    input: Map<String, String> = emptyMap(),
+    resolver: ActivityDescriptionResolver = createDefaultActivityDescriptionResolver(),
+) {
+    val description = resolver.resolve(toolName, input) ?: toolName
+    recordToolUse(agentCallId, toolName, description)
+}

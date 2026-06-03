@@ -103,3 +103,69 @@ fun formatAgentAsExport(agent: AgentDefinition): String {
         appendLine(sysPromptText)
     }
 }
+
+/**
+ * 将 AgentDefinition 保存为可加载的 markdown 文件。
+ * 对齐官方 saveAgentToFile()。
+ * 保存到配置目录下的 agents 子目录。
+ */
+fun saveAgentToFile(agent: AgentDefinition, agentsDir: java.io.File): Result<String> {
+    return try {
+        val file = java.io.File(agentsDir, "${agent.agentType}.md")
+        agentsDir.mkdirs()
+        
+        val sysPromptText = when (val sp = agent.systemPrompt) {
+            is me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt.Static -> sp.text
+            is me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt.Dynamic -> ""
+        }
+        
+        val content = buildString {
+            appendLine("---")
+            appendLine("name: ${agent.agentType}")
+            appendLine("description: "${agent.description.replace("\"", "\\"").replace("\n", "\\n")}"")
+            if (!agent.tools.contains("*")) {
+                appendLine("tools: ${agent.tools.joinToString(", ")}")
+            }
+            if (agent.disallowedTools.isNotEmpty()) {
+                appendLine("disallowedTools: ${agent.disallowedTools.joinToString(", ")}")
+            }
+            if (agent.modelId != null) appendLine("model: ${agent.modelId}")
+            if (agent.background) appendLine("background: true")
+            if (agent.memory != null) appendLine("memory: ${agent.memory.name.lowercase()}")
+            if (agent.maxTurns != null) appendLine("maxTurns: ${agent.maxTurns}")
+            if (agent.effort != null) appendLine("effort: ${agent.effort}")
+            if (agent.permissionMode != null) appendLine("permissionMode: ${agent.permissionMode}")
+            if (agent.skills.isNotEmpty()) appendLine("skills: ${agent.skills.joinToString(", ")}")
+            appendLine("---")
+            appendLine()
+            append(sysPromptText)
+        }
+        
+        file.writeText(content)
+        Result.success(file.absolutePath)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+}
+
+/**
+ * 从文件系统中删除 Agent 定义文件。
+ * 对齐官方 deleteAgentFromFile()。
+ */
+fun deleteAgentFromFile(agentType: String, agentsDir: java.io.File): Result<Unit> {
+    return try {
+        val file = java.io.File(agentsDir, "$agentType.md")
+        if (file.exists()) file.delete()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+}
+
+/**
+ * 获取新 Agent 的文件路径。
+ * 对齐官方 getNewAgentFilePath()。
+ */
+fun getNewAgentFilePath(agentType: String, agentsDir: java.io.File): String {
+    return java.io.File(agentsDir, "$agentType.md").absolutePath
+}

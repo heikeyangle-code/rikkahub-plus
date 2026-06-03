@@ -142,3 +142,24 @@ class AgentMemorySnapshotManager(
         memoryRepository.addMemory(syncedId, timestamp)
     }
 }
+
+/**
+ * 快照元数据 schema，对齐官方 snapshotMetaSchema。
+ * 验证快照数据的完整性。
+ */
+object SnapshotMetaSchema {
+    fun validate(agentType: String, scope: me.rerere.rikkahub.data.ai.tools.AgentMemoryScope): Boolean {
+        return agentType.isNotBlank()
+    }
+
+    data class SnapshotMeta(val updatedAt: String)
+
+    data class SyncedMeta(val syncedFrom: String)
+
+    fun parseSnapshotMeta(content: String): SnapshotMeta? {
+        if (!content.startsWith("__snapshot_meta__:")) return null
+        val timestamp = content.removePrefix("__snapshot_meta__:")
+        if (timestamp.isBlank()) return null
+        return SnapshotMeta(timestamp)
+    }
+}

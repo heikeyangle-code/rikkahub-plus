@@ -180,3 +180,68 @@ class AgentLifecycleManager {
         AgentTaskTracker.endSession(agentId)
     }
 }
+
+/**
+ * Agent 通知，对齐官方 enqueueAgentNotification。
+ * 当后台 agent 完成/失败时，通知用户。
+ */
+data class AgentNotification(
+    val agentId: String,
+    val agentType: String,
+    val description: String,
+    val status: AgentLifecycleStatus,
+    val summary: String? = null,
+    val result: String? = null,
+    val error: String? = null,
+    val timestamp: Long = System.currentTimeMillis(),
+)
+
+/** 通知监听器 */
+private val notificationListeners = mutableListOf<(AgentNotification) -> Unit>()
+
+fun addNotificationListener(listener: (AgentNotification) -> Unit) {
+    notificationListeners.add(listener)
+}
+
+fun removeNotificationListener(listener: (AgentNotification) -> Unit) {
+    notificationListeners.remove(listener)
+}
+
+/**
+ * 推送 agent 完成通知。
+ * 后台 agent 完成时自动调用。
+ */
+fun enqueueAgentNotification(
+    agentId: String,
+    agentType: String,
+    description: String,
+    status: AgentLifecycleStatus,
+    summary: String? = null,
+    result: String? = null,
+    error: String? = null,
+) {
+    val notification = AgentNotification(
+        agentId = agentId,
+        agentType = agentType,
+        description = description,
+        status = status,
+        summary = summary,
+        result = result,
+        error = error,
+    )
+    notificationListeners.forEach { it(notification) }
+}
+
+/**
+ * 清空指定 agent 的待处理消息队列。
+ * 对齐官方 drainPendingMessages。
+ */
+private val pendingMessages = mutableMapOf<String, MutableList<String>>()
+
+fun queuePendingMessage(agentId: String, message: String) {
+    pendingMessages.getOrPut(agentId) { mutableListOf() }.add(message)
+}
+
+fun drainPendingMessages(agentId: String): List<String> {
+    return pendingMessages.remove(agentId) ?: emptyList()
+}

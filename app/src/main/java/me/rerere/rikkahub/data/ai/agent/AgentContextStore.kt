@@ -86,3 +86,25 @@ fun parseAgentId(agentId: String): AgentIdParts? {
 fun generateRequestId(requestType: String, agentId: String): String {
     return "${requestType}-${System.currentTimeMillis()}@$agentId"
 }
+
+/**
+ * 检查当前上下文是否为子 Agent。
+ * 对齐官方 isSubagentContext()。
+ */
+fun isSubagentContext(): Boolean {
+    return AgentContextStore.get()?.agentType == "subagent"
+        ?: false
+}
+
+/**
+ * 消费调用请求 ID（一次性读取后清除）。
+ * 对齐官方 consumeInvokingRequestId()。
+ */
+fun consumeInvokingRequestId(): String? {
+    val ctx = AgentContextStore.get()
+    val id = ctx?.invokingRequestId
+    if (id != null) {
+        AgentContextStore.set(ctx.copy(invokingRequestId = null))
+    }
+    return id
+}

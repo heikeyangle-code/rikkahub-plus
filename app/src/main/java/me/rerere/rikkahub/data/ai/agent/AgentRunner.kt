@@ -86,6 +86,13 @@ object AgentRunner {
                         } else ""
 
                         lifecycle.complete(agentCallId, resultText)
+                        enqueueAgentNotification(
+                            agentId = agentCallId,
+                            agentType = agentType,
+                            description = description,
+                            status = AgentLifecycleManager.AgentLifecycleStatus.COMPLETED,
+                            result = resultText.take(200),
+                        )
                         AgentEventBus.emit(AgentExecutionEvent(
                             agentId = agentCallId, agentType = agentType,
                             eventType = AgentEventType.COMPLETED,
@@ -94,6 +101,13 @@ object AgentRunner {
                         ))
                     } catch (e: Exception) {
                         lifecycle.fail(agentCallId, e.message ?: "Unknown error")
+                        enqueueAgentNotification(
+                            agentId = agentCallId,
+                            agentType = agentType,
+                            description = description,
+                            status = AgentLifecycleManager.AgentLifecycleStatus.FAILED,
+                            error = e.message,
+                        )
                         AgentEventBus.emit(AgentExecutionEvent(
                             agentId = agentCallId, agentType = agentType,
                             eventType = AgentEventType.FAILED,
