@@ -120,6 +120,9 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                 if (!upperSql.startsWith("SELECT") && !upperSql.startsWith("PRAGMA")) {
                     error("Only SELECT and PRAGMA queries are allowed")
                 }
+                if (upperSql.contains(" UNION ") || upperSql.contains(";") || upperSql.contains("--") || upperSql.contains("/*")) {
+                    error("Unsafe SQL pattern detected")
+                }
                 val cursor = try {
                     db.query(SimpleSQLiteQuery(sql))
                 } catch (e: Exception) {
@@ -167,14 +170,15 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                     val safeKeyword = keyword.replace("\"", " ").split(" ").filter { it.isNotBlank() }
                         .joinToString(" ") { "\"$it\"" }
                     val ftsCursor = db.query(SimpleSQLiteQuery(
-                        "SELECT conversation_id, snippet(message_fts, '<b>', '</b>', '...', -1, 30) AS snippet " +
-                        "FROM message_fts WHERE message_fts MATCH ? LIMIT ${limit.coerceAtMost(20)}",
+                        "SELECT text FROM message_fts WHERE text MATCH ? LIMIT ${limit.coerceAtMost(20)}",
                         arrayOf<Any?>(safeKeyword)
                     ))
                     while (ftsCursor.moveToNext()) {
+                        val text = ftsCursor.getString(0)?.trim() ?: ""
+                        if (text.startsWith("search 关键词:") || text.startsWith("以下是关于")) continue
                         results.add(buildJsonObject {
                             put("table", "messages")
-                            put("snippet", ftsCursor.getString(1)?.replace("</?b>".toRegex(), "")?.take(200) ?: "")
+                            put("snippet", text.take(200))
                         })
                     }
                     ftsCursor.close()
