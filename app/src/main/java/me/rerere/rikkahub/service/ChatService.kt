@@ -656,6 +656,9 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                     val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
                                     val role = obj["role"]?.jsonPrimitive?.contentOrNull ?: ""
 
+                                    // 记住进入子Agent前的主Agent状态，退出后恢复
+                                    val preSubStatus = session.processingStatus.value
+
                                     // Resolve model for sub-agent
                                     val subModelId = assistant.subAgentModelId
                                         ?: assistant.chatModelId
@@ -799,6 +802,8 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                     }
 
                                     listOf(UIMessagePart.Text(outputText))
+                                    // 恢复主Agent状态，清除子Agent残留文字
+                                    session.processingStatus.value = preSubStatus
                                 },
                             )
                         )
