@@ -492,9 +492,6 @@ class ChatService(
                                 // Build curated tools for sub-agent
                                 val skillDirs = assistant.enabledSkills
                                     .mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
-
-                                // Agent's tool whitelist (if restricted)
-                                val allowedToolNames = agentDef?.tools
                                 val allTools = buildList {
                                     if (settings.enableWebSearch) {
                                         addAll(createSearchTools(settings))
@@ -504,10 +501,10 @@ class ChatService(
                                     }
                                     addAll(localTools.getTools(listOf(LocalToolOption.TimeInfo)))
                                 }
-                                val subTools = if (allowedToolNames != null && allowedToolNames != listOf("*")) {
-                                    allTools.filter { it.name in allowedToolNames }
-                                } else {
-                                    allTools
+
+                                // Agent's tool whitelist/blacklist
+                                val subTools = allTools.filter { tool ->
+                                    agentDef == null || AgentRegistry.isToolAllowed(agentDef, tool.name)
                                 }
 
                                 // Build prompt with agent system prompt and memory
