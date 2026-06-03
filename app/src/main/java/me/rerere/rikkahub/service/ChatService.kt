@@ -713,6 +713,10 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         if (assistant.localTools.contains(LocalToolOption.TaskTools)) {
                                             addAll(createTaskTools())
                                         }
+                                        // Shell (claude code 标配)
+                                        if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
+                                            addAll(createShellTools())
+                                        }
                                         // Shell
                                         if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
                                             addAll(createShellTools())
