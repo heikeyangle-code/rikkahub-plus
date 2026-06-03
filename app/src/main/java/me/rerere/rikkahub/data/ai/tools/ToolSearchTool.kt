@@ -4,6 +4,7 @@ import kotlinx.serialization.json.*
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 工具注册表 — 记录所有可用工具的元数据
@@ -16,11 +17,11 @@ object ToolRegistry {
         val enabled: Boolean = true,
     )
 
-    private val tools = mutableListOf<ToolInfo>()
+    private val tools = ConcurrentHashMap<String, ToolInfo>()
+    private val toolsLock = Any()
 
     fun register(name: String, description: String, category: String = "其他", enabled: Boolean = true) {
-        tools.removeAll { it.name == name }
-        tools.add(ToolInfo(name, description, category, enabled))
+        tools[name] = ToolInfo(name, description, category, enabled)
     }
 
     fun search(query: String, maxResults: Int = 10): List<ToolInfo> {
@@ -28,7 +29,7 @@ object ToolRegistry {
         val exact = q.startsWith("select:")
         val requirePrefix = q.startsWith("+")
 
-        return tools.filter { it.enabled }.filter { t ->
+        return tools.values.filter { it.enabled }.filter { t ->
             val name = t.name.lowercase()
             val desc = t.description.lowercase()
             when {
@@ -38,14 +39,14 @@ object ToolRegistry {
                 }
                 requirePrefix -> {
                     val term = q.removePrefix("+").trim()
-                    name.contains(term) && desc.contains(term)
+                    name.contains(term)
                 }
                 else -> name.contains(q) || desc.contains(q)
             }
         }.take(maxResults)
     }
 
-    fun listByCategory(): Map<String, List<ToolInfo>> = tools.filter { it.enabled }.groupBy { it.category }
+    fun listByCategory(): Map<String, List<ToolInfo>> = tools.values.filter { it.enabled }.groupBy { it.category }
 
     fun registerBuiltin() {
         register("file_read", "Read file contents", "文件")

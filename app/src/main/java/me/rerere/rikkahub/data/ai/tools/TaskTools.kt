@@ -292,27 +292,29 @@ fun createTaskTools(): List<Tool> = listOf(
             listOf(UIMessagePart.Text(results.joinToString("\n")))
         },
     ),
-    Tool(name = "team_create", description = "Create a team for coordinating agents.",
+    Tool(name = "team_create", description = "Create a new team for coordinating multiple agents.",
         parameters = {{
             InputSchema.Obj(properties = buildJsonObject {
-                put("name", buildJsonObject { put("type", "string"); put("description", "Team name") })
+                put("team_name", buildJsonObject { put("type", "string"); put("description", "Name for the new team") })
                 put("description", buildJsonObject { put("type", "string"); put("description", "Team purpose") })
-            }, required = listOf("name"))
+                put("agent_type", buildJsonObject { put("type", "string"); put("description", "Type/role of the team lead (e.g. 'researcher')") })
+            }, required = listOf("team_name"))
         }},
         execute = { args ->
-            val obj = args.jsonObject; val name = obj["name"]?.jsonPrimitive?.contentOrNull ?: error("name required")
-            TaskManager.createTeam(name, obj["description"]?.jsonPrimitive?.contentOrNull ?: "")
+            val obj = args.jsonObject; val name = obj["team_name"]?.jsonPrimitive?.contentOrNull ?: error("team_name required")
+            val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
+            TaskManager.createTeam(name, desc)
             listOf(UIMessagePart.Text("Team '$name' created"))
         },
     ),
     Tool(name = "team_delete", description = "Delete a team.",
         parameters = {{
             InputSchema.Obj(properties = buildJsonObject {
-                put("name", buildJsonObject { put("type", "string"); put("description", "Team name") })
-            }, required = listOf("name"))
+                put("team_name", buildJsonObject { put("type", "string"); put("description", "Team name") })
+            }, required = listOf("team_name"))
         }},
         execute = { args ->
-            val name = args.jsonObject["name"]?.jsonPrimitive?.contentOrNull ?: error("name required")
+            val name = args.jsonObject["team_name"]?.jsonPrimitive?.contentOrNull ?: error("team_name required")
             TaskManager.deleteTeam(name); listOf(UIMessagePart.Text("Team '$name' deleted"))
         },
     ),
