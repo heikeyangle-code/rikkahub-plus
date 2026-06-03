@@ -467,18 +467,11 @@ Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " 
                                 laneTracker.started()
 
                                 // Resolve model for sub-agent
-                                val resolvedModelId = modelOverride?.let {
-                                    when (it.lowercase()) {
-                                        "sonnet" -> settings.models.find { m -> m.id.toString().contains("sonnet", ignoreCase = true) }?.id?.toString()
-                                        "opus" -> settings.models.find { m -> m.id.toString().contains("opus", ignoreCase = true) }?.id?.toString()
-                                        "haiku" -> settings.models.find { m -> m.id.toString().contains("haiku", ignoreCase = true) }?.id?.toString()
-                                        else -> it
-                                    }
-                                } ?: agentDef?.modelId ?: assistant.subAgentModelId?.toString()
-                                    ?: assistant.chatModelId?.toString()
-                                    ?: settings.chatModelId.toString()
-                                val subModelId = Uuid.parse(resolvedModelId)
-                                val subModel = settings.findModelById(subModelId)
+                                val effectiveModelId = agentDef?.modelId?.let { Uuid.parse(it) }
+                                    ?: assistant.subAgentModelId
+                                    ?: assistant.chatModelId
+                                    ?: settings.chatModelId
+                                val subModel = settings.findModelById(effectiveModelId)
                                     ?: error("Model not found for sub-agent")
                                 val providerSetting = subModel.findProvider(settings.providers)
                                     ?: error("Provider not found for model ${subModel.id}")

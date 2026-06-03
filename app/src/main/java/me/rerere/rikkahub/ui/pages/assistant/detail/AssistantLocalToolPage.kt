@@ -564,6 +564,16 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = { Text("Agent 系统") },
+                supportingContent = { Text("允许 AI 委托不同角色 Agent 执行子任务（通用/探索/规划）。默认开启") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.Agents),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Agents, it) }
+                    )
+                }
+            )
         }
         CardGroup {
             item(
