@@ -23,7 +23,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
                 },
                 required = listOf("cwd"),
             )
-        }},
+        },
         execute = { args ->
             val obj = args.jsonObject
             val cwd = obj["cwd"]?.jsonPrimitive?.contentOrNull ?: error("cwd required")
@@ -54,7 +54,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
                 },
                 required = listOf("worker_id", "screen_text"),
             )
-        }},
+        },
         execute = { args ->
             val obj = args.jsonObject
             val wid = obj["worker_id"]?.jsonPrimitive?.contentOrNull ?: error("worker_id required")
@@ -82,7 +82,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
                 },
                 required = listOf("worker_id", "prompt"),
             )
-        }},
+        },
         execute = { args ->
             val obj = args.jsonObject
             val wid = obj["worker_id"]?.jsonPrimitive?.contentOrNull ?: error("worker_id required")
@@ -102,7 +102,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
             InputSchema.Obj(properties = buildJsonObject {
                 put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
             }, required = listOf("worker_id"))
-        }},
+        },
         execute = { args ->
             val wid = args.jsonObject["worker_id"]?.jsonPrimitive?.contentOrNull
                 ?: error("worker_id required")
@@ -122,7 +122,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
             InputSchema.Obj(properties = buildJsonObject {
                 put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
             }, required = listOf("worker_id"))
-        }},
+        },
         execute = { args ->
             val wid = args.jsonObject["worker_id"]?.jsonPrimitive?.contentOrNull
                 ?: error("worker_id required")
@@ -140,7 +140,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
             InputSchema.Obj(properties = buildJsonObject {
                 put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
             }, required = listOf("worker_id"))
-        }},
+        },
         execute = { args ->
             val wid = args.jsonObject["worker_id"]?.jsonPrimitive?.contentOrNull
                 ?: error("worker_id required")

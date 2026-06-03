@@ -276,7 +276,7 @@ fun createTaskTools(): List<Tool> = listOf(
                         put("type", "object"); put("properties", buildJsonObject {
                             put("subject", buildJsonObject { put("type", "string") })
                             put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed") }) })
-                        }); put("required", listOf("subject"))
+                        }); put("required", buildJsonArray { add("subject") })
                     })
                 })
             }, required = listOf("todos"))
