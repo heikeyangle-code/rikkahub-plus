@@ -67,6 +67,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                         "AND name NOT LIKE '%_docsize' " +
                         "AND name NOT LIKE '%_config' " +
                         "AND name NOT LIKE '%_content' " +
+                        "AND name NOT LIKE '%_data' " +
                         "ORDER BY name"
                     ))
                     while (cursor.moveToNext()) {
