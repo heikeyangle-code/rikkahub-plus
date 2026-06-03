@@ -17,6 +17,9 @@ object GhProgress {
     var processingRef: kotlinx.coroutines.flow.MutableStateFlow<String?>? = null
 }
 
+/** 默认分支缓存 — 每次请求后缓存7天（App重启清） */
+private val defaultBranchCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
 /** GitHub API URL → 人话描述 */
 private fun ghDescribe(url: String): String {
     val path = url.substringAfter("https://api.github.com").substringBefore("?").substringBefore("&")
@@ -416,7 +419,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
         val owner = obj["owner"]?.jsonPrimitive?.contentOrNull ?: ""
         val repo = obj["repo"]?.jsonPrimitive?.contentOrNull ?: ""
         val fullRepo = if (owner.isNotBlank() && repo.isNotBlank()) "$owner/$repo" else ""
-        val branch = obj["branch"]?.jsonPrimitive?.contentOrNull ?: "main"
+        val branch = obj["branch"]?.jsonPrimitive?.contentOrNull ?: resolveDefaultBranch(fullRepo)
         val limit = obj["limit"]?.jsonPrimitive?.intOrNull ?: 10
 
         // ── JSON formatters ──
@@ -427,6 +430,18 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
         fun jstr(v: String) = JsonPrimitive(v)
         fun jint(v: Int) = JsonPrimitive(v)
         fun jbool(v: Boolean) = JsonPrimitive(v)
+        fun JsonObject.safeObj(key: String) = this[key] as? JsonObject
+        fun JsonElement?.toObj() = this as? JsonObject
+
+        fun resolveDefaultBranch(repo: String): String {
+            if (repo.isBlank()) return "main"
+            return defaultBranchCache.getOrPut(repo) {
+                try {
+                    val info = parseJSON(gh("https://api.github.com/repos/$repo"))
+                    (info["default_branch"] as? JsonPrimitive)?.contentOrNull ?: "main"
+                } catch (_: Exception) { "main" }
+            }
+        }
 
         fun cleanItem(o: JsonObject, type: String): JsonObject = when (type) {
             "repo" -> buildJsonObject {
@@ -439,7 +454,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("pushed", jstr(sj(o,"pushed_at").take(10)))
                 put("topics", jstr(o["topics"]?.jsonArray?.joinToString(",") { it.jsonPrimitive.content } ?: ""))
                 put("size", jint(si(o,"size"))); put("fork", jbool(sb(o,"fork")))
-                put("license", jstr(o["license"]?.jsonObject?.get("spdx_id")?.jsonPrimitive?.contentOrNull ?: ""))
+                put("license", jstr(o.safeObj("license")?.get("spdx_id")?.jsonPrimitive?.contentOrNull ?: ""))
             }
             "issue" -> buildJsonObject {
                 put("number", jint(si(o,"number"))); put("title", jstr(sj(o,"title").take(120)))
@@ -448,25 +463,25 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 put("comments", jint(si(o,"comments"))); put("labels", jstr(o["labels"]?.jsonArray?.joinToString(",") { sj(it.jsonObject,"name") } ?: ""))
                 put("url", jstr(sj(o,"html_url"))); put("body", jstr(sj(o,"body").take(200)))
                 put("updated", jstr(sj(o,"updated_at").take(10)))
-                put("milestone", jstr(o["milestone"]?.jsonObject?.get("title")?.jsonPrimitive?.contentOrNull ?: ""))
+                put("milestone", jstr(o.safeObj("milestone")?.get("title")?.jsonPrimitive?.contentOrNull ?: ""))
             }
             "pr" -> buildJsonObject {
                 put("number", jint(si(o,"number"))); put("title", jstr(sj(o,"title").take(120)))
                 put("state", jstr(sj(o,"state"))); put("user", jstr(slogin(o,"user")))
-                put("head", jstr(o["head"]?.jsonObject?.get("ref")?.jsonPrimitive?.contentOrNull ?: ""))
-                put("base", jstr(o["base"]?.jsonObject?.get("ref")?.jsonPrimitive?.contentOrNull ?: ""))
+                put("head", jstr(o.safeObj("head")?.get("ref")?.jsonPrimitive?.contentOrNull ?: ""))
+                put("base", jstr(o.safeObj("base")?.get("ref")?.jsonPrimitive?.contentOrNull ?: ""))
                 put("draft", jbool(sb(o,"draft"))); put("created", jstr(sj(o,"created_at").take(10)))
                 put("url", jstr(sj(o,"html_url"))); put("body", jstr(sj(o,"body").take(200)))
                 put("mergeable", jstr(sj(o,"mergeable"))); put("mergeable_state", jstr(sj(o,"mergeable_state")))
             }
             "commit" -> buildJsonObject {
                 put("sha", jstr(sj(o,"sha").take(7)))
-                put("message", jstr(o["commit"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull?.take(80) ?: ""))
-                put("author", jstr(slogin(o,"author"))); put("date", jstr(o["commit"]?.jsonObject?.get("committer")?.jsonObject?.get("date")?.jsonPrimitive?.contentOrNull?.take(10) ?: ""))
+                put("message", jstr(o.safeObj("commit")?.get("message")?.jsonPrimitive?.contentOrNull?.take(80) ?: ""))
+                put("author", jstr(slogin(o,"author"))); put("date", jstr(o.safeObj("commit")?.safeObj("committer")?.get("date")?.jsonPrimitive?.contentOrNull?.take(10) ?: ""))
                 put("url", jstr(sj(o,"html_url"))); put("parent_count", jint((o["parents"]?.jsonArray?.size ?: 0)))
             }
             "branch" -> buildJsonObject {
-                put("name", jstr(sj(o,"name"))); put("sha", jstr(o["commit"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull?.take(7) ?: ""))
+                put("name", jstr(sj(o,"name"))); put("sha", jstr(o.safeObj("commit")?.get("sha")?.jsonPrimitive?.contentOrNull?.take(7) ?: ""))
                 put("protected", jbool(sb(o,"protected")))
             }
             "file" -> buildJsonObject {
@@ -475,7 +490,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "tag" -> buildJsonObject {
                 put("name", jstr(sj(o,"name")))
-                put("sha", jstr(o["commit"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull?.take(7) ?: ""))
+                put("sha", jstr(o.safeObj("commit")?.get("sha")?.jsonPrimitive?.contentOrNull?.take(7) ?: ""))
             }
             "release" -> buildJsonObject {
                 put("tag", jstr(sj(o,"tag_name"))); put("name", jstr(sj(o,"name") ?: sj(o,"tag_name")))
@@ -494,7 +509,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "code" -> buildJsonObject {
                 put("path", jstr(sj(o,"path"))); put("name", jstr(sj(o,"name")))
-                put("repo", jstr(o["repository"]?.jsonObject?.get("full_name")?.jsonPrimitive?.contentOrNull?.substringAfterLast("/") ?: ""))
+                put("repo", jstr(o.safeObj("repository")?.get("full_name")?.jsonPrimitive?.contentOrNull?.substringAfterLast("/") ?: ""))
             }
             "user" -> buildJsonObject {
                 put("login", jstr(sj(o,"login"))); put("type", jstr(sj(o,"type"))); put("score", jint((o["score"]?.jsonPrimitive?.doubleOrNull ?: 0.0).toInt()))
@@ -520,8 +535,8 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "notification" -> buildJsonObject {
                 put("id", jstr(sj(o,"id"))); put("reason", jstr(sj(o,"reason")))
                 put("unread", jbool(sb(o,"unread")))
-                put("title", jstr(o["subject"]?.jsonObject?.get("title")?.jsonPrimitive?.contentOrNull?.take(120) ?: ""))
-                put("type", jstr(o["subject"]?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull ?: ""))
+                put("title", jstr(o.safeObj("subject")?.get("title")?.jsonPrimitive?.contentOrNull?.take(120) ?: ""))
+                put("type", jstr(o.safeObj("subject")?.get("type")?.jsonPrimitive?.contentOrNull ?: ""))
                 put("updated", jstr(sj(o,"updated_at").take(10)))
             }
             "commit_comment" -> buildJsonObject {
@@ -538,14 +553,14 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "gist_item" -> buildJsonObject {
                 put("id", jstr(sj(o,"id"))); put("description", jstr(sj(o,"description").take(200)))
-                put("files", jstr(o["files"]?.jsonObject?.keys?.joinToString(", ") ?: ""))
+                put("files", jstr(o.safeObj("files")?.keys?.joinToString(", ") ?: ""))
                 put("public", jbool(sb(o,"public"))); put("created", jstr(sj(o,"created_at").take(10)))
             }
             "webhook" -> buildJsonObject {
                 put("id", jint(si(o,"id"))); put("name", jstr(sj(o,"name")))
                 put("active", jbool(sb(o,"active")))
                 put("events", jstr(o["events"]?.jsonArray?.joinToString(",") { it.jsonPrimitive.content } ?: ""))
-                put("url", jstr(o["config"]?.jsonObject?.get("url")?.jsonPrimitive?.contentOrNull ?: ""))
+                put("url", jstr(o.safeObj("config")?.get("url")?.jsonPrimitive?.contentOrNull ?: ""))
             }
             "review_comment" -> buildJsonObject {
                 put("id", jint(si(o,"id"))); put("user", jstr(slogin(o,"user")))
@@ -562,7 +577,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "event" -> buildJsonObject {
                 put("type", jstr(sj(o,"type"))); put("actor", jstr(slogin(o,"actor")))
-                put("repo", jstr(o["repo"]?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull ?: ""))
+                put("repo", jstr(o.safeObj("repo")?.get("name")?.jsonPrimitive?.contentOrNull ?: ""))
                 put("created", jstr(sj(o,"created_at").take(10)))
             }
             "topic" -> buildJsonObject {
@@ -662,7 +677,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         put("stars", j1["stargazers_count"]?.jsonPrimitive?.contentOrNull ?: "")
                         put("language", j1["language"]?.jsonPrimitive?.contentOrNull ?: "")
                         put("description", j1["description"]?.jsonPrimitive?.contentOrNull?.take(200) ?: "")
-                        put("license", j1["license"]?.jsonObject?.get("spdx_id")?.jsonPrimitive?.contentOrNull ?: "")
+                        put("license", j1.safeObj("license")?.get("spdx_id")?.jsonPrimitive?.contentOrNull ?: "")
                         put("open_issues", j1["open_issues_count"]?.jsonPrimitive?.contentOrNull ?: "")
                         put("forks", j1["forks_count"]?.jsonPrimitive?.contentOrNull ?: "")
                         put("topics", j1["topics"]?.jsonArray?.joinToString(", ") ?: "")
@@ -672,7 +687,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                         put("stars", j2["stargazers_count"]?.jsonPrimitive?.contentOrNull ?: "")
                         put("language", j2["language"]?.jsonPrimitive?.contentOrNull ?: "")
                         put("description", j2["description"]?.jsonPrimitive?.contentOrNull?.take(200) ?: "")
-                        put("license", j2["license"]?.jsonObject?.get("spdx_id")?.jsonPrimitive?.contentOrNull ?: "")
+                        put("license", j2.safeObj("license")?.get("spdx_id")?.jsonPrimitive?.contentOrNull ?: "")
                         put("open_issues", j2["open_issues_count"]?.jsonPrimitive?.contentOrNull ?: "")
                         put("forks", j2["forks_count"]?.jsonPrimitive?.contentOrNull ?: "")
                         put("topics", j2["topics"]?.jsonArray?.joinToString(", ") ?: "")
@@ -708,7 +723,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "get_repo_license" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val raw = parseJSON(gh("https://api.github.com/repos/$fullRepo/license"))
-                val lic = raw["license"]?.jsonObject
+                val lic = raw.safeObj("license")
                 buildJsonObject {
                     put("key", jstr(sj(lic,"spdx_id"))); put("name", jstr(sj(lic,"name")))
                     put("url", jstr(sj(lic,"url"))); put("html_url", jstr(sj(raw,"html_url")))
@@ -999,10 +1014,10 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     put("title", prJson["title"]?.jsonPrimitive?.contentOrNull ?: "")
                     put("state", prJson["state"]?.jsonPrimitive?.contentOrNull ?: "")
                     put("body", prJson["body"]?.jsonPrimitive?.contentOrNull?.take(2000) ?: "")
-                    put("user", prJson["user"]?.jsonObject?.get("login")?.jsonPrimitive?.contentOrNull ?: "")
+                    put("user", prJson.safeObj("user")?.get("login")?.jsonPrimitive?.contentOrNull ?: "")
                     put("created_at", prJson["created_at"]?.jsonPrimitive?.contentOrNull ?: "")
-                    put("head", prJson["head"]?.jsonObject?.get("ref")?.jsonPrimitive?.contentOrNull ?: "")
-                    put("base", prJson["base"]?.jsonObject?.get("ref")?.jsonPrimitive?.contentOrNull ?: "")
+                    put("head", prJson.safeObj("head")?.get("ref")?.jsonPrimitive?.contentOrNull ?: "")
+                    put("base", prJson.safeObj("base")?.get("ref")?.jsonPrimitive?.contentOrNull ?: "")
                     put("mergeable", prJson["mergeable"]?.jsonPrimitive?.contentOrNull ?: "")
                     put("mergeable_state", prJson["mergeable_state"]?.jsonPrimitive?.contentOrNull ?: "")
                     put("draft", prJson["draft"]?.jsonPrimitive?.booleanOrNull ?: false)
@@ -1321,10 +1336,10 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 }
                 // Get base tree
                 val refData = gh("https://api.github.com/repos/$fullRepo/git/ref/heads/$branch")
-                val commitSha = parseJSON(refData)["object"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull
+                val commitSha = parseJSON(refData).safeObj("object")?.get("sha")?.jsonPrimitive?.contentOrNull
                     ?: error("Cannot get branch ref")
                 val commitData = gh("https://api.github.com/repos/$fullRepo/git/commits/$commitSha")
-                val baseTreeSha = parseJSON(commitData)["tree"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull
+                val baseTreeSha = parseJSON(commitData).safeObj("tree")?.get("sha")?.jsonPrimitive?.contentOrNull
                     ?: error("Cannot get tree SHA")
                 // Create new tree
                 val treeItems = blobs.joinToString(",") { (p, sha) ->
@@ -1408,7 +1423,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val source = obj["base"]?.jsonPrimitive?.contentOrNull ?: "main"
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val refData = gh("https://api.github.com/repos/$fullRepo/git/ref/heads/$source")
-                val sha = parseJSON(refData)["object"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull
+                val sha = parseJSON(refData).safeObj("object")?.get("sha")?.jsonPrimitive?.contentOrNull
                     ?: error("Cannot find source branch SHA")
                 gh("POST", "https://api.github.com/repos/$fullRepo/git/refs",
                     """{"ref":"refs/heads/$newBranch","sha":"$sha"}""")
@@ -1429,7 +1444,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "get_commit" -> {
                 val sha = obj["sha"]?.jsonPrimitive?.contentOrNull
-                val ref = obj["branch"]?.jsonPrimitive?.contentOrNull ?: "main"
+                val ref = obj["branch"]?.jsonPrimitive?.contentOrNull ?: resolveDefaultBranch(fullRepo)
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val commitRef = sha ?: ref
                 fmtOne(gh("https://api.github.com/repos/$fullRepo/commits/$commitRef"), "commit")
@@ -1449,7 +1464,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                             val co = c.jsonObject
                             add(buildJsonObject {
                                 put("sha", jstr(sj(co,"sha").take(7)))
-                                put("message", jstr(co["commit"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull?.take(80) ?: ""))
+                                put("message", jstr(co.safeObj("commit")?.get("message")?.jsonPrimitive?.contentOrNull?.take(80) ?: ""))
                                 put("author", jstr(slogin(co,"author")))
                             })
                         }
@@ -1533,10 +1548,10 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val commitData = gh("https://api.github.com/repos/$fullRepo/git/commits/$sha")
                 val commitJson = parseJSON(commitData)
                 val parentSha = commitJson["parents"]?.jsonArray?.firstOrNull()
-                    ?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull
+                    ?.toObj()?.get("sha")?.jsonPrimitive?.contentOrNull
                     ?: error("Cannot find parent commit")
                 val parentData = gh("https://api.github.com/repos/$fullRepo/git/commits/$parentSha")
-                val parentTreeSha = parseJSON(parentData)["tree"]?.jsonObject?.get("sha")?.jsonPrimitive?.contentOrNull
+                val parentTreeSha = parseJSON(parentData).safeObj("tree")?.get("sha")?.jsonPrimitive?.contentOrNull
                     ?: error("Cannot find parent tree SHA")
                 // Create tree matching parent
                 val newTree = gh("POST", "https://api.github.com/repos/$fullRepo/git/trees",
@@ -1750,7 +1765,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "rate_limit" -> {
                 val raw = gh("https://api.github.com/rate_limit")
-                val core = parseJSON(raw)["resources"]?.jsonObject?.get("core")?.jsonObject
+                val core = parseJSON(raw).safeObj("resources")?.safeObj("core")
                 "API 限额: ${si(core,"remaining")}/${si(core,"limit")} 剩余, 重置于 ${sj(core,"reset")}"
             }
 

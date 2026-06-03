@@ -481,9 +481,15 @@ private fun AssistantLocalToolContent(
                     headlineContent = { Text("  CI 超时(秒)") },
                     supportingContent = { Text("GitHub 操作超时，默认 120 秒") },
                     trailingContent = {
-                        androidx.compose.material3.Text(
-                            text = "${assistant.enableCiTimeout}s",
-                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                        OutlinedTextField(
+                            value = assistant.enableCiTimeout.toString(),
+                            onValueChange = { v ->
+                                v.toIntOrNull()?.let { onUpdate(assistant.copy(enableCiTimeout = it)) }
+                            },
+                            modifier = Modifier.width(70.dp),
+                            textStyle = MaterialTheme.typography.bodyMedium,
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         )
                     }
                 )
