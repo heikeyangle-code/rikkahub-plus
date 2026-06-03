@@ -98,6 +98,51 @@ object TaskManager {
     }
 
     // ============================================================
+    // Fork 管理 (异步子Agent)
+    // ============================================================
+
+    data class ForkInfo(
+        val name: String,
+        val goal: String,
+        val status: ForkStatus = ForkStatus.RUNNING,
+        val result: String = "",
+    )
+
+    enum class ForkStatus { RUNNING, DONE, FAILED }
+
+    private val forks = ConcurrentHashMap<String, ForkInfo>()
+    private val forkNotifications = java.util.concurrent.ConcurrentLinkedQueue<String>()
+
+    fun registerFork(name: String, goal: String): Boolean {
+        if (forks.containsKey(name)) return false
+        forks[name] = ForkInfo(name = name, goal = goal)
+        return true
+    }
+
+    fun completeFork(name: String, result: String) {
+        forks[name] = forks[name]?.copy(status = ForkStatus.DONE, result = result)
+        forkNotifications.add(name)
+    }
+
+    fun failFork(name: String, error: String) {
+        forks[name] = forks[name]?.copy(status = ForkStatus.FAILED, result = error)
+        forkNotifications.add(name)
+    }
+
+    fun getForkStatus(name: String): ForkInfo? = forks[name]
+
+    fun listForks(): List<ForkInfo> = forks.values.toList()
+
+    fun consumeForkNotifications(): List<ForkInfo> {
+        val names = mutableListOf<String>()
+        while (true) {
+            val name = forkNotifications.poll() ?: break
+            names.add(name)
+        }
+        return names.mapNotNull { forks[it] }
+    }
+
+    // ============================================================
     // 消息系统 (Agent间通信)
     // ============================================================
 
