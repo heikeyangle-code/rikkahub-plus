@@ -115,3 +115,54 @@ import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
+
+private const val TAG = "ChatService"
+
+data class ChatError(
+    val id: Uuid = Uuid.random(),
+    val title: String? = null,
+    val error: Throwable,
+    val conversationId: Uuid? = null,
+    val timestamp: Long = System.currentTimeMillis(),
+    val solution: ChatErrorSolution? = null,
+)
+
+enum class ChatErrorSolution {
+    CheckTitleModelSettings,
+}
+
+private val inputTransformers by lazy {
+    listOf(
+        TimeReminderTransformer,
+        PromptInjectionTransformer,
+        AuthorsNoteTransformer,
+        PlaceholderTransformer,
+        DocumentAsPromptTransformer,
+        OcrTransformer,
+        SkillAutoTriggerTransformer,
+    )
+}
+
+private val outputTransformers by lazy {
+    listOf(
+        ThinkTagTransformer,
+        Base64ImageToLocalFileTransformer,
+        RegexOutputTransformer,
+    )
+}
+
+class ChatService(
+    private val context: Application,
+    private val appScope: AppScope,
+    private val settingsStore: SettingsStore,
+    private val conversationRepo: ConversationRepository,
+    private val memoryRepository: MemoryRepository,
+    private val generationHandler: GenerationHandler,
+    private val templateTransformer: TemplateTransformer,
+    private val providerManager: ProviderManager,
+    private val localTools: LocalTools,
+    val mcpManager: McpManager,
+    private val filesManager: FilesManager,
+    private val skillManager: SkillManager,
+    private val knowledgeBaseTransformer: KnowledgeBaseTransformer,
+) {
