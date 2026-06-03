@@ -647,7 +647,7 @@ Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " 
 
                                     // 恢复主Agent状态，清除子Agent残留文字
                                     session.processingStatus.value = preSubStatus
-                                    listOf(UIMessagePart.Text(outputText))
+                                    return@runAgent listOf(UIMessagePart.Text(outputText))
                                 }
 
                                 // Execute: sync or background
