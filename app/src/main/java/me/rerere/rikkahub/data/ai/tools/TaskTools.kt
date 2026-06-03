@@ -131,12 +131,12 @@ object TaskManager {
     }
 
     fun completeFork(name: String, result: String) {
-        forks[name] = forks[name]?.copy(status = ForkStatus.DONE, result = result)
+        forks.compute(name) { _, v -> v?.copy(status = ForkStatus.DONE, result = result) }
         forkNotifications.add(name)
     }
 
     fun failFork(name: String, error: String) {
-        forks[name] = forks[name]?.copy(status = ForkStatus.FAILED, result = error)
+        forks.compute(name) { _, v -> v?.copy(status = ForkStatus.FAILED, result = error) }
         forkNotifications.add(name)
     }
 
