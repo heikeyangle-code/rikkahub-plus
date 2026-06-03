@@ -113,6 +113,10 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("worker_tools")
     data object WorkerTools : LocalToolOption()
+
+    @Serializable
+    @SerialName("agents")
+    data object Agents : LocalToolOption()
 }
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {

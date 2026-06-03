@@ -39,6 +39,7 @@ data class Assistant(
     val localTools: List<LocalToolOption> = listOf(
         LocalToolOption.TimeInfo,
         LocalToolOption.FileTools,
+        LocalToolOption.Agents,
     ),
     val background: String? = null,
     val backgroundOpacity: Float = 1.0f,

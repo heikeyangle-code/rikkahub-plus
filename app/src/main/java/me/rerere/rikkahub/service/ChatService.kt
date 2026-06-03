@@ -410,6 +410,8 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.Calculator)) add(createCalculatorTool())
                     if (assistant.localTools.contains(LocalToolOption.WorkerTools)) {
                         addAll(createWorkerTools(workerManager))
+                    }
+                    if (assistant.localTools.contains(LocalToolOption.Agents)) {
                         add(
                         Tool(
                             name = "sub_agent",
@@ -505,11 +507,20 @@ Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " 
                                     allTools
                                 }
 
-                                // Build prompt with agent system prompt
+                                // Build prompt with agent system prompt and memory
                                 val prompt = buildString {
                                     val sysPrompt = agentDef?.systemPrompt
                                     if (!sysPrompt.isNullOrBlank()) {
                                         appendLine(sysPrompt)
+                                        appendLine()
+                                    }
+                                    // Load agent memory from repository
+                                    val agentMemories = memoryRepository.getMemoriesOfAssistant("agent:$agentType")
+                                    if (agentMemories.isNotEmpty()) {
+                                        appendLine("## Persistent Agent Memory")
+                                        agentMemories.forEach { m ->
+                                            appendLine("- ${m.content}")
+                                        }
                                         appendLine()
                                     }
                                     appendLine("Goal: $goal")
@@ -573,6 +584,7 @@ Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " 
 
                                         // Execute tools
                                         val executedTools = toolCalls.map { toolCall ->
+                                            AgentTaskTracker.recordToolUse(agentCallId, toolCall.toolName, toolCall.toolName)
                                             val toolDef = subTools.find { it.name == toolCall.toolName }
                                             if (toolDef == null) {
                                                 toolCall.copy(
@@ -602,6 +614,7 @@ Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " 
                                         } catch (e: Exception) {
                                             laneTracker.failed(e.message ?: e.javaClass.simpleName)
                                             stepLog.appendLine("→ 错误: ${e.message?.take(100) ?: e.javaClass.simpleName}")
+                                            AgentTaskTracker.endSession(agentCallId)
                                             break
                                         }
                                     }
@@ -619,6 +632,11 @@ Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " 
                                     } else {
                                         finalText
                                     }
+
+                                    // End agent session tracking
+                                    AgentTaskTracker.endSession(agentCallId)
+
+                                    // Restore main agent status
 
                                     // 在最终返回值前标记 LaneTracker 完成
                                     laneTracker.finished("Sub-agent completed")
