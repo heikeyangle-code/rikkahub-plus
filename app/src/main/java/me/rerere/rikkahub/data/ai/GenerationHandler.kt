@@ -13,6 +13,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -32,12 +34,15 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
+import me.rerere.rikkahub.data.ai.policy.PermissionResult
+import me.rerere.rikkahub.data.ai.policy.PolicyEngine
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.onGenerationFinish
 import me.rerere.rikkahub.data.ai.transformers.transforms
 import me.rerere.rikkahub.data.ai.transformers.visualTransforms
+import me.rerere.rikkahub.data.ai.tools.PlanModeState
 import me.rerere.rikkahub.data.ai.tools.buildMemoryTools
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -56,9 +61,7 @@ private const val TAG = "GenerationHandler"
 
 @Serializable
 sealed interface GenerationChunk {
-    data class Messages(
-        val messages: List<UIMessage>
-    ) : GenerationChunk
+    data class Messages(val messages: List<UIMessage>) : GenerationChunk
 }
 
 class GenerationHandler(
@@ -83,77 +86,62 @@ class GenerationHandler(
         conversationSystemPrompt: String? = null,
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
+        policyEngine: PolicyEngine? = null,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
 
         var messages: List<UIMessage> = messages
 
-    fun describeTool(name: String): String = when {
-        name.startsWith("github_") -> "🔧 GitHub → 正在操作..."
-        name.startsWith("execute_python") -> "🔧 Python → 正在执行代码..."
-        name.startsWith("execute_command") -> "🔧 Shell → 正在执行命令..."
-        name.startsWith("file_") -> "🔧 文件 → 正在操作..."
-        name.startsWith("data_process") -> "🔧 数据 → 正在处理..."
-        name.startsWith("database_") -> "🔧 数据库 → 正在查询..."
-        name.startsWith("search_web") || name.startsWith("scrape_") -> "🔧 搜索 → 正在搜索..."
-        name.startsWith("convert_file") -> "🔧 转换 → 正在转换格式..."
-        name.startsWith("create_asset") -> "🔧 创作 → 正在生成..."
-        name.startsWith("use_skill") -> "🔧 知识 → 正在读取..."
-        name.startsWith("clipboard") -> "🔧 剪贴板 → 正在操作..."
-        name.startsWith("get_time") -> "🔧 时间 → 获取中..."
-        name.startsWith("text_to_speech") -> "🔧 语音 → 正在朗读..."
-        name.startsWith("present_file") -> "🔧 文件 → 正在分享..."
-        name.startsWith("eval_javascript") -> "🔧 JS → 正在执行..."
-        name.startsWith("memory_") -> "🔧 记忆 → 正在处理..."
-        else -> "🔧 $name → 正在处理..."
-    }
+        fun describeTool(name: String): String = when {
+            name.startsWith("github_") -> "\uD83D\uDD27 GitHub \u2192 正在操作..."
+            name.startsWith("execute_python") -> "\uD83D\uDD27 Python \u2192 正在执行代码..."
+            name.startsWith("execute_command") -> "\uD83D\uDD27 Shell \u2192 正在执行命令..."
+            name.startsWith("file_") || name.startsWith("git_") -> "\uD83D\uDD27 文件/Git \u2192 正在操作..."
+            name.startsWith("data_process") -> "\uD83D\uDD27 数据 \u2192 正在处理..."
+            name.startsWith("database_") -> "\uD83D\uDD27 数据库 \u2192 正在查询..."
+            name.startsWith("search_web") || name.startsWith("scrape_") -> "\uD83D\uDD27 搜索 \u2192 正在搜索..."
+            name.startsWith("convert_file") -> "\uD83D\uDD27 转换 \u2192 正在转换格式..."
+            name.startsWith("create_asset") -> "\uD83D\uDD27 创作 \u2192 正在生成..."
+            name.startsWith("use_skill") -> "\uD83D\uDD27 知识 \u2192 正在读取..."
+            name.startsWith("clipboard") -> "\uD83D\uDD27 剪贴板 \u2192 正在操作..."
+            name.startsWith("get_time") -> "\uD83D\uDD27 时间 \u2192 获取中..."
+            name.startsWith("text_to_speech") -> "\uD83D\uDD27 语音 \u2192 正在朗读..."
+            name.startsWith("present_file") -> "\uD83D\uDD27 文件 \u2192 正在分享..."
+            name.startsWith("eval_javascript") -> "\uD83D\uDD27 JS \u2192 正在执行..."
+            name.startsWith("memory_") -> "\uD83D\uDD27 记忆 \u2192 正在处理..."
+            name.startsWith("worker_") -> "\uD83D\uDD27 Worker \u2192 正在管理..."
+            name.startsWith("mcp__") || name.startsWith("list_mcp") || name.startsWith("read_mcp") -> "\uD83D\uDD27 MCP \u2192 正在操作..."
+            else -> "\uD83D\uDD27 $name \u2192 正在处理..."
+        }
 
-    for (stepIndex in 0 until maxSteps) {
+        for (stepIndex in 0 until maxSteps) {
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
 
             val toolsInternal = buildList {
-                Log.i(TAG, "generateInternal: build tools($assistant)")
                 if (assistant?.enableMemory == true) {
-                    val memoryAssistantId = if (assistant.useGlobalMemory) {
-                        MemoryRepository.GLOBAL_MEMORY_ID
-                    } else {
-                        assistant.id.toString()
-                    }
-                    buildMemoryTools(
-                        json = json,
-                        onCreation = { content ->
-                            memoryRepo.addMemory(memoryAssistantId, content)
-                        },
-                        onUpdate = { id, content ->
-                            memoryRepo.updateContent(id, content)
-                        },
-                        onDelete = { id ->
-                            memoryRepo.deleteMemory(id)
-                        }
+                    val memoryAssistantId = if (assistant.useGlobalMemory) MemoryRepository.GLOBAL_MEMORY_ID else assistant.id.toString()
+                    buildMemoryTools(json = json,
+                        onCreation = { memoryRepo.addMemory(memoryAssistantId, it) },
+                        onUpdate = { id, content -> memoryRepo.updateContent(id, content) },
+                        onDelete = { memoryRepo.deleteMemory(it) },
                     ).let(this::addAll)
                 }
                 addAll(tools)
             }
-            // Wrap tools with status tracking
+
             val statusTrackedTools = toolsInternal.map { tool ->
                 if (tool.name == "ask_user") tool else tool.copy(
                     execute = { args ->
                         processingStatus.value = describeTool(tool.name)
-                        if (tool.name.contains("github")) {
-                            me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = processingStatus
-                        }
+                        if (tool.name.contains("github")) GhProgress.processingRef = processingStatus
                         try {
                             val result = tool.execute(args)
-                            if (tool.name.contains("github")) {
-                                me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
-                            }
+                            GhProgress.processingRef = null
                             processingStatus.value = null
                             result
                         } catch (e: Exception) {
-                            if (tool.name.contains("github")) {
-                                me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
-                            }
+                            GhProgress.processingRef = null
                             processingStatus.value = null
                             throw e
                         }
@@ -161,560 +149,240 @@ class GenerationHandler(
                 )
             }
 
-            // Check if we have tool calls ready to continue after user interaction.
-            val pendingTools = messages.lastOrNull()?.getTools()?.filter {
-                it.canResumeExecution
-            } ?: emptyList()
-
+            val pendingTools = messages.lastOrNull()?.getTools()?.filter { it.canResumeExecution } ?: emptyList()
             val toolsToProcess: List<UIMessagePart.Tool>
 
-            // Skip generation if we have approved/denied tool calls to handle
             if (pendingTools.isEmpty()) {
                 generateInternal(
-                    assistant = assistant,
-                    settings = settings,
-                    messages = messages,
+                    assistant = assistant, settings = settings, messages = messages,
                     onUpdateMessages = {
-                        messages = it.transforms(
-                            transformers = outputTransformers,
-                            context = context,
-                            model = model,
-                            assistant = assistant,
-                            settings = settings
-                        )
-                        emit(
-                            GenerationChunk.Messages(
-                                messages.visualTransforms(
-                                    transformers = outputTransformers,
-                                    context = context,
-                                    model = model,
-                                    assistant = assistant,
-                                    settings = settings
-                                )
-                            )
-                        )
+                        messages = it.transforms(transformers = outputTransformers, context = context, model = model, assistant = assistant, settings = settings)
+                        emit(GenerationChunk.Messages(messages.visualTransforms(transformers = outputTransformers, context = context, model = model, assistant = assistant, settings = settings)))
                     },
-                    transformers = inputTransformers,
-                    model = model,
-                    providerImpl = providerImpl,
-                    provider = provider,
-                    tools = statusTrackedTools,
-                    memories = memories ?: emptyList(),
-                    stream = assistant.streamOutput,
-                    processingStatus = processingStatus,
-                    conversationSystemPrompt = conversationSystemPrompt,
-                    conversationModeInjectionIds = conversationModeInjectionIds,
-                    conversationLorebookIds = conversationLorebookIds,
+                    transformers = inputTransformers, model = model, providerImpl = providerImpl, provider = provider,
+                    tools = statusTrackedTools, memories = memories ?: emptyList(), stream = assistant.streamOutput,
+                    processingStatus = processingStatus, conversationSystemPrompt = conversationSystemPrompt,
+                    conversationModeInjectionIds = conversationModeInjectionIds, conversationLorebookIds = conversationLorebookIds,
                 )
-                messages = messages.visualTransforms(
-                    transformers = outputTransformers,
-                    context = context,
-                    model = model,
-                    assistant = assistant,
-                    settings = settings
-                )
-                messages = messages.onGenerationFinish(
-                    transformers = outputTransformers,
-                    context = context,
-                    model = model,
-                    assistant = assistant,
-                    settings = settings
-                )
-                messages = messages.slice(0 until messages.lastIndex) + messages.last().copy(
-                    finishedAt = Clock.System.now()
-                        .toLocalDateTime(TimeZone.currentSystemDefault())
-                )
+                messages = messages.visualTransforms(transformers = outputTransformers, context = context, model = model, assistant = assistant, settings = settings)
+                messages = messages.onGenerationFinish(transformers = outputTransformers, context = context, model = model, assistant = assistant, settings = settings)
+                messages = messages.slice(0 until messages.lastIndex) + messages.last().copy(finishedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()))
                 emit(GenerationChunk.Messages(messages))
 
                 val tools = messages.last().getTools().filter { !it.isExecuted }
-                if (tools.isEmpty()) {
-                    // no tool calls, break
-                    break
-                }
+                if (tools.isEmpty()) break
 
-                // 1. Deduplicate tools: same (toolName, input) only execute once
                 val seenTools = mutableSetOf<Pair<String, String>>()
-                val uniqueTools = tools.filter { tool ->
-                    val key = tool.toolName to tool.input
-                    if (key in seenTools) {
-                        Log.w(TAG, "Deduplicated duplicate tool call: ${tool.toolName}")
-                        false
-                    } else {
-                        seenTools.add(key)
-                        true
-                    }
-                }
+                val uniqueTools = tools.filter { tool -> seenTools.add(tool.toolName to tool.input) }
 
-                // Check for tools that need approval
                 var hasPendingApproval = false
                 val updatedTools = uniqueTools.map { tool ->
                     val toolDef = statusTrackedTools.find { it.name == tool.toolName }
                     when {
-                        // Tool needs approval and state is Auto -> set to Pending
-                        toolDef?.needsApproval == true && tool.approvalState is ToolApprovalState.Auto -> {
-                            hasPendingApproval = true
-                            tool.copy(approvalState = ToolApprovalState.Pending)
-                        }
-                        // State is Pending -> keep waiting
-                        tool.approvalState is ToolApprovalState.Pending -> {
-                            hasPendingApproval = true
-                            tool
-                        }
-
+                        toolDef?.needsApproval == true && tool.approvalState is ToolApprovalState.Auto -> { hasPendingApproval = true; tool.copy(approvalState = ToolApprovalState.Pending) }
+                        tool.approvalState is ToolApprovalState.Pending -> { hasPendingApproval = true; tool }
                         else -> tool
                     }
                 }
 
-                // If any tools were updated to Pending, update the message and break
                 if (updatedTools != uniqueTools) {
                     val lastMessage = messages.last()
                     val updatedParts = lastMessage.parts.map { part ->
-                        if (part is UIMessagePart.Tool) {
-                            updatedTools.find { it.toolCallId == part.toolCallId } ?: part
-                        } else {
-                            part
-                        }
+                        if (part is UIMessagePart.Tool) updatedTools.find { it.toolCallId == part.toolCallId } ?: part else part
                     }
                     messages = messages.dropLast(1) + lastMessage.copy(parts = updatedParts)
                     emit(GenerationChunk.Messages(messages))
                 }
 
-                // 3. Guardrail: same tool called N+ times in one batch → break
                 if (!hasPendingApproval) {
                     val toolNameCount = updatedTools.groupingBy { it.toolName }.eachCount()
                     val looped = toolNameCount.entries.find { it.value >= assistant.toolRecurringLimit }
-                    if (looped != null) {
-                        Log.w(TAG, "Guardrail: ${looped.key} called ${looped.value} times in one batch, breaking")
-                        break
-                    }
+                    if (looped != null) { Log.w(TAG, "Guardrail: ${looped.key} looped"); break }
                 }
 
-                // If there are pending approvals, break and wait for user
-                if (hasPendingApproval) {
-                    Log.i(TAG, "generateText: waiting for tool approval")
-                    break
-                }
-
+                if (hasPendingApproval) break
                 toolsToProcess = updatedTools
             } else {
-                // Resuming after user interaction - use the resumable tools directly.
-                Log.i(TAG, "generateText: resuming with ${pendingTools.size} resumable tools")
                 toolsToProcess = messages.last().getTools().filter { it.canResumeExecution }
             }
 
-            // Handle tools (execute approved tools, handle denied tools)
             val executedTools = arrayListOf<UIMessagePart.Tool>()
             val isParallel = assistant.enableParallelToolExecution && toolsToProcess.size > 1
 
             if (isParallel) {
-                // 并行执行所有工具
                 coroutineScope {
                     val deferreds = toolsToProcess.map { tool ->
-                        async {
-                            tool to runCatching {
-                                kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) {
-                                    executeToolCall(tool, toolsInternal, json)
-                                }
-                            }
-                        }
+                        async { tool to runCatching { kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) { executeToolCall(tool, toolsInternal, json, policyEngine) } } }
                     }
-                    deferreds.forEach { deferred ->
-                        val (tool, result) = deferred.await()
-                        addToolResult(executedTools, tool, result, json)
-                    }
+                    deferreds.forEach { val (tool, result) = it.await(); addToolResult(executedTools, tool, result, json) }
                 }
             } else {
-                // 顺序执行（原版行为）
                 toolsToProcess.forEach { tool ->
-                    val result = runCatching {
-                        kotlinx.coroutines.withTimeout(60_000) {
-                            executeToolCall(tool, toolsInternal, json)
-                        }
-                    }
+                    val result = runCatching { kotlinx.coroutines.withTimeout(60_000) { executeToolCall(tool, toolsInternal, json, policyEngine) } }
                     addToolResult(executedTools, tool, result, json)
                 }
             }
 
-            if (executedTools.isEmpty()) {
-                // No results to add (all tools were pending)
-                break
-            }
+            if (executedTools.isEmpty()) break
 
-            // Update last message with executed tools (NOT create TOOL message)
             val lastMessage = messages.last()
             val updatedParts = lastMessage.parts.map { part ->
-                if (part is UIMessagePart.Tool) {
-                    executedTools.find { it.toolCallId == part.toolCallId } ?: part
-                } else part
+                if (part is UIMessagePart.Tool) executedTools.find { it.toolCallId == part.toolCallId } ?: part else part
             }
             messages = messages.dropLast(1) + lastMessage.copy(parts = updatedParts)
-            emit(
-                GenerationChunk.Messages(
-                    messages.transforms(
-                        transformers = outputTransformers,
-                        context = context,
-                        model = model,
-                        assistant = assistant,
-                        settings = settings
-                    )
-                )
-            )
+            emit(GenerationChunk.Messages(messages.transforms(transformers = outputTransformers, context = context, model = model, assistant = assistant, settings = settings)))
         }
-
     }.flowOn(Dispatchers.IO)
 
     private suspend fun generateInternal(
-        assistant: Assistant,
-        settings: Settings,
-        messages: List<UIMessage>,
-        onUpdateMessages: suspend (List<UIMessage>) -> Unit,
-        transformers: List<MessageTransformer>,
-        model: Model,
-        providerImpl: Provider<ProviderSetting>,
-        provider: ProviderSetting,
-        tools: List<Tool>,
-        memories: List<AssistantMemory>,
-        stream: Boolean,
-        processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
-        conversationSystemPrompt: String? = null,
-        conversationModeInjectionIds: Set<Uuid> = emptySet(),
+        assistant: Assistant, settings: Settings, messages: List<UIMessage>,
+        onUpdateMessages: suspend (List<UIMessage>) -> Unit, transformers: List<MessageTransformer>,
+        model: Model, providerImpl: Provider<ProviderSetting>, provider: ProviderSetting, tools: List<Tool>,
+        memories: List<AssistantMemory>, stream: Boolean, processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
+        conversationSystemPrompt: String? = null, conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
     ) {
         val internalMessages = buildList {
             val system = buildString {
-                val effectiveSystemPrompt =
-                    if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
-                        conversationSystemPrompt
-                    } else {
-                        // 如果导入了酒馆卡，使用模板组装；否则使用原始 system prompt
-                        if (assistant.tavernData != null) {
-                            val persona = settings.personas.find { it.id == settings.activePersonaId }
-                            assistant.assembleContext(
-                                userName = settings.displaySetting.userNickname.ifBlank { "User" },
-                                personaDesc = persona?.description ?: ""
-                            )
-                        } else {
-                            assistant.systemPrompt
-                        }
-                    }
-                if (effectiveSystemPrompt.isNotBlank()) {
-                    append(effectiveSystemPrompt)
-                }
-
-                // 记忆
-                if (assistant.enableMemory) {
-                    appendLine()
-                    append(buildMemoryPrompt(memories = memories))
-                }
-                if (assistant.enableRecentChatsReference) {
-                    appendLine()
-                    append(buildRecentChatsPrompt(assistant, conversationRepo))
-                }
-
-                // 工具prompt
-                tools.forEach { tool ->
-                    appendLine()
-                    append(tool.systemPrompt(model, messages))
-                }
-
-                // Actions With Care (操作安全规则)
+                val effectiveSystemPrompt = if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) conversationSystemPrompt
+                else if (assistant.tavernData != null) {
+                    val persona = settings.personas.find { it.id == settings.activePersonaId }
+                    assistant.assembleContext(userName = settings.displaySetting.userNickname.ifBlank { "User" }, personaDesc = persona?.description ?: "")
+                } else assistant.systemPrompt
+                if (effectiveSystemPrompt.isNotBlank()) append(effectiveSystemPrompt)
+                if (assistant.enableMemory) { appendLine(); append(buildMemoryPrompt(memories = memories)) }
+                if (assistant.enableRecentChatsReference) { appendLine(); append(buildRecentChatsPrompt(assistant, conversationRepo)) }
+                tools.forEach { tool -> appendLine(); append(tool.systemPrompt(model, messages)) }
                 appendLine()
-                appendLine(\"## Executing actions with care")
-                appendLine(\"Carefully consider the reversibility and blast radius of actions.")
-                appendLine(\"- Reversible + low risk: proceed directly")
-                appendLine(\"- Reversible + high risk: notify user before proceeding")
-                appendLine(\"- Irreversible + low risk: confirm with user first")
-                appendLine(\"- Irreversible + high risk: always confirm with user")
+                appendLine("## Executing actions with care")
+                appendLine("Carefully consider the reversibility and blast radius of actions.")
+                appendLine("- Reversible + low risk: proceed directly")
+                appendLine("- Reversible + high risk: notify user before proceeding")
+                appendLine("- Irreversible + low risk: confirm with user first")
+                appendLine("- Irreversible + high risk: always confirm with user")
                 appendLine()
-                appendLine(\"Examples needing confirmation:")
-                appendLine(\"- Destructive: deleting files, rm -rf, force-push")
-                appendLine(\"- Hard-to-reverse: overwriting files, git reset --hard")
-                appendLine(\"- Visible to others: pushing code, creating PRs")
-                appendLine()
-                appendLine(\"When encountering an obstacle, do not use destructive shortcuts.")
-                appendLine(\"Measure twice, cut once.")
+                appendLine("When encountering an obstacle, do not use destructive shortcuts.")
+                appendLine("Measure twice, cut once.")
             }
             if (system.isNotBlank()) add(UIMessage.system(prompt = system))
             addAll(messages.limitContext(assistant.contextMessageSize))
-        }.transforms(
-            transformers = transformers,
-            context = context,
-            model = model,
-            assistant = assistant,
-            settings = settings,
-            conversationModeInjectionIds = conversationModeInjectionIds,
-            conversationLorebookIds = conversationLorebookIds,
-            processingStatus = processingStatus,
-        )
+        }.transforms(transformers = transformers, context = context, model = model, assistant = assistant, settings = settings,
+            conversationModeInjectionIds = conversationModeInjectionIds, conversationLorebookIds = conversationLorebookIds, processingStatus = processingStatus)
 
-        var messages: List<UIMessage> = messages
-        val params = TextGenerationParams(
-            model = model,
-            temperature = assistant.temperature,
-            topP = assistant.topP,
-            maxTokens = assistant.maxTokens,
-            tools = tools,
-            reasoningLevel = assistant.reasoningLevel,
-            customHeaders = buildList {
-                addAll(assistant.customHeaders)
-                addAll(model.customHeaders)
-            },
-            customBody = buildList {
-                addAll(assistant.customBodies)
-                addAll(model.customBodies)
-            }
-        )
+        var msgs: List<UIMessage> = messages
+        val params = TextGenerationParams(model = model, temperature = assistant.temperature, topP = assistant.topP,
+            maxTokens = assistant.maxTokens, tools = tools, reasoningLevel = assistant.reasoningLevel,
+            customHeaders = buildList { addAll(assistant.customHeaders); addAll(model.customHeaders) },
+            customBody = buildList { addAll(assistant.customBodies); addAll(model.customBodies) })
+
         if (stream) {
-            aiLoggingManager.addLog(
-                AILogging.Generation(
-                    params = params,
-                    messages = messages,
-                    providerSetting = provider,
-                    stream = true
-                )
-            )
-            // Streaming: retry once on transient error (429/5xx/timeout)
+            aiLoggingManager.addLog(AILogging.Generation(params = params, messages = msgs, providerSetting = provider, stream = true))
             try {
-                providerImpl.streamText(
-                    providerSetting = provider,
-                    messages = internalMessages,
-                    params = params
-                ).collect {
-                    messages = messages.handleMessageChunk(chunk = it, model = model)
-                    it.usage?.let { usage ->
-                        messages = messages.mapIndexed { index, message ->
-                            if (index == messages.lastIndex) {
-                                message.copy(usage = message.usage.merge(usage))
-                            } else {
-                                message
-                            }
-                        }
-                    }
-                    onUpdateMessages(messages)
+                providerImpl.streamText(providerSetting = provider, messages = internalMessages, params = params).collect {
+                    msgs = msgs.handleMessageChunk(chunk = it, model = model)
+                    it.usage?.let { usage -> msgs = msgs.mapIndexed { idx, msg -> if (idx == msgs.lastIndex) msg.copy(usage = msg.usage.merge(usage)) else msg } }
+                    onUpdateMessages(msgs)
                 }
             } catch (e: Exception) {
                 val msg = e.message ?: ""
-                if (msg.contains("429 ") || msg.contains("5") || msg.contains("timeout") || msg.contains("reset")) {
-                    Log.w(TAG, "streamText: retrying once after: ${e.message}")
-                    providerImpl.streamText(
-                        providerSetting = provider,
-                        messages = internalMessages,
-                        params = params
-                    ).collect {
-                        messages = messages.handleMessageChunk(chunk = it, model = model)
-                        it.usage?.let { usage ->
-                            messages = messages.mapIndexed { index, message ->
-                                if (index == messages.lastIndex) {
-                                    message.copy(usage = message.usage.merge(usage))
-                                } else {
-                                    message
-                                }
-                            }
-                        }
-                        onUpdateMessages(messages)
+                if (msg.contains("429") || msg.contains("5") || msg.contains("timeout") || msg.contains("reset")) {
+                    Log.w(TAG, "retrying: ${e.message}")
+                    providerImpl.streamText(providerSetting = provider, messages = internalMessages, params = params).collect {
+                        msgs = msgs.handleMessageChunk(chunk = it, model = model)
+                        it.usage?.let { usage -> msgs = msgs.mapIndexed { idx, msg -> if (idx == msgs.lastIndex) msg.copy(usage = msg.usage.merge(usage)) else msg } }
+                        onUpdateMessages(msgs)
                     }
-                } else {
-                    throw e
-                }
+                } else throw e
             }
         } else {
-            aiLoggingManager.addLog(
-                AILogging.Generation(
-                    params = params,
-                    messages = messages,
-                    providerSetting = provider,
-                    stream = false
-                )
-            )
+            aiLoggingManager.addLog(AILogging.Generation(params = params, messages = msgs, providerSetting = provider, stream = false))
             val chunk = try {
-                providerImpl.generateText(
-                    providerSetting = provider,
-                    messages = internalMessages,
-                    params = params,
-                )
+                providerImpl.generateText(providerSetting = provider, messages = internalMessages, params = params)
             } catch (e: Exception) {
                 val msg = e.message ?: ""
-                if (msg.contains("429 ") || msg.contains("5") || msg.contains("timeout") || msg.contains("reset")) {
-                    Log.w(TAG, "generateText: retrying once after: ${e.message}")
-                    providerImpl.generateText(
-                        providerSetting = provider,
-                        messages = internalMessages,
-                        params = params,
-                    )
-                } else {
-                    throw e
-                }
+                if (msg.contains("429") || msg.contains("5") || msg.contains("timeout") || msg.contains("reset")) {
+                    Log.w(TAG, "retrying: ${e.message}")
+                    providerImpl.generateText(providerSetting = provider, messages = internalMessages, params = params)
+                } else throw e
             }
-            messages = messages.handleMessageChunk(chunk = chunk, model = model)
-            chunk.usage?.let { usage ->
-                messages = messages.mapIndexed { index, message ->
-                    if (index == messages.lastIndex) {
-                        message.copy(
-                            usage = message.usage.merge(usage)
-                        )
-                    } else {
-                        message
-                    }
-                }
-            }
-            onUpdateMessages(messages)
+            msgs = msgs.handleMessageChunk(chunk = chunk, model = model)
+            chunk.usage?.let { usage -> msgs = msgs.mapIndexed { idx, msg -> if (idx == msgs.lastIndex) msg.copy(usage = msg.usage.merge(usage)) else msg } }
+            onUpdateMessages(msgs)
         }
     }
 
-    fun translateText(
-        settings: Settings,
-        sourceText: String,
-        targetLanguage: Locale,
-        onStreamUpdate: ((String) -> Unit)? = null
-    ): Flow<String> = flow {
-        val model = settings.providers.findModelById(settings.translateModeId)
-            ?: error("Translation model not found")
-        val provider = model.findProvider(settings.providers)
-            ?: error("Translation provider not found")
-
+    fun translateText(settings: Settings, sourceText: String, targetLanguage: Locale, onStreamUpdate: ((String) -> Unit)? = null): Flow<String> = flow {
+        val model = settings.providers.findModelById(settings.translateModeId) ?: error("Translation model not found")
+        val provider = model.findProvider(settings.providers) ?: error("Translation provider not found")
         val providerHandler = providerManager.getProviderByType(provider)
-
         if (!ModelRegistry.QWEN_MT.match(model.modelId)) {
-            // Use regular translation with prompt
-            val prompt = settings.translatePrompt.applyPlaceholders(
-                "source_text" to sourceText,
-                "target_lang" to targetLanguage.toString(),
-            )
-
+            val prompt = settings.translatePrompt.applyPlaceholders("source_text" to sourceText, "target_lang" to targetLanguage.toString())
             var messages = listOf(UIMessage.user(prompt))
             var translatedText = ""
-
-            providerHandler.streamText(
-                providerSetting = provider,
-                messages = messages,
-                params = TextGenerationParams(
-                    model = model,
-                    reasoningLevel = ReasoningLevel.fromBudgetTokens(settings.translateThinkingBudget),
-                ),
+            providerHandler.streamText(providerSetting = provider, messages = messages,
+                params = TextGenerationParams(model = model, reasoningLevel = ReasoningLevel.fromBudgetTokens(settings.translateThinkingBudget)),
             ).collect { chunk ->
-                messages = messages.handleMessageChunk(chunk)
-                translatedText = messages.lastOrNull()?.toText() ?: ""
-
-                if (translatedText.isNotBlank()) {
-                    onStreamUpdate?.invoke(translatedText)
-                    emit(translatedText)
-                }
+                messages = messages.handleMessageChunk(chunk); translatedText = messages.lastOrNull()?.toText() ?: ""
+                if (translatedText.isNotBlank()) { onStreamUpdate?.invoke(translatedText); emit(translatedText) }
             }
         } else {
-            // Use Qwen MT model with special translation options
-            val messages = listOf(UIMessage.user(sourceText))
-            val chunk = providerHandler.generateText(
-                providerSetting = provider,
-                messages = messages,
-                params = TextGenerationParams(
-                    model = model,
-                    temperature = 0.3f,
-                    topP = 0.95f,
-                    customBody = listOf(
-                        CustomBody(
-                            key = "translation_options",
-                            value = buildJsonObject {
-                                put("source_lang", JsonPrimitive("auto"))
-                                put(
-                                    "target_lang",
-                                    JsonPrimitive(targetLanguage.getDisplayLanguage(Locale.ENGLISH))
-                                )
-                            }
-                        )
-                    )
-                ),
-            )
-            val translatedText = chunk.choices.firstOrNull()?.message?.toText() ?: ""
-
-            if (translatedText.isNotBlank()) {
-                onStreamUpdate?.invoke(translatedText)
-                emit(translatedText)
-            }
+            val msgs = listOf(UIMessage.user(sourceText))
+            val chunk = providerHandler.generateText(providerSetting = provider, messages = msgs,
+                params = TextGenerationParams(model = model, temperature = 0.3f, topP = 0.95f,
+                    customBody = listOf(CustomBody(key = "translation_options", value = buildJsonObject {
+                        put("source_lang", JsonPrimitive("auto"))
+                        put("target_lang", JsonPrimitive(targetLanguage.getDisplayLanguage(Locale.ENGLISH)))
+                    }))))
+            val text = chunk.choices.firstOrNull()?.message?.toText() ?: ""
+            if (text.isNotBlank()) { onStreamUpdate?.invoke(text); emit(text) }
         }
     }.flowOn(Dispatchers.IO)
 }
 
-/**
- * 执行单个工具调用（提取逻辑以避免并行/串行分支重复）
- */
 private suspend fun executeToolCall(
-    tool: UIMessagePart.Tool,
-    toolsInternal: List<Tool>,
-    json: kotlinx.serialization.json.Json,
+    tool: UIMessagePart.Tool, toolsInternal: List<Tool>, json: Json, policyEngine: PolicyEngine? = null,
 ): UIMessagePart.Tool {
     return when (tool.approvalState) {
         is ToolApprovalState.Denied -> {
             val reason = (tool.approvalState as ToolApprovalState.Denied).reason
-            tool.copy(
-                output = listOf(
-                    UIMessagePart.Text(
-                        json.encodeToString(
-                            buildJsonObject {
-                                put(
-                                    "error",
-                                    JsonPrimitive("Tool execution denied by user. Reason: ${reason.ifBlank { "No reason provided" }}")
-                                )
-                            }
-                        )
-                    )
-                )
-            )
+            tool.copy(output = listOf(UIMessagePart.Text(json.encodeToString(buildJsonObject {
+                put("error", JsonPrimitive("Tool execution denied by user. Reason: ${reason.ifBlank { "No reason" }}"))
+            }))))
         }
-
         is ToolApprovalState.Answered -> {
             val answer = (tool.approvalState as ToolApprovalState.Answered).answer
-            tool.copy(
-                output = listOf(UIMessagePart.Text(answer))
-            )
+            tool.copy(output = listOf(UIMessagePart.Text(answer)))
         }
-
         is ToolApprovalState.Pending -> tool
-
         else -> {
-            val toolDef = toolsInternal.find { it.name == tool.toolName }
-                ?: error("Tool ${tool.toolName} not found")
-            val args = runCatching {
-                json.parseToJsonElement(tool.input.ifBlank { "{}" })
-            }.getOrElse {
-                error("Invalid tool arguments JSON for ${tool.toolName}: ${it.message}")
+            val toolDef = toolsInternal.find { it.name == tool.toolName } ?: error("Tool ${tool.toolName} not found")
+            val args = runCatching { json.parseToJsonElement(tool.input.ifBlank { "{}" }) }.getOrElse { error("Invalid JSON for ${tool.toolName}: ${it.message}") }
+
+            // PolicyEngine check
+            if (policyEngine != null) {
+                when (val result = policyEngine.check(toolDef, args)) {
+                    is PermissionResult.Denied -> {
+                        Log.w(TAG, "PolicyEngine denied ${tool.toolName}: ${result.reason}")
+                        return tool.copy(output = listOf(UIMessagePart.Text(
+                            json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Permission denied: ${result.reason}")) })
+                        )))
+                    }
+                    is PermissionResult.Allowed -> {}
+                }
             }
-            Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
+
+            Log.i(TAG, "executing tool ${toolDef.name}")
             val result = toolDef.execute(args)
             tool.copy(output = result)
         }
     }
 }
 
-/**
- * 将工具执行结果添加到列表中（处理成功和失败两种情况）
- */
-private fun addToolResult(
-    executedTools: ArrayList<UIMessagePart.Tool>,
-    tool: UIMessagePart.Tool,
-    result: Result<UIMessagePart.Tool>,
-    json: kotlinx.serialization.json.Json,
-) {
-    result.onSuccess { executedTools.add(it) }
-        .onFailure {
-            it.printStackTrace()
-            executedTools.add(
-                tool.copy(
-                    output = listOf(
-                        UIMessagePart.Text(
-                            json.encodeToString(
-                                buildJsonObject {
-                                    put(
-                                        "error",
-                                        JsonPrimitive(buildString {
-                                            append("[${it.javaClass.name}] ${it.message}")
-                                            append("\n${it.stackTraceToString()}")
-                                        })
-                                    )
-                                }
-                            )
-                        )
-                    )
-                )
-            )
-        }
+private fun addToolResult(executedTools: ArrayList<UIMessagePart.Tool>, tool: UIMessagePart.Tool, result: Result<UIMessagePart.Tool>, json: Json) {
+    result.onSuccess { executedTools.add(it) }.onFailure {
+        it.printStackTrace()
+        executedTools.add(tool.copy(output = listOf(UIMessagePart.Text(json.encodeToString(buildJsonObject {
+            put("error", JsonPrimitive("[${it.javaClass.name}] ${it.message}\n${it.stackTraceToString()}"))
+        })))))
+    }
 }
