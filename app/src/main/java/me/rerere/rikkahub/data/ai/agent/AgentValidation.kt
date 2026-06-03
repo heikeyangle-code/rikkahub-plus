@@ -109,43 +109,41 @@ fun formatAgentAsExport(agent: AgentDefinition): String {
  * 对齐官方 saveAgentToFile()。
  * 保存到配置目录下的 agents 子目录。
  */
-fun saveAgentToFile(agent: AgentDefinition, agentsDir: java.io.File): Result<String> {
-    return try {
-        val file = java.io.File(agentsDir, "${agent.agentType}.md")
-        agentsDir.mkdirs()
-        
-        val sysPromptText = when (val sp = agent.systemPrompt) {
-            is me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt.Static -> sp.text
-            is me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt.Dynamic -> ""
-        }
-        
-        val content = buildString {
-            appendLine("---")
-            appendLine("name: ${agent.agentType}")
-            appendLine("description: "${agent.description.replace("\"", "\\"").replace("\n", "\\n")}"")
-            if (!agent.tools.contains("*")) {
-                appendLine("tools: ${agent.tools.joinToString(", ")}")
-            }
-            if (agent.disallowedTools.isNotEmpty()) {
-                appendLine("disallowedTools: ${agent.disallowedTools.joinToString(", ")}")
-            }
-            if (agent.modelId != null) appendLine("model: ${agent.modelId}")
-            if (agent.background) appendLine("background: true")
-            if (agent.memory != null) appendLine("memory: ${agent.memory.name.lowercase()}")
-            if (agent.maxTurns != null) appendLine("maxTurns: ${agent.maxTurns}")
-            if (agent.effort != null) appendLine("effort: ${agent.effort}")
-            if (agent.permissionMode != null) appendLine("permissionMode: ${agent.permissionMode}")
-            if (agent.skills.isNotEmpty()) appendLine("skills: ${agent.skills.joinToString(", ")}")
-            appendLine("---")
-            appendLine()
-            append(sysPromptText)
-        }
-        
-        file.writeText(content)
-        Result.success(file.absolutePath)
-    } catch (e: Exception) {
-        Result.failure(e)
+fun saveAgentToFile(agent: AgentDefinition, agentsDir: java.io.File): String {
+    val file = java.io.File(agentsDir, "${agent.agentType}.md")
+    agentsDir.mkdirs()
+    
+    val sysPromptText = when (val sp = agent.systemPrompt) {
+        is me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt.Static -> sp.text
+        is me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt.Dynamic -> ""
     }
+    
+    val escapedDescription = agent.description.replace("\"", "\\\"").replace("\n", "\\n")
+    
+    val content = buildString {
+        appendLine("---")
+        appendLine("name: ${agent.agentType}")
+        appendLine("description: \"$escapedDescription\"")
+        if (!agent.tools.contains("*")) {
+            appendLine("tools: ${agent.tools.joinToString(", ")}")
+        }
+        if (agent.disallowedTools.isNotEmpty()) {
+            appendLine("disallowedTools: ${agent.disallowedTools.joinToString(", ")}")
+        }
+        if (agent.modelId != null) appendLine("model: ${agent.modelId}")
+        if (agent.background) appendLine("background: true")
+        if (agent.memory != null) appendLine("memory: ${agent.memory.name.lowercase()}")
+        if (agent.maxTurns != null) appendLine("maxTurns: ${agent.maxTurns}")
+        if (agent.effort != null) appendLine("effort: ${agent.effort}")
+        if (agent.permissionMode != null) appendLine("permissionMode: ${agent.permissionMode}")
+        if (agent.skills.isNotEmpty()) appendLine("skills: ${agent.skills.joinToString(", ")}")
+        appendLine("---")
+        appendLine()
+        append(sysPromptText)
+    }
+    
+    file.writeText(content)
+    file.absolutePath
 }
 
 /**

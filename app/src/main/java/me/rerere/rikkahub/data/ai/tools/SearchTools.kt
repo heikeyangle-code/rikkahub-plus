@@ -33,7 +33,7 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                     "  - This is MANDATORY - never skip citing sources\n\n" +
                     "Usage notes:\n" +
                     "  - Generate focused keywords and run multiple searches if needed\n" +
-                    "  - Use the current date (provided above) for time-sensitive queries'',,
+                    "  - Use the current date (provided above) for time-sensitive queries",
                 parameters = {
                     val options = settings.searchServices.getOrElse(
                         index = settings.searchServiceSelected,

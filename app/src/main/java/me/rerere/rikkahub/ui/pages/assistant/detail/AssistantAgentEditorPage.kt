@@ -379,7 +379,7 @@ fun AssistantAgentEditorPage(
                     supportingContent = { Text("只读角色可省 token，不用了解项目的构建/提交规范") },
                     trailingContent = {
                         Switch(
-                            checked = omitContext,
+                            checked = omitContext == true,
                             onCheckedChange = { if (!isReadonly) omitContext = it },
                             enabled = !isReadonly,
                         )
@@ -455,7 +455,7 @@ fun AssistantAgentEditorPage(
                             maxTurns = maxTurns.toIntOrNull(),
                             effort = effort.toIntOrNull(),
                             permissionMode = permissionMode.ifBlank { null },
-                            omitProjectContext = omitContext,
+                            omitProjectContext = omitContext == true,
                             disallowedTools = disallowedTools.split(",").map { it.trim() }.filter { it.isNotBlank() },
                             skills = skills.split(",").map { it.trim() }.filter { it.isNotBlank() },
                             initialPrompt = initialPrompt.ifBlank { null },

@@ -43,6 +43,7 @@ private data class CardGroupItem(
     val overlineContent: (@Composable () -> Unit)?,
     val headlineContent: @Composable () -> Unit,
     val supportingContent: (@Composable () -> Unit)?,
+    val content: (@Composable () -> Unit)?,
     val leadingContent: (@Composable () -> Unit)?,
     val trailingContent: (@Composable () -> Unit)?,
     val colors: ListItemColors?,
@@ -58,6 +59,7 @@ interface CardGroupScope {
         modifier: Modifier = Modifier,
         overlineContent: (@Composable () -> Unit)? = null,
         supportingContent: (@Composable () -> Unit)? = null,
+        content: (@Composable () -> Unit)? = null,
         leadingContent: (@Composable () -> Unit)? = null,
         trailingContent: (@Composable () -> Unit)? = null,
         colors: ListItemColors? = null,
@@ -73,6 +75,7 @@ private class CardGroupScopeImpl : CardGroupScope {
         modifier: Modifier,
         overlineContent: (@Composable () -> Unit)?,
         supportingContent: (@Composable () -> Unit)?,
+        content: (@Composable () -> Unit)?,
         leadingContent: (@Composable () -> Unit)?,
         trailingContent: (@Composable () -> Unit)?,
         colors: ListItemColors?,
@@ -85,6 +88,7 @@ private class CardGroupScopeImpl : CardGroupScope {
                 overlineContent = overlineContent,
                 headlineContent = headlineContent,
                 supportingContent = supportingContent,
+                content = content,
                 leadingContent = leadingContent,
                 trailingContent = trailingContent,
                 colors = colors,
@@ -141,6 +145,7 @@ private fun CardGroupListItem(
         trailingContent = item.trailingContent,
         colors = item.colors ?: CustomColors.listItemColors,
     )
+    item.content?.invoke()
 }
 
 @Composable

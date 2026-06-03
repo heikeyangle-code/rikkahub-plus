@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.hooks
 
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 

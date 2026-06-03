@@ -280,6 +280,7 @@ private fun AssistantLocalToolContent(
                     }
                 }
             }
+        }
         CardGroup {
             item(
                 headlineContent = {

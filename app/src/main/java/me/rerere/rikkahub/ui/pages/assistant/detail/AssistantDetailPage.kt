@@ -10,7 +10,6 @@ import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.Message02
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Puzzle
-import me.rerere.hugeicons.stroke.Robot
 import me.rerere.hugeicons.stroke.Wrench01
 import me.rerere.hugeicons.stroke.Cancel01
 import android.content.ContentValues
@@ -241,7 +240,7 @@ fun AssistantDetailPage(id: String) {
                     )
                     item(
                         onClick = { navController.navigate(Screen.AssistantAgent(id)) },
-                        leadingContent = { Icon(HugeIcons.Robot, null) },
+                        leadingContent = { Icon(HugeIcons.Brain02, null) },
                         supportingContent = { Text("Configure agent roles, memory, and behaviors") },
                         headlineContent = { Text("Agent System") },
                         trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
