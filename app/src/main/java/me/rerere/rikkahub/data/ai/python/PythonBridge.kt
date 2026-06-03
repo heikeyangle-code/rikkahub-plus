@@ -67,6 +67,20 @@ class PythonBridge(private val context: Context) {
         } catch (e: Exception) { "Error: ${e.message}" }
     }
 
+    fun updateKnowledgeEntry(id: String, title: String? = null, content: String? = null): String = runBlocking {
+        try {
+            db.knowledgeBaseDao().let { dao ->
+                val existing = dao.getSourceById(id) ?: return@runBlocking "Error: 条目 $id 不存在"
+                val newTitle = title ?: existing.name
+                val newContent = content ?: existing.rawText ?: ""
+                // 删除旧条目并重新导入
+                kbService.deleteSource(id)
+                val newId = kbService.importText(newTitle, newContent, existing.assistantId)
+                if (newId != null) "ok: $id → $newId" else "Error: 更新失败"
+            }
+        } catch (e: Exception) { "Error: ${e.message}" }
+    }
+
     // ============================================================
     // 对话（只读）
     // ============================================================

@@ -197,6 +197,13 @@ fun createConvertFileTool(context: Context): Tool = Tool(
         val py = Python.getInstance()
         val workdir = context.filesDir.absolutePath
 
+        // 如果是 input_text 模式，写到临时文件
+        if (inputFile == null && inputText.isNotBlank()) {
+            val tempFile = File(downloadDir, "convert_input.$fromFormat")
+            tempFile.writeText(inputText)
+            inputFile = tempFile
+        }
+
         val convertModule = try {
             py.getModule("convert")
         } catch (_: Exception) {
