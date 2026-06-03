@@ -220,22 +220,6 @@ private fun AssistantLocalToolContent(
                 }
             )
             item(
-                headlineContent = {
-                    Text("子Agent")
-                },
-                supportingContent = {
-                    Text("AI可委托子任务到独立模型调用，开关控制启用与否")
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.enableSubAgent,
-                        onCheckedChange = { onUpdate(assistant.copy(enableSubAgent = it)) }
-                    )
-                }
-            )
-        }
-        CardGroup {
-            item(
                 headlineContent = { Text("启用知识库") },
                 supportingContent = { Text("生成时自动检索知识库中相关内容并注入上下文") },
                 trailingContent = {
@@ -296,45 +280,6 @@ private fun AssistantLocalToolContent(
                     }
                 }
             }
-        }
-        AnimatedVisibility(visible = assistant.enableSubAgent) {
-            CardGroup {
-                item(
-                    headlineContent = { Text("子Agent模型") },
-                    supportingContent = { Text("不选则使用主对话模型") },
-                    trailingContent = {
-                        ModelSelector(
-                            modelId = assistant.subAgentModelId,
-                            providers = settings.providers,
-                            type = me.rerere.ai.provider.ModelType.CHAT,
-                            allowClear = true,
-                            onSelect = { model ->
-                                onUpdate(assistant.copy(
-                                    subAgentModelId = if (model.modelId.isNullOrBlank()) null
-                                    else model.id
-                                ))
-                            }
-                        )
-                    }
-                )
-                item(
-                    headlineContent = { Text("子Agent最大步骤数") },
-                    supportingContent = { Text("默认8") },
-                    trailingContent = {
-                        OutlinedTextField(
-                            value = assistant.subAgentMaxSteps.toString(),
-                            onValueChange = { v ->
-                                v.toIntOrNull()?.let { onUpdate(assistant.copy(subAgentMaxSteps = it)) }
-                            },
-                            modifier = Modifier.width(70.dp),
-                            textStyle = MaterialTheme.typography.bodyMedium,
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        )
-                    }
-                )
-            }
-        }
         CardGroup {
             item(
                 headlineContent = {
@@ -561,16 +506,6 @@ private fun AssistantLocalToolContent(
                     Switch(
                         checked = assistant.localTools.contains(LocalToolOption.WorkerTools),
                         onCheckedChange = { toggleLocalTool(LocalToolOption.WorkerTools, it) }
-                    )
-                }
-            )
-            item(
-                headlineContent = { Text("Agent 系统") },
-                supportingContent = { Text("允许 AI 委托不同角色 Agent 执行子任务（通用/探索/规划）。默认开启") },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.Agents),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Agents, it) }
                     )
                 }
             )

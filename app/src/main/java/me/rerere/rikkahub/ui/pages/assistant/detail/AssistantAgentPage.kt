@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,12 +15,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -36,40 +40,46 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.tools.AgentColor
 import me.rerere.rikkahub.data.ai.tools.AgentDefinition
 import me.rerere.rikkahub.data.ai.tools.AgentRegistry
 import me.rerere.rikkahub.data.ai.tools.AgentSource
 import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
+import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.formatAgentTools
+import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
+import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 /**
- * Agent 系统设置页。
- * 显示所有可用 agent，按来源分组。
- * 对齐官方 AgentsList + AgentsMenu + AgentDetail 组件。
+ * Agent 系统页：所有 Agent 相关设置合并于此。
+ * 对齐官方 AgentsList + AgentsMenu + AgentDetail。
  */
 @Composable
 fun AssistantAgentPage(id: String) {
+    val vm: AssistantDetailVM = koinViewModel(
+        parameters = { parametersOf(id) }
+    )
+    val assistant by vm.assistant.collectAsStateWithLifecycle()
+    val providers by vm.providers.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var detailAgent by remember { mutableStateOf<AgentDefinition?>(null) }
     val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
 
-    // 按来源分组
     val grouped = remember {
         val agents = AgentRegistry.list().sortedBy { it.source.priority }
         val map = linkedMapOf<AgentSource, MutableList<AgentDefinition>>()
-        val order = listOf(
-            AgentSource.BUILT_IN,
-            AgentSource.PLUGIN,
-            AgentSource.USER,
-            AgentSource.PROJECT,
-            AgentSource.FLAG,
-            AgentSource.POLICY,
-        )
+        val order = listOf(AgentSource.BUILT_IN, AgentSource.PLUGIN, AgentSource.USER, AgentSource.PROJECT, AgentSource.FLAG, AgentSource.POLICY)
         for (src in order) {
             val list = agents.filter { it.source == src }
             if (list.isNotEmpty()) map[src] = list.sortedBy { it.agentType }.toMutableList()
@@ -80,7 +90,7 @@ fun AssistantAgentPage(id: String) {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("Agent系统") },
+                title = { Text("Agent 系统") },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
@@ -97,96 +107,140 @@ fun AssistantAgentPage(id: String) {
                 .imePadding(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
-            // 创建新 Agent 按钮
-            CardGroup {
+            // ── 设置区 ──
+            CardGroup(modifier = Modifier.padding(horizontal = 8.dp)) {
+                // 启用 Agent 系统
                 item(
-                    onClick = {
-                        navController.navigate(me.rerere.rikkahub.Screen.AssistantAgentEditor(id))
-                    },
-                    headlineContent = { Text("创建新 Agent") },
-                    supportingContent = { Text("定义自定义角色、工具和提示词") },
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            // 整体介绍卡片
-            CardGroup {
-                item(
-                    headlineContent = { Text("Agent 系统") },
-                    supportingContent = {
-                        Text("${AgentRegistry.list().size} 个角色 · 4 个内置(通用/探索/规划/验证) · 可自定义")
+                    headlineContent = { Text("启用 Agent 系统") },
+                    supportingContent = { Text("关闭后 AI 无法委托子任务") },
+                    trailingContent = {
+                        Switch(
+                            checked = assistant.enableSubAgent,
+                            onCheckedChange = { vm.update(assistant.copy(enableSubAgent = it)) },
+                        )
                     },
                 )
-            }
-
-            // 按来源分组
-            for ((source, agents) in grouped) {
-                Text(
-                    text = sourceLabel(source),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-
-                CardGroup {
-                    agents.forEach { agent ->
-                        val colorValue = Color(agent.color.hex)
-                        item(
-                            onClick = {
-                                if (agent.isBuiltin) {
-                                    detailAgent = agent
-                                } else {
-                                    navController.navigate(
-                                        me.rerere.rikkahub.Screen.AssistantAgentEditor(id, agent.agentType)
-                                    )
-                                }
-                            },
-                            leadingContent = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .clip(CircleShape)
-                                        .background(colorValue),
-                                )
-                            },
-                            headlineContent = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(agentName(agent))
-                                    if (agent.isBuiltin) {
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(
-                                            text = "内置",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = colorValue,
-                                        )
-                                    }
-                                    if (agent.background) {
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(
-                                            text = "后台",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                            },
-                            supportingContent = {
-                                Text(
-                                    text = agent.description.take(120),
-                                    maxLines = 2,
-                                )
-                            },
-                            trailingContent = {
-                                Text(
-                                    text = toolCountText(agent),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                // AI 可使用 sub_agent 工具
+                item(
+                    headlineContent = { Text("AI 调子 Agent") },
+                    supportingContent = { Text("允许 AI 自行选择角色委托任务") },
+                    trailingContent = {
+                        Switch(
+                            checked = assistant.localTools.contains(LocalToolOption.Agents),
+                            onCheckedChange = { enabled ->
+                                val newTools = if (enabled) assistant.localTools + LocalToolOption.Agents
+                                else assistant.localTools - LocalToolOption.Agents
+                                vm.update(assistant.copy(localTools = newTools))
                             },
                         )
+                    },
+                )
+            }
+
+            // Agent 运行时配置
+            AnimatedVisibility(visible = assistant.enableSubAgent) {
+                CardGroup(modifier = Modifier.padding(horizontal = 8.dp)) {
+                    item(
+                        headlineContent = { Text("子 Agent 模型") },
+                        supportingContent = { Text("不选则使用主对话模型") },
+                        content = {
+                            ModelSelector(
+                                modelId = assistant.subAgentModelId,
+                                providers = providers,
+                                type = me.rerere.ai.provider.ModelType.CHAT,
+                                allowClear = true,
+                                onSelect = { model ->
+                                    vm.update(assistant.copy(
+                                        subAgentModelId = if (model.modelId.isNullOrBlank()) null else model.id
+                                    ))
+                                },
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text("子 Agent 最大步骤数") },
+                        supportingContent = { Text("超过此轮数自动停止") },
+                        trailingContent = {
+                            OutlinedTextField(
+                                value = assistant.subAgentMaxSteps.toString(),
+                                onValueChange = { v -> v.toIntOrNull()?.let { vm.update(assistant.copy(subAgentMaxSteps = it)) } },
+                                modifier = Modifier.width(70.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium,
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                            )
+                        },
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            // ── 创建新 Agent ──
+            CardGroup(modifier = Modifier.padding(horizontal = 8.dp)) {
+                item(
+                    onClick = { navController.navigate(me.rerere.rikkahub.Screen.AssistantAgentEditor(id)) },
+                    headlineContent = { Text("创建新 Agent") },
+                    supportingContent = { Text("自定义角色、工具和提示词") },
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            if (grouped.isEmpty()) {
+                CardGroup(modifier = Modifier.padding(horizontal = 8.dp)) {
+                    item(
+                        headlineContent = { Text("没有可用 Agent") },
+                        supportingContent = { Text("请先启用 Agent 系统") },
+                    )
+                }
+            } else {
+                // ── Agent 列表 ──
+                for ((source, agents) in grouped) {
+                    Text(
+                        text = sourceLabel(source),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 2.dp),
+                    )
+                    CardGroup(modifier = Modifier.padding(horizontal = 8.dp)) {
+                        agents.forEach { agent ->
+                            val colorValue = Color(agent.color.hex)
+                            item(
+                                onClick = {
+                                    if (agent.isBuiltin) detailAgent = agent
+                                    else navController.navigate(me.rerere.rikkahub.Screen.AssistantAgentEditor(id, agent.agentType))
+                                },
+                                leadingContent = {
+                                    Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(colorValue))
+                                },
+                                headlineContent = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(agent.agentType, fontWeight = FontWeight.Medium)
+                                        if (agent.isBuiltin) {
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("内置", style = MaterialTheme.typography.labelSmall, color = colorValue)
+                                        }
+                                        if (agent.background) {
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("后台", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                },
+                                supportingContent = { Text(agent.description.take(100), maxLines = 2) },
+                                trailingContent = {
+                                    Text(
+                                        if (agent.tools.contains("*") && agent.disallowedTools.isEmpty()) "全工具"
+                                        else if (agent.disallowedTools.isNotEmpty()) "屏蔽 ${agent.disallowedTools.size}"
+                                        else "${agent.tools.size} 工具",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -197,149 +251,47 @@ fun AssistantAgentPage(id: String) {
 
     // Agent 详情对话框
     detailAgent?.let { agent ->
-        AgentDetailDialog(
-            agent = agent,
-            onDismiss = { detailAgent = null },
+        AlertDialog(
+            onDismissRequest = { detailAgent = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(14.dp).clip(CircleShape).background(Color(agent.color.hex)))
+                    Spacer(Modifier.width(8.dp))
+                    Text("${agent.agentType} Agent")
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(agent.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (agent.modelId != null) DetailInfoRow("模型", agent.modelId)
+                    if (agent.memory != null) DetailInfoRow("记忆", when (agent.memory) {
+                        me.rerere.rikkahub.data.ai.tools.AgentMemoryScope.USER -> "用户级"
+                        me.rerere.rikkahub.data.ai.tools.AgentMemoryScope.PROJECT -> "项目级"
+                        me.rerere.rikkahub.data.ai.tools.AgentMemoryScope.LOCAL -> "本地"
+                    })
+                    if (agent.maxTurns != null) DetailInfoRow("最大轮次", "${agent.maxTurns}")
+                    if (agent.criticalReminder != null) Text(agent.criticalReminder.take(200), style = MaterialTheme.typography.bodySmall, color = Color(agent.color.hex))
+                    val sysPrompt = when (val sp = agent.systemPrompt) {
+                        is AgentSystemPrompt.Static -> sp.text
+                        is AgentSystemPrompt.Dynamic -> "(运行时动态生成)"
+                    }
+                    if (sysPrompt.isNotBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text("系统提示词", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(sysPrompt.take(500), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { detailAgent = null }) { Text("关闭") } },
         )
     }
 }
 
 @Composable
-private fun AgentDetailDialog(
-    agent: AgentDefinition,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(14.dp)
-                        .clip(CircleShape)
-                        .background(Color(agent.color.hex)),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("${agentName(agent)} Agent")
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // 描述
-                Text(
-                    text = agent.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                // 颜色
-                DetailInfoRow("颜色", agent.color.name.lowercase())
-
-                // 来源
-                DetailInfoRow("来源", sourceLabel(agent.source))
-
-                // 工具
-                DetailInfoRow("工具权限", formatAgentTools(agent))
-
-                // 模型
-                if (agent.modelId != null) {
-                    DetailInfoRow("指定模型", agent.modelId)
-                }
-
-                // 记忆
-                if (agent.memory != null) {
-                    DetailInfoRow("持久记忆", when (agent.memory) {
-                        me.rerere.rikkahub.data.ai.tools.AgentMemoryScope.USER -> "用户级（跨项目）"
-                        me.rerere.rikkahub.data.ai.tools.AgentMemoryScope.PROJECT -> "项目级（共事）"
-                        me.rerere.rikkahub.data.ai.tools.AgentMemoryScope.LOCAL -> "本地（不回传）"
-                    })
-                }
-
-                // 执行模式
-                if (agent.background) {
-                    DetailInfoRow("执行模式", "后台（异步执行）")
-                } else {
-                    DetailInfoRow("执行模式", "同步（等待完成）")
-                }
-
-                // 最大轮次
-                if (agent.maxTurns != null) {
-                    DetailInfoRow("最大轮次", "${agent.maxTurns}")
-                }
-
-                // Effort
-                if (agent.effort != null) {
-                    DetailInfoRow("投入度", "${agent.effort}")
-                }
-
-                // 权限模式
-                if (agent.permissionMode != null) {
-                    DetailInfoRow("权限模式", agent.permissionMode)
-                }
-
-                // 预加载技能
-                if (agent.skills.isNotEmpty()) {
-                    DetailInfoRow("预加载技能", agent.skills.joinToString("、"))
-                }
-
-                // 初始提示词
-                if (agent.initialPrompt != null) {
-                    DetailInfoRow("初始提示词", agent.initialPrompt)
-                }
-
-                // 系统提示词预览
-                val sysPromptText = when (val sp = agent.systemPrompt) {
-                    is AgentSystemPrompt.Static -> sp.text
-                    is AgentSystemPrompt.Dynamic -> "(运行时动态生成)"
-                }
-                if (sysPromptText.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "系统提示词",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = sysPromptText.take(500),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-
-                // 关键提醒
-                if (agent.criticalReminder != null) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = agent.criticalReminder,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(agent.color.hex),
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("关闭")
-            }
-        },
-    )
-}
-
-@Composable
 private fun DetailInfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
-        )
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -350,16 +302,4 @@ private fun sourceLabel(source: AgentSource): String = when (source) {
     AgentSource.PROJECT -> "项目角色"
     AgentSource.FLAG -> "启动参数"
     AgentSource.POLICY -> "策略推送"
-}
-
-private fun agentName(agent: AgentDefinition): String = agent.agentType
-
-private fun toolCountText(agent: AgentDefinition): String {
-    return if (agent.tools.contains("*") && agent.disallowedTools.isEmpty()) {
-        "全部工具"
-    } else if (agent.disallowedTools.isNotEmpty()) {
-        "屏蔽 ${agent.disallowedTools.size} 个"
-    } else {
-        "${agent.tools.size} 个工具"
-    }
 }
