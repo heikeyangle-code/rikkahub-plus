@@ -451,6 +451,8 @@ Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " 
                                 val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
                                 val agentType = obj["subagent_type"]?.jsonPrimitive?.contentOrNull ?: "general-purpose"
                                 val modelOverride = obj["model"]?.jsonPrimitive?.contentOrNull
+                                val runInBackground = obj["run_in_background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+                                val teamName = obj["team_name"]?.jsonPrimitive?.contentOrNull
 
                                 // Load agent definition
                                 val agentDef = AgentRegistry.get(agentType)
@@ -458,6 +460,12 @@ Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " 
 
                                 // Track progress
                                 AgentTaskTracker.createSession(agentCallId)
+
+                                // Register in team if specified
+                                if (!teamName.isNullOrBlank()) {
+                                    TaskManager.createTeam(teamName, "Agent team: $teamName")
+                                    TaskManager.createTask(subject = goal, description = context, activeForm = agentCallId)
+                                }
 
                                 // 记住进入子Agent前的主Agent状态，退出后恢复
                                 val preSubStatus = session.processingStatus.value
@@ -526,6 +534,9 @@ Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " 
                                     appendLine("After using tools, continue working until the goal is complete.")
                                     appendLine("When done, summarize what was accomplished.")
                                 }
+
+                                // Define the agent execution function (shared by sync and background modes)
+                                suspend fun runAgent(): List<UIMessagePart> {
 
                                 // Tool loop (max N rounds, no refunds)
                                 val messages = mutableListOf(UIMessage.user(prompt))
@@ -637,7 +648,27 @@ Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " 
                                     // 恢复主Agent状态，清除子Agent残留文字
                                     session.processingStatus.value = preSubStatus
                                     listOf(UIMessagePart.Text(outputText))
-                                },
+                                }
+
+                                // Execute: sync or background
+                                if (runInBackground) {
+                                    appScope.launch {
+                                        runAgent()
+                                        if (!teamName.isNullOrBlank()) {
+                                            TaskManager.listTasks().lastOrNull()?.let {
+                                                TaskManager.updateTask(it.id, me.rerere.rikkahub.data.ai.tools.TaskStatus.COMPLETED)
+                                            }
+                                        }
+                                    }
+                                    listOf(UIMessagePart.Text(buildJsonObject {
+                                        put("status", "async_launched")
+                                        put("agent_id", agentCallId)
+                                        put("goal", goal)
+                                    }.toString()))
+                                } else {
+                                    runAgent()
+                                }
+                            },
                             )
                         )
                     }
