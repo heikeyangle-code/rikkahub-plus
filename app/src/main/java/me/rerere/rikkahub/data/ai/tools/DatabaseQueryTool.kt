@@ -120,9 +120,6 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                 if (!upperSql.startsWith("SELECT") && !upperSql.startsWith("PRAGMA")) {
                     error("Only SELECT and PRAGMA queries are allowed")
                 }
-                if (upperSql.contains(" UNION ") || upperSql.contains(";") || upperSql.contains("--") || upperSql.contains("/*")) {
-                    error("Unsafe SQL pattern detected")
-                }
                 val cursor = try {
                     db.query(SimpleSQLiteQuery(sql))
                 } catch (e: Exception) {
