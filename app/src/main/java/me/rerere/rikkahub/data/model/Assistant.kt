@@ -63,6 +63,7 @@ data class Assistant(
     val enableKnowledgeBase: Boolean = false,           // 启用知识库检索
     val talkativeness: Float = 0.5f,                    // 群聊发言倾向 (0-1)，酒馆对齐
     val embeddingModelId: Uuid? = null,                  // 专用embedding模型（null=使用聊天模型）
+    val enableAutoCompact: Boolean = false,              // 自动压缩对话历史（token过多时）
 )
 
 @Serializable

@@ -514,6 +514,68 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = { Text("任务系统") },
+                supportingContent = { Text("允许 AI 创建任务、团队、委托子任务") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.TaskTools),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.TaskTools, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("工具搜索") },
+                supportingContent = { Text("允许 AI 搜索已注册的工具，按需加载") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.ToolSearch),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.ToolSearch, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("计划模式") },
+                supportingContent = { Text("AI 进入只读计划模式，不可执行写操作") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.PlanMode),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.PlanMode, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("计算器") },
+                supportingContent = { Text("允许 AI 进行精确的数学计算") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.Calculator),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Calculator, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("工作工具") },
+                supportingContent = { Text("允许 AI 创建后台 Worker 执行独立任务") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.WorkerTools),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.WorkerTools, it) }
+                    )
+                }
+            )
+        }
+        CardGroup {
+            item(
+                headlineContent = { Text("自动压缩对话历史") },
+                supportingContent = { Text("消息过多时自动压缩旧消息为摘要，节省 Token") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.enableAutoCompact,
+                        onCheckedChange = { onUpdate(assistant.copy(enableAutoCompact = it)) }
+                    )
+                }
+            )
         }
     }
 }

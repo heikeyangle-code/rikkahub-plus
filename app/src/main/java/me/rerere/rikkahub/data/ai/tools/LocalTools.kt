@@ -106,6 +106,10 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("calculator")
     data object Calculator : LocalToolOption()
+
+    @Serializable
+    @SerialName("worker_tools")
+    data object WorkerTools : LocalToolOption()
 }
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {
@@ -329,12 +333,14 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                                         put("description", "The question text to display to the user")
                                     })
                                     put("options", buildJsonObject {
-                                        put("type", "array" list of suggested options for the user to choose from"
+                                        put("type", "array")
+                                        put(
+                                            "description",
+                                            "Optional list of suggested options for the user to choose from"
                                         )
                                         put("items", buildJsonObject {
                                             put("type", "string")
                                         })
-                                    })
                                     put("selection_type", buildJsonObject {
                                         put("type", "string")
                                         put(

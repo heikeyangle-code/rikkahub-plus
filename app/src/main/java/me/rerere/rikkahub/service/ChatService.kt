@@ -60,6 +60,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.lane.LaneTracker
 import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.policy.PermissionMode
@@ -81,7 +82,6 @@ import me.rerere.rikkahub.data.ai.tools.createTaskTools
 import me.rerere.rikkahub.data.ai.tools.createToolSearchTool
 import me.rerere.rikkahub.data.ai.tools.createPlanModeTools
 import me.rerere.rikkahub.data.ai.tools.createCalculatorTool
-import me.rerere.rikkahub.data.ai.tools.createGitNativeTools
 import me.rerere.rikkahub.data.ai.tools.createMcpResourceTools
 import me.rerere.rikkahub.data.ai.tools.ToolRegistry
 import me.rerere.rikkahub.data.ai.tools.PlanModeState
@@ -354,6 +354,15 @@ class ChatService(
 
             val policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode)
 
+            // Auto-compact conversation history if threshold exceeded
+            if (assistant.enableAutoCompact) {
+                val compactResult = autoCompactor.maybeCompact(conversation.currentMessages)
+                if (compactResult != null) {
+                    updateConversation(conversationId, conversation.copy(currentMessages = compactResult.compactedMessages))
+                    Log.i("ChatService", "Auto-compacted ${compactResult.removedCount} old messages")
+                }
+            }
+
             generationHandler.generateText(
                 settings = settings, model = model, processingStatus = session.processingStatus,
                 messages = conversation.currentMessages.let { if (messageRange != null) it.subList(messageRange.start, messageRange.endInclusive + 1) else it },
@@ -363,6 +372,7 @@ class ChatService(
                 conversationLorebookIds = conversation.lorebookIds,
                 memories = if (assistant.useGlobalMemory) memoryRepository.getGlobalMemories() else memoryRepository.getMemoriesOfAssistant(assistant.id.toString()),
                 policyEngine = policyEngine,
+                autoCompactor = autoCompactor,
                 inputTransformers = buildList { addAll(inputTransformers); add(templateTransformer); add(knowledgeBaseTransformer) },
                 outputTransformers = outputTransformers,
                 tools = buildList {
@@ -376,7 +386,6 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.PythonEngine)) add(createPythonTool(context, assistant.toolExecTimeout))
                     if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
                         add(createGitHubTool(settingsStore, assistant.enableCiTimeout, assistant.enableAutoFixCi))
-                        addAll(createGitNativeTools())
                     }
                     if (assistant.localTools.contains(LocalToolOption.ConvertFile)) add(createConvertFileTool(context))
                     if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) add(createDatabaseQueryTool(database))
@@ -389,7 +398,8 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
                     if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
                     if (assistant.localTools.contains(LocalToolOption.Calculator)) add(createCalculatorTool())
-                    if (assistant.enableSubAgent) addAll(createWorkerTools(workerManager))
+                    if (assistant.localTools.contains(LocalToolOption.WorkerTools)) {
+                        addAll(createWorkerTools(workerManager))
                         add(
                             Tool(
                                 name = "sub_agent",
@@ -426,6 +436,10 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
 
                                     // 记住进入子Agent前的主Agent状态，退出后恢复
                                     val preSubStatus = session.processingStatus.value
+
+                                    // 创建 LaneTracker 追踪子 Agent 执行生命周期
+                                    val laneTracker = LaneTracker()
+                                    laneTracker.started()
 
                                     // Resolve model for sub-agent
                                     val subModelId = assistant.subAgentModelId
@@ -550,6 +564,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                             }
                                         ))
                                         } catch (e: Exception) {
+                                            laneTracker.failed(e.message ?: e.javaClass.simpleName)
                                             stepLog.appendLine("→ 错误: ${e.message?.take(100) ?: e.javaClass.simpleName}")
                                             break
                                         }
@@ -569,12 +584,16 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         finalText
                                     }
 
+                                    // 在最终返回值前标记 LaneTracker 完成
+                                    laneTracker.finished("Sub-agent completed")
+
                                     // 恢复主Agent状态，清除子Agent残留文字
                                     session.processingStatus.value = preSubStatus
                                     listOf(UIMessagePart.Text(outputText))
                                 },
                             )
                         )
+                    }
                     }
                 },
             ).onCompletion {
@@ -690,7 +709,6 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                 if (assistant.localTools.contains(LocalToolOption.ShellTools)) addAll(createShellTools())
                 if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
                     add(createGitHubTool(settingsStore, assistant.enableCiTimeout, assistant.enableAutoFixCi))
-                    addAll(createGitNativeTools())
                 }
                 if (assistant.localTools.contains(LocalToolOption.ConvertFile)) add(createConvertFileTool(context))
                 if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) add(createDatabaseQueryTool(database))
@@ -703,7 +721,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                 if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
                 if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
                 if (assistant.localTools.contains(LocalToolOption.Calculator)) add(createCalculatorTool())
-                if (assistant.enableSubAgent) addAll(createWorkerTools(workerManager))
+                if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))
             },
             inputTransformers = buildList { addAll(inputTransformers); add(templateTransformer); add(knowledgeBaseTransformer) },
             outputTransformers = outputTransformers,

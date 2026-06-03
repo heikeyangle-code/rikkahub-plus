@@ -36,6 +36,7 @@ import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.data.ai.policy.PermissionResult
 import me.rerere.rikkahub.data.ai.policy.PolicyEngine
+import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
@@ -87,6 +88,7 @@ class GenerationHandler(
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
         policyEngine: PolicyEngine? = null,
+        autoCompactor: AutoCompactor? = null,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -117,6 +119,14 @@ class GenerationHandler(
 
         for (stepIndex in 0 until maxSteps) {
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
+
+            // Auto-compact between steps if enabled
+            if (autoCompactor != null && assistant?.enableAutoCompact == true && stepIndex > 0) {
+                autoCompactor.maybeCompact(messages)?.let { result ->
+                    messages = result.compactedMessages
+                    Log.i(TAG, "Auto-compacted ${result.removedCount} messages between steps")
+                }
+            }
 
             val toolsInternal = buildList {
                 if (assistant?.enableMemory == true) {
