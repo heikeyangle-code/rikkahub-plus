@@ -174,7 +174,7 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                     while (ftsCursor.moveToNext()) {
                         results.add(buildJsonObject {
                             put("table", "messages")
-                            put("snippet", ftsCursor.getString(1)?.take(200) ?: "")
+                            put("snippet", ftsCursor.getString(1)?.replace("</?b>".toRegex(), "")?.take(200) ?: "")
                         })
                     }
                     ftsCursor.close()
