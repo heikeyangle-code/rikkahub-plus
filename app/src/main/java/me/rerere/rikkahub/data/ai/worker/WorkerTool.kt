@@ -11,7 +11,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         name = "worker_create",
         description = "Create a background worker with cwd and trusted_roots.",
         permissionMode = PermissionMode.DANGER_FULL_ACCESS,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
                     put("cwd", buildJsonObject {
@@ -42,7 +42,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         name = "worker_observe",
         description = "Feed terminal output from a worker. Detects trust/ready states.",
         permissionMode = PermissionMode.READ_ONLY,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
                     put("worker_id", buildJsonObject {
@@ -70,7 +70,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         name = "worker_send_prompt",
         description = "Send a task to a ready worker. Must be in ready_for_prompt state.",
         permissionMode = PermissionMode.DANGER_FULL_ACCESS,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
                     put("worker_id", buildJsonObject {
@@ -98,7 +98,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         name = "worker_get",
         description = "Get state of a worker by ID.",
         permissionMode = PermissionMode.READ_ONLY,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
             }, required = listOf("worker_id"))
@@ -118,7 +118,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         name = "worker_terminate",
         description = "Terminate a running worker.",
         permissionMode = PermissionMode.DANGER_FULL_ACCESS,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
             }, required = listOf("worker_id"))
@@ -136,7 +136,7 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         name = "worker_restart",
         description = "Restart a worker, reset to Spawning.",
         permissionMode = PermissionMode.DANGER_FULL_ACCESS,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
             }, required = listOf("worker_id"))

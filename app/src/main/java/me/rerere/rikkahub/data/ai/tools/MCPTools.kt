@@ -12,7 +12,7 @@ fun createMcpResourceTools(mcpManager: McpManager): List<Tool> = listOf(
         name = "list_mcp_resources",
         description = "List available resources from connected MCP servers.",
         permissionMode = PermissionMode.READ_ONLY,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("server", buildJsonObject {
                     put("type", "string"); put("description", "Server name (optional, lists all if omitted)")
@@ -39,7 +39,7 @@ fun createMcpResourceTools(mcpManager: McpManager): List<Tool> = listOf(
         name = "read_mcp_resource",
         description = "Read a specific resource from an MCP server by URI.",
         permissionMode = PermissionMode.READ_ONLY,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("server", buildJsonObject {
                     put("type", "string"); put("description", "Server name")

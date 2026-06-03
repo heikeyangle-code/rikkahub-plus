@@ -15,8 +15,6 @@ import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
 import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
-import io.modelcontextprotocol.kotlin.sdk.types.ListResourcesParams
-import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceParams
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import kotlinx.coroutines.CancellationException
@@ -117,7 +115,7 @@ class McpManager(
             ?: error("MCP server '$serverName' not found")
         val mcpClient = entry.value
         if (mcpClient.transport == null) mcpClient.connect(getTransport(entry.key))
-        val result = mcpClient.readResource(params = ReadResourceParams(uri = uri), options = RequestOptions(timeout = 30.seconds))
+        val result = mcpClient.readResource(uri = uri, options = RequestOptions(timeout = 30.seconds))
         return result.contents.joinToString("\n") { content ->
             when (content) { is io.modelcontextprotocol.kotlin.sdk.types.TextResourceContents -> content.text; else -> content.toString() }
         }
@@ -182,7 +180,7 @@ class McpManager(
 
         val serverTools = mcpClient.listTools()?.tools ?: emptyList()
         try {
-            val resResult = mcpClient.listResources(params = ListResourcesParams())
+            val resResult = mcpClient.listResources()
             cachedResources[config.commonOptions.name] = resResult?.resources?.map {
                 McpResourceInfo(uri = it.uri, name = it.name, description = it.description, mimeType = it.mimeType)
             } ?: emptyList()

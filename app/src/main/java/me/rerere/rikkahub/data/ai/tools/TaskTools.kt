@@ -165,7 +165,7 @@ object TaskManager {
 
 fun createTaskTools(): List<Tool> = listOf(
     Tool(name = "task_create", description = "Create a new task for tracking. Use for complex multi-step tasks.",
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("subject", buildJsonObject { put("type", "string"); put("description", "Task title") })
                 put("description", buildJsonObject { put("type", "string"); put("description", "Details") })
@@ -183,7 +183,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "task_get", description = "Get details of a task by ID.", permissionMode = PermissionMode.READ_ONLY,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
             }, required = listOf("id"))
@@ -194,7 +194,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "task_list", description = "List all tasks, optionally filtered.", permissionMode = PermissionMode.READ_ONLY,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed"); add("failed"); add("cancelled") }) })
                 put("owner", buildJsonObject { put("type", "string"); put("description", "Filter by owner") })
@@ -215,7 +215,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "task_update", description = "Update a task status, owner, or dependencies.",
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
                 put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed"); add("failed"); add("cancelled") }) })
@@ -245,7 +245,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "task_stop", description = "Cancel a task.",
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
             }, required = listOf("id"))
@@ -257,7 +257,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "task_output", description = "Get task result/output.", permissionMode = PermissionMode.READ_ONLY,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
             }, required = listOf("id"))
@@ -268,7 +268,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "todo_write", description = "Create a lightweight todo list.",
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("todos", buildJsonObject {
                     put("type", "array"); put("description", "Todo items")
@@ -293,7 +293,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "team_create", description = "Create a new team for coordinating multiple agents.",
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("team_name", buildJsonObject { put("type", "string"); put("description", "Name for the new team") })
                 put("description", buildJsonObject { put("type", "string"); put("description", "Team purpose") })
@@ -308,7 +308,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "team_delete", description = "Delete a team.",
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("team_name", buildJsonObject { put("type", "string"); put("description", "Team name") })
             }, required = listOf("team_name"))
@@ -319,7 +319,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "send_message", description = "Send a message to another agent.",
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("to", buildJsonObject { put("type", "string"); put("description", "Target agent name, or '*' for broadcast") })
                 put("message", buildJsonObject { put("type", "string"); put("description", "Message content (plain text or JSON for protocol responses)") })
@@ -337,7 +337,7 @@ fun createTaskTools(): List<Tool> = listOf(
         },
     ),
     Tool(name = "read_messages", description = "Read messages for your agent. Clears inbox.",
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("agent_name", buildJsonObject { put("type", "string"); put("description", "Your agent name") })
             }, required = listOf("agent_name"))
@@ -353,7 +353,7 @@ fun createTaskTools(): List<Tool> = listOf(
     // ── NEW: run_task_packet ──
     Tool(name = "run_task_packet", description = "Create a structured task with acceptance criteria, commit policy, and escalation rules.",
         permissionMode = PermissionMode.DANGER_FULL_ACCESS,
-        parameters = {{
+        parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("objective", buildJsonObject { put("type", "string"); put("description", "What to accomplish") })
                 put("scope", buildJsonObject { put("type", "string"); put("description", "Module, file, or repo") })

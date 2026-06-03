@@ -40,6 +40,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.core.PermissionMode
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.ModelAbility
@@ -63,7 +64,6 @@ import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.lane.LaneTracker
 import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.mcp.McpManager
-import me.rerere.rikkahub.data.ai.policy.PermissionMode
 import me.rerere.rikkahub.data.ai.policy.PolicyEngine
 import me.rerere.rikkahub.data.ai.session.SessionStore
 import me.rerere.rikkahub.data.ai.tools.LocalTools
@@ -593,7 +593,6 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                 },
                             )
                         )
-                    }
                     }
                 },
             ).onCompletion {

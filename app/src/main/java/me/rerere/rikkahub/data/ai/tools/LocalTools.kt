@@ -341,6 +341,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                                         put("items", buildJsonObject {
                                             put("type", "string")
                                         })
+                                    })
                                     put("selection_type", buildJsonObject {
                                         put("type", "string")
                                         put(

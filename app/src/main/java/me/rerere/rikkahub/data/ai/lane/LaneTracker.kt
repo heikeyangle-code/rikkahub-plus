@@ -77,7 +77,6 @@ class LaneTracker {
     }
 
     fun toJson(): String {
-        return kotlinx.serialization.json.Json { prettyPrint = true }
-            .encodeToString(kotlinx.serialization.builtins.ListSerializer(LaneEvent.serializer()), events)
+        return events.joinToString("\n") { "${it.name} ${it.status} ${it.detail.orEmpty()}" }
     }
 }
