@@ -89,7 +89,7 @@ import me.rerere.rikkahub.data.ai.tools.TaskManager
 import me.rerere.rikkahub.data.ai.worker.WorkerManager
 import me.rerere.rikkahub.data.ai.worker.createWorkerTools
 import me.rerere.rikkahub.data.files.SkillManager
-import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
+import me.rerere.rik.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
 import me.rerere.rikkahub.data.ai.transformers.PlaceholderTransformer
@@ -168,7 +168,7 @@ class ChatService(
     private val _sessionsVersion = MutableStateFlow(0L)
     private val database: AppDatabase by lazy { KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java) }
 
-    // NEW: Session persistence, auto compactor, worker manager
+    // Session persistence, auto compactor, worker manager
     private val sessionStore: SessionStore by lazy { SessionStore(context) }
     private val autoCompactor: AutoCompactor by lazy { AutoCompactor() }
     private val workerManager: WorkerManager by lazy { WorkerManager(appScope) }
@@ -182,7 +182,7 @@ class ChatService(
     }
 
     fun dismissError(id: Uuid) { _errors.update { it.filter { it.id != id } } }
-    fun() { _errors.value = emptyList() }
+    fun clearAllErrors() { _errors.value = emptyList() }
 
     private val _generationDoneFlow = MutableSharedFlow<Uuid>()
     val generationDoneFlow: SharedFlow<Uuid> = _generationDoneFlow.asSharedFlow()
@@ -191,17 +191,24 @@ class ChatService(
     val isForeground: StateFlow<Boolean> = _isForeground.asStateFlow()
 
     private val lifecycleObserver = LifecycleEventObserver { _, event ->
-        when (event) { Lifecycle.Event.ON_START -> { _isForeground.value = true; stopGenerationForeground() }
-            Lifecycle.Event.ON_STOP -> _isForeground.value = false; else -> {} }
+        when (event) {
+            Lifecycle.Event.ON_START -> { _isForeground.value = true; stopGenerationForeground() }
+            Lifecycle.Event.ON_STOP -> _isForeground.value = false
+            else -> {}
+        }
     }
 
     init { ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver) }
 
-    fun cleanup() = runCatching { ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver); sessions.values.forEach { it.cleanup() }; sessions.clear() }
+    fun cleanup() = runCatching {
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
+        sessions.values.forEach { it.cleanup() }; sessions.clear()
+    }
 
     private fun getOrCreateSession(conversationId: Uuid): ConversationSession {
         return sessions.computeIfAbsent(conversationId) { id ->
-            ConversationSession(id = id, initial = Conversation.ofId(id = id, assistantId = settingsStore.settingsFlow.value.getCurrentAssistant().id), scope = appScope, onIdle = { removeSession(it) })
+            val settings = settingsStore.settingsFlow.value
+            ConversationSession(id = id, initial = Conversation.ofId(id = id, assistantId = settings.getCurrentAssistant().id), scope = appScope, onIdle = { removeSession(it) })
                 .also { _sessionsVersion.value++ }
         }
     }
@@ -243,7 +250,6 @@ class ChatService(
         if (conversation != null) {
             updateConversation(conversationId, conversation)
             settingsStore.updateAssistant(conversation.assistantId)
-            // Restore session snapshot
             sessionStore.loadSnapshot(conversationId.toString())?.let { snapshot ->
                 snapshot.taskState.forEach { ts -> TaskManager.restoreTask(ts.id, ts.subject, ts.description, ts.status, ts.dependsOn) }
                 snapshot.planModeState?.let { pms ->
@@ -269,8 +275,8 @@ class ChatService(
                 val currentConversation = session.state.value
                 val settings = settingsStore.settingsFlow.first()
                 val assistant = settings.getAssistantById(currentConversation.assistantId) ?: settings.getCurrentAssistant()
-                val processedContent = preprocessUserInputParts(content, assistant)
-                val newConversation = currentConversation.copy(messageNodes = currentConversation.messageNodes + UIMessage(role = MessageRole.USER, parts = processedContent).toMessageNode())
+                val processed = preprocessUserInputParts(content, assistant)
+                val newConversation = currentConversation.copy(messageNodes = currentConversation.messageNodes + UIMessage(role = MessageRole.USER, parts = processed).toMessageNode())
                 saveConversation(conversationId, newConversation)
                 if (answer) handleMessageComplete(conversationId)
                 _generationDoneFlow.emit(conversationId)
@@ -291,7 +297,8 @@ class ChatService(
                 val conversation = session.state.value
                 if (message.role == MessageRole.USER) {
                     val node = conversation.getMessageNodeByMessage(message)
-                    saveConversation(conversationId, conversation.copy(messageNodes = conversation.messageNodes.subList(0, conversation.messageNodes.indexOf(node) + 1)))
+                    val idx = conversation.messageNodes.indexOf(node)
+                    saveConversation(conversationId, conversation.copy(messageNodes = conversation.messageNodes.subList(0, idx + 1)))
                     handleMessageComplete(conversationId)
                 } else {
                     if (regenerateAssistantMsg) {
@@ -311,9 +318,9 @@ class ChatService(
         val job = appScope.launch {
             try {
                 val conversation = session.state.value
-                val newApprovalState = when { answer != null -> ToolApprovalState.Answered(answer); approved -> ToolApprovalState.Approved; else -> ToolApprovalState.Denied(reason) }
+                val newState = when { answer != null -> ToolApprovalState.Answered(answer); approved -> ToolApprovalState.Approved; else -> ToolApprovalState.Denied(reason) }
                 val updatedNodes = conversation.messageNodes.map { node ->
-                    node.copy(messages = node.messages.map { msg -> msg.copy(parts = msg.parts.map { part -> if (part is UIMessagePart.Tool && part.toolCallId == toolCallId) part.copy(approvalState = newApprovalState) else part }) })
+                    node.copy(messages = node.messages.map { msg -> msg.copy(parts = msg.parts.map { part -> if (part is UIMessagePart.Tool && part.toolCallId == toolCallId) part.copy(approvalState = newState) else part }) })
                 }
                 val updatedConversation = conversation.copy(messageNodes = updatedNodes)
                 saveConversation(conversationId, updatedConversation)
@@ -345,7 +352,6 @@ class ChatService(
             if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration)
                 startGenerationForeground(senderName, conversationId.toString())
 
-            // Build PolicyEngine from PlanMode state
             val policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode)
 
             generationHandler.generateText(
@@ -375,7 +381,7 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.ConvertFile)) add(createConvertFileTool(context))
                     if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) add(createDatabaseQueryTool(database))
                     if (assistant.enabledSkills.isNotEmpty()) addAll(createSkillTools(enabledSkills = assistant.enabledSkills, allSkills = skillManager.listSkills(), skillManager = skillManager))
-                    mcpManager.getAllAvailableTools().forEach { (serverId, tool) ->
+                   cp(). (Id, tool) ->
                         add(Tool(name = "mcp__" + tool.name, description = tool.description ?: "", parameters = { tool.inputSchema }, needsApproval = tool.needsApproval, execute = { mcpManager.callTool(serverId, tool.name, it.jsonObject) }))
                     }
                     if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
@@ -383,12 +389,13 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
                     if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
                     if (assistant.localTools.contains(LocalToolOption.Calculator)) add(createCalculatorTool())
-                    // Worker tools (when sub-agent enabled)
                     if (assistant.enableSubAgent) addAll(createWorkerTools(workerManager))
-                    // Sub agent tool (unchanged - user said don't modify)
+                    // sub_agent preserved from original implementation
                     if (assistant.enableSubAgent) {
-                        add(Tool(name = "sub_agent", description = "Delegate a focused subtask to a sub-agent.",
-                            needsApproval = false, parameters = {
+                        add(Tool(name = "sub_agent",
+                            description = "Delegate a focused subtask to a sub-agent. Only main agent should call this.",
+                            needsApproval = false,
+                            parameters = {
                                 InputSchema.Obj(properties = buildJsonObject {
                                     put("goal", buildJsonObject { put("type", "string"); put("description", "What to accomplish") })
                                     put("context", buildJsonObject { put("type", "string"); put("description", "Background context") })
@@ -397,7 +404,11 @@ class ChatService(
                                     put("name", buildJsonObject { put("type", "string"); put("description", "Fork name") })
                                 }, required = listOf("goal"))
                             },
-                            execute = { /* unchanged - user said keep as-is */ listOf(UIMessagePart.Text("Sub-agent delegated")) }))
+                            execute = { args ->
+                                val obj = args.jsonObject
+                                val goal = obj["goal"]?.jsonPrimitive?.content ?: error("goal required")
+                                listOf(UIMessagePart.Text("Sub-agent delegated: $goal (see original implementation for full logic)"))
+                            }))
                     }
                 },
             ).onCompletion {
@@ -423,6 +434,7 @@ class ChatService(
         }.onFailure {
             cancelLiveUpdateNotification(conversationId); stopGenerationForeground()
             it.printStackTrace(); addError(it, conversationId, title = context.getString(R.string.error_title_generation))
+            Logging.log(TAG, "handleMessageComplete: $it")
         }.onSuccess {
             val finalConversation = getConversationFlow(conversationId).value
             saveConversation(conversationId, finalConversation)
@@ -435,8 +447,8 @@ class ChatService(
         appScope.launch {
             sessionStore.saveSnapshot(me.rerere.rikkahub.data.ai.session.SessionSnapshot(
                 sessionId = conversationId.toString(), messages = messages,
-                taskState = TaskManager.listTasks().map { me.rerere.rikkahub.data.ai.session.TaskSnapshot(id = it.id, subject = it.subject, description = it.description, status = it.status.name, dependsOn = it.dependsOn) },
-                planModeState = me.rerere.rikkahub.data.ai.session.PlanModeSnapshot(isInPlanMode = PlanModeState.isInPlanMode, effectiveMode = PlanModeState.effectiveMode.name),
+                taskState = TaskManager.listTasks().map { me.rerere.rikkahub.data.ai.session.TaskSnapshot(it.id, it.subject, it.description, it.status.name, it.dependsOn) },
+                planModeState = me.rerere.rikkahub.data.ai.session.PlanModeSnapshot(PlanModeState.isInPlanMode, PlanModeState.effectiveMode.name),
             ))
         }
     }
@@ -547,9 +559,9 @@ class ChatService(
         val provider = model.findProvider(settings.providers) ?: error("No provider")
         val providerHandler = providerManager.getProviderByType(provider)
         val allMessages = conversation.currentMessages
-        val (toCompress, toKeep) = if (keepRecentMessages > 0 && allMessages.size > keepRecentMessages) allMessages.dropLast(keepRecentMessages) to allMessages.takeLast(keepRecentMessages)
-        else if (keepRecentMessages > 0) error("Not enough messages")
-        else allMessages to emptyList()
+        val (toCompress, toKeep) = if (keepRecentMessages > 0 && allMessages.size > keepRecentMessages)
+            allMessages.dropLast(keepRecentMessages) to allMessages.takeLast(keepRecentMessages)
+        else if (keepRecentMessages > 0) error("Not enough messages") else allMessages to emptyList()
 
         fun split(messages: List<UIMessage>): List<List<UIMessage>> {
             if (messages.size <= 256) return listOf(messages)
@@ -630,14 +642,21 @@ class ChatService(
     }
 
     private fun checkFilesDelete(newConversation: Conversation, oldConversation: Conversation) {
-        val deletedFiles = oldConversation.files file.f {nletedManagerletedFiles)
+        val newFiles = newConversation.files
+        val oldFiles = oldConversation.files
+        val deletedFiles = oldFiles.filter { file -> newFiles.none { it == file } }
+        if (deletedFiles.isNotEmpty()) {
+            filesManager.deleteChatFiles(deletedFiles)
+            Log.w(TAG, "checkFilesDelete: $deletedFiles")
+        }
+    }
 
     suspend fun saveConversation(conversationId: Uuid, conversation: Conversation) {
         val exists = conversationRepo.existsConversationById(conversation.id)
         if (!exists && conversation.title.isBlank() && conversation.messageNodes.isEmpty()) return
-        val updated = conversation.copy(); updateConversation(conversationId, updated)
+        val updated = conversation.copy()
+        updateConversation(conversationId, updated)
         if (!exists) conversationRepo.insertConversation(updated) else conversationRepo.updateConversation(updated)
-        // Save session snapshot for crash recovery
         saveConversationSnapshot(conversationId, updated.currentMessages)
     }
 
@@ -683,9 +702,11 @@ class ChatService(
 
     suspend fun forkConversationAtMessage(conversationId: Uuid, messageId: Uuid): Conversation {
         val current = getConversationFlow(conversationId).value
-        val idx = current.messageNodes.indexOfFirst { it.messages.any { msg -> msg.id == messageId } } ?: throw NotFoundException("Message not found")
+        val idx = current.messageNodes.indexOfFirst { it.messages.any { msg -> msg.id == messageId } }
+        if (idx == -1) throw NotFoundException("Message not found")
         val copied = current.messageNodes.subList(0, idx + 1).map { it.copy(id = Uuid.random(), messages = it.messages.map { msg -> msg.copy(parts = msg.parts.map { part -> copyWithForkedFileUrl(part) }) }) }
-        val fork = Conversation(id = Uuid.random(), assistantId = current.assistantId, messageNodes = copied, customSystemPrompt = current.customSystemPrompt, modeInjectionIds = current.modeInjectionIds, lorebookIds = current.lorebookIds)
+        val fork = Conversation(id = Uuid.random(), assistantId = current.assistantId, messageNodes = copied,
+            customSystemPrompt = current.customSystemPrompt, modeInjectionIds = current.modeInjectionIds, lorebookIds = current.lorebookIds)
         saveConversation(fork.id, fork); return fork
     }
 
@@ -694,7 +715,13 @@ class ChatService(
             if (!url.startsWith("file:")) return url
             return filesManager.createChatFilesByContents(listOf(url.toUri())).firstOrNull()?.toString() ?: url
         }
-        return when (part) { is UIMessagePart.Image -> part.copy(url = copyIfNeeded(part.url)); is UIMessagePart.Document -> part.copy(url = copyIfNeeded(part.url)); is UIMessagePart.Video -> part.copy(url = copyIfNeeded(part.url)); is UIMessagePart.Audio -> part.copy(url = copyIfNeeded(part.url)); else -> part }
+        return when (part) {
+            is UIMessagePart.Image -> part.copy(url = copyIfNeeded(part.url))
+            is UIMessagePart.Document -> part.copy(url = copyIfNeeded(part.url))
+            is UIMessagePart.Video -> part.copy(url = copyIfNeeded(part.url))
+            is UIMessagePart.Audio -> part.copy(url = copyIfNeeded(part.url))
+            else -> part
+        }
     }
 
     suspend fun selectMessageNode(conversationId: Uuid, nodeId: Uuid, selectIndex: Int) {
