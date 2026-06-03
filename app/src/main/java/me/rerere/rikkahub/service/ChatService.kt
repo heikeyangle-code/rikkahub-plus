@@ -86,6 +86,8 @@ import me.rerere.rikkahub.data.ai.tools.createMcpResourceTools
 import me.rerere.rikkahub.data.ai.tools.ToolRegistry
 import me.rerere.rikkahub.data.ai.tools.PlanModeState
 import me.rerere.rikkahub.data.ai.tools.TaskManager
+import me.rerere.rikkahub.data.ai.tools.AgentRegistry
+import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
 import me.rerere.rikkahub.data.ai.worker.WorkerManager
 import me.rerere.rikkahub.data.ai.worker.createWorkerTools
 import me.rerere.rikkahub.data.files.SkillManager
@@ -199,7 +201,7 @@ class ChatService(
         }
     }
 
-    init { ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver) }
+    init { ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver); AgentRegistry.registerBuiltin() }
 
     fun cleanup() = runCatching {
         ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
@@ -409,94 +411,120 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.WorkerTools)) {
                         addAll(createWorkerTools(workerManager))
                         add(
-                            Tool(
-                                name = "sub_agent",
-                                description = """Delegate a focused subtask to a sub-agent.
-Only the main agent should call this — sub-agents must NOT call sub_agent.
-The sub-agent runs a separate LLM call with no access to conversation history.
-Provide all needed context in the context parameter.""".trimIndent().replace("\n", " "),
-                                needsApproval = false,
-                                parameters = {
-                                    InputSchema.Obj(
-                                        properties = buildJsonObject {
-                                            put("goal", buildJsonObject {
-                                                put("type", "string")
-                                                put("description", "What the sub-agent should accomplish. Be specific and self-contained.")
-                                            })
-                                            put("context", buildJsonObject {
-                                                put("type", "string")
-                                                put("description", "Background information: code, data, text, etc. Do NOT put instructions here.")
-                                            })
-                                            put("role", buildJsonObject {
-                                                put("type", "string")
-                                                put("description", "Optional role for the sub-agent (e.g. 'code reviewer', 'researcher'). Default: general assistant.")
-                                            })
-                                        },
-                                        required = listOf("goal"),
-                                    )
-                                },
-                                execute = {
-                                    val obj = it.jsonObject
-                                    val goal = obj["goal"]?.jsonPrimitive?.content
-                                        ?: error("goal is required")
-                                    val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
-                                    val role = obj["role"]?.jsonPrimitive?.contentOrNull ?: ""
+                        Tool(
+                            name = "sub_agent",
+                            description = """Launch a specialized agent to handle a subtask. Agents have different capabilities:
+- general-purpose (default): Research, search, execute multi-step tasks
+- explorer: Deep code analysis - trace execution paths and understand features
+- planner: Architecture design and implementation planning
+Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " "),
+                            needsApproval = false,
+                            parameters = {
+                                InputSchema.Obj(
+                                    properties = buildJsonObject {
+                                        put("goal", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "What the agent should accomplish. Be specific and self-contained.")
+                                        })
+                                        put("context", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Background information: code, data, text, etc.")
+                                        })
+                                        put("subagent_type", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Agent role: 'general-purpose' (default), 'explorer' (code analysis), 'planner' (architecture design)")
+                                        })
+                                        put("model", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Optional model override for this agent (e.g. 'sonnet', 'opus'). Uses default if omitted.")
+                                        })
+                                    },
+                                    required = listOf("goal"),
+                                )
+                            },
+                            execute = {
+                                val obj = it.jsonObject
+                                val goal = obj["goal"]?.jsonPrimitive?.content
+                                    ?: error("goal is required")
+                                val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
+                                val agentType = obj["subagent_type"]?.jsonPrimitive?.contentOrNull ?: "general-purpose"
+                                val modelOverride = obj["model"]?.jsonPrimitive?.contentOrNull
 
-                                    // 记住进入子Agent前的主Agent状态，退出后恢复
-                                    val preSubStatus = session.processingStatus.value
+                                // Load agent definition
+                                val agentDef = AgentRegistry.get(agentType)
+                                val agentCallId = "agent_${System.currentTimeMillis()}"
 
-                                    // 创建 LaneTracker 追踪子 Agent 执行生命周期
-                                    val laneTracker = LaneTracker()
-                                    laneTracker.started()
+                                // Track progress
+                                AgentTaskTracker.createSession(agentCallId)
 
-                                    // Resolve model for sub-agent
-                                    val subModelId = assistant.subAgentModelId
-                                        ?: assistant.chatModelId
-                                        ?: settings.chatModelId
-                                    val subModel = settings.findModelById(subModelId)
-                                        ?: error("Model not found for sub-agent")
-                                    val providerSetting = subModel.findProvider(settings.providers)
-                                        ?: error("Provider not found for model ${subModel.id}")
-                                    @Suppress("UNCHECKED_CAST")
-                                    val providerImpl = providerManager.getProviderByType(providerSetting)
-                                        as me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>
+                                // 记住进入子Agent前的主Agent状态，退出后恢复
+                                val preSubStatus = session.processingStatus.value
 
-                                    // Build curated tools for sub-agent
-                                    val skillDirs = assistant.enabledSkills
-                                        .mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
-                                    val subTools = buildList {
-                                        if (settings.enableWebSearch) {
-                                            addAll(createSearchTools(settings))
-                                        }
-                                        if (assistant.localTools.contains(LocalToolOption.FileTools)) {
-                                            addAll(
-                                                createFileTools(skillDirs)
-                                                    .filter { it.name in listOf("file_read", "file_write", "file_list") }
-                                            )
-                                        }
-                                        addAll(
-                                            localTools.getTools(listOf(LocalToolOption.TimeInfo))
-                                        )
+                                // 创建 LaneTracker 追踪子 Agent 执行生命周期
+                                val laneTracker = LaneTracker()
+                                laneTracker.started()
+
+                                // Resolve model for sub-agent
+                                val resolvedModelId = modelOverride?.let {
+                                    when (it.lowercase()) {
+                                        "sonnet" -> settings.models.find { m -> m.id.toString().contains("sonnet", ignoreCase = true) }?.id?.toString()
+                                        "opus" -> settings.models.find { m -> m.id.toString().contains("opus", ignoreCase = true) }?.id?.toString()
+                                        "haiku" -> settings.models.find { m -> m.id.toString().contains("haiku", ignoreCase = true) }?.id?.toString()
+                                        else -> it
                                     }
+                                } ?: agentDef?.modelId ?: assistant.subAgentModelId?.toString()
+                                    ?: assistant.chatModelId?.toString()
+                                    ?: settings.chatModelId.toString()
+                                val subModelId = Uuid.parse(resolvedModelId)
+                                val subModel = settings.findModelById(subModelId)
+                                    ?: error("Model not found for sub-agent")
+                                val providerSetting = subModel.findProvider(settings.providers)
+                                    ?: error("Provider not found for model ${subModel.id}")
+                                @Suppress("UNCHECKED_CAST")
+                                val providerImpl = providerManager.getProviderByType(providerSetting)
+                                    as me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>
 
-                                    // Build prompt
-                                    val prompt = buildString {
-                                        if (role.isNotBlank()) {
-                                            appendLine("You are a $role.")
-                                            appendLine()
-                                        }
-                                        appendLine("Goal: $goal")
-                                        if (context.isNotBlank()) {
-                                            appendLine()
-                                            appendLine("Context: $context")
-                                        }
+                                // Build curated tools for sub-agent
+                                val skillDirs = assistant.enabledSkills
+                                    .mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
+
+                                // Agent's tool whitelist (if restricted)
+                                val allowedToolNames = agentDef?.tools
+                                val allTools = buildList {
+                                    if (settings.enableWebSearch) {
+                                        addAll(createSearchTools(settings))
+                                    }
+                                    if (assistant.localTools.contains(LocalToolOption.FileTools)) {
+                                        addAll(createFileTools(skillDirs))
+                                    }
+                                    addAll(localTools.getTools(listOf(LocalToolOption.TimeInfo)))
+                                }
+                                val subTools = if (allowedToolNames != null && allowedToolNames != listOf("*")) {
+                                    allTools.filter { it.name in allowedToolNames }
+                                } else {
+                                    allTools
+                                }
+
+                                // Build prompt with agent system prompt
+                                val prompt = buildString {
+                                    val sysPrompt = agentDef?.systemPrompt
+                                    if (!sysPrompt.isNullOrBlank()) {
+                                        appendLine(sysPrompt)
                                         appendLine()
-                                        appendLine("You have access to tools. Use them when needed.")
-                                        appendLine("After using tools, continue working until the goal is complete.")
                                     }
+                                    appendLine("Goal: $goal")
+                                    if (context.isNotBlank()) {
+                                        appendLine()
+                                        appendLine("Context: $context")
+                                    }
+                                    appendLine()
+                                    appendLine("You have access to tools. Use them when needed.")
+                                    appendLine("After using tools, continue working until the goal is complete.")
+                                    appendLine("When done, summarize what was accomplished.")
+                                }
 
-                                    // Tool loop (max N rounds, no refunds)
-                                    val messages = mutableListOf(UIMessage.user(prompt))
+                                // Tool loop (max N rounds, no refunds)
+                                val messages = mutableListOf(UIMessage.user(prompt))
                                     var finalText = ""
                                     var remainingSteps = assistant.subAgentMaxSteps
                                     val stepLog = StringBuilder()
