@@ -1125,28 +1125,28 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 fmtClean(ghPaginated("https://api.github.com/repos/$fullRepo/actions/runs", limit), "ci_run")
             }
             "get_workflow_run" -> {
-                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
+                val runId = obj["run_id"]?.jsonPrimitive?.longOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 fmtOne(gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId"), "ci_run")
             }
             "ci_jobs" -> {
-                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
+                val runId = obj["run_id"]?.jsonPrimitive?.longOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 fmtClean(gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId/jobs?per_page=50"), "ci_job")
             }
             "ci_job_log" -> {
-                val jobId = obj["job_id"]?.jsonPrimitive?.intOrNull ?: error("job_id required")
+                val jobId = obj["job_id"]?.jsonPrimitive?.longOrNull ?: error("job_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val log = ghDownload("https://api.github.com/repos/$fullRepo/actions/jobs/$jobId/logs")
                 log.decodeToString().take(50000)
             }
             "ci_artifacts" -> {
-                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
+                val runId = obj["run_id"]?.jsonPrimitive?.longOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 fmtClean(gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId/artifacts"), "artifact")
             }
             "download_artifact" -> {
-                val artId = obj["artifact_id"]?.jsonPrimitive?.intOrNull ?: error("artifact_id required")
+                val artId = obj["artifact_id"]?.jsonPrimitive?.longOrNull ?: error("artifact_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 val zipBytes = ghDownload("https://api.github.com/repos/$fullRepo/actions/artifacts/$artId/zip")
                 val zis = java.util.zip.ZipInputStream(zipBytes.inputStream())
@@ -1161,7 +1161,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 else entries.joinToString("\n\n${"=".repeat(40)}\n\n") { (n, t) -> "=== $n ===\n$t" }.take(50000)
             }
             "ci_log" -> {
-                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
+                val runId = obj["run_id"]?.jsonPrimitive?.longOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 // First try direct job logs (more reliable)
                 val jobsRaw = gh("https://api.github.com/repos/$fullRepo/actions/runs/$runId/jobs?per_page=20")
@@ -1223,13 +1223,13 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 }
             }
             "ci_cancel" -> {
-                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
+                val runId = obj["run_id"]?.jsonPrimitive?.longOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 gh("POST", "https://api.github.com/repos/$fullRepo/actions/runs/$runId/cancel")
                 "已取消运行 #$runId"
             }
             "rerun_workflow" -> {
-                val runId = obj["run_id"]?.jsonPrimitive?.intOrNull ?: error("run_id required")
+                val runId = obj["run_id"]?.jsonPrimitive?.longOrNull ?: error("run_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 gh("POST", "https://api.github.com/repos/$fullRepo/actions/runs/$runId/rerun", "{}")
                 "已触发重新运行 #$runId"
@@ -1752,7 +1752,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 "Webhook 已创建 ($url)"
             }
             "delete_webhook" -> {
-                val hookId = obj["hook_id"]?.jsonPrimitive?.intOrNull ?: error("hook_id required")
+                val hookId = obj["hook_id"]?.jsonPrimitive?.longOrNull ?: error("hook_id required")
                 if (fullRepo.isBlank()) error("owner and repo required")
                 gh("DELETE", "https://api.github.com/repos/$fullRepo/hooks/$hookId")
                 "Webhook #$hookId 已删除"
