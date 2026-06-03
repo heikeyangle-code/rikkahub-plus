@@ -113,6 +113,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.replaceRegexes
+import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
@@ -358,7 +359,10 @@ class ChatService(
             if (assistant.enableAutoCompact) {
                 val compactResult = autoCompactor.maybeCompact(conversation.currentMessages)
                 if (compactResult != null) {
-                    updateConversation(conversationId, conversation.copy(currentMessages = compactResult.compactedMessages))
+                    val compactedNodes = compactResult.compactedMessages.map { msg ->
+                        MessageNode(messages = listOf(msg), selectIndex = 0)
+                    }
+                    updateConversation(conversationId, conversation.copy(messageNodes = compactedNodes))
                     Log.i("ChatService", "Auto-compacted ${compactResult.removedCount} old messages")
                 }
             }
@@ -631,7 +635,10 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
         appScope.launch {
             sessionStore.saveSnapshot(me.rerere.rikkahub.data.ai.session.SessionSnapshot(
                 sessionId = conversationId.toString(), messages = messages,
-                taskState = TaskManager.listTasks().map { me.rerere.rikkahub.data.ai.session.TaskSnapshot(it.id, it.subject, it.description, it.status.name, it.dependsOn) },
+                taskState = TaskManager.listTasks().map { me.rerere.rikkahub.data.ai.session.TaskSnapshot(
+                    id = it.id, subject = it.subject, description = it.description,
+                    status = it.status.name, dependsOn = it.dependsOn,
+                ) },
                 planModeState = me.rerere.rikkahub.data.ai.session.PlanModeSnapshot(PlanModeState.isInPlanMode, PlanModeState.effectiveMode.name),
             ))
         }
@@ -788,9 +795,9 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
             else -> Triple(context.getString(R.string.notification_live_update_chip_writing), context.getString(R.string.notification_live_update_title), "")
         }
         context.sendNotification(channelId = CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID, notificationId = getLiveUpdateNotificationId(conversationId)) {
-            title = senderName; content = content; subText = sub; ongoing = true; onlyAlertOnce = true
-            category = NotificationCompat.CATEGORY_PROGRESS; useBigTextStyle = true
-            contentIntent = getPendingIntent(context, conversationId); requestPromotedOngoing = true; shortCriticalText = chip
+            setTitle(senderName); setContentText(content); setSubText(sub); setOngoing(true); setOnlyAlertOnce(true)
+            setCategory(NotificationCompat.CATEGORY_PROGRESS); setStyle(NotificationCompat.BigTextStyle())
+            setContentIntent(getPendingIntent(context, conversationId)); requestPromotedOngoing = true; shortCriticalText = chip
         }
     }
 
