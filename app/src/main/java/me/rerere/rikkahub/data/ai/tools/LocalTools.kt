@@ -25,9 +25,6 @@ import java.time.ZonedDateTime
 import java.time.format.TextStyle
 import java.util.Locale
 
-/**
- * 清理 present_file 在 cache 目录留下的 shared_ 前缀缓存文件
- */
 private fun cleanupPresentFileCache(cacheDir: File) {
     try {
         cacheDir.listFiles()
@@ -93,6 +90,22 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("database_query")
     data object DatabaseQuery : LocalToolOption()
+
+    @Serializable
+    @SerialName("task_tools")
+    data object TaskTools : LocalToolOption()
+
+    @Serializable
+    @SerialName("tool_search")
+    data object ToolSearch : LocalToolOption()
+
+    @Serializable
+    @SerialName("plan_mode")
+    data object PlanMode : LocalToolOption()
+
+    @Serializable
+    @SerialName("calculator")
+    data object Calculator : LocalToolOption()
 }
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {
@@ -316,10 +329,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                                         put("description", "The question text to display to the user")
                                     })
                                     put("options", buildJsonObject {
-                                        put("type", "array")
-                                        put(
-                                            "description",
-                                            "Optional list of suggested options for the user to choose from"
+                                        put("type", "array" list of suggested options for the user to choose from"
                                         )
                                         put("items", buildJsonObject {
                                             put("type", "string")
@@ -384,7 +394,6 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 if (!file.exists()) error("File not found: $path")
                 if (!file.canRead()) error("Cannot read file: $path")
 
-                // Copy to cache dir for FileProvider sharing
                 val cacheFile = File(context.cacheDir, "shared_" + file.name)
                 cacheFile.parentFile?.mkdirs()
                 file.copyTo(cacheFile, overwrite = true)
@@ -407,7 +416,6 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                     }
                 )
 
-                // 清理旧缓存文件
                 cleanupPresentFileCache(context.cacheDir)
 
                 val payload = buildJsonObject {
