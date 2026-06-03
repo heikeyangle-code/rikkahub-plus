@@ -7,3 +7,10 @@ sealed class McpStatus {
     data class Reconnecting(val attempt: Int, val maxAttempts: Int) : McpStatus()
     data class Error(val message: String) : McpStatus()
 }
+
+data class McpResourceInfo(
+    val uri: String,
+    val name: String,
+    val description: String? = null,
+    val mimeType: String? = null,
+)
