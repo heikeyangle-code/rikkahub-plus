@@ -413,6 +413,8 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
 
         fun encode(s: String) = URLEncoder.encode(s, "UTF-8")
 
+        fun parseJSON(s: String) = Json.parseToJsonElement(s).jsonObject
+
         fun resolveDefaultBranch(repo: String): String {
             if (repo.isBlank()) return "main"
             return defaultBranchCache.getOrPut(repo) {
@@ -422,8 +424,6 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 } catch (_: Exception) { "main" }
             }
         }
-
-        fun parseJSON(s: String) = Json.parseToJsonElement(s).jsonObject
 
         // ── Common params ──
         val owner = obj["owner"]?.jsonPrimitive?.contentOrNull ?: ""
