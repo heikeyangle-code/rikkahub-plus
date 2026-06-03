@@ -149,7 +149,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         // ── file_list ──
         Tool(
             name = "file_list",
-            description = "List files and directories. Default: ${defaultDir}/.",
+            description = "List files and directories. Default: ${defaultDir}/. Only use when the user explicitly asks about files or directories. Do NOT use to browse or explore the filesystem searching for content — use use_skill for skills and other specific tools for their domains.",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -336,7 +336,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         // ── file_search（按名称或内容）──
         Tool(
             name = "file_search",
-            description = "Search for files on the Android filesystem by name or content.",
+            description = "Search for files on the Android filesystem by name or content. Only use when the user asks you to find specific files.",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {

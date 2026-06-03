@@ -28,6 +28,7 @@ fun createSkillTools(
             systemPrompt = { _, _ ->
                 buildString {
                     appendLine("## Skills")
+                    appendLine("Skills provide specialized knowledge and workflows. Use `use_skill` to load a skill by name. Do NOT use file_list or file_search to browse skill directories.")
                     appendLine("<available_skills>")
                     byCategory.forEach { (cat, skills) ->
                         appendLine("  <!-- $cat -->")
