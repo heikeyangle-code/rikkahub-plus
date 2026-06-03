@@ -252,6 +252,8 @@ class ChatService(
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
         AgentRegistry.registerBuiltin()
+        // 提前初始化 AgentService（启动事件监听协程）
+        agentService
     }
 
     fun cleanup() = runCatching {
