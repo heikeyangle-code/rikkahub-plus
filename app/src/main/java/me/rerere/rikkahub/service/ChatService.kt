@@ -250,8 +250,8 @@ class ChatService(
     }
 
     init {
-        // 添加生命周期观察者
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+        AgentRegistry.registerBuiltin()
     }
 
     fun cleanup() = runCatching {
@@ -1190,6 +1190,12 @@ class ChatService(
                         )
                     )
                 }
+                if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
+                if (assistant.localTools.contains(LocalToolOption.Calculator)) add(createCalculatorTool())
+                if (assistant.localTools.contains(LocalToolOption.TaskTools)) addAll(createTaskTools())
+                if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
+                if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
+                if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))
             },
             inputTransformers = buildList {
                 addAll(inputTransformers)
