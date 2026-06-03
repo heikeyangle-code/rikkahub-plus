@@ -65,6 +65,8 @@ import me.rerere.rikkahub.data.ai.listener.AgentEventBus
 import me.rerere.rikkahub.data.ai.listener.AgentService
 import me.rerere.rikkahub.data.ai.session.SessionStore
 import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
+import me.rerere.rikkahub.data.ai.policy.PolicyEngine
+import me.rerere.rikkahub.data.ai.tools.PlanModeState
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
@@ -610,6 +612,8 @@ class ChatService(
                     add(knowledgeBaseTransformer)
                 },
                 outputTransformers = outputTransformers,
+                policyEngine = PolicyEngine(currentMode = me.rerere.rikkahub.data.ai.tools.PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath),
+                autoCompactor = autoCompactor,
                 tools = buildList {
                     val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
                     if (assistant.localTools.contains(LocalToolOption.FileTools)) {
@@ -1143,6 +1147,7 @@ class ChatService(
             } else {
                 memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
             },
+            policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath),
             tools = buildList {
                 if (assistant.localTools.contains(LocalToolOption.FileTools)) {
                     addAll(createFileTools(skillDirs))

@@ -83,6 +83,8 @@ class GenerationHandler(
         conversationSystemPrompt: String? = null,
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
+        policyEngine: me.rerere.rikkahub.data.ai.policy.PolicyEngine? = null,
+        autoCompactor: me.rerere.rikkahub.data.ai.compaction.AutoCompactor? = null,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -313,7 +315,7 @@ class GenerationHandler(
                         async {
                             tool to runCatching {
                                 kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) {
-                                    executeToolCall(tool, toolsInternal, json)
+                                    executeToolCall(tool, toolsInternal, json, policyEngine)
                                 }
                             }
                         }
@@ -328,7 +330,7 @@ class GenerationHandler(
                 toolsToProcess.forEach { tool ->
                     val result = runCatching {
                         kotlinx.coroutines.withTimeout(60_000) {
-                            executeToolCall(tool, toolsInternal, json)
+                            executeToolCall(tool, toolsInternal, json, policyEngine)
                         }
                     }
                     addToolResult(executedTools, tool, result, json)
@@ -624,6 +626,7 @@ private suspend fun executeToolCall(
     tool: UIMessagePart.Tool,
     toolsInternal: List<Tool>,
     json: kotlinx.serialization.json.Json,
+    policyEngine: me.rerere.rikkahub.data.ai.policy.PolicyEngine? = null,
 ): UIMessagePart.Tool {
     return when (tool.approvalState) {
         is ToolApprovalState.Denied -> {
@@ -662,6 +665,19 @@ private suspend fun executeToolCall(
                 error("Invalid tool arguments JSON for ${tool.toolName}: ${it.message}")
             }
             Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
+
+            // PolicyEngine check
+            if (policyEngine != null) {
+                when (val result = policyEngine.check(toolDef, args)) {
+                    is me.rerere.rikkahub.data.ai.policy.PermissionResult.Denied -> {
+                        Log.w(TAG, "PolicyEngine denied ${toolDef.name}: ${result.reason}")
+                        return tool.copy(output = listOf(UIMessagePart.Text(
+                            json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Permission denied: ${result.reason}")) })
+                        )))
+                    }
+                    is me.rerere.rikkahub.data.ai.policy.PermissionResult.Allowed -> {}
+                }
+            }
 
             // Pre-tool check via AgentEventBus (SafetyHook — blocking with reply)
             val reply = kotlinx.coroutines.CompletableDeferred<Boolean>()
