@@ -25,17 +25,7 @@ object ToolRegistry {
     }
 
     fun search(query: String, maxResults: Int = 10): List<ToolInfo> {
-        val q = query.lowercase()
-        val exact = q.startsWith("select:")
-        val requirePrefix = q.startsWith("+")
-
-        return tools.filter { it.enabled }.filter { t ->
-            val name = t.name.lowercase()
-            val desc = t.description.lowercase()
-            when {
-                exact -> {
-                    val names = q.removePrefix("select:").split(",").map { it.trim().lowercase() }
-                    names.any { name.contains(it) }
+        val+abled = = exactPrefixmap names }
                 }
                 requirePrefix -> {
                     val term = q.removePrefix("+").trim()
@@ -84,6 +74,8 @@ object ToolRegistry {
         register("team_create", "Create agent team", "任务")
         register("team_delete", "Delete agent team", "任务")
         register("sub_agent", "Delegate to sub-agent", "Agent")
+        register("send_message", "Send message to another agent", "Agent")
+        register("read_messages", "Read incoming messages", "Agent")
         register("enter_plan_mode", "Switch to planning mode", "计划")
         register("exit_plan_mode", "Exit planning mode", "计划")
         register("calculator", "Perform precise calculation", "工具")
@@ -97,13 +89,16 @@ fun createToolSearchTool(): Tool = Tool(
         Search available tools by name or keyword. Returns tool descriptions and parameter info.
         Use this when you need to find a tool for a specific task.
 
+        ToolSearch fetches full schema definitions for deferred tools so they can be called.
+        Until fetched, only the name is known — there is no parameter schema, so the tool cannot be invoked.
+
         Query forms:
         - "select:Read,Write,Grep" — fetch these exact tools by name
-        - "notebook jupyter" — keyword search
-        - "+slack send" — require "slack" in name, rank by description match
+        - "notebook jupyter" — keyword search, up to max_results best matches
+        - "+slack send" — require "slack" in name, rank by remaining terms
 
-        Deferred tools (like MCP tools) only show their name until you search for them.
-        After searching, their full parameter schema becomes available for calling.
+        Result format: each matched tool appears with its name, description, and category.
+        After searching, matched tools become fully callable.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -126,13 +121,13 @@ fun createToolSearchTool(): Tool = Tool(
         val maxResults = obj["max_results"]?.jsonPrimitive?.intOrNull ?: 10
         val results = ToolRegistry.search(query, maxResults)
         if (results.isEmpty()) {
-            listOf(UIMessagePart.Text("没有找到匹配 '$query' 的工具"))
+            listOf(UIMessagePart.Text("No tools matching '$query'"))
         } else {
             val byCategory = results.groupBy { it.category }
             val output = byCategory.flatMap { (cat, tools) ->
-                listOf("【$cat】") + tools.map { "  - ${it.name}: ${it.description.take(80)}" }
+                listOf("[$cat]") + tools.map { "  - ${it.name}: ${it.description.take(80)}" }
             }.joinToString("\n")
-            listOf(UIMessagePart.Text("找到 ${results.size} 个工具:\n$output"))
+            listOf(UIMessagePart.Text("Found ${results.size} tool(s):\n$output"))
         }
     },
 )
