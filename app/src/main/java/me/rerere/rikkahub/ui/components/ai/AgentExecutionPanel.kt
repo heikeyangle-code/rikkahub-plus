@@ -32,7 +32,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import me.rerere.rikkahub.data.ai.agent.AgentColor
 import me.rerere.rikkahub.data.ai.agent.AgentEventBus
 import me.rerere.rikkahub.data.ai.agent.AgentEventType
 import me.rerere.rikkahub.data.ai.agent.AgentExecutionEvent
