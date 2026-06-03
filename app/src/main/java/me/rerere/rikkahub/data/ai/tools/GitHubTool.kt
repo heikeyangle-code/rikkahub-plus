@@ -487,7 +487,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "file" -> buildJsonObject {
                 put("name", jstr(sj(o,"name"))); put("type", jstr(sj(o,"type")))
-                put("size", jint(si(o,"size"))); put("path", jstr(sj(o,"path"))); put("sha", jstr(sj(o,"sha").take(7)))
+                put("size", jint(si(o,"size"))); put("path", jstr(sj(o,"path"))); put("sha", jstr(sj(o,"sha")))
             }
             "tag" -> buildJsonObject {
                 put("name", jstr(sj(o,"name")))
@@ -1325,6 +1325,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val filesStr = obj["files"]?.jsonPrimitive?.contentOrNull ?: error("files required (JSON array)")
                 val message = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
                 if (fullRepo.isBlank()) error("owner and repo required")
+                try {
                 val files = Json.parseToJsonElement(filesStr).jsonArray
                 // Create blobs
                 val blobs = files.map { f ->
@@ -1359,6 +1360,9 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 gh("PATCH", "https://api.github.com/repos/$fullRepo/git/refs/heads/$branch",
                     """{"sha":"$newCommitSha","force":false}""")
                 "已提交 ${blobs.size} 个文件到 $branch: ${newCommitSha.take(8)}"
+                } catch (e: Exception) {
+                    error("提交失败，但文件 blob 已创建: ${e.message?.take(100)}")
+                }
             }
             "delete_file" -> {
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: error("path required")
