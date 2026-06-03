@@ -35,9 +35,9 @@ class WorkerManager(private val scope: CoroutineScope) {
                     WorkerState.TrustRequired(screenText.take(200))
                 }
             }
-            screenText.contains("Ready for input", ignoreCase = true) ||
+            screenText.contains("ready for input", ignoreCase = true) ||
             screenText.contains("ready", ignoreCase = true) ||
-            screenText.contains('>') -> WorkerState.ReadyForPrompt
+            screenText.trimEnd().endsWith('$') || screenText.trimEnd().endsWith('#') -> WorkerState.ReadyForPrompt
             else -> worker.state
         }
         return updateWorker(workerId) { it.copy(state = newState) }

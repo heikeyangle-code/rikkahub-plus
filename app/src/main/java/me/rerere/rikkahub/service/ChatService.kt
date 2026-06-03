@@ -357,7 +357,7 @@ class ChatService(
             if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration)
                 startGenerationForeground(senderName, conversationId.toString())
 
-            val policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode)
+            val policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath)
 
             // Auto-compact conversation history if threshold exceeded
             if (assistant.enableAutoCompact) {
@@ -713,7 +713,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
         val messages = history + UIMessage.user(prompt)
         var result = ""
         val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
-        val policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode)
+        val policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath)
 
         generationHandler.generateText(settings = settings, model = model, messages = messages, assistant = assistant,
             policyEngine = policyEngine,

@@ -23,9 +23,10 @@ sealed class PermissionResult {
  * 2. File path arguments stay within workspace bounds
  */
 class PolicyEngine(
-    private val currentMode: PermissionMode = PermissionMode.DANGER_FULL_ACCESS
+    private val currentMode: PermissionMode = PermissionMode.DANGER_FULL_ACCESS,
+    private val baseDir: String? = null,
 ) {
-    private val pathChecker = PathScopeChecker()
+    private val pathChecker = PathScopeChecker(baseDir)
 
     /**
      * Check if a tool call is permitted under the current policy.
@@ -79,14 +80,14 @@ class PolicyEngine(
  * Checks whether a given file path stays within the current working directory.
  * Prevents directory traversal attacks.
  */
-class PathScopeChecker {
+class PathScopeChecker(private val baseDir: String? = null) {
     /**
      * Returns true if the path is within the current workspace.
      *
      * Rules:
      * - Relative paths without traversal: allowed
-     * - Absolute paths: must start with CWD
-     * - Parent-directory traversal (..) outside CWD: denied
+     * - Absolute paths: must start with the workspace base directory
+     * - Parent-directory traversal (..) outside workspace: denied
      * - Symlinks: resolved to canonical path before comparison
      */
     fun isWithinWorkspace(path: String): Boolean {
@@ -99,7 +100,7 @@ class PathScopeChecker {
         // Skip shell variables and obvious non-paths
         if (cleanPath.startsWith('$') || cleanPath.startsWith('-')) return true
 
-        val cwd = File(".").canonicalFile
+        val cwd = baseDir?.let { File(it) } ?: File(".").canonicalFile
         val target = File(cleanPath)
 
         return try {
