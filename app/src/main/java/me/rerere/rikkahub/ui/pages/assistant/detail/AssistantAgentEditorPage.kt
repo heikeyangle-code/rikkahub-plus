@@ -65,6 +65,7 @@ fun AssistantAgentEditorPage(
     val existingAgent = remember(editAgentType) { editAgentType?.let { AgentRegistry.get(it) } }
     val isEditing = existingAgent != null
     val isReadonly = existingAgent?.isBuiltin == true
+    val navController = LocalNavController.current
 
     // 表单状态
     var agentType by remember { mutableStateOf(existingAgent?.agentType ?: "") }
@@ -466,7 +467,7 @@ fun AssistantAgentEditorPage(
                         val validation = validateAgent(agentDef)
                         if (validation.isValid) {
                             AgentRegistry.register(agentDef)
-                            LocalNavController.current.popBackStack()
+                            navController.popBackStack()
                         } else {
                             validationResult = validation
                         }
@@ -507,7 +508,7 @@ fun AssistantAgentEditorPage(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("删除 Agent") },
             text = { Text("确定删除 \"$editAgentType\"？此操作不可撤销。") },
-            confirmButton = { TextButton(onClick = { AgentRegistry.delete(editAgentType); showDeleteConfirm = false; LocalNavController.current.popBackStack() }) { Text("删除", color = MaterialTheme.colorScheme.error) } },
+            confirmButton = { TextButton(onClick = { AgentRegistry.delete(editAgentType); showDeleteConfirm = false; navController.popBackStack() }) { Text("删除", color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("取消") } },
         )
     }
