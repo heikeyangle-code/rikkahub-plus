@@ -1300,8 +1300,22 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "commit" -> {
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: error("path required")
                 val message = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
-                val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: error("content required")
+                val search = obj["search"]?.jsonPrimitive?.contentOrNull
+                val replace = obj["replace"]?.jsonPrimitive?.contentOrNull
+                val content: String
                 var fileSha = obj["sha"]?.jsonPrimitive?.contentOrNull
+                if (search != null && replace != null) {
+                    // search/replace 模式：从 GitHub API 拉完整文件，做替换
+                    if (fullRepo.isBlank()) error("owner and repo required")
+                    val current = gh("https://api.github.com/repos/$fullRepo/contents/$path?ref=$branch")
+                    val json = parseJSON(current)
+                    fileSha = json["sha"]?.jsonPrimitive?.contentOrNull
+                    val rawContent = json["content"]?.jsonPrimitive?.contentOrNull ?: error("cannot read file content")
+                    val decoded = String(java.util.Base64.getMimeDecoder().decode(rawContent))
+                    content = decoded.replace(search, replace)
+                } else {
+                    content = obj["content"]?.jsonPrimitive?.contentOrNull ?: error("content required (or use search+replace)")
+                }
                 if (fullRepo.isBlank()) error("owner and repo required")
                 // Auto-fetch SHA if not provided (required for updating existing files)
                 if (fileSha == null) {
