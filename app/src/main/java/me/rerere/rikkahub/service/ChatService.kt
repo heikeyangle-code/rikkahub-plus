@@ -89,7 +89,7 @@ import me.rerere.rikkahub.data.ai.tools.TaskManager
 import me.rerere.rikkahub.data.ai.worker.WorkerManager
 import me.rerere.rikkahub.data.ai.worker.createWorkerTools
 import me.rerere.rikkahub.data.files.SkillManager
-import me.rerere.rik.data.ai.transformers.Base64ImageToLocalFileTransformer
+import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
 import me.rerere.rikkahub.data.ai.transformers.PlaceholderTransformer
@@ -381,7 +381,7 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.ConvertFile)) add(createConvertFileTool(context))
                     if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) add(createDatabaseQueryTool(database))
                     if (assistant.enabledSkills.isNotEmpty()) addAll(createSkillTools(enabledSkills = assistant.enabledSkills, allSkills = skillManager.listSkills(), skillManager = skillManager))
-                   cp(). (Id, tool) ->
+                   mcpManager.getAllAvailableTools().forEach { (serverId, tool) ->
                         add(Tool(name = "mcp__" + tool.name, description = tool.description ?: "", parameters = { tool.inputSchema }, needsApproval = tool.needsApproval, execute = { mcpManager.callTool(serverId, tool.name, it.jsonObject) }))
                     }
                     if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
