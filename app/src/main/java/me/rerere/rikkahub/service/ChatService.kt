@@ -709,6 +709,10 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         addAll(
                                             localTools.getTools(listOf(LocalToolOption.TimeInfo))
                                         )
+                                        // Task tools (共享主Agent的任务系统)
+                                        if (assistant.localTools.contains(LocalToolOption.TaskTools)) {
+                                            addAll(createTaskTools())
+                                        }
                                     }
 
                                     // Build prompt
