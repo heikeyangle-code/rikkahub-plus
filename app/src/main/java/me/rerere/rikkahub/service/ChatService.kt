@@ -252,10 +252,12 @@ class ChatService(
             updateConversation(conversationId, conversation)
             settingsStore.updateAssistant(conversation.assistantId)
             sessionStore.loadSnapshot(conversationId.toString())?.let { snapshot ->
-                snapshot.taskState.forEach { ts -> TaskManager.restoreTask(ts.id, ts.subject, ts.description, ts.status, ts.dependsOn) }
-                snapshot.planModeState?.let { pms ->
-                    PlanModeState.isInPlanMode = pms.isInPlanMode
-                    PlanModeState.effectiveMode = try { PermissionMode.valueOf(pms.effectiveMode) } catch (_: Exception) { PermissionMode.DANGER_FULL_ACCESS }
+                runCatching {
+                    snapshot.taskState.forEach { ts -> TaskManager.restoreTask(ts.id, ts.subject, ts.description, ts.status, ts.dependsOn) }
+                    snapshot.planModeState?.let { pms ->
+                        PlanModeState.isInPlanMode = pms.isInPlanMode
+                        PlanModeState.effectiveMode = try { PermissionMode.valueOf(pms.effectiveMode) } catch (_: Exception) { PermissionMode.DANGER_FULL_ACCESS }
+                    }
                 }
             }
         } else {
@@ -632,16 +634,20 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
     }
 
     private suspend fun saveConversationSnapshot(conversationId: Uuid, messages: List<UIMessage>) {
-        appScope.launch {
-            sessionStore.saveSnapshot(me.rerere.rikkahub.data.ai.session.SessionSnapshot(
-                sessionId = conversationId.toString(), messages = messages,
-                taskState = TaskManager.listTasks().map { me.rerere.rikkahub.data.ai.session.TaskSnapshot(
-                    id = it.id, subject = it.subject, description = it.description,
-                    status = it.status.name, dependsOn = it.dependsOn,
-                ) },
-                planModeState = me.rerere.rikkahub.data.ai.session.PlanModeSnapshot(PlanModeState.isInPlanMode, PlanModeState.effectiveMode.name),
-            ))
-        }
+        try {
+            appScope.launch {
+                runCatching {
+                    sessionStore.saveSnapshot(me.rerere.rikkahub.data.ai.session.SessionSnapshot(
+                        sessionId = conversationId.toString(), messages = messages,
+                        taskState = TaskManager.listTasks().map { me.rerere.rikkahub.data.ai.session.TaskSnapshot(
+                            id = it.id, subject = it.subject, description = it.description,
+                            status = it.status.name, dependsOn = it.dependsOn,
+                        ) },
+                        planModeState = me.rerere.rikkahub.data.ai.session.PlanModeSnapshot(PlanModeState.isInPlanMode, PlanModeState.effectiveMode.name),
+                    ))
+                }
+            }
+        } catch (_: Exception) { }
     }
 
     private fun checkInvalidMessages(conversationId: Uuid) {
