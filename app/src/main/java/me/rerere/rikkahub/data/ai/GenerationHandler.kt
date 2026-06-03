@@ -383,7 +383,26 @@ private suspend fun executeToolCall(
             }
 
             Log.i(TAG, "executing tool ${toolDef.name}")
+
+            // PreToolUse hooks — first one that blocks stops execution
+            val preHookResults = me.rerere.rikkahub.data.ai.hooks.HookRegistry
+                .getHooks(me.rerere.rikkahub.data.ai.hooks.HookEvent.PRE_TOOL_USE)
+                .map { hook -> kotlinx.coroutines.runBlocking { hook to hook.execute(toolDef, args) } }
+            for ((_, result) in preHookResults) {
+                if (result is me.rerere.rikkahub.data.ai.hooks.HookResult.Block) {
+                    return tool.copy(output = listOf(UIMessagePart.Text(
+                        json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Hook blocked: ${result.reason}")) })
+                    )))
+                }
+            }
+
             val result = toolDef.execute(args)
+
+            // PostToolUse hooks
+            me.rerere.rikkahub.data.ai.hooks.HookRegistry
+                .getHooks(me.rerere.rikkahub.data.ai.hooks.HookEvent.POST_TOOL_USE)
+                .forEach { hook -> kotlinx.coroutines.runBlocking { hook.execute(toolDef, args, result) } }
+
             tool.copy(output = result)
         }
     }

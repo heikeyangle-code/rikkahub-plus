@@ -88,6 +88,8 @@ import me.rerere.rikkahub.data.ai.tools.PlanModeState
 import me.rerere.rikkahub.data.ai.tools.TaskManager
 import me.rerere.rikkahub.data.ai.tools.AgentRegistry
 import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
+import me.rerere.rikkahub.data.ai.hooks.HookRegistry
+import me.rerere.rikkahub.data.ai.hooks.SafetyHook
 import me.rerere.rikkahub.data.ai.worker.WorkerManager
 import me.rerere.rikkahub.data.ai.worker.createWorkerTools
 import me.rerere.rikkahub.data.files.SkillManager
@@ -201,7 +203,7 @@ class ChatService(
         }
     }
 
-    init { ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver); AgentRegistry.registerBuiltin() }
+    init { ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver); AgentRegistry.registerBuiltin(); HookRegistry.register(SafetyHook()) }
 
     fun cleanup() = runCatching {
         ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
@@ -415,11 +417,11 @@ class ChatService(
                         add(
                         Tool(
                             name = "sub_agent",
-                            description = """Launch a specialized agent to handle a subtask. Agents have different capabilities:
-- general-purpose (default): Research, search, execute multi-step tasks
-- explorer: Deep code analysis - trace execution paths and understand features
-- planner: Architecture design and implementation planning
-Set subagent_type to choose which agent to use.""".trimIndent().replace("\n", " "),
+                            description = buildString {
+                                append("Launch a specialized agent to handle a subtask. Available agents: ")
+                                append(AgentRegistry.list().joinToString(", ") { "${it.agentType} (${it.description.take(50)})" })
+                                append(". Set subagent_type to choose. Default: general-purpose.")
+                            }.replace("\n", " "),
                             needsApproval = false,
                             parameters = {
                                 InputSchema.Obj(
