@@ -114,7 +114,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         // ── file_write ──
         Tool(
             name = "file_write",
-            description = "Description: Write a file to the local filesystem.\n\nUsage:\n- This tool will overwrite the existing file if there is one at the provided path.\n- If this is an existing file, you MUST use file_read tool first to read the file's contents.\n- Prefer file_edit for modifying existing files — it only sends the diff. Only use this tool to create new files or for complete rewrites.\n- NEVER create documentation files (*.md) or README files unless explicitly requested by the User.\n- Only use emojis if the user explicitly requests it.\n" + writeHint,
+            description = "Write a file to the local filesystem.\n\nUsage:\n- This tool will overwrite the existing file if there is one at the provided path.\n- If this is an existing file, you MUST use file_read tool first to read the file's contents.\n- Prefer file_edit for modifying existing files — it only sends the diff. Only use this tool to create new files or for complete rewrites.\n- NEVER create documentation files (*.md) or README files unless explicitly requested by the User.\n- Only use emojis if the user explicitly requests it.\n" + writeHint,
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {

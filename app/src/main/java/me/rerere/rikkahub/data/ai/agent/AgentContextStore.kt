@@ -46,7 +46,7 @@ object AgentContextStore {
      * 在指定上下文中执行代码块。
      * 对齐官方 runWithAgentContext()。
      */
-    fun <T> runWith(ctx: SubagentContext, fn: () -> T): T {
+    suspend fun <T> runWith(ctx: SubagentContext, fn: suspend () -> T): T {
         val previous = context.get()
         context.set(ctx)
         try {

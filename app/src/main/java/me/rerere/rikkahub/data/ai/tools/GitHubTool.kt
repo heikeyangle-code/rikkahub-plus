@@ -100,7 +100,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "repo info (stats, languages, contributors, releases, tags), files (read, list, commit, delete), " +
             "git data (branches, commits, compare, revert, status), gists, user info, rate limit, create/fork repos. " +
             "Requires a GitHub token configured in Settings." +
-            if (enableAutoFixCi) " Auto-fix CI is enabled: when CI fails, read logs, fix code, and re-push.",
+            if (enableAutoFixCi) " Auto-fix CI is enabled: when CI fails, read logs, fix code, and re-push."
             else "",
     parameters = {
         InputSchema.Obj(
