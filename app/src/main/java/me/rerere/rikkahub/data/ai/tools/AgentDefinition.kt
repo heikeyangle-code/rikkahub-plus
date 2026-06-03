@@ -1,162 +1,224 @@
 package me.rerere.rikkahub.data.ai.tools
 
-import java.util.concurrent.ConcurrentHashMap
+/**
+ * Agent 记忆作用域，对齐 Claude Code 三层持久记忆。
+ * - USER: 用户级，所有项目共享（~/.claude/agent-memory/）
+ * - PROJECT: 项目级，共事可共享（.claude/agent-memory/）
+ * - LOCAL: 本地，不回传版本控制（.claude/agent-memory-local/）
+ */
+enum class AgentMemoryScope {
+    USER,
+    PROJECT,
+    LOCAL,
+}
 
+/**
+ * Agent 来源优先级（从高到低）：
+ * POLICY > FLAG > PROJECT > USER > PLUGIN > BUILT_IN
+ */
+enum class AgentSource(val priority: Int) {
+    BUILT_IN(0),
+    PLUGIN(1),
+    USER(2),
+    PROJECT(3),
+    FLAG(4),
+    POLICY(5),
+}
+
+/**
+ * Agent 颜色选项，对齐 Claude Code 8 色系统。
+ */
+enum class AgentColor(val hex: Long) {
+    RED(0xFFEF4444),
+    BLUE(0xFF3B82F6),
+    GREEN(0xFF22C55E),
+    YELLOW(0xFFEAB308),
+    PURPLE(0xFFA855F7),
+    ORANGE(0xFFF97316),
+    PINK(0xFFEC4899),
+    CYAN(0xFF06B6D4),
+}
+
+/**
+ * Agent MCP 服务器规格。
+ * 可以是已有 MCP 的名称引用（string），或内联定义（name -> config）。
+ */
+sealed class AgentMcpServerSpec {
+    data class Reference(val name: String) : AgentMcpServerSpec()
+    data class Inline(val name: String, val config: Map<String, String>) : AgentMcpServerSpec()
+}
+
+/**
+ * Agent 系统提示获取方式。
+ * - Static: 固定文本
+ * - Dynamic: 运行时动态生成（内置 agent 用法）
+ */
+sealed class AgentSystemPrompt {
+    data class Static(val text: String) : AgentSystemPrompt()
+    data class Dynamic(
+        val generator: suspend (agentType: String, agentDef: AgentDefinition) -> String
+    ) : AgentSystemPrompt() {
+        override fun equals(other: Any?): Boolean = other is Dynamic
+        override fun hashCode(): Int = javaClass.hashCode()
+    }
+}
+
+/**
+ * Agent 定义，对齐 Claude Code BaseAgentDefinition 全部 22 个字段。
+ *
+ * 字段映射对照（官方 -> Rikkahub）：
+ * agentType                      -> agentType
+ * whenToUse                      -> description
+ * tools                          -> tools
+ * disallowedTools                -> disallowedTools
+ * skills                         -> skills
+ * mcpServers                     -> mcpServers
+ * hooks                          -> hooks
+ * color                          -> color
+ * model                          -> modelId
+ * effort                         -> effort
+ * permissionMode                 -> permissionMode
+ * maxTurns                       -> maxTurns
+ * filename                       -> filename
+ * baseDir                        -> baseDir
+ * criticalSystemReminder_EXPERIMENTAL -> criticalReminder
+ * requiredMcpServers             -> requiredMcpServers
+ * background                     -> background
+ * initialPrompt                  -> initialPrompt
+ * memory                         -> memory
+ * isolation                      -> isolation (Android 暂不使用)
+ * omitClaudeMd                   -> omitProjectContext
+ * source                         -> source
+ */
 data class AgentDefinition(
+    // === 基础（官方基础字段）===
     val agentType: String,
     val name: String,
     val description: String,
-    val systemPrompt: String,
-    /** 允许的工具白名单，"*" = 全部 */
+    val systemPrompt: AgentSystemPrompt,
+
+    // === 工具控制 ===
     val tools: List<String> = listOf("*"),
-    /** 禁止的工具黑名单（优先于 tools） */
     val disallowedTools: List<String> = emptyList(),
+
+    // === 色彩与模型 ===
+    val color: AgentColor = AgentColor.BLUE,
     val modelId: String? = null,
-    val color: String = "blue",
-    val isBuiltin: Boolean = true,
-    /** 是否只在后台执行 */
+
+    // === 执行控制 ===
     val background: Boolean = false,
+    val maxTurns: Int? = null,
+    val effort: Int? = null,
+    val permissionMode: String? = null,
+
+    // === 记忆与上下文 ===
+    val memory: AgentMemoryScope? = null,
+    val initialPrompt: String? = null,
+    val criticalReminder: String? = null,
+    val omitProjectContext: Boolean = false,
+
+    // === 功能扩展 ===
+    val skills: List<String> = emptyList(),
+    val mcpServers: List<AgentMcpServerSpec> = emptyList(),
+    val requiredMcpServers: List<String> = emptyList(),
+    val hooks: Map<String, Any>? = null,
+
+    // === 元信息 ===
+    val source: AgentSource = AgentSource.BUILT_IN,
+    val isBuiltin: Boolean = true,
+    val filename: String? = null,
+    val baseDir: String? = null,
+    val isolation: String? = null, // "worktree" | "remote"，Android 暂不用
 )
 
+/**
+ * 工具过滤逻辑，对齐官方 isToolAllowed() + disallowedTools 黑名单优先。
+ */
+fun isToolAllowed(agent: AgentDefinition, toolName: String): Boolean {
+    // 黑名单优先
+    if (toolName in agent.disallowedTools) return false
+    // 白名单：* = 全部
+    if (agent.tools.contains("*")) return true
+    return toolName in agent.tools
+}
+
+/**
+ * 将 agent 工具列表格式化为可读文本，对齐官方 getToolsDescription()。
+ */
+fun formatAgentTools(agent: AgentDefinition): String {
+    val hasAllowlist = agent.tools.isNotEmpty() && agent.tools != listOf("*")
+    val hasDenylist = agent.disallowedTools.isNotEmpty()
+
+    return when {
+        hasAllowlist && hasDenylist -> {
+            val effective = agent.tools.filter { it !in agent.disallowedTools }
+            if (effective.isEmpty()) "None" else effective.joinToString(", ")
+        }
+        hasAllowlist -> agent.tools.joinToString(", ")
+        hasDenylist -> "All tools except ${agent.disallowedTools.joinToString(", ")}"
+        else -> "All tools"
+    }
+}
+
+/**
+ * Agent 注册表，支持多来源覆盖（policy > flag > project > user > plugin > built-in）。
+ * 对齐官方 loadAgentsDir.ts 的 getActiveAgentsFromList()。
+ */
 object AgentRegistry {
-    private val agents = ConcurrentHashMap<String, AgentDefinition>()
+    private val agents = mutableMapOf<String, MutableMap<AgentSource, AgentDefinition>>()
 
     fun register(agent: AgentDefinition) {
-        agents[agent.agentType] = agent
+        val byType = agents.getOrPut(agent.agentType) { mutableMapOf() }
+        byType[agent.source] = agent
     }
 
-    fun get(agentType: String): AgentDefinition? = agents[agentType]
-
-    fun list(): List<AgentDefinition> = agents.values.toList()
-
-    fun delete(agentType: String) {
-        val def = agents[agentType]
-        if (def != null && !def.isBuiltin) agents.remove(agentType)
+    fun get(agentType: String): AgentDefinition? {
+        return agents[agentType]?.values?.maxByOrNull { it.source.priority }
     }
 
-    /** 判断工具是否对指定 agent 可用 */
-    fun isToolAllowed(agent: AgentDefinition, toolName: String): Boolean {
-        // 黑名单优先
-        if (toolName in agent.disallowedTools) return false
-        // 白名单：* = 全部
-        if (agent.tools == listOf("*")) return true
-        return toolName in agent.tools
+    fun getAll(agentType: String): List<AgentDefinition> {
+        return agents[agentType]?.values?.toList() ?: emptyList()
     }
 
+    fun list(): List<AgentDefinition> {
+        return agents.values.map { bySrc ->
+            bySrc.values.maxByOrNull { it.source.priority }!!
+        }
+    }
+
+    fun listBySource(source: AgentSource): List<AgentDefinition> {
+        return agents.values.mapNotNull { bySrc -> bySrc[source] }
+    }
+
+    fun delete(agentType: String, source: AgentSource = AgentSource.USER) {
+        agents[agentType]?.remove(source)
+        if (agents[agentType]?.isEmpty() == true) {
+            agents.remove(agentType)
+        }
+    }
+
+    fun clear() {
+        agents.clear()
+    }
+
+    fun clearNonBuiltin() {
+        val toRemove = mutableListOf<String>()
+        for ((type, bySrc) in agents) {
+            bySrc.keys.removeAll { it != AgentSource.BUILT_IN }
+            if (bySrc.isEmpty()) toRemove.add(type)
+        }
+        toRemove.forEach { agents.remove(it) }
+    }
+
+    /**
+     * 注册 6 个内置 agent（对齐官方 getBuiltInAgents()）。
+     * general-purpose/explorer/plan/verification 为核心 4 个。
+     * claudeCodeGuide/statuslineSetup 因平台无关跳过。
+     */
     fun registerBuiltin() {
-        register(AgentDefinition(
-            agentType = "general-purpose",
-            name = "通用助手",
-            description = "General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks.",
-            systemPrompt = """You are a general-purpose AI assistant. Given the user's message, use the tools available to complete the task. Complete the task fully—don't gold-plate, but don't leave it half-done.
-
-Your strengths:
-- Searching for code, configurations, and patterns across large codebases
-- Analyzing multiple files to understand system architecture
-- Investigating complex questions that require exploring many files
-- Performing multi-step research tasks
-
-When you complete the task, respond with a concise report covering what was done and any key findings.""",
-            color = "blue",
-        ))
-
-        register(AgentDefinition(
-            agentType = "explorer",
-            name = "探索者",
-            description = "Fast agent specialized for exploring codebases. Use this to quickly find files, search code for keywords, or answer questions about the codebase.",
-            systemPrompt = """You are a file search specialist. You excel at thoroughly navigating and exploring codebases.
-
-=== CRITICAL: READ-ONLY MODE ===
-You are STRICTLY PROHIBITED from creating, modifying, or deleting ANY files.
-Your role is EXCLUSIVELY to search and analyze existing code.
-
-Your strengths:
-- Rapidly finding files using patterns
-- Searching code with regex
-- Reading and analyzing file contents
-
-Guidelines:
-- Make efficient use of your tools
-- Wherever possible, spawn multiple parallel searches
-- Communicate findings clearly
-
-Complete the user's search request efficiently and report your findings.""",
-            tools = listOf("*"),
-            disallowedTools = listOf("sub_agent", "task_create", "task_update", "task_stop",
-                "task_delete", "todo_write", "team_create", "team_delete",
-                "execute_command", "execute_python", "eval_javascript",
-                "github_tool", "worker_create", "worker_observe", "worker_send_prompt",
-                "worker_terminate", "worker_restart", "convert_file", "create_asset",
-                "data_process", "database_query", "memory_tool", "text_to_speech",
-                "present_file", "send_message"),
-            color = "yellow",
-        ))
-
-        register(AgentDefinition(
-            agentType = "planner",
-            name = "规划师",
-            description = "Software architect agent for designing implementation plans. Use to plan the implementation strategy before coding.",
-            systemPrompt = """You are a software architect and planning specialist. Your role is to explore the codebase and design implementation plans.
-
-=== CRITICAL: READ-ONLY MODE ===
-You are STRICTLY PROHIBITED from creating, modifying, or deleting ANY files.
-Your role is EXCLUSIVELY to explore the codebase and design plans.
-
-## Your Process
-1. Understand requirements and explore the codebase thoroughly
-2. Find existing patterns and conventions
-3. Design the solution considering trade-offs
-4. Detail the plan with step-by-step implementation strategy
-
-## Required Output
-Provide a complete plan with:
-- Step-by-step implementation strategy
-- Dependencies and sequencing
-- Critical files for implementation
-- Potential challenges
-
-REMEMBER: You can ONLY explore and plan. You CANNOT modify any files.""",
-            tools = listOf("*"),
-            disallowedTools = listOf("sub_agent", "task_create", "task_update", "task_stop",
-                "task_delete", "todo_write", "team_create", "team_delete",
-                "execute_command", "execute_python", "eval_javascript",
-                "github_tool", "worker_create", "worker_observe", "worker_send_prompt",
-                "worker_terminate", "worker_restart", "convert_file", "create_asset",
-                "data_process", "database_query", "memory_tool", "text_to_speech",
-                "present_file", "send_message"),
-            color = "green",
-        ))
-
-        register(AgentDefinition(
-            agentType = "verification",
-            name = "验证者",
-            description = "Use this agent to verify that implementation work is correct. Runs builds, tests, and checks to produce a PASS/FAIL verdict with evidence.",
-            systemPrompt = """You are a verification specialist. Your job is not to confirm the implementation works — it's to try to break it.
-
-=== CRITICAL: DO NOT MODIFY THE PROJECT ===
-You are STRICTLY PROHIBITED from creating, modifying, or deleting any files in the project.
-You MAY write ephemeral test scripts to a temp directory when inline commands aren't sufficient.
-
-=== VERIFICATION STRATEGY ===
-- Run the build (if applicable). A broken build is an automatic FAIL.
-- Run the test suite. Failing tests are an automatic FAIL.
-- Run linters/type-checkers if configured.
-- Check for regressions in related code.
-- Try to break it with edge cases, boundary values, and adversarial inputs.
-
-=== OUTPUT FORMAT ===
-Every check MUST show the exact command run and actual output.
-End with exactly:
-VERDICT: PASS
-VERDICT: FAIL
-VERDICT: PARTIAL""",
-            tools = listOf("*"),
-            disallowedTools = listOf("sub_agent", "task_create", "task_update", "task_stop",
-                "task_delete", "todo_write", "team_create", "team_delete",
-                "eval_javascript", "convert_file", "create_asset",
-                "memory_tool", "text_to_speech", "present_file", "send_message"),
-            color = "red",
-            background = true,
-        ))
+        register(BuiltInAgents.generalPurposeAgent())
+        register(BuiltInAgents.exploreAgent())
+        register(BuiltInAgents.planAgent())
+        register(BuiltInAgents.verificationAgent())
     }
 }

@@ -87,6 +87,7 @@ import me.rerere.rikkahub.data.ai.tools.ToolRegistry
 import me.rerere.rikkahub.data.ai.tools.PlanModeState
 import me.rerere.rikkahub.data.ai.tools.TaskManager
 import me.rerere.rikkahub.data.ai.tools.AgentRegistry
+import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
 import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
 import me.rerere.rikkahub.data.ai.hooks.HookRegistry
 import me.rerere.rikkahub.data.ai.hooks.SafetyHook
@@ -504,14 +505,21 @@ class ChatService(
 
                                 // Agent's tool whitelist/blacklist
                                 val subTools = allTools.filter { tool ->
-                                    agentDef == null || AgentRegistry.isToolAllowed(agentDef, tool.name)
+                                    agentDef == null || me.rerere.rikkahub.data.ai.tools.isToolAllowed(agentDef, tool.name)
                                 }
+
+                                // Resolve system prompt
+                                val resolvedSysPrompt = agentDef?.let { def ->
+                                    when (val sp = def.systemPrompt) {
+                                        is AgentSystemPrompt.Static -> sp.text
+                                        is AgentSystemPrompt.Dynamic -> sp.generator(def.agentType, def)
+                                    }
+                                } ?: ""
 
                                 // Build prompt with agent system prompt and memory
                                 val prompt = buildString {
-                                    val sysPrompt = agentDef?.systemPrompt
-                                    if (!sysPrompt.isNullOrBlank()) {
-                                        appendLine(sysPrompt)
+                                    if (resolvedSysPrompt.isNotBlank()) {
+                                        appendLine(resolvedSysPrompt)
                                         appendLine()
                                     }
                                     // Load agent memory from repository
