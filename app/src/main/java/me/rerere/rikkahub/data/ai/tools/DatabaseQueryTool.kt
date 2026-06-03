@@ -57,7 +57,17 @@ fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
                 val tableNames = mutableListOf<String>()
                 try {
                     val cursor = db.query(SimpleSQLiteQuery(
-                        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'room_%' AND name NOT LIKE 'android_%' ORDER BY name"
+                        "SELECT name FROM sqlite_master WHERE type='table' " +
+                        "AND name NOT LIKE 'sqlite_%' " +
+                        "AND name NOT LIKE 'room_%' " +
+                        "AND name NOT LIKE 'android_%' " +
+                        "AND name NOT LIKE '%_fts' " +
+                        "AND name NOT LIKE '%_fts_%' " +
+                        "AND name NOT LIKE '%_idx' " +
+                        "AND name NOT LIKE '%_docsize' " +
+                        "AND name NOT LIKE '%_config' " +
+                        "AND name NOT LIKE '%_content' " +
+                        "ORDER BY name"
                     ))
                     while (cursor.moveToNext()) {
                         tableNames.add(cursor.getString(0))
