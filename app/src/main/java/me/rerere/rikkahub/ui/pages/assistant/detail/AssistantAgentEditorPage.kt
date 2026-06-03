@@ -44,7 +44,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.data.ai.agent.AgentValidationResult
 import me.rerere.rikkahub.data.ai.agent.validateAgent
-import me.rerere.rikkahub.data.ai.agent.validateAgentType
 import me.rerere.rikkahub.data.ai.tools.AgentColor
 import me.rerere.rikkahub.data.ai.tools.AgentDefinition
 import me.rerere.rikkahub.data.ai.tools.AgentMemoryScope
@@ -52,16 +51,9 @@ import me.rerere.rikkahub.data.ai.tools.AgentRegistry
 import me.rerere.rikkahub.data.ai.tools.AgentSource
 import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
 
-/**
- * Agent 编辑器页面，对齐官方 AgentEditor.tsx + CreateAgentWizard.tsx。
- *
- * 支持：
- * - 编辑已有 agent（内置 agent 只读）
- * - 创建新 agent
- * - 删除自定义 agent
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AssistantAgentEditorPage(
@@ -70,10 +62,7 @@ fun AssistantAgentEditorPage(
     onBack: () -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
-    val existingAgent = remember(editAgentType) {
-        editAgentType?.let { AgentRegistry.get(it) }
-    }
+    val existingAgent = remember(editAgentType) { editAgentType?.let { AgentRegistry.get(it) } }
     val isEditing = existingAgent != null
     val isReadonly = existingAgent?.isBuiltin == true
 
@@ -93,6 +82,9 @@ fun AssistantAgentEditorPage(
     var background by remember { mutableStateOf(existingAgent?.background ?: false) }
     var selectedMemory by remember { mutableStateOf(existingAgent?.memory) }
     var maxTurns by remember { mutableStateOf(existingAgent?.maxTurns?.toString() ?: "") }
+    var effort by remember { mutableStateOf(existingAgent?.effort?.toString() ?: "") }
+    var permissionMode by remember { mutableStateOf(existingAgent?.permissionMode ?: "") }
+    var omitContext by remember { mutableStateOf(existingAgent?.omitProjectContext) }
     var disallowedTools by remember {
         mutableStateOf(existingAgent?.disallowedTools?.joinToString(", ") ?: "")
     }
@@ -103,20 +95,13 @@ fun AssistantAgentEditorPage(
     // UI 状态
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var validationResult by remember { mutableStateOf<AgentValidationResult?>(null) }
-    var showColorPicker by remember { mutableStateOf(false) }
-    var showMemoryPicker by remember { mutableStateOf(false) }
-
-    // 颜色下拉
     var colorExpanded by remember { mutableStateOf(false) }
-    // 记忆作用域下拉
     var memoryExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = {
-                    Text(if (isEditing) "编辑 Agent" else "创建 Agent")
-                },
+                title = { Text(if (isEditing) "编辑 Agent" else "创建 Agent") },
                 navigationIcon = { BackButton(onClick = onBack) },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
@@ -136,20 +121,21 @@ fun AssistantAgentEditorPage(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
                 .verticalScroll(rememberScrollState())
                 .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Spacer(Modifier.height(4.dp))
+
+            // ── 内置提示 ──
             if (isReadonly) {
                 Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
                     shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                 ) {
                     Text(
-                        text = "内置 Agent 为只读，无法修改",
+                        "内置 Agent 为只读，无法修改",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(12.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -157,239 +143,303 @@ fun AssistantAgentEditorPage(
                 }
             }
 
-            // Agent 类型名
-            OutlinedTextField(
-                value = agentType,
-                onValueChange = { if (!isReadonly) agentType = it },
-                label = { Text("Agent 类型名") },
-                placeholder = { Text("例如: code-reviewer") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isReadonly && !isEditing,
-                singleLine = true,
-            )
-
-            // 描述
-            OutlinedTextField(
-                value = description,
-                onValueChange = { if (!isReadonly) description = it },
-                label = { Text("描述 (whenToUse)") },
-                placeholder = { Text("简要描述 agent 的用途和使用场景") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isReadonly,
-                minLines = 2,
-                maxLines = 4,
-            )
-
-            // 颜色选择器（对齐官方 ColorPicker.tsx）
-            ExposedDropdownMenuBox(
-                expanded = colorExpanded,
-                onExpandedChange = { if (!isReadonly) colorExpanded = it },
+            // ── 基本设置 ──
+            CardGroup(
+                modifier = Modifier.padding(horizontal = 8.dp),
             ) {
-                OutlinedTextField(
-                    value = selectedColor.name.lowercase(),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("颜色") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = colorExpanded) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    enabled = !isReadonly,
+                // 类型名
+                item(
+                    headlineContent = { Text("Agent 类型名") },
+                    supportingContent = { Text("agent 的唯一标识，创建后不可修改") },
+                    content = {
+                        OutlinedTextField(
+                            value = agentType,
+                            onValueChange = { if (!isReadonly) agentType = it },
+                            placeholder = { Text("如 code-reviewer") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isReadonly && !isEditing,
+                            singleLine = true,
+                        )
+                    },
                 )
-                ExposedDropdownMenu(
-                    expanded = colorExpanded,
-                    onDismissRequest = { colorExpanded = false },
-                ) {
-                    AgentColor.entries.forEach { color ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    // Color preview
+                // 描述
+                item(
+                    headlineContent = { Text("描述") },
+                    supportingContent = { Text("AI 决定什么时候用这个 agent 的依据") },
+                    content = {
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = { if (!isReadonly) description = it },
+                            placeholder = { Text("简要描述 agent 的用途和使用场景") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isReadonly,
+                            minLines = 2,
+                            maxLines = 4,
+                        )
+                    },
+                )
+                // 颜色
+                item(
+                    headlineContent = { Text("颜色") },
+                    supportingContent = { Text("聊天中的标识色") },
+                    trailingContent = {
+                        if (!isReadonly) {
+                            ExposedDropdownMenuBox(
+                                expanded = colorExpanded,
+                                onExpandedChange = { colorExpanded = it },
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.menuAnchor(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
                                     Card(
-                                        modifier = Modifier
-                                            .width(16.dp)
-                                            .height(16.dp),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = Color(color.hex),
-                                        ),
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(color.name.lowercase())
+                                        modifier = Modifier.width(20.dp).height(20.dp),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color(selectedColor.hex)),
+                                    ) {}
+                                    Text(selectedColor.name.lowercase(), style = MaterialTheme.typography.bodyMedium)
                                 }
-                            },
-                            onClick = {
-                                selectedColor = color
-                                colorExpanded = false
-                            },
-                        )
-                    }
-                }
-            }
-
-            // 记忆作用域（对齐官方 memory 字段选择）
-            ExposedDropdownMenuBox(
-                expanded = memoryExpanded,
-                onExpandedChange = { if (!isReadonly) memoryExpanded = it },
-            ) {
-                OutlinedTextField(
-                    value = selectedMemory?.name?.lowercase() ?: "无",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("持久记忆") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = memoryExpanded) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    enabled = !isReadonly,
-                )
-                ExposedDropdownMenu(
-                    expanded = memoryExpanded,
-                    onDismissRequest = { memoryExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("无") },
-                        onClick = {
-                            selectedMemory = null
-                            memoryExpanded = false
-                        },
-                    )
-                    AgentMemoryScope.entries.forEach { scope ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    when (scope) {
-                                        AgentMemoryScope.USER -> "用户级（跨项目）"
-                                        AgentMemoryScope.PROJECT -> "项目级（共事）"
-                                        AgentMemoryScope.LOCAL -> "本地（不回传）"
+                                ExposedDropdownMenu(
+                                    expanded = colorExpanded,
+                                    onDismissRequest = { colorExpanded = false },
+                                ) {
+                                    AgentColor.entries.forEach { c ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    Card(modifier = Modifier.width(16.dp).height(16.dp), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = Color(c.hex))) {}
+                                                    Text(c.name.lowercase())
+                                                }
+                                            },
+                                            onClick = { selectedColor = c; colorExpanded = false },
+                                        )
                                     }
-                                )
-                            },
-                            onClick = {
-                                selectedMemory = scope
-                                memoryExpanded = false
-                            },
-                        )
-                    }
-                }
-            }
-
-            // 模型
-            OutlinedTextField(
-                value = modelId,
-                onValueChange = { if (!isReadonly) modelId = it },
-                label = { Text("指定模型 (可选)") },
-                placeholder = { Text("留空则继承父 agent 的模型") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isReadonly,
-                singleLine = true,
-            )
-
-            // 系统提示词（对齐官方 AgentEditor 的 prompt 编辑器）
-            OutlinedTextField(
-                value = promptText,
-                onValueChange = { if (!isReadonly) promptText = it },
-                label = { Text("系统提示词") },
-                placeholder = { Text("定义 agent 的行为和限制...") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                enabled = !isReadonly,
-                minLines = 8,
-                maxLines = 20,
-            )
-
-            // 开关与配置
-            Card(
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            ) {
-                Column(
-                    modifier = Modifier.padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    // 后台执行
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column {
-                            Text("后台执行", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                "异步执行，完成时通知",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                                }
+                            }
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Card(modifier = Modifier.width(12.dp).height(12.dp), shape = RoundedCornerShape(6.dp), colors = CardDefaults.cardColors(containerColor = Color(selectedColor.hex))) {}
+                                Text(selectedColor.name.lowercase())
+                            }
                         }
+                    },
+                )
+                // 持久记忆
+                item(
+                    headlineContent = { Text("持久记忆") },
+                    supportingContent = { Text("让 agent 记住跨会话的经验") },
+                    content = {
+                        ExposedDropdownMenuBox(
+                            expanded = memoryExpanded,
+                            onExpandedChange = { if (!isReadonly) memoryExpanded = it },
+                        ) {
+                            OutlinedTextField(
+                                value = when (selectedMemory) {
+                                    null -> "无"
+                                    AgentMemoryScope.USER -> "用户级（跨项目）"
+                                    AgentMemoryScope.PROJECT -> "项目级（共事）"
+                                    AgentMemoryScope.LOCAL -> "本地（不回传）"
+                                },
+                                onValueChange = {},
+                                readOnly = true,
+                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                enabled = !isReadonly,
+                                singleLine = true,
+                                trailingIcon = { if (!isReadonly) ExposedDropdownMenuDefaults.TrailingIcon(expanded = memoryExpanded) },
+                            )
+                            if (!isReadonly) {
+                                ExposedDropdownMenu(expanded = memoryExpanded, onDismissRequest = { memoryExpanded = false }) {
+                                    DropdownMenuItem(text = { Text("无") }, onClick = { selectedMemory = null; memoryExpanded = false })
+                                    AgentMemoryScope.entries.forEach { s ->
+                                        DropdownMenuItem(
+                                            text = { Text(when (s) { AgentMemoryScope.USER -> "用户级（跨项目）"; AgentMemoryScope.PROJECT -> "项目级（共事）"; AgentMemoryScope.LOCAL -> "本地（不回传）" }) },
+                                            onClick = { selectedMemory = s; memoryExpanded = false },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    },
+                )
+                // 模型
+                item(
+                    headlineContent = { Text("指定模型") },
+                    supportingContent = { Text("留空则继承父 agent 的模型") },
+                    content = {
+                        OutlinedTextField(
+                            value = modelId,
+                            onValueChange = { if (!isReadonly) modelId = it },
+                            placeholder = { Text("如 sonnet，或留空") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isReadonly,
+                            singleLine = true,
+                        )
+                    },
+                )
+                // 后台执行
+                item(
+                    headlineContent = { Text("后台执行") },
+                    supportingContent = { Text("异步执行，完成后通知结果") },
+                    trailingContent = {
                         Switch(
                             checked = background,
                             onCheckedChange = { if (!isReadonly) background = it },
                             enabled = !isReadonly,
                         )
-                    }
-
-                    // 最大轮次
-                    OutlinedTextField(
-                        value = maxTurns,
-                        onValueChange = { if (!isReadonly) maxTurns = it },
-                        label = { Text("最大轮次 (可选)") },
-                        placeholder = { Text("留空则无限制") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isReadonly,
-                        singleLine = true,
-                    )
-
-                    // 禁用工具
-                    OutlinedTextField(
-                        value = disallowedTools,
-                        onValueChange = { if (!isReadonly) disallowedTools = it },
-                        label = { Text("禁用工具 (逗号分隔)") },
-                        placeholder = { Text("sub_agent, execute_command") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isReadonly,
-                        singleLine = true,
-                    )
-
-                    // 预加载技能
-                    OutlinedTextField(
-                        value = skills,
-                        onValueChange = { if (!isReadonly) skills = it },
-                        label = { Text("预加载技能 (逗号分隔)") },
-                        placeholder = { Text("skill1, skill2") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isReadonly,
-                        singleLine = true,
-                    )
-
-                    // 初始提示词
-                    OutlinedTextField(
-                        value = initialPrompt,
-                        onValueChange = { if (!isReadonly) initialPrompt = it },
-                        label = { Text("初始提示词 (可选)") },
-                        placeholder = { Text("每次执行前附加到第一条消息") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isReadonly,
-                        minLines = 2,
-                        maxLines = 4,
-                    )
-
-                    // 关键提醒
-                    OutlinedTextField(
-                        value = criticalReminder,
-                        onValueChange = { if (!isReadonly) criticalReminder = it },
-                        label = { Text("关键提醒 (可选)") },
-                        placeholder = { Text("每轮重注入的提醒文字") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isReadonly,
-                        minLines = 2,
-                        maxLines = 4,
-                    )
-                }
+                    },
+                )
             }
 
-            // 保存按钮
+            Spacer(Modifier.height(4.dp))
+
+            // ── 系统提示词 ──
+            CardGroup(
+                modifier = Modifier.padding(horizontal = 8.dp),
+            ) {
+                item(
+                    headlineContent = { Text("系统提示词") },
+                    supportingContent = { Text("定义 agent 的角色、行为规则和输出格式") },
+                    content = {
+                        OutlinedTextField(
+                            value = promptText,
+                            onValueChange = { if (!isReadonly) promptText = it },
+                            modifier = Modifier.fillMaxWidth().height(200.dp),
+                            enabled = !isReadonly,
+                            minLines = 8,
+                            maxLines = 20,
+                        )
+                    },
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            // ── 行为限制 ──
+            CardGroup(
+                modifier = Modifier.padding(horizontal = 8.dp),
+            ) {
+                item(
+                    headlineContent = { Text("禁用工具") },
+                    supportingContent = { Text("逗号分隔，这些工具 agent 无法调用") },
+                    content = {
+                        OutlinedTextField(
+                            value = disallowedTools,
+                            onValueChange = { if (!isReadonly) disallowedTools = it },
+                            placeholder = { Text("sub_agent, execute_command") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isReadonly,
+                            singleLine = true,
+                        )
+                    },
+                )
+                item(
+                    headlineContent = { Text("最大轮次") },
+                    supportingContent = { Text("超过此轮数自动停止，留空不限制") },
+                    trailingContent = {
+                        OutlinedTextField(
+                            value = maxTurns,
+                            onValueChange = { if (!isReadonly) maxTurns = it },
+                            modifier = Modifier.width(80.dp),
+                            enabled = !isReadonly,
+                            singleLine = true,
+                        )
+                    },
+                )
+                item(
+                    headlineContent = { Text("投入度 (effort)") },
+                    supportingContent = { Text("AI 投入程度，数值越大越认真，留空默认") },
+                    trailingContent = {
+                        OutlinedTextField(
+                            value = effort,
+                            onValueChange = { if (!isReadonly) effort = it },
+                            placeholder = { Text("如 3") },
+                            modifier = Modifier.width(80.dp),
+                            enabled = !isReadonly,
+                            singleLine = true,
+                        )
+                    },
+                )
+                item(
+                    headlineContent = { Text("权限模式") },
+                    supportingContent = { Text("plan=需审批, acceptEdits=自动允许, bubble=冒泡到主agent") },
+                    content = {
+                        OutlinedTextField(
+                            value = permissionMode,
+                            onValueChange = { if (!isReadonly) permissionMode = it },
+                            placeholder = { Text("plan / acceptEdits / bubble") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isReadonly,
+                            singleLine = true,
+                        )
+                    },
+                )
+                item(
+                    headlineContent = { Text("省略项目上下文") },
+                    supportingContent = { Text("只读角色可省 token，不用了解项目的构建/提交规范") },
+                    trailingContent = {
+                        Switch(
+                            checked = omitContext,
+                            onCheckedChange = { if (!isReadonly) omitContext = it },
+                            enabled = !isReadonly,
+                        )
+                    },
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            // ── 高级选项 ──
+            CardGroup(
+                modifier = Modifier.padding(horizontal = 8.dp),
+            ) {
+                item(
+                    headlineContent = { Text("预加载技能") },
+                    supportingContent = { Text("逗号分隔，Agent 启动时自动加载的技能") },
+                    content = {
+                        OutlinedTextField(
+                            value = skills,
+                            onValueChange = { if (!isReadonly) skills = it },
+                            placeholder = { Text("skill1, skill2") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isReadonly,
+                            singleLine = true,
+                        )
+                    },
+                )
+                item(
+                    headlineContent = { Text("初始提示词") },
+                    supportingContent = { Text("每次执行前附加到第一条用户消息") },
+                    content = {
+                        OutlinedTextField(
+                            value = initialPrompt,
+                            onValueChange = { if (!isReadonly) initialPrompt = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isReadonly,
+                            minLines = 2,
+                            maxLines = 4,
+                        )
+                    },
+                )
+                item(
+                    headlineContent = { Text("关键提醒") },
+                    supportingContent = { Text("每轮对话重注入的提醒文字，适合放核心约束") },
+                    content = {
+                        OutlinedTextField(
+                            value = criticalReminder,
+                            onValueChange = { if (!isReadonly) criticalReminder = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isReadonly,
+                            minLines = 2,
+                            maxLines = 4,
+                        )
+                    },
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // ── 保存 ──
             if (!isReadonly) {
                 Button(
                     onClick = {
@@ -403,14 +453,11 @@ fun AssistantAgentEditorPage(
                             background = background,
                             memory = selectedMemory,
                             maxTurns = maxTurns.toIntOrNull(),
-                            disallowedTools = disallowedTools
-                                .split(",")
-                                .map { it.trim() }
-                                .filter { it.isNotBlank() },
-                            skills = skills
-                                .split(",")
-                                .map { it.trim() }
-                                .filter { it.isNotBlank() },
+                            effort = effort.toIntOrNull(),
+                            permissionMode = permissionMode.ifBlank { null },
+                            omitProjectContext = omitContext,
+                            disallowedTools = disallowedTools.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                            skills = skills.split(",").map { it.trim() }.filter { it.isNotBlank() },
                             initialPrompt = initialPrompt.ifBlank { null },
                             criticalReminder = criticalReminder.ifBlank { null },
                             source = AgentSource.USER,
@@ -424,28 +471,25 @@ fun AssistantAgentEditorPage(
                             validationResult = validation
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                     enabled = agentType.isNotBlank() && description.isNotBlank(),
                 ) {
-                    Text("保存 Agent")
+                    Text("保存")
                 }
 
-                // 显示验证结果
                 validationResult?.let { result ->
                     if (result.errors.isNotEmpty()) {
                         Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                            ),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                             shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
-                                Text("验证错误：", fontWeight = FontWeight.Bold)
+                                Text("保存失败", fontWeight = FontWeight.Bold)
                                 result.errors.forEach { Text("- $it", style = MaterialTheme.typography.bodySmall) }
                                 if (result.warnings.isNotEmpty()) {
                                     Spacer(Modifier.height(8.dp))
-                                    Text("警告：", fontWeight = FontWeight.Bold)
-                                    result.warnings.forEach { Text("- $it", style = MaterialTheme.typography.bodySmall) }
+                                    result.warnings.forEach { Text("⚠ $it", style = MaterialTheme.typography.bodySmall) }
                                 }
                             }
                         }
@@ -462,21 +506,9 @@ fun AssistantAgentEditorPage(
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("删除 Agent") },
-            text = { Text("确定删除 Agent \"$editAgentType\"？此操作不可撤销。") },
-            confirmButton = {
-                TextButton(onClick = {
-                    AgentRegistry.delete(editAgentType)
-                    showDeleteConfirm = false
-                    onBack()
-                }) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("取消")
-                }
-            },
+            text = { Text("确定删除 \"$editAgentType\"？此操作不可撤销。") },
+            confirmButton = { TextButton(onClick = { AgentRegistry.delete(editAgentType); showDeleteConfirm = false; onBack() }) { Text("删除", color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("取消") } },
         )
     }
 }
