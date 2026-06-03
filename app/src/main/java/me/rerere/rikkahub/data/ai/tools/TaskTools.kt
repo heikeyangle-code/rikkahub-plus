@@ -96,6 +96,44 @@ object TaskManager {
         teams.remove(name)
         if (activeTeam == name) activeTeam = null
     }
+
+    // ============================================================
+    // 消息系统 (Agent间通信)
+    // ============================================================
+
+    data class Message(
+        val id: String,
+        val from: String,
+        val to: String,
+        val content: String,
+        val timestamp: Long = System.currentTimeMillis(),
+    )
+
+    private val messages = java.util.concurrent.ConcurrentLinkedQueue<Message>()
+    private val msgCounter = java.util.concurrent.atomic.AtomicInteger(0)
+
+    fun sendMessage(from: String, to: String, content: String): Message {
+        val msg = Message(
+            id = "msg-${msgCounter.incrementAndGet()}",
+            from = from,
+            to = to,
+            content = content,
+        )
+        messages.add(msg)
+        return msg
+    }
+
+    fun readMessages(agentName: String): List<Message> {
+        return messages.filter { it.to == agentName || it.to == "*" }
+    }
+
+    fun clearMessages(agentName: String) {
+        messages.removeAll { it.to == agentName }
+    }
+
+    fun listPendingMessages(): List<Message> {
+        return messages.toList()
+    }
 }
 
 // ============================================================
