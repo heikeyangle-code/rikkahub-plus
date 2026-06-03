@@ -416,6 +416,23 @@ class GenerationHandler(
                     appendLine()
                     append(tool.systemPrompt(model, messages))
                 }
+
+                // Actions With Care (操作安全规则)
+                appendLine()
+                appendLine(\"## Executing actions with care")
+                appendLine(\"Carefully consider the reversibility and blast radius of actions.")
+                appendLine(\"- Reversible + low risk: proceed directly")
+                appendLine(\"- Reversible + high risk: notify user before proceeding")
+                appendLine(\"- Irreversible + low risk: confirm with user first")
+                appendLine(\"- Irreversible + high risk: always confirm with user")
+                appendLine()
+                appendLine(\"Examples needing confirmation:")
+                appendLine(\"- Destructive: deleting files, rm -rf, force-push")
+                appendLine(\"- Hard-to-reverse: overwriting files, git reset --hard")
+                appendLine(\"- Visible to others: pushing code, creating PRs")
+                appendLine()
+                appendLine(\"When encountering an obstacle, do not use destructive shortcuts.")
+                appendLine(\"Measure twice, cut once.")
             }
             if (system.isNotBlank()) add(UIMessage.system(prompt = system))
             addAll(messages.limitContext(assistant.contextMessageSize))
