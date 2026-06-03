@@ -45,7 +45,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.tools.AgentColor
 import me.rerere.rikkahub.data.ai.tools.AgentDefinition
 import me.rerere.rikkahub.data.ai.tools.AgentRegistry
