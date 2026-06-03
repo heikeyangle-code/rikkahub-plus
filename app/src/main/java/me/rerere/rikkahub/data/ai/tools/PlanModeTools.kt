@@ -17,13 +17,25 @@ fun createPlanModeTools(): List<Tool> = listOf(
         name = "enter_plan_mode",
         description = """
             Switch to planning mode. In this mode, analyze the task and create a step-by-step plan
-            using task_create/todo_write instead of executing directly. The user will review and
-            approve the plan before you exit plan mode and begin execution.
-            Use for: complex multi-step tasks, tasks requiring user approval before execution.
+            using task_create/todo_write instead of executing directly. Do NOT execute any tools that
+            modify state (file_write, shell, etc.) while in plan mode.
+
+            When to use:
+            - Complex multi-step tasks requiring careful planning
+            - Tasks where the user needs to approve the approach before execution
+            - When the user explicitly asks for a plan first
+
+            Process:
+            1. Enter plan mode
+            2. Analyze the task and break it into steps
+            3. Create tasks for each step using task_create or todo_write
+            4. Present the plan to the user
+            5. Wait for user approval
+            6. Exit plan mode and begin execution
         """.trimIndent().replace("\n", " "),
         execute = {
             PlanModeState.isInPlanMode = true
-            listOf(UIMessagePart.Text("[进入计划模式] 我将先制定计划，等待你确认后再开始执行。"))
+            listOf(UIMessagePart.Text("[Entering plan mode] I will create a plan first. Waiting for your approval before executing."))
         },
     ),
 
@@ -35,7 +47,7 @@ fun createPlanModeTools(): List<Tool> = listOf(
         """.trimIndent().replace("\n", " "),
         execute = {
             PlanModeState.isInPlanMode = false
-            listOf(UIMessagePart.Text("[退出计划模式] 开始执行计划..."))
+            listOf(UIMessagePart.Text("[Exiting plan mode] Starting execution..."))
         },
     ),
 )
