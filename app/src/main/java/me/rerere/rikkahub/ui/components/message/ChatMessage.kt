@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -361,7 +362,7 @@ private fun MessagePartsBlock(
             is MessagePartBlock.ContentBlock -> key(block.index) {
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
-                        SelectionContainer(modifier = Modifier.minSize(1.dp)) {
+                        SelectionContainer(modifier = Modifier.sizeIn(minWidth = 1.dp, minHeight = 1.dp)) {
                             if (role == MessageRole.USER) {
                                 Surface(
                                     modifier = Modifier.widthIn(max = 360.dp).wrapContentWidth().animateContentSize(),
