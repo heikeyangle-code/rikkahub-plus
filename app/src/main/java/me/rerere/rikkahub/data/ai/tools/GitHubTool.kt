@@ -413,6 +413,16 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
 
         fun encode(s: String) = URLEncoder.encode(s, "UTF-8")
 
+        fun resolveDefaultBranch(repo: String): String {
+            if (repo.isBlank()) return "main"
+            return defaultBranchCache.getOrPut(repo) {
+                try {
+                    val info = parseJSON(gh("https://api.github.com/repos/$repo"))
+                    (info["default_branch"] as? JsonPrimitive)?.contentOrNull ?: "main"
+                } catch (_: Exception) { "main" }
+            }
+        }
+
         fun parseJSON(s: String) = Json.parseToJsonElement(s).jsonObject
 
         // ── Common params ──
@@ -433,15 +443,6 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
         fun JsonObject.safeObj(key: String) = this[key] as? JsonObject
         fun JsonElement?.toObj() = this as? JsonObject
 
-        fun resolveDefaultBranch(repo: String): String {
-            if (repo.isBlank()) return "main"
-            return defaultBranchCache.getOrPut(repo) {
-                try {
-                    val info = parseJSON(gh("https://api.github.com/repos/$repo"))
-                    (info["default_branch"] as? JsonPrimitive)?.contentOrNull ?: "main"
-                } catch (_: Exception) { "main" }
-            }
-        }
 
         fun cleanItem(o: JsonObject, type: String): JsonObject = when (type) {
             "repo" -> buildJsonObject {

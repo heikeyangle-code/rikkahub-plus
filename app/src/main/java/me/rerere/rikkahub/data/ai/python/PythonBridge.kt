@@ -73,7 +73,7 @@ class PythonBridge(
             db.knowledgeBaseDao().let { dao ->
                 val existing = dao.getSourceById(id) ?: return@runBlocking "Error: 条目 $id 不存在"
                 val newTitle = title ?: existing.name
-                val newContent = content ?: existing.rawText ?: ""
+                val newContent = content ?: ""
                 // 删除旧条目并重新导入
                 kbService.deleteSource(id)
                 val newId = kbService.importText(newTitle, newContent, existing.assistantId)
