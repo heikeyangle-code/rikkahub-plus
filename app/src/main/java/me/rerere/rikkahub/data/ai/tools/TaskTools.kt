@@ -172,7 +172,7 @@ fun createTaskTools(): List<Tool> = listOf(
                 put("active_form", buildJsonObject { put("type", "string"); put("description", "Progress text shown when in_progress") })
                 put("depends_on", buildJsonObject { put("type", "string"); put("description", "Comma-separated task IDs this depends on") })
             }, required = listOf("subject"))
-        }},
+        },
         execute = { args ->
             val obj = args.jsonObject; val subject = obj["subject"]?.jsonPrimitive?.contentOrNull ?: error("subject required")
             val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -187,7 +187,7 @@ fun createTaskTools(): List<Tool> = listOf(
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
             }, required = listOf("id"))
-        }},
+        },
         execute = { args ->
             val id = args.jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
             listOf(UIMessagePart.Text(TaskManager.taskOutput(id) ?: error("Task $id not found")))
@@ -199,7 +199,7 @@ fun createTaskTools(): List<Tool> = listOf(
                 put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed"); add("failed"); add("cancelled") }) })
                 put("owner", buildJsonObject { put("type", "string"); put("description", "Filter by owner") })
             })
-        }},
+        },
         execute = { args ->
             val fs = args.jsonObject["status"]?.jsonPrimitive?.contentOrNull
             val fo = args.jsonObject["owner"]?.jsonPrimitive?.contentOrNull
@@ -226,7 +226,7 @@ fun createTaskTools(): List<Tool> = listOf(
                 put("blocked_by", buildJsonObject { put("type", "string"); put("description", "Comma-separated task IDs blocking this") })
                 put("metadata", buildJsonObject { put("type", "string"); put("description", "JSON key=value pairs, comma-separated") })
             }, required = listOf("id"))
-        }},
+        },
         execute = { args ->
             val obj = args.jsonObject; val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
             val meta = obj["metadata"]?.jsonPrimitive?.contentOrNull
@@ -249,7 +249,7 @@ fun createTaskTools(): List<Tool> = listOf(
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
             }, required = listOf("id"))
-        }},
+        },
         execute = { args ->
             val id = args.jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
             TaskManager.stopTask(id) ?: error("Task $id not found")
@@ -261,7 +261,7 @@ fun createTaskTools(): List<Tool> = listOf(
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
             }, required = listOf("id"))
-        }},
+        },
         execute = { args ->
             val id = args.jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
             listOf(UIMessagePart.Text(TaskManager.taskOutput(id) ?: error("Task $id not found")))
@@ -280,7 +280,7 @@ fun createTaskTools(): List<Tool> = listOf(
                     })
                 })
             }, required = listOf("todos"))
-        }},
+        },
         execute = { args ->
             val todos = args.jsonObject["todos"]?.jsonArray ?: error("todos required")
             val results = todos.map { item ->
@@ -299,7 +299,7 @@ fun createTaskTools(): List<Tool> = listOf(
                 put("description", buildJsonObject { put("type", "string"); put("description", "Team purpose") })
                 put("agent_type", buildJsonObject { put("type", "string"); put("description", "Type/role of the team lead (e.g. 'researcher')") })
             }, required = listOf("team_name"))
-        }},
+        },
         execute = { args ->
             val obj = args.jsonObject; val name = obj["team_name"]?.jsonPrimitive?.contentOrNull ?: error("team_name required")
             val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -312,7 +312,7 @@ fun createTaskTools(): List<Tool> = listOf(
             InputSchema.Obj(properties = buildJsonObject {
                 put("team_name", buildJsonObject { put("type", "string"); put("description", "Team name") })
             }, required = listOf("team_name"))
-        }},
+        },
         execute = { args ->
             val name = args.jsonObject["team_name"]?.jsonPrimitive?.contentOrNull ?: error("team_name required")
             TaskManager.deleteTeam(name); listOf(UIMessagePart.Text("Team '$name' deleted"))
@@ -326,7 +326,7 @@ fun createTaskTools(): List<Tool> = listOf(
                 put("from", buildJsonObject { put("type", "string"); put("description", "Sender agent name (default: main_agent)") })
                 put("summary", buildJsonObject { put("type", "string"); put("description", "Optional short summary visible in UI") })
             }, required = listOf("to", "message"))
-        }},
+        },
         execute = { args ->
             val obj = args.jsonObject; val to = obj["to"]?.jsonPrimitive?.contentOrNull ?: error("to required")
             val msg = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
@@ -341,7 +341,7 @@ fun createTaskTools(): List<Tool> = listOf(
             InputSchema.Obj(properties = buildJsonObject {
                 put("agent_name", buildJsonObject { put("type", "string"); put("description", "Your agent name") })
             }, required = listOf("agent_name"))
-        }},
+        },
         execute = { args ->
             val name = args.jsonObject["agent_name"]?.jsonPrimitive?.contentOrNull ?: error("agent_name required")
             val msgs = TaskManager.readMessages(name); TaskManager.clearMessages(name)
@@ -361,7 +361,7 @@ fun createTaskTools(): List<Tool> = listOf(
                 put("commit_policy", buildJsonObject { put("type", "string"); put("description", "single_commit | no_commit") })
                 put("escalation_policy", buildJsonObject { put("type", "string"); put("description", "On-failure notification target") })
             }, required = listOf("objective"))
-        }},
+        },
         execute = { args ->
             val obj = args.jsonObject
             val objective = obj["objective"]?.jsonPrimitive?.contentOrNull ?: error("objective required")

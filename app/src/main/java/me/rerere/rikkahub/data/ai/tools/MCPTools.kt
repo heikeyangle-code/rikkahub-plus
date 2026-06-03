@@ -18,7 +18,7 @@ fun createMcpResourceTools(mcpManager: McpManager): List<Tool> = listOf(
                     put("type", "string"); put("description", "Server name (optional, lists all if omitted)")
                 })
             })
-        }},
+        },
         execute = { args ->
             val server = args.jsonObject["server"]?.jsonPrimitive?.contentOrNull
             val resources = mcpManager.listResources(server)
@@ -48,7 +48,7 @@ fun createMcpResourceTools(mcpManager: McpManager): List<Tool> = listOf(
                     put("type", "string"); put("description", "Resource URI")
                 })
             }, required = listOf("uri"))
-        }},
+        },
         execute = { args ->
             val obj = args.jsonObject
             val server = obj["server"]?.jsonPrimitive?.contentOrNull ?: "default"
