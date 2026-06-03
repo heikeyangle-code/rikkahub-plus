@@ -25,24 +25,7 @@ fun buildMemoryTools(
 ): List<Tool> = listOf(
     Tool(
         name = "memory_tool",
-        description = """
-            The memory tool stores long-term information across conversations.
-            Use `action` to control the operation: `create` (add), `edit` (update), `delete` (remove).
-            - No relevant record: `create` + `content`
-            - Existing relevant record: `edit` + `id` + `content`
-            - Outdated/irrelevant record: `delete` + `id`
-            Memories will automatically appear in the <memories> tag in later conversations.
-            Do not store sensitive information (e.g., ethnicity, religion, sexual orientation, political views, sex life, criminal records).
-            You may store: preferred name, preferences, plans, work-related notes, chat style preferences, first chat time, etc.
-            Do not show memory content directly in the conversation unless the user explicitly asks.
-            Today is ${LocalDate.now().toLocalString(true)}.
-            Similar memories should be merged; prefer updating existing records.
-
-            Examples:
-            {"action":"create","content":"User prefers brief replies and is more active on weekends."}
-            {"action":"edit","id":12,"content":"User’s preferred name updated to “A-Xing”, prefers Chinese replies."}
-            {"action":"delete","id":7}
-        """.trimIndent(),
+        description = "Store and retrieve long-term memories across conversations. Memories persist across sessions and help maintain context.\n\nUsage:\n  - action=\"create\": Store new information (key-value)\n  - action=\"read\": Retrieve stored information\n  - action=\"delete\": Remove specific memories\n  - action=\"list\": See all stored keys\n\nWhen to save:\n  - User preferences, goals, or personal details\n  - Project-specific conventions or decisions\n  - Important facts across multiple conversations\n\nWhen to read:\n  - Before starting a new task to recall context\n  - When user references past conversations\n\nMemories are persisted per agent. Use this to build a knowledge base over time.".trimIndent(),
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {

@@ -10,12 +10,7 @@ import java.util.concurrent.TimeUnit
 
 fun createCalculatorTool(): Tool = Tool(
     name = "calculator",
-    description = """
-        Perform precise mathematical calculations.
-        Supports: + - * /, sin cos tan sqrt log pow, parentheses, PI, E.
-        Use this for ANY math instead of guessing — LLMs are bad at arithmetic.
-        Examples: "1 + 2 * 3", "(1024 * 768) / 1.5", "sin(45) * 2", "sqrt(144) + PI"
-    """.trimIndent().replace("\n", " "),
+    description = "Perform precise mathematical calculations. Use this for any numerical computation.\n\nSupports: + - * /, sin cos tan sqrt log pow, parentheses, PI, E.\nAccepts expressions as text strings.\n\nPrefer this over writing Python or shell commands for simple calculations.\nUse Python tool for complex data processing or scripting.".trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
