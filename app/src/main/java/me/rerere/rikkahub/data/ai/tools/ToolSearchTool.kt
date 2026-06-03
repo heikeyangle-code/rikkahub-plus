@@ -7,7 +7,6 @@ import me.rerere.ai.ui.UIMessagePart
 
 /**
  * 工具注册表 — 记录所有可用工具的元数据
- * AI 通过 ToolSearch 查询这里，不用再去设置里手动开关。
  */
 object ToolRegistry {
     data class ToolInfo(
@@ -25,7 +24,17 @@ object ToolRegistry {
     }
 
     fun search(query: String, maxResults: Int = 10): List<ToolInfo> {
-        val+abled = = exactPrefixmap names }
+        val q = query.lowercase()
+        val exact = q.startsWith("select:")
+        val requirePrefix = q.startsWith("+")
+
+        return tools.filter { it.enabled }.filter { t ->
+            val name = t.name.lowercase()
+            val desc = t.description.lowercase()
+            when {
+                exact -> {
+                    val names = q.removePrefix("select:").split(",").map { it.trim().lowercase() }
+                    names.any { name.contains(it) }
                 }
                 requirePrefix -> {
                     val term = q.removePrefix("+").trim()
@@ -38,7 +47,6 @@ object ToolRegistry {
 
     fun listByCategory(): Map<String, List<ToolInfo>> = tools.filter { it.enabled }.groupBy { it.category }
 
-    /** 自动扫描并注册一批工具（在 ChatService 初始化时调用） */
     fun registerBuiltin() {
         register("file_read", "Read file contents", "文件")
         register("file_write", "Create or overwrite files", "文件")
