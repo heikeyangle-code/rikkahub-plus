@@ -1,0 +1,23 @@
+在 Android Studio 中打开 ChatService.kt，按 Ctrl+G 跳转到 310 行，
+找到 mcpManager 代码块结束的大括号 } 和 if (assistant.enableSubAgent) 之间的空行，
+粘贴以下代码：
+
+                    // Task System
+                    if (assistant.localTools.contains(LocalToolOption.TaskTools)) {
+                        addAll(createTaskTools())
+                    }
+                    // Tool Search
+                    if (assistant.localTools.contains(LocalToolOption.ToolSearch)) {
+                        ToolRegistry.registerBuiltin()
+                        add(createToolSearchTool())
+                    }
+                    // Plan Mode
+                    if (assistant.localTools.contains(LocalToolOption.PlanMode)) {
+                        addAll(createPlanModeTools())
+                    }
+                    // Calculator
+                    if (assistant.localTools.contains(LocalToolOption.Calculator)) {
+                        add(createCalculatorTool())
+                    }
+
+然后在 generateForAssistant 函数里（大约 550 行）相同位置也加一遍。
