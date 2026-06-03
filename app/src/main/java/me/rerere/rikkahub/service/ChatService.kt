@@ -40,7 +40,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
-import me.rerere.ai.core.PermissionMode
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.ModelAbility
@@ -61,15 +60,10 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
-import me.rerere.rikkahub.data.ai.lane.LaneTracker
-import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.mcp.McpManager
-import me.rerere.rikkahub.data.ai.policy.PolicyEngine
-import me.rerere.rikkahub.data.ai.session.SessionStore
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
-import me.rerere.rikkahub.data.ai.tools.createWebFetchTool
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createAssetTool
 import me.rerere.rikkahub.data.ai.tools.createDataProcessTool
@@ -79,25 +73,6 @@ import me.rerere.rikkahub.data.ai.tools.createPythonTool
 import me.rerere.rikkahub.data.ai.tools.createGitHubTool
 import me.rerere.rikkahub.data.ai.tools.createConvertFileTool
 import me.rerere.rikkahub.data.ai.tools.createDatabaseQueryTool
-import me.rerere.rikkahub.data.ai.tools.createTaskTools
-import me.rerere.rikkahub.data.ai.tools.createToolSearchTool
-import me.rerere.rikkahub.data.ai.tools.createPlanModeTools
-import me.rerere.rikkahub.data.ai.tools.createSleepTool
-import me.rerere.rikkahub.data.ai.tools.createCalculatorTool
-import me.rerere.rikkahub.data.ai.tools.createMcpResourceTools
-import me.rerere.rikkahub.data.ai.tools.ToolRegistry
-import me.rerere.rikkahub.data.ai.tools.PlanModeState
-import me.rerere.rikkahub.data.ai.tools.TaskManager
-import me.rerere.rikkahub.data.ai.tools.AgentRegistry
-import me.rerere.rikkahub.data.ai.agent.AgentMemoryManager
-import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
-import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
-import me.rerere.rikkahub.data.ai.agent.AgentRunner
-import me.rerere.rikkahub.data.ai.agent.AgentEventBus
-import me.rerere.rikkahub.data.ai.hooks.HookRegistry
-import me.rerere.rikkahub.data.ai.hooks.SafetyHook
-import me.rerere.rikkahub.data.ai.worker.WorkerManager
-import me.rerere.rikkahub.data.ai.worker.createWorkerTools
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -123,7 +98,6 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.replaceRegexes
-import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
@@ -153,11 +127,23 @@ enum class ChatErrorSolution {
 }
 
 private val inputTransformers by lazy {
-    listOf(TimeReminderTransformer, PromptInjectionTransformer, AuthorsNoteTransformer, PlaceholderTransformer, DocumentAsPromptTransformer, OcrTransformer, SkillAutoTriggerTransformer)
+    listOf(
+        TimeReminderTransformer,
+        PromptInjectionTransformer,
+        AuthorsNoteTransformer,
+        PlaceholderTransformer,
+        DocumentAsPromptTransformer,
+        OcrTransformer,
+        SkillAutoTriggerTransformer,
+    )
 }
 
 private val outputTransformers by lazy {
-    listOf(ThinkTagTransformer, Base64ImageToLocalFileTransformer, RegexOutputTransformer)
+    listOf(
+        ThinkTagTransformer,
+        Base64ImageToLocalFileTransformer,
+        RegexOutputTransformer,
+    )
 }
 
 class ChatService(
@@ -175,433 +161,551 @@ class ChatService(
     private val skillManager: SkillManager,
     private val knowledgeBaseTransformer: KnowledgeBaseTransformer,
 ) {
+    // 统一会话管理
     private val sessions = ConcurrentHashMap<Uuid, ConversationSession>()
     private val _sessionsVersion = MutableStateFlow(0L)
-    private val database: AppDatabase by lazy { KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java) }
 
-    // Session persistence, auto compactor, worker manager
-    private val sessionStore: SessionStore by lazy { SessionStore(context) }
-    private val autoCompactor: AutoCompactor by lazy { AutoCompactor() }
-    private val workerManager: WorkerManager by lazy { WorkerManager(appScope) }
+    private val database: AppDatabase by lazy {
+        KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java)
+    }
 
+    // 错误状态
     private val _errors = MutableStateFlow<List<ChatError>>(emptyList())
     val errors: StateFlow<List<ChatError>> = _errors.asStateFlow()
 
-    fun addError(error: Throwable, conversationId: Uuid? = null, title: String? = null, solution: ChatErrorSolution? = null) {
+    fun addError(
+        error: Throwable,
+        conversationId: Uuid? = null,
+        title: String? = null,
+        solution: ChatErrorSolution? = null,
+    ) {
         if (error is CancellationException) return
-        _errors.update { it + ChatError(title = title, error = error, conversationId = conversationId, solution = solution) }
+        _errors.update {
+            it + ChatError(title = title, error = error, conversationId = conversationId, solution = solution)
+        }
     }
 
-    fun dismissError(id: Uuid) { _errors.update { it.filter { it.id != id } } }
-    fun clearAllErrors() { _errors.value = emptyList() }
+    fun dismissError(id: Uuid) {
+        _errors.update { list -> list.filter { it.id != id } }
+    }
 
+    fun clearAllErrors() {
+        _errors.value = emptyList()
+    }
+
+    // 生成完成流
     private val _generationDoneFlow = MutableSharedFlow<Uuid>()
     val generationDoneFlow: SharedFlow<Uuid> = _generationDoneFlow.asSharedFlow()
 
+    // 前台状态管理
     private val _isForeground = MutableStateFlow(false)
     val isForeground: StateFlow<Boolean> = _isForeground.asStateFlow()
 
     private val lifecycleObserver = LifecycleEventObserver { _, event ->
         when (event) {
-            Lifecycle.Event.ON_START -> { _isForeground.value = true; stopGenerationForeground() }
+            Lifecycle.Event.ON_START -> {
+                _isForeground.value = true
+                stopGenerationForeground()
+            }
             Lifecycle.Event.ON_STOP -> _isForeground.value = false
             else -> {}
         }
     }
 
-    init { ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver); AgentRegistry.registerBuiltin(); HookRegistry.register(SafetyHook()) }
+    init {
+        // 添加生命周期观察者
+        ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+    }
 
     fun cleanup() = runCatching {
         ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
-        sessions.values.forEach { it.cleanup() }; sessions.clear()
+        sessions.values.forEach { it.cleanup() }
+        sessions.clear()
     }
+
+    // ---- Session 管理 ----
 
     private fun getOrCreateSession(conversationId: Uuid): ConversationSession {
         return sessions.computeIfAbsent(conversationId) { id ->
             val settings = settingsStore.settingsFlow.value
-            ConversationSession(id = id, initial = Conversation.ofId(id = id, assistantId = settings.getCurrentAssistant().id), scope = appScope, onIdle = { removeSession(it) })
-                .also { _sessionsVersion.value++ }
+            ConversationSession(
+                id = id,
+                initial = Conversation.ofId(
+                    id = id,
+                    assistantId = settings.getCurrentAssistant().id
+                ),
+                scope = appScope,
+                onIdle = { removeSession(it) }
+            ).also {
+                _sessionsVersion.value++
+                Log.i(TAG, "createSession: $id (total: ${sessions.size + 1})")
+            }
         }
     }
 
     private fun removeSession(conversationId: Uuid) {
         val session = sessions[conversationId] ?: return
-        if (session.isInUse) return
-        if (sessions.remove(conversationId, session)) { session.cleanup(); _sessionsVersion.value++ }
+        if (session.isInUse) {
+            Log.d(TAG, "removeSession: skipped $conversationId (still in use)")
+            return
+        }
+        if (sessions.remove(conversationId, session)) {
+            session.cleanup()
+            _sessionsVersion.value++
+            Log.i(TAG, "removeSession: $conversationId (remaining: ${sessions.size})")
+        }
     }
 
-    fun addConversationReference(conversationId: Uuid) { getOrCreateSession(conversationId).acquire() }
-    fun removeConversationReference(conversationId: Uuid) { sessions[conversationId]?.release() }
+    // ---- 引用管理 ----
 
-    private fun launchWithConversationReference(conversationId: Uuid, block: suspend () -> Unit): Job = appScope.launch {
-        addConversationReference(conversationId); try { block() } finally { removeConversationReference(conversationId) }
+    fun addConversationReference(conversationId: Uuid) {
+        getOrCreateSession(conversationId).acquire()
     }
 
-    fun getConversationFlow(conversationId: Uuid): StateFlow<Conversation> = getOrCreateSession(conversationId).state
+    fun removeConversationReference(conversationId: Uuid) {
+        sessions[conversationId]?.release()
+    }
+
+    private fun launchWithConversationReference(
+        conversationId: Uuid,
+        block: suspend () -> Unit
+    ): Job = appScope.launch {
+        addConversationReference(conversationId)
+        try {
+            block()
+        } finally {
+            removeConversationReference(conversationId)
+        }
+    }
+
+    // ---- 对话状态访问 ----
+
+    fun getConversationFlow(conversationId: Uuid): StateFlow<Conversation> {
+        return getOrCreateSession(conversationId).state
+    }
 
     fun getGenerationJobStateFlow(conversationId: Uuid): Flow<Job?> {
-        val session = sessions[conversationId] ?: return flowOf(null); return session.generationJob
+        val session = sessions[conversationId] ?: return flowOf(null)
+        return session.generationJob
     }
 
     fun getProcessingStatusFlow(conversationId: Uuid): StateFlow<String?> {
-        val session = sessions[conversationId] ?: return MutableStateFlow(null); return session.processingStatus
+        val session = sessions[conversationId] ?: return MutableStateFlow(null)
+        return session.processingStatus
     }
 
     fun getConversationJobs(): Flow<Map<Uuid, Job?>> {
         return _sessionsVersion.flatMapLatest {
             val currentSessions = sessions.values.toList()
-            if (currentSessions.isEmpty()) flowOf(emptyMap())
-            else combine(currentSessions.map { s -> s.generationJob.map { job -> s.id to job } }) { pairs -> pairs.filter { it.second != null }.toMap() }
+            if (currentSessions.isEmpty()) {
+                flowOf(emptyMap())
+            } else {
+                combine(currentSessions.map { s ->
+                    s.generationJob.map { job -> s.id to job }
+                }) { pairs ->
+                    pairs.filter { it.second != null }.toMap()
+                }
+            }
         }
     }
 
+    // ---- 初始化对话 ----
+
     suspend fun initializeConversation(conversationId: Uuid) {
-        getOrCreateSession(conversationId)
+        getOrCreateSession(conversationId) // 确保 session 存在
         val conversation = conversationRepo.getConversationById(conversationId)
         if (conversation != null) {
             updateConversation(conversationId, conversation)
             settingsStore.updateAssistant(conversation.assistantId)
-            sessionStore.loadSnapshot(conversationId.toString())?.let { snapshot ->
-                runCatching {
-                    snapshot.taskState.forEach { ts -> TaskManager.restoreTask(id = ts.id, subject = ts.subject, description = ts.description,
-                        status = ts.status, dependsOn = ts.dependsOn, owner = ts.owner,
-                        activeForm = ts.activeForm, metadata = ts.metadata, blockedBy = ts.blockedBy) }
-                    snapshot.planModeState?.let { pms ->
-                        PlanModeState.isInPlanMode = pms.isInPlanMode
-                        PlanModeState.effectiveMode = try { PermissionMode.valueOf(pms.effectiveMode) } catch (_: Exception) { PermissionMode.DANGER_FULL_ACCESS }
-                    }
-                }
-            }
         } else {
+            // 新建对话, 并添加预设消息
             val currentSettings = settingsStore.settingsFlowRaw.first()
             val assistant = currentSettings.getCurrentAssistant()
-            updateConversation(conversationId, Conversation.ofId(id = conversationId, assistantId = assistant.id, newConversation = true).updateCurrentMessages(assistant.presetMessages))
+            val newConversation = Conversation.ofId(
+                id = conversationId,
+                assistantId = assistant.id,
+                newConversation = true
+            ).updateCurrentMessages(assistant.presetMessages)
+            updateConversation(conversationId, newConversation)
         }
     }
 
+    // ---- 发送消息 ----
+
     fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean = true) {
         if (content.isEmptyInputMessage()) return
+
         val session = getOrCreateSession(conversationId)
-        session.getJob()?.cancel()
+        val previousJob = session.getJob()
+        previousJob?.cancel()
+
         val job = appScope.launch {
             try {
-                runCatching { session.getJob()?.join() }
+                runCatching { previousJob?.join() }
                 finishInterruptedPendingTools(conversationId)
+
                 val currentConversation = session.state.value
                 val settings = settingsStore.settingsFlow.first()
-                val assistant = settings.getAssistantById(currentConversation.assistantId) ?: settings.getCurrentAssistant()
-                val processed = preprocessUserInputParts(content, assistant)
-                val newConversation = currentConversation.copy(messageNodes = currentConversation.messageNodes + UIMessage(role = MessageRole.USER, parts = processed).toMessageNode())
+                val assistant = settings.getAssistantById(currentConversation.assistantId)
+                    ?: settings.getCurrentAssistant()
+                val processedContent = preprocessUserInputParts(content, assistant)
+
+                // 添加消息到列表
+                val newConversation = currentConversation.copy(
+                    messageNodes = currentConversation.messageNodes + UIMessage(
+                        role = MessageRole.USER,
+                        parts = processedContent,
+                    ).toMessageNode(),
+                )
                 saveConversation(conversationId, newConversation)
-                if (answer) handleMessageComplete(conversationId)
+
+                // 开始补全
+                if (answer) {
+                    handleMessageComplete(conversationId)
+                }
+
                 _generationDoneFlow.emit(conversationId)
-            } catch (e: Exception) { e.printStackTrace(); addError(e, conversationId, title = context.getString(R.string.error_title_send_message)) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                addError(e, conversationId, title = context.getString(R.string.error_title_send_message))
+            }
         }
         session.setJob(job)
     }
 
     private fun preprocessUserInputParts(parts: List<UIMessagePart>, assistant: Assistant): List<UIMessagePart> {
-        return parts.map { part -> when (part) { is UIMessagePart.Text -> part.copy(text = part.text.replaceRegexes(assistant = assistant, scope = AssistantAffectScope.USER, visual = false)); else -> part } }
+        return parts.map { part ->
+            when (part) {
+                is UIMessagePart.Text -> {
+                    part.copy(
+                        text = part.text.replaceRegexes(
+                            assistant = assistant,
+                            scope = AssistantAffectScope.USER,
+                            visual = false
+                        )
+                    )
+                }
+
+                else -> part
+            }
+        }
     }
 
-    fun regenerateAtMessage(conversationId: Uuid, message: UIMessage, regenerateAssistantMsg: Boolean = true) {
+    // ---- 重新生成消息 ----
+
+    fun regenerateAtMessage(
+        conversationId: Uuid,
+        message: UIMessage,
+        regenerateAssistantMsg: Boolean = true
+    ) {
         val session = getOrCreateSession(conversationId)
         session.getJob()?.cancel()
+
         val job = appScope.launch {
             try {
                 val conversation = session.state.value
+
                 if (message.role == MessageRole.USER) {
+                    // 如果是用户消息，则截止到当前消息
                     val node = conversation.getMessageNodeByMessage(message)
-                    val idx = conversation.messageNodes.indexOf(node)
-                    saveConversation(conversationId, conversation.copy(messageNodes = conversation.messageNodes.subList(0, idx + 1)))
+                    val indexAt = conversation.messageNodes.indexOf(node)
+                    val newConversation = conversation.copy(
+                        messageNodes = conversation.messageNodes.subList(0, indexAt + 1)
+                    )
+                    saveConversation(conversationId, newConversation)
                     handleMessageComplete(conversationId)
                 } else {
                     if (regenerateAssistantMsg) {
                         val node = conversation.getMessageNodeByMessage(message)
-                        handleMessageComplete(conversationId, messageRange = 0 ..< conversation.messageNodes.indexOf(node))
-                    } else saveConversation(conversationId, conversation)
+                        val nodeIndex = conversation.messageNodes.indexOf(node)
+                        handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
+                    } else {
+                        saveConversation(conversationId, conversation)
+                    }
                 }
+
                 _generationDoneFlow.emit(conversationId)
-            } catch (e: Exception) { addError(e, conversationId, title = context.getString(R.string.error_title_regenerate_message)) }
+            } catch (e: Exception) {
+                addError(e, conversationId, title = context.getString(R.string.error_title_regenerate_message))
+            }
         }
+
         session.setJob(job)
     }
 
-    fun handleToolApproval(conversationId: Uuid, toolCallId: String, approved: Boolean, reason: String = "", answer: String? = null) {
+    // ---- 处理工具调用审批 ----
+
+    fun handleToolApproval(
+        conversationId: Uuid,
+        toolCallId: String,
+        approved: Boolean,
+        reason: String = "",
+        answer: String? = null,
+    ) {
         val session = getOrCreateSession(conversationId)
         session.getJob()?.cancel()
+
         val job = appScope.launch {
             try {
                 val conversation = session.state.value
-                val newState = when { answer != null -> ToolApprovalState.Answered(answer); approved -> ToolApprovalState.Approved; else -> ToolApprovalState.Denied(reason) }
+                val newApprovalState = when {
+                    answer != null -> ToolApprovalState.Answered(answer)
+                    approved -> ToolApprovalState.Approved
+                    else -> ToolApprovalState.Denied(reason)
+                }
+
+                // Update the tool approval state
                 val updatedNodes = conversation.messageNodes.map { node ->
-                    node.copy(messages = node.messages.map { msg -> msg.copy(parts = msg.parts.map { part -> if (part is UIMessagePart.Tool && part.toolCallId == toolCallId) part.copy(approvalState = newState) else part }) })
+                    node.copy(
+                        messages = node.messages.map { msg ->
+                            msg.copy(
+                                parts = msg.parts.map { part ->
+                                    when {
+                                        part is UIMessagePart.Tool && part.toolCallId == toolCallId -> {
+                                            part.copy(approvalState = newApprovalState)
+                                        }
+
+                                        else -> part
+                                    }
+                                }
+                            )
+                        }
+                    )
                 }
                 val updatedConversation = conversation.copy(messageNodes = updatedNodes)
                 saveConversation(conversationId, updatedConversation)
-                val hasPending = updatedNodes.any { node -> node.currentMessage.parts.any { it is UIMessagePart.Tool && it.isPending } }
-                if (!hasPending) handleMessageComplete(conversationId)
+
+                // Check if there are still pending tools
+                val hasPendingTools = updatedNodes.any { node ->
+                    node.currentMessage.parts.any { part ->
+                        part is UIMessagePart.Tool && part.isPending
+                    }
+                }
+
+                // Only continue generation when all pending tools are handled
+                if (!hasPendingTools) {
+                    handleMessageComplete(conversationId)
+                }
+
                 _generationDoneFlow.emit(conversationId)
-            } catch (e: Exception) { addError(e, conversationId, title = context.getString(R.string.error_title_tool_approval)) }
+            } catch (e: Exception) {
+                addError(e, conversationId, title = context.getString(R.string.error_title_tool_approval))
+            }
         }
+
         session.setJob(job)
     }
 
-    private suspend fun handleMessageComplete(conversationId: Uuid, messageRange: ClosedRange<Int>? = null) {
+    // ---- 处理消息补全 ----
+
+    private suspend fun handleMessageComplete(
+        conversationId: Uuid,
+        messageRange: ClosedRange<Int>? = null
+    ) {
         val settings = settingsStore.settingsFlow.first()
         val initialConversation = getConversationFlow(conversationId).value
-        val assistant = settings.getAssistantById(initialConversation.assistantId) ?: settings.getCurrentAssistant()
+        val assistant = settings.getAssistantById(initialConversation.assistantId)
+            ?: settings.getCurrentAssistant()
         val model = settings.findModelById(assistant.chatModelId ?: settings.chatModelId) ?: return
-        val senderName = if (assistant.useAssistantAvatar) assistant.name.ifEmpty { context.getString(R.string.assistant_page_default_assistant) } else model.displayName
+
+        val senderName = if (assistant.useAssistantAvatar) {
+            assistant.name.ifEmpty { context.getString(R.string.assistant_page_default_assistant) }
+        } else {
+            model.displayName
+        }
 
         runCatching {
+
+            // reset suggestions
             updateConversation(conversationId, initialConversation.copy(chatSuggestions = emptyList()))
+
+            // memory tool
             if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (settings.enableWebSearch || mcpManager.getAllAvailableTools().isNotEmpty())
-                    addError(IllegalStateException(context.getString(R.string.tools_warning)), conversationId, title = context.getString(R.string.error_title_tool_unavailable))
-            }
-            checkInvalidMessages(conversationId)
-            val conversation = getConversationFlow(conversationId).value
-            val session = getOrCreateSession(conversationId)
-
-            if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration)
-                startGenerationForeground(senderName, conversationId.toString())
-
-            val policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath)
-
-            // Auto-compact conversation history if threshold exceeded
-            if (assistant.enableAutoCompact) {
-                val compactResult = autoCompactor.maybeCompact(conversation.currentMessages)
-                if (compactResult != null) {
-                    val compactedNodes = compactResult.compactedMessages.map { msg ->
-                        MessageNode(messages = listOf(msg), selectIndex = 0)
-                    }
-                    updateConversation(conversationId, conversation.copy(messageNodes = compactedNodes))
-                    Log.i("ChatService", "Auto-compacted ${compactResult.removedCount} old messages")
+                if (settings.enableWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
+                    addError(
+                        IllegalStateException(context.getString(R.string.tools_warning)),
+                        conversationId,
+                        title = context.getString(R.string.error_title_tool_unavailable)
+                    )
                 }
             }
 
+            // check invalid messages
+            checkInvalidMessages(conversationId)
+            val conversation = getConversationFlow(conversationId).value
+
+            // start generating
+            val session = getOrCreateSession(conversationId)
+
+            // 如果不在前台，提前启动前台 Service（不等第一块数据）
+            if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
+                startGenerationForeground(senderName, conversationId.toString())
+            }
+
             generationHandler.generateText(
-                settings = settings, model = model, processingStatus = session.processingStatus,
-                messages = conversation.currentMessages.let { if (messageRange != null) it.subList(messageRange.start, messageRange.endInclusive + 1) else it },
-                assistant = assistant, maxSteps = assistant.totalStepsLimit,
+                settings = settings,
+                model = model,
+                processingStatus = session.processingStatus,
+                messages = conversation.currentMessages.let {
+                    if (messageRange != null) {
+                        it.subList(messageRange.start, messageRange.endInclusive + 1)
+                    } else {
+                        it
+                    }
+                },
+                assistant = assistant,
+                maxSteps = assistant.totalStepsLimit,
                 conversationSystemPrompt = conversation.customSystemPrompt,
                 conversationModeInjectionIds = conversation.modeInjectionIds,
                 conversationLorebookIds = conversation.lorebookIds,
-                memories = if (assistant.useGlobalMemory) memoryRepository.getGlobalMemories() else memoryRepository.getMemoriesOfAssistant(assistant.id.toString()),
-                policyEngine = policyEngine,
-                autoCompactor = autoCompactor,
-                inputTransformers = buildList { addAll(inputTransformers); add(templateTransformer); add(knowledgeBaseTransformer) },
+                memories = if (assistant.useGlobalMemory) {
+                    memoryRepository.getGlobalMemories()
+                } else {
+                    memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
+                },
+                inputTransformers = buildList {
+                    addAll(inputTransformers)
+                    add(templateTransformer)
+                    add(knowledgeBaseTransformer)
+                },
                 outputTransformers = outputTransformers,
                 tools = buildList {
                     val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
-                    if (assistant.localTools.contains(LocalToolOption.FileTools)) addAll(createFileTools(skillDirs))
-                    if (assistant.localTools.contains(LocalToolOption.AssetGenerator)) add(createAssetTool(context.filesDir.absolutePath))
-                    if (assistant.localTools.contains(LocalToolOption.DataProcess)) add(createDataProcessTool())
-                    if (settings.enableWebSearch) { addAll(createSearchTools(settings)); add(createWebFetchTool()) }
+                    if (assistant.localTools.contains(LocalToolOption.FileTools)) {
+                        addAll(createFileTools(skillDirs))
+                    }
+                    if (assistant.localTools.contains(LocalToolOption.AssetGenerator)) {
+                        add(createAssetTool(context.filesDir.absolutePath))
+                    }
+                    if (assistant.localTools.contains(LocalToolOption.DataProcess)) {
+                        add(createDataProcessTool())
+                    }
+                    if (settings.enableWebSearch) {
+                        addAll(createSearchTools(settings))
+                    }
                     addAll(localTools.getTools(assistant.localTools))
-                    if (assistant.localTools.contains(LocalToolOption.ShellTools)) addAll(createShellTools())
-                    if (assistant.localTools.contains(LocalToolOption.PythonEngine)) add(createPythonTool(context, assistant.toolExecTimeout))
+                    if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
+                        addAll(createShellTools())
+                    }
+                    if (assistant.localTools.contains(LocalToolOption.PythonEngine)) {
+                        add(createPythonTool(context, assistant.toolExecTimeout))
+                    }
                     if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
                         add(createGitHubTool(settingsStore, assistant.enableCiTimeout, assistant.enableAutoFixCi))
                     }
-                    if (assistant.localTools.contains(LocalToolOption.ConvertFile)) add(createConvertFileTool(context))
-                    if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) add(createDatabaseQueryTool(database))
-                    if (assistant.enabledSkills.isNotEmpty()) addAll(createSkillTools(enabledSkills = assistant.enabledSkills, allSkills = skillManager.listSkills(), skillManager = skillManager))
-                   mcpManager.getAllAvailableTools().forEach { (serverId, tool) ->
-                        add(Tool(name = "mcp__" + tool.name, description = tool.description ?: "", parameters = { tool.inputSchema }, needsApproval = tool.needsApproval, execute = { mcpManager.callTool(serverId, tool.name, it.jsonObject) }))
+                    if (assistant.localTools.contains(LocalToolOption.ConvertFile)) {
+                        add(createConvertFileTool(context))
                     }
-                    if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
-                    if (assistant.localTools.contains(LocalToolOption.TaskTools)) addAll(createTaskTools())
-                    if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
-                    if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
-                    if (assistant.localTools.contains(LocalToolOption.Calculator)) add(createCalculatorTool())
-                    if (assistant.localTools.contains(LocalToolOption.WorkerTools)) {
-                        addAll(createWorkerTools(workerManager))
+                    if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) {
+                        add(createDatabaseQueryTool(database))
                     }
-                    if (assistant.localTools.contains(LocalToolOption.Agents) && assistant.enableSubAgent) {
+                    if (assistant.enabledSkills.isNotEmpty()) {
+                        addAll(
+                            createSkillTools(
+                                enabledSkills = assistant.enabledSkills,
+                                allSkills = skillManager.listSkills(),
+                                skillManager = skillManager,
+                            )
+                        )
+                    }
+                    mcpManager.getAllAvailableTools().forEach { (serverId, tool) ->
                         add(
-                        Tool(
-                            name = "sub_agent",
-                            description = buildString {
-                                append("Launch a specialized agent to handle a subtask. ")
-                                append("Set subagent_type to pick a role or omit for general-purpose. ")
-                                append("Use run_in_background=true for long-running tasks. ")
-                                append("Set name=<label> to make the agent addressable. ")
-                                append("Available agents: ")
-                                append(AgentRegistry.list().joinToString(", ") {
-                                    val color = it.color.name.lowercase()
-                                    "${it.agentType} ($color, ${it.description.take(40)})"
-                                })
-                            }.replace("\n", " "),
-                            needsApproval = false,
-                            parameters = {
-                                InputSchema.Obj(
-                                    properties = buildJsonObject {
-                                        put("description", buildJsonObject {
-                                            put("type", "string")
-                                            put("description", "A short (3-5 word) description of this task for display.")
-                                        })
-                                        put("goal", buildJsonObject {
-                                            put("type", "string")
-                                            put("description", "What the agent should accomplish. Be specific and self-contained.")
-                                        })
-                                        put("context", buildJsonObject {
-                                            put("type", "string")
-                                            put("description", "Background information: code, data, text, etc.")
-                                        })
-                                        put("subagent_type", buildJsonObject {
-                                            put("type", "string")
-                                            put("description", buildString {
-                                                append("Agent role to use. Available: ")
-                                                append(AgentRegistry.list().joinToString(", ") { it.agentType })
-                                                append(". Default: general-purpose.")
+                            Tool(
+                                name = "mcp__" + tool.name,
+                                description = tool.description ?: "",
+                                parameters = { tool.inputSchema },
+                                needsApproval = tool.needsApproval,
+                                execute = {
+                                    mcpManager.callTool(serverId, tool.name, it.jsonObject)
+                                },
+                            )
+                        )
+                    }
+                    if (assistant.enableSubAgent) {
+                        add(
+                            Tool(
+                                name = "sub_agent",
+                                description = """Delegate a focused subtask to a sub-agent.
+Only the main agent should call this — sub-agents must NOT call sub_agent.
+The sub-agent runs a separate LLM call with no access to conversation history.
+Provide all needed context in the context parameter.""".trimIndent().replace("\n", " "),
+                                needsApproval = false,
+                                parameters = {
+                                    InputSchema.Obj(
+                                        properties = buildJsonObject {
+                                            put("goal", buildJsonObject {
+                                                put("type", "string")
+                                                put("description", "What the sub-agent should accomplish. Be specific and self-contained.")
                                             })
-                                        })
-                                        put("model", buildJsonObject {
-                                            put("type", "string")
-                                            put("description", "Optional model override (e.g. 'sonnet', 'opus'). Uses default if omitted.")
-                                        })
-                                        put("run_in_background", buildJsonObject {
-                                            put("type", "boolean")
-                                            put("description", "Set to true to run this agent in the background. You will be notified when it completes.")
-                                        })
-                                        put("name", buildJsonObject {
-                                            put("type", "string")
-                                            put("description", "Optional name for the agent. Makes it addressable via send_message(to: name).")
-                                        })
-                                        put("team_name", buildJsonObject {
-                                            put("type", "string")
-                                            put("description", "Team name for spawning. Uses current team context if omitted.")
-                                        })
-                                        put("mode", buildJsonObject {
-                                            put("type", "string")
-                                            put("description", "Permission mode for the agent (e.g. 'plan' to require plan approval).")
-                                        })
-                                        put("cwd", buildJsonObject {
-                                            put("type", "string")
-                                            put("description", "Absolute path to run the agent in. Overrides working directory.")
-                                        })
-                                    },
-                                    required = listOf("goal"),
-                                )
-                            },
-                            execute = {
-                                val obj = it.jsonObject
-                                val taskDesc = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
-                                val goal = obj["goal"]?.jsonPrimitive?.content
-                                    ?: error("goal is required")
-                                val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
-                                val agentType = obj["subagent_type"]?.jsonPrimitive?.contentOrNull ?: "general-purpose"
-                                val modelOverride = obj["model"]?.jsonPrimitive?.contentOrNull
-                                val runInBackground = obj["run_in_background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
-                                val agentName = obj["name"]?.jsonPrimitive?.contentOrNull
-                                val teamName = obj["team_name"]?.jsonPrimitive?.contentOrNull
-                                val permissionMode = obj["mode"]?.jsonPrimitive?.contentOrNull
-                                val cwdOverride = obj["cwd"]?.jsonPrimitive?.contentOrNull
+                                            put("context", buildJsonObject {
+                                                put("type", "string")
+                                                put("description", "Background information: code, data, text, etc. Do NOT put instructions here.")
+                                            })
+                                            put("role", buildJsonObject {
+                                                put("type", "string")
+                                                put("description", "Optional role for the sub-agent (e.g. 'code reviewer', 'researcher'). Default: general assistant.")
+                                            })
+                                        },
+                                        required = listOf("goal"),
+                                    )
+                                },
+                                execute = {
+                                    val obj = it.jsonObject
+                                    val goal = obj["goal"]?.jsonPrimitive?.content
+                                        ?: error("goal is required")
+                                    val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
+                                    val role = obj["role"]?.jsonPrimitive?.contentOrNull ?: ""
 
-                                // Load agent definition
-                                val agentDef = AgentRegistry.get(agentType)
-                                val agentCallId = agentName ?: "agent_${System.currentTimeMillis()}"
+                                    // 记住进入子Agent前的主Agent状态，退出后恢复
+                                    val preSubStatus = session.processingStatus.value
 
-                                // Track progress
-                                AgentTaskTracker.createSession(agentCallId)
+                                    // Resolve model for sub-agent
+                                    val subModelId = assistant.subAgentModelId
+                                        ?: assistant.chatModelId
+                                        ?: settings.chatModelId
+                                    val subModel = settings.findModelById(subModelId)
+                                        ?: error("Model not found for sub-agent")
+                                    val providerSetting = subModel.findProvider(settings.providers)
+                                        ?: error("Provider not found for model ${subModel.id}")
+                                    @Suppress("UNCHECKED_CAST")
+                                    val providerImpl = providerManager.getProviderByType(providerSetting)
+                                        as me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>
 
-                                // Register in team if specified
-                                if (!teamName.isNullOrBlank()) {
-                                    TaskManager.createTeam(teamName, "Agent team: $teamName")
-                                    TaskManager.createTask(subject = goal, description = context, activeForm = agentCallId)
-                                }
-
-                                // 记住进入子Agent前的主Agent状态，退出后恢复
-                                val preSubStatus = session.processingStatus.value
-
-                                // 创建 LaneTracker 追踪子 Agent 执行生命周期
-                                val laneTracker = LaneTracker()
-                                laneTracker.started()
-
-                                // Resolve model for sub-agent
-                                val effectiveModelId = try {
-                                    modelOverride?.let { Uuid.parse(it) }
-                                } catch (_: Exception) { null }
-                                    ?: agentDef?.modelId?.let { Uuid.parse(it) }
-                                    ?: assistant.subAgentModelId
-                                    ?: assistant.chatModelId
-                                    ?: settings.chatModelId
-                                val subModel = settings.findModelById(effectiveModelId)
-                                    ?: error("Model not found for sub-agent")
-                                val providerSetting = subModel.findProvider(settings.providers)
-                                    ?: error("Provider not found for model ${subModel.id}")
-                                @Suppress("UNCHECKED_CAST")
-                                val providerImpl = providerManager.getProviderByType(providerSetting)
-                                    as me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>
-
-                                // Build curated tools for sub-agent
-                                val skillDirs = assistant.enabledSkills
-                                    .mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
-                                val allTools = buildList {
-                                    if (settings.enableWebSearch) {
-                                        addAll(createSearchTools(settings))
-                                        add(createWebFetchTool())
-                                    }
-                                    if (assistant.localTools.contains(LocalToolOption.FileTools)) {
-                                        addAll(createFileTools(skillDirs))
-                                    }
-                                    addAll(localTools.getTools(listOf(LocalToolOption.TimeInfo)))
-                                    add(createSleepTool())
-                                }
-
-                                // Agent's tool whitelist/blacklist
-                                val subTools = allTools.filter { tool ->
-                                    agentDef == null || me.rerere.rikkahub.data.ai.tools.isToolAllowed(agentDef, tool.name)
-                                }
-
-                                // Resolve system prompt
-                                val resolvedSysPrompt = agentDef?.let { def ->
-                                    when (val sp = def.systemPrompt) {
-                                        is AgentSystemPrompt.Static -> sp.text
-                                        is AgentSystemPrompt.Dynamic -> sp.generator(def.agentType, def)
-                                    }
-                                } ?: ""
-
-                                // Build prompt with agent system prompt and memory
-                                val prompt = buildString {
-                                    if (resolvedSysPrompt.isNotBlank()) {
-                                        appendLine(resolvedSysPrompt)
-                                        appendLine()
-                                    }
-                                    // Load agent memory via AgentMemoryManager
-                                    val memoryPrompt = agentDef?.let { def ->
-                                        kotlinx.coroutines.runBlocking {
-                                            AgentMemoryManager(memoryRepository).loadMemoryPrompt(def)
+                                    // Build curated tools for sub-agent
+                                    val skillDirs = assistant.enabledSkills
+                                        .mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
+                                    val subTools = buildList {
+                                        if (settings.enableWebSearch) {
+                                            addAll(createSearchTools(settings))
                                         }
-                                    } ?: ""
-                                    if (memoryPrompt.isNotBlank()) {
-                                        appendLine(memoryPrompt)
-                                        appendLine()
+                                        if (assistant.localTools.contains(LocalToolOption.FileTools)) {
+                                            addAll(
+                                                createFileTools(skillDirs)
+                                                    .filter { it.name in listOf("file_read", "file_write", "file_list") }
+                                            )
+                                        }
+                                        addAll(
+                                            localTools.getTools(listOf(LocalToolOption.TimeInfo))
+                                        )
                                     }
-                                    appendLine("Goal: $goal")
-                                    if (context.isNotBlank()) {
-                                        appendLine()
-                                        appendLine("Context: $context")
-                                    }
-                                    appendLine()
-                                    appendLine("You have access to tools. Use them when needed.")
-                                    appendLine("After using tools, continue working until the goal is complete.")
-                                    appendLine("When done, summarize what was accomplished.")
-                                }
 
-                                // Execute via AgentRunner (lifecycle + context + events + summary)
-                                AgentRunner.run(
-                                    agentDef = agentDef,
-                                    agentCallId = agentCallId,
-                                    prompt = prompt,
-                                    subTools = subTools,
-                                    runInBackground = runInBackground,
-                                    agentType = agentType,
-                                    description = taskDesc.ifBlank { goal.take(50) },
-                                ) {
-                                    // Tool loop (max N rounds)
+                                    // Build prompt
+                                    val prompt = buildString {
+                                        if (role.isNotBlank()) {
+                                            appendLine("You are a $role.")
+                                            appendLine()
+                                        }
+                                        appendLine("Goal: $goal")
+                                        if (context.isNotBlank()) {
+                                            appendLine()
+                                            appendLine("Context: $context")
+                                        }
+                                        appendLine()
+                                        appendLine("You have access to tools. Use them when needed.")
+                                        appendLine("After using tools, continue working until the goal is complete.")
+                                    }
+
+                                    // Tool loop (max N rounds, no refunds)
                                     val messages = mutableListOf(UIMessage.user(prompt))
                                     var finalText = ""
                                     var remainingSteps = assistant.subAgentMaxSteps
@@ -611,82 +715,84 @@ class ChatService(
                                         remainingSteps--
 
                                         try {
-                                            val stepNum = stepLog.count { it == '\n' } + 1
-                                            val currentStatus = session.processingStatus.value
-                                            session.processingStatus.value = currentStatus + " | 子Agent: 第${stepNum}步..."
+                                        // Show real-time progress in UI (不覆盖主Agent状态，只追加)
+                                        val stepNum = stepLog.count { it == '\n' } + 1
+                                        val currentStatus = session.processingStatus.value
+                                        session.processingStatus.value = currentStatus + " | 子Agent: 第${stepNum}步..."
 
-                                            val chunk = providerImpl.generateText(
-                                                providerSetting = providerSetting,
-                                                messages = messages,
-                                                params = me.rerere.ai.provider.TextGenerationParams(
-                                                    model = subModel,
-                                                    tools = subTools,
-                                                    reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
-                                                ),
-                                            )
+                                        val chunk = providerImpl.generateText(
+                                            providerSetting = providerSetting,
+                                            messages = messages,
+                                            params = me.rerere.ai.provider.TextGenerationParams(
+                                                model = subModel,
+                                                tools = subTools,
+                                                reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                                            ),
+                                        )
 
-                                            val assistantMsg = chunk.choices.firstOrNull()?.message
-                                            if (assistantMsg == null) break
+                                        val assistantMsg = chunk.choices.firstOrNull()?.message
+                                        if (assistantMsg == null) break
 
-                                            val assistantText = assistantMsg.toText()
-                                            val toolCalls = assistantMsg.getTools()
-                                                .filter { !it.isExecuted }
+                                        // Save any assistant text content for fallback
+                                        val assistantText = assistantMsg.toText()
+                                        val toolCalls = assistantMsg.getTools()
+                                            .filter { !it.isExecuted }
 
-                                            if (toolCalls.isEmpty()) {
-                                                finalText = assistantText
-                                                stepLog.appendLine("→ 分析完成，生成回答")
-                                                break
-                                            }
+                                        if (toolCalls.isEmpty()) {
+                                            // No tool calls — done
+                                            finalText = assistantText
+                                            stepLog.appendLine("→ 分析完成，生成回答")
+                                            break
+                                        }
 
-                                            stepLog.append("→ 第${stepNum}步：")
-                                            stepLog.appendLine(toolCalls.joinToString("、") { tc ->
-                                                val args = tc.input.ifBlank { "{}" }
-                                                "${tc.toolName}(${args.take(40)})"
-                                            })
-                                            session.processingStatus.value = "子Agent: 调${toolCalls.first().toolName}..."
+                                        // Log tool calls for this step
+                                        stepLog.append("→ 第${stepNum}步：")
+                                        stepLog.appendLine(toolCalls.joinToString("、") { tc ->
+                                            val args = tc.input.ifBlank { "{}" }
+                                            "${tc.toolName}(${args.take(40)})"
+                                        })
+                                        session.processingStatus.value = "子Agent: 调${toolCalls.first().toolName}..."
 
-                                            // Emit tool use event
-                                            AgentEventBus.emit(me.rerere.rikkahub.data.ai.agent.AgentExecutionEvent(
-                                                agentId = agentCallId, agentType = agentType,
-                                                eventType = me.rerere.rikkahub.data.ai.agent.AgentEventType.TOOL_USE,
-                                                description = toolCalls.first().toolName,
-                                            ))
-
-                                            val executedTools = toolCalls.map { toolCall ->
-                                                AgentTaskTracker.recordToolUse(agentCallId, toolCall.toolName, toolCall.toolName)
-                                                val toolDef = subTools.find { it.name == toolCall.toolName }
-                                                if (toolDef == null) {
-                                                    toolCall.copy(output = listOf(UIMessagePart.Text("Error: tool ${toolCall.toolName} not found")))
-                                                } else {
-                                                    val args = try {
-                                                        kotlinx.serialization.json.Json.parseToJsonElement(toolCall.input.ifBlank { "{}" })
-                                                    } catch (e: Exception) {
-                                                        error("Invalid arguments: ${e.message}")
-                                                    }
-                                                    val result = toolDef.execute(args)
-                                                    toolCall.copy(output = result)
+                                        // Execute tools
+                                        val executedTools = toolCalls.map { toolCall ->
+                                            val toolDef = subTools.find { it.name == toolCall.toolName }
+                                            if (toolDef == null) {
+                                                toolCall.copy(
+                                                    output = listOf(UIMessagePart.Text("Error: tool ${toolCall.toolName} not found"))
+                                                )
+                                            } else {
+                                                val args = try {
+                                                    kotlinx.serialization.json.Json.parseToJsonElement(
+                                                        toolCall.input.ifBlank { "{}" }
+                                                    )
+                                                } catch (e: Exception) {
+                                                    error("Invalid arguments: ${e.message}")
                                                 }
+                                                val result = toolDef.execute(args)
+                                                toolCall.copy(output = result)
                                             }
+                                        }
 
-                                            messages.add(assistantMsg.copy(
-                                                parts = assistantMsg.parts.map { part ->
-                                                    if (part is UIMessagePart.Tool) {
-                                                        executedTools.find { it.toolCallId == part.toolCallId } ?: part
-                                                    } else part
-                                                }
-                                            ))
+                                        // Append assistant message (with tool calls) + tool results
+                                        messages.add(assistantMsg.copy(
+                                            parts = assistantMsg.parts.map { part ->
+                                                if (part is UIMessagePart.Tool) {
+                                                    executedTools.find { it.toolCallId == part.toolCallId } ?: part
+                                                } else part
+                                            }
+                                        ))
                                         } catch (e: Exception) {
-                                            laneTracker.failed(e.message ?: e.javaClass.simpleName)
                                             stepLog.appendLine("→ 错误: ${e.message?.take(100) ?: e.javaClass.simpleName}")
-                                            AgentTaskTracker.endSession(agentCallId)
                                             break
                                         }
                                     }
 
+                                    // Fallback: if loop ended without text, extract from most recent message
                                     if (finalText.isBlank()) {
                                         finalText = messages.lastOrNull()?.toText()?.takeIf { it.isNotBlank() } ?: ""
                                     }
 
+                                    // Prepend step log to final output
                                     val outputText = if (stepLog.isNotEmpty()) {
                                         stepLog.appendLine()
                                         stepLog.append(finalText)
@@ -695,241 +801,582 @@ class ChatService(
                                         finalText
                                     }
 
-                                    AgentTaskTracker.endSession(agentCallId)
+                                    // 恢复主Agent状态，清除子Agent残留文字
                                     session.processingStatus.value = preSubStatus
                                     listOf(UIMessagePart.Text(outputText))
-                                }
-                            },
+                                },
                             )
                         )
                     }
                 },
             ).onCompletion {
+                // 取消 Live Update 通知 + 前台服务
                 cancelLiveUpdateNotification(conversationId)
                 stopGenerationForeground()
+
+                // 可能被取消了，或者意外结束，兜底更新
                 val updatedConversation = getConversationFlow(conversationId).value.copy(
-                    messageNodes = getConversationFlow(conversationId).value.messageNodes.map { it.copy(messages = it.messages.map { msg -> msg.finishReasoning() }) },
-                    updateAt = Instant.now())
+                    messageNodes = getConversationFlow(conversationId).value.messageNodes.map { node ->
+                        node.copy(messages = node.messages.map { it.finishReasoning() })
+                    },
+                    updateAt = Instant.now()
+                )
                 updateConversation(conversationId, updatedConversation)
-                if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration)
+
+                // Show notification if app is not in foreground
+                if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
                     sendGenerationDoneNotification(conversationId, senderName)
+                }
             }.collect { chunk ->
                 when (chunk) {
                     is GenerationChunk.Messages -> {
-                        val updatedConversation = getConversationFlow(conversationId).value.updateCurrentMessages(chunk.messages)
+                        val updatedConversation = getConversationFlow(conversationId).value
+                            .updateCurrentMessages(chunk.messages)
                         updateConversation(conversationId, updatedConversation)
-                        if (isForeground.value) stopGenerationForeground()
-                        if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration && settings.displaySetting.enableLiveUpdateNotification)
+
+                        // 前台时停止前台 Service（用户切回来了）
+                        if (isForeground.value) {
+                            stopGenerationForeground()
+                        }
+
+                        // 如果应用不在前台，发送 Live Update 通知
+                        if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration && settings.displaySetting.enableLiveUpdateNotification) {
                             sendLiveUpdateNotification(conversationId, chunk.messages, senderName)
+                        }
                     }
                 }
             }
         }.onFailure {
-            cancelLiveUpdateNotification(conversationId); stopGenerationForeground()
-            it.printStackTrace(); addError(it, conversationId, title = context.getString(R.string.error_title_generation))
+            // 取消 Live Update 通知 + 前台服务
+            cancelLiveUpdateNotification(conversationId)
+            stopGenerationForeground()
+
+            it.printStackTrace()
+            addError(it, conversationId, title = context.getString(R.string.error_title_generation))
             Logging.log(TAG, "handleMessageComplete: $it")
+            Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
             val finalConversation = getConversationFlow(conversationId).value
             saveConversation(conversationId, finalConversation)
-            launchWithConversationReference(conversationId) { generateTitle(conversationId, finalConversation) }
-            launchWithConversationReference(conversationId) { generateSuggestion(conversationId, finalConversation) }
+
+            launchWithConversationReference(conversationId) {
+                generateTitle(conversationId, finalConversation)
+            }
+            launchWithConversationReference(conversationId) {
+                generateSuggestion(conversationId, finalConversation)
+            }
         }
     }
 
-    private suspend fun saveConversationSnapshot(conversationId: Uuid, messages: List<UIMessage>) {
-        try {
-            appScope.launch {
-                runCatching {
-                    sessionStore.saveSnapshot(me.rerere.rikkahub.data.ai.session.SessionSnapshot(
-                        sessionId = conversationId.toString(), messages = messages,
-                        taskState = TaskManager.listTasks().map { me.rerere.rikkahub.data.ai.session.TaskSnapshot(
-                            id = it.id, subject = it.subject, description = it.description,
-                            status = it.status.name, dependsOn = it.dependsOn,
-                            owner = it.owner, activeForm = it.activeForm,
-                            metadata = it.metadata, blockedBy = it.blockedBy,
-                        ) },
-                        planModeState = me.rerere.rikkahub.data.ai.session.PlanModeSnapshot(PlanModeState.isInPlanMode, PlanModeState.effectiveMode.name),
-                    ))
-                }
-            }
-        } catch (_: Exception) { }
-    }
+    // ---- 检查无效消息 ----
 
     private fun checkInvalidMessages(conversationId: Uuid) {
         val conversation = getConversationFlow(conversationId).value
-        var nodes = conversation.messageNodes
-        nodes = nodes.mapIndexed { _, node ->
-            if (node.currentMessage.getTools().any { !it.isExecuted }) {
-                if (node.currentMessage.getTools().any { !it.isExecuted && it.approvalState.canResumeToolExecution() }) return@mapIndexed node
-                if (node.currentMessage.getTools().all { it.isExecuted } && node.currentMessage.getTools().isNotEmpty()) return@mapIndexed node
-                return@mapIndexed node.copy(messages = node.messages.filter { it.id != node.currentMessage.id }, selectIndex = node.selectIndex - 1)
+        var messagesNodes = conversation.messageNodes
+
+        // 移除无效 tool (未执行的 Tool)
+        messagesNodes = messagesNodes.mapIndexed { _, node ->
+            // Check for Tool type with non-executed tools
+            val hasPendingTools = node.currentMessage.getTools().any { !it.isExecuted }
+
+            if (hasPendingTools) {
+                // Keep messages that are ready to resume, such as approved/denied/answered tools.
+                val hasResumableTool = node.currentMessage.getTools().any {
+                    !it.isExecuted && it.approvalState.canResumeToolExecution()
+                }
+                if (hasResumableTool) {
+                    return@mapIndexed node
+                }
+
+                // If all tools are executed, it's valid
+                val allToolsExecuted = node.currentMessage.getTools().all { it.isExecuted }
+                if (allToolsExecuted && node.currentMessage.getTools().isNotEmpty()) {
+                    return@mapIndexed node
+                }
+
+                // Remove messages that still have unresolved tool approvals.
+                return@mapIndexed node.copy(
+                    messages = node.messages.filter { it.id != node.currentMessage.id },
+                    selectIndex = node.selectIndex - 1
+                )
             }
             node
         }
-        nodes = nodes.map { if (it.messages.isNotEmpty() && it.selectIndex !in it.messages.indices) it.copy(selectIndex = 0) else it }
-        nodes = nodes.filter { it.messages.isNotEmpty() }
-        updateConversation(conversationId, conversation.copy(messageNodes = nodes))
+
+        // 更新index
+        messagesNodes = messagesNodes.map { node ->
+            if (node.messages.isNotEmpty() && node.selectIndex !in node.messages.indices) {
+                node.copy(selectIndex = 0)
+            } else {
+                node
+            }
+        }
+
+        // 移除无效消息
+        messagesNodes = messagesNodes.filter { it.messages.isNotEmpty() }
+
+        updateConversation(conversationId, conversation.copy(messageNodes = messagesNodes))
     }
 
-    private fun cancelToolByUser(tool: UIMessagePart.Tool) = tool.copy(output = listOf(UIMessagePart.Text("""{"status":"cancelled"}""")), approvalState = ToolApprovalState.Denied("cancelled"))
+    private fun cancelToolByUser(tool: UIMessagePart.Tool): UIMessagePart.Tool {
+        return tool.copy(
+            output = listOf(
+                UIMessagePart.Text(
+                    """{"status":"cancelled","error":"Generation cancelled by user before tool execution completed."}"""
+                )
+            ),
+            approvalState = ToolApprovalState.Denied("Generation cancelled by user")
+        )
+    }
 
     private suspend fun finishInterruptedPendingTools(conversationId: Uuid) {
-        val current = getConversationFlow(conversationId).value
-        val lastNode = current.messageNodes.lastOrNull() ?: return
-        val lastMsg = lastNode.currentMessage
-        val updated = lastMsg.finishPendingTools(::cancelToolByUser) ?: return
-        saveConversation(conversationId, current.copy(messageNodes = current.messageNodes.dropLast(1) + lastNode.copy(messages = lastNode.messages.map { if (it.id == lastMsg.id) updated else it })))
+        val currentConversation = getConversationFlow(conversationId).value
+        val lastNode = currentConversation.messageNodes.lastOrNull() ?: return
+        val lastMessage = lastNode.currentMessage
+        val updatedMessage = lastMessage.finishPendingTools(::cancelToolByUser)
+        if (updatedMessage == lastMessage) {
+            return
+        }
+
+        val updatedConversation = currentConversation.copy(
+            messageNodes = currentConversation.messageNodes.dropLast(1) + lastNode.copy(
+                messages = lastNode.messages.map { message ->
+                    if (message.id == lastMessage.id) updatedMessage else message
+                }
+            )
+        )
+        saveConversation(conversationId, updatedConversation)
     }
 
-    suspend fun generateTitle(conversationId: Uuid, conversation: Conversation, force: Boolean = false) {
-        if (!force && conversation.title.isNotBlank()) return
+    // ---- 生成标题 ----
+
+    suspend fun generateTitle(
+        conversationId: Uuid,
+        conversation: Conversation,
+        force: Boolean = false
+    ) {
+        val shouldGenerate = when {
+            force -> true
+            conversation.title.isBlank() -> true
+            else -> false
+        }
+        if (!shouldGenerate) return
+
         runCatching {
             val settings = settingsStore.settingsFlow.first()
             val model = settings.findModelById(settings.titleModelId) ?: return
             val provider = model.findProvider(settings.providers) ?: return
-            val result = providerManager.getProviderByType(provider).generateText(providerSetting = provider,
-                messages = listOf(UIMessage.user(settings.titlePrompt.applyPlaceholders("locale" to Locale.getDefault().displayName, "content" to conversation.currentMessages.takeLast(4).joinToString("\n\n") { it.summaryAsText() }))),
-                params = TextGenerationParams(model = model, reasoningLevel = ReasoningLevel.OFF))
-            conversationRepo.getConversationById(conversation.id)?.let { saveConversation(conversationId, it.copy(title = result.choices[0].message?.toText()?.trim() ?: "")) }
-        }.onFailure { addError(error = it, conversationId = conversationId, title = context.getString(R.string.error_title_generate_title), solution = ChatErrorSolution.CheckTitleModelSettings) }
+
+            val providerHandler = providerManager.getProviderByType(provider)
+            val result = providerHandler.generateText(
+                providerSetting = provider,
+                messages = listOf(
+                    UIMessage.user(
+                        prompt = settings.titlePrompt.applyPlaceholders(
+                            "locale" to Locale.getDefault().displayName,
+                            "content" to conversation.currentMessages
+                                .takeLast(4).joinToString("\n\n") { it.summaryAsText() })
+                    ),
+                ),
+                params = TextGenerationParams(
+                    model = model,
+                    reasoningLevel = ReasoningLevel.OFF,
+                ),
+            )
+
+            // 生成完，conversation可能不是最新了，因此需要重新获取
+            conversationRepo.getConversationById(conversation.id)?.let {
+                saveConversation(
+                    conversationId,
+                    it.copy(title = result.choices[0].message?.toText()?.trim() ?: "")
+                )
+            }
+        }.onFailure {
+            it.printStackTrace()
+            addError(
+                error = it,
+                conversationId = conversationId,
+                title = context.getString(R.string.error_title_generate_title),
+                solution = ChatErrorSolution.CheckTitleModelSettings,
+            )
+        }
     }
+
+    // ---- 生成建议 ----
 
     suspend fun generateSuggestion(conversationId: Uuid, conversation: Conversation) {
         runCatching {
             val settings = settingsStore.settingsFlow.first()
             val model = settings.findModelById(settings.suggestionModelId) ?: return
             val provider = model.findProvider(settings.providers) ?: return
-            sessions[conversationId]?.let { updateConversation(conversationId, it.state.value.copy(chatSuggestions = emptyList())) }
-            val result = providerManager.getProviderByType(provider).generateText(providerSetting = provider,
-                messages = listOf(UIMessage.user(settings.suggestionPrompt.applyPlaceholders("locale" to Locale.getDefault().displayName, "content" to conversation.currentMessages.takeLast(8).joinToString("\n\n") { it.summaryAsText() }))),
-                params = TextGenerationParams(model = model, reasoningLevel = ReasoningLevel.OFF))
-            val suggestions = result.choices[0].message?.toText()?.split("\n")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
-            val latest = conversationRepo.getConversationById(conversationId) ?: sessions[conversationId]?.state?.value ?: conversation
-            saveConversation(conversationId, latest.copy(chatSuggestions = suggestions.take(10)))
-        }.onFailure { it.printStackTrace() }
+
+            sessions[conversationId]?.let { session ->
+                updateConversation(
+                    conversationId,
+                    session.state.value.copy(chatSuggestions = emptyList())
+                )
+            }
+
+            val providerHandler = providerManager.getProviderByType(provider)
+            val result = providerHandler.generateText(
+                providerSetting = provider,
+                messages = listOf(
+                    UIMessage.user(
+                        settings.suggestionPrompt.applyPlaceholders(
+                            "locale" to Locale.getDefault().displayName,
+                            "content" to conversation.currentMessages
+                                .takeLast(8).joinToString("\n\n") { it.summaryAsText() }),
+                    )
+                ),
+                params = TextGenerationParams(
+                    model = model,
+                    reasoningLevel = ReasoningLevel.OFF,
+                ),
+            )
+            val suggestions =
+                result.choices[0].message?.toText()?.split("\n")?.map { it.trim() }
+                    ?.filter { it.isNotBlank() } ?: emptyList()
+
+            val latestConversation = conversationRepo.getConversationById(conversationId)
+                ?: sessions[conversationId]?.state?.value
+                ?: conversation
+            saveConversation(
+                conversationId,
+                latestConversation.copy(
+                    chatSuggestions = suggestions.take(
+                        10
+                    )
+                )
+            )
+        }.onFailure {
+            it.printStackTrace()
+        }
     }
 
-    suspend fun generateForAssistant(assistant: Assistant, settings: Settings, prompt: String, history: List<UIMessage>, onChunk: ((String, List<UIMessagePart>?) -> Unit)? = null): String {
-        val model = settings.findModelById(assistant.chatModelId ?: settings.chatModelId) ?: error("No model")
+    /**
+     * 为指定 Assistant 生成回复（群聊用），支持流式回调
+     */
+    suspend fun generateForAssistant(
+        assistant: Assistant,
+        settings: Settings,
+        prompt: String,
+        history: List<UIMessage>,
+        onChunk: ((String, List<UIMessagePart>?) -> Unit)? = null,
+    ): String {
+        val model = settings.findModelById(assistant.chatModelId ?: settings.chatModelId)
+            ?: error("No model configured for assistant '${assistant.name}'")
+
         val messages = history + UIMessage.user(prompt)
         var result = ""
-        val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
-        val policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath)
 
-        generationHandler.generateText(settings = settings, model = model, messages = messages, assistant = assistant,
-            policyEngine = policyEngine,
-            memories = if (assistant.useGlobalMemory) memoryRepository.getGlobalMemories() else memoryRepository.getMemoriesOfAssistant(assistant.id.toString()),
+        val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
+
+        generationHandler.generateText(
+            settings = settings,
+            model = model,
+            messages = messages,
+            assistant = assistant,
+            memories = if (assistant.useGlobalMemory) {
+                memoryRepository.getGlobalMemories()
+            } else {
+                memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
+            },
             tools = buildList {
-                if (assistant.localTools.contains(LocalToolOption.FileTools)) addAll(createFileTools(skillDirs))
-                if (settings.enableWebSearch) { addAll(createSearchTools(settings)); add(createWebFetchTool()) }
+                if (assistant.localTools.contains(LocalToolOption.FileTools)) {
+                    addAll(createFileTools(skillDirs))
+                }
+                if (settings.enableWebSearch) {
+                    addAll(createSearchTools(settings))
+                }
                 addAll(localTools.getTools(assistant.localTools))
-                if (assistant.localTools.contains(LocalToolOption.ShellTools)) addAll(createShellTools())
+                if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
+                    addAll(createShellTools())
+                }
                 if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
                     add(createGitHubTool(settingsStore, assistant.enableCiTimeout, assistant.enableAutoFixCi))
                 }
-                if (assistant.localTools.contains(LocalToolOption.ConvertFile)) add(createConvertFileTool(context))
-                if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) add(createDatabaseQueryTool(database))
-                if (assistant.enabledSkills.isNotEmpty()) addAll(createSkillTools(enabledSkills = assistant.enabledSkills, allSkills = skillManager.listSkills(), skillManager = skillManager))
-                mcpManager.getAllAvailableTools().forEach { (serverId, tool) ->
-                    add(Tool(name = "mcp__" + tool.name, description = tool.description ?: "", parameters = { tool.inputSchema }, needsApproval = tool.needsApproval, execute = { mcpManager.callTool(serverId, tool.name, it.jsonObject) }))
+                if (assistant.localTools.contains(LocalToolOption.ConvertFile)) {
+                    add(createConvertFileTool(context))
                 }
-                if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
-                if (assistant.localTools.contains(LocalToolOption.TaskTools)) addAll(createTaskTools())
-                if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
-                if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
-                if (assistant.localTools.contains(LocalToolOption.Calculator)) add(createCalculatorTool())
-                if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))
+                if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) {
+                    add(createDatabaseQueryTool(database))
+                }
+                if (assistant.enabledSkills.isNotEmpty()) {
+                    addAll(
+                        createSkillTools(
+                            enabledSkills = assistant.enabledSkills,
+                            allSkills = skillManager.listSkills(),
+                            skillManager = skillManager,
+                        )
+                    )
+                }
+                mcpManager.getAllAvailableTools().forEach { (serverId, tool) ->
+                    add(
+                        Tool(
+                            name = "mcp__" + tool.name,
+                            description = tool.description ?: "",
+                            parameters = { tool.inputSchema },
+                            needsApproval = tool.needsApproval,
+                            execute = {
+                                mcpManager.callTool(serverId, tool.name, it.jsonObject)
+                            },
+                        )
+                    )
+                }
             },
-            inputTransformers = buildList { addAll(inputTransformers); add(templateTransformer); add(knowledgeBaseTransformer) },
+            inputTransformers = buildList {
+                addAll(inputTransformers)
+                add(templateTransformer)
+                add(knowledgeBaseTransformer)
+            },
             outputTransformers = outputTransformers,
         ).collect { chunk ->
             when (chunk) {
                 is GenerationChunk.Messages -> {
                     val lastMsg = chunk.messages.lastOrNull()
-                    val text = lastMsg?.toText() ?: ""; result = text
+                    val text = lastMsg?.toText() ?: ""
+                    result = text
                     onChunk?.invoke(text, lastMsg?.parts)
                 }
             }
         }
+
         return result
     }
 
-    suspend fun compressConversation(conversationId: Uuid, conversation: Conversation, additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int = 32): Result<Unit> = runCatching {
+    // ---- 压缩对话历史 ----
+
+    suspend fun compressConversation(
+        conversationId: Uuid,
+        conversation: Conversation,
+        additionalPrompt: String,
+        targetTokens: Int,
+        keepRecentMessages: Int = 32
+    ): Result<Unit> = runCatching {
         val settings = settingsStore.settingsFlow.first()
-        val model = settings.findModelById(settings.compressModelId) ?: settings.getCurrentChatModel() ?: error("No model")
-        val provider = model.findProvider(settings.providers) ?: error("No provider")
+        val model = settings.findModelById(settings.compressModelId)
+            ?: settings.getCurrentChatModel()
+            ?: throw IllegalStateException("No model available for compression")
+        val provider = model.findProvider(settings.providers)
+            ?: throw IllegalStateException("Provider not found")
+
         val providerHandler = providerManager.getProviderByType(provider)
+
+        val maxMessagesPerChunk = 256
         val allMessages = conversation.currentMessages
-        val (toCompress, toKeep) = if (keepRecentMessages > 0 && allMessages.size > keepRecentMessages)
-            allMessages.dropLast(keepRecentMessages) to allMessages.takeLast(keepRecentMessages)
-        else if (keepRecentMessages > 0) error("Not enough messages") else allMessages to emptyList()
 
-        fun split(messages: List<UIMessage>): List<List<UIMessage>> {
-            if (messages.size <= 256) return listOf(messages)
-            val mid = messages.size / 2; return split(messages.subList(0, mid)) + split(messages.subList(mid, messages.size))
+        // Split messages into those to compress and those to keep
+        val messagesToCompress: List<UIMessage>
+        val messagesToKeep: List<UIMessage>
+
+        if (keepRecentMessages > 0 && allMessages.size > keepRecentMessages) {
+            messagesToCompress = allMessages.dropLast(keepRecentMessages)
+            messagesToKeep = allMessages.takeLast(keepRecentMessages)
+        } else if (keepRecentMessages > 0) {
+            // Not enough messages to compress while keeping recent ones
+            throw IllegalStateException(context.getString(R.string.chat_page_compress_not_enough_messages))
+        } else {
+            messagesToCompress = allMessages
+            messagesToKeep = emptyList()
         }
 
-        suspend fun compress(messages: List<UIMessage>): String {
-            val chunk = providerHandler.generateText(providerSetting = provider,
-                messages = listOf(UIMessage.user(settings.compressPrompt.applyPlaceholders("content" to messages.joinToString("\n\n") { it.summaryAsText() }, "target_tokens" to targetTokens.toString(), "additional_context" to additionalPrompt.ifBlank { "" }, "locale" to Locale.getDefault().displayName))),
-                params = TextGenerationParams(model = model))
-            return chunk.choices[0].message?.toText()?.trim() ?: error("Compression failed")
+        fun splitMessages(messages: List<UIMessage>): List<List<UIMessage>> {
+            if (messages.size <= maxMessagesPerChunk) return listOf(messages)
+            val mid = messages.size / 2
+            val left = splitMessages(messages.subList(0, mid))
+            val right = splitMessages(messages.subList(mid, messages.size))
+            return left + right
         }
 
-        val summaries = coroutineScope { split(toCompress).map { async { compress(it) } }.awaitAll() }
-        val newNodes = buildList { summaries.forEach { add(UIMessage.user(it).toMessageNode()) }; addAll(toKeep.map { it.toMessageNode() }) }
-        saveConversation(conversationId, conversation.copy(messageNodes = newNodes, chatSuggestions = emptyList()))
+        suspend fun compressMessages(messages: List<UIMessage>): String {
+            val contentToCompress = messages.joinToString("\n\n") { it.summaryAsText() }
+            val prompt = settings.compressPrompt.applyPlaceholders(
+                "content" to contentToCompress,
+                "target_tokens" to targetTokens.toString(),
+                "additional_context" to if (additionalPrompt.isNotBlank()) {
+                    "Additional instructions from user: $additionalPrompt"
+                } else "",
+                "locale" to Locale.getDefault().displayName
+            )
+
+            val result = providerHandler.generateText(
+                providerSetting = provider,
+                messages = listOf(UIMessage.user(prompt)),
+                params = TextGenerationParams(
+                    model = model,
+                ),
+            )
+
+            return result.choices[0].message?.toText()?.trim()
+                ?: throw IllegalStateException("Failed to generate compressed summary")
+        }
+
+        val compressedSummaries = coroutineScope {
+            splitMessages(messagesToCompress)
+                .map { chunk -> async { compressMessages(chunk) } }
+                .awaitAll()
+        }
+
+        // Create new conversation with compressed history as multiple user messages + kept messages
+        val newMessageNodes = buildList {
+            compressedSummaries.forEach { summary ->
+                add(UIMessage.user(summary).toMessageNode())
+            }
+            addAll(messagesToKeep.map { it.toMessageNode() })
+        }
+        val newConversation = conversation.copy(
+            messageNodes = newMessageNodes,
+            chatSuggestions = emptyList(),
+        )
+
+        saveConversation(conversationId, newConversation)
     }
 
+    // ---- 通知 ----
+
     private fun sendGenerationDoneNotification(conversationId: Uuid, senderName: String) {
+        // 先取消 Live Update 通知
         cancelLiveUpdateNotification(conversationId)
+
         val conversation = getConversationFlow(conversationId).value
-        context.sendNotification(channelId = CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID, notificationId = 1) {
-            title = senderName; content = conversation.currentMessages.lastOrNull()?.toText()?.take(50)?.trim() ?: ""
-            autoCancel = true; useDefaults = true; category = NotificationCompat.CATEGORY_MESSAGE
+        context.sendNotification(
+            channelId = CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID,
+            notificationId = 1
+        ) {
+            title = senderName
+            content = conversation.currentMessages.lastOrNull()?.toText()?.take(50)?.trim() ?: ""
+            autoCancel = true
+            useDefaults = true
+            category = NotificationCompat.CATEGORY_MESSAGE
             contentIntent = getPendingIntent(context, conversationId)
         }
     }
 
-    private fun getLiveUpdateNotificationId(conversationId: Uuid) = conversationId.hashCode() + 10000
+    private fun getLiveUpdateNotificationId(conversationId: Uuid): Int {
+        return conversationId.hashCode() + 10000
+    }
 
-    private fun sendLiveUpdateNotification(conversationId: Uuid, messages: List<UIMessage>, senderName: String) {
+    private fun sendLiveUpdateNotification(
+        conversationId: Uuid,
+        messages: List<UIMessage>,
+        senderName: String
+    ) {
         val lastMessage = messages.lastOrNull() ?: return
         val parts = lastMessage.parts
+
+        // 确定当前状态
+        val (chipText, statusText, contentText) = determineNotificationContent(parts)
+
+        context.sendNotification(
+            channelId = CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID,
+            notificationId = getLiveUpdateNotificationId(conversationId)
+        ) {
+            title = senderName
+            content = contentText
+            subText = statusText
+            ongoing = true
+            onlyAlertOnce = true
+            category = NotificationCompat.CATEGORY_PROGRESS
+            useBigTextStyle = true
+            contentIntent = getPendingIntent(context, conversationId)
+            requestPromotedOngoing = true
+            shortCriticalText = chipText
+        }
+    }
+
+    private fun determineNotificationContent(parts: List<UIMessagePart>): Triple<String, String, String> {
+        // 检查最近的 part 来确定状态
         val lastReasoning = parts.filterIsInstance<UIMessagePart.Reasoning>().lastOrNull()
         val lastTool = parts.filterIsInstance<UIMessagePart.Tool>().lastOrNull()
         val lastText = parts.filterIsInstance<UIMessagePart.Text>().lastOrNull()
-        val (chip, sub, content) = when {
-            lastTool != null && !lastTool.isExecuted -> Triple(context.getString(R.string.notification_live_update_chip_tool), context.getString(R.string.notification_live_update_tool, lastTool.toolName.removePrefix("mcp__")), lastTool.input.take(100))
-            lastReasoning != null && lastReasoning.finishedAt == null -> Triple(context.getString(R.string.notification_live_update_chip_thinking), context.getString(R.string.notification_live_update_thinking), lastReasoning.reasoning.takeLast(200))
-            lastText != null -> Triple(context.getString(R.string.notification_live_update_chip_writing), context.getString(R.string.notification_live_update_writing), lastText.text.takeLast(200))
-            else -> Triple(context.getString(R.string.notification_live_update_chip_writing), context.getString(R.string.notification_live_update_title), "")
-        }
-        context.sendNotification(channelId = CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID, notificationId = getLiveUpdateNotificationId(conversationId)) {
-            title = senderName; this.content = content; subText = sub; ongoing = true; onlyAlertOnce = true
-            category = NotificationCompat.CATEGORY_PROGRESS; useBigTextStyle = true
-            contentIntent = getPendingIntent(context, conversationId); requestPromotedOngoing = true; shortCriticalText = chip
+
+        return when {
+            // 正在执行工具
+            lastTool != null && !lastTool.isExecuted -> {
+                val toolName = lastTool.toolName.removePrefix("mcp__")
+                Triple(
+                    context.getString(R.string.notification_live_update_chip_tool),
+                    context.getString(R.string.notification_live_update_tool, toolName),
+                    lastTool.input.take(100)
+                )
+            }
+            // 正在思考（Reasoning 未结束）
+            lastReasoning != null && lastReasoning.finishedAt == null -> {
+                Triple(
+                    context.getString(R.string.notification_live_update_chip_thinking),
+                    context.getString(R.string.notification_live_update_thinking),
+                    lastReasoning.reasoning.takeLast(200)
+                )
+            }
+            // 正在写回复
+            lastText != null -> {
+                Triple(
+                    context.getString(R.string.notification_live_update_chip_writing),
+                    context.getString(R.string.notification_live_update_writing),
+                    lastText.text.takeLast(200)
+                )
+            }
+            // 默认状态
+            else -> {
+                Triple(
+                    context.getString(R.string.notification_live_update_chip_writing),
+                    context.getString(R.string.notification_live_update_title),
+                    ""
+                )
+            }
         }
     }
 
-    private fun cancelLiveUpdateNotification(conversationId: Uuid) { context.cancelNotification(getLiveUpdateNotificationId(conversationId)) }
+    private fun cancelLiveUpdateNotification(conversationId: Uuid) {
+        context.cancelNotification(getLiveUpdateNotificationId(conversationId))
+    }
+
+    // region Foreground Service — 后台生成时保持进程存活
 
     private fun startGenerationForeground(title: String, conversationId: String) {
-        context.startForegroundService(Intent(context, GenerationForegroundService::class.java).apply {
-            action = GenerationForegroundService.ACTION_START; putExtra(GenerationForegroundService.EXTRA_TITLE, title)
+        val intent = Intent(context, GenerationForegroundService::class.java).apply {
+            action = GenerationForegroundService.ACTION_START
+            putExtra(GenerationForegroundService.EXTRA_TITLE, title)
             putExtra(GenerationForegroundService.EXTRA_CONVERSATION_ID, conversationId)
-        })
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
     }
 
-    private fun stopGenerationForeground() { context.stopService(Intent(context, GenerationForegroundService::class.java).apply { action = GenerationForegroundService.ACTION_STOP }) }
+    private fun updateGenerationForeground(text: String) {
+        val intent = Intent(context, GenerationForegroundService::class.java).apply {
+            action = GenerationForegroundService.ACTION_UPDATE
+            putExtra(GenerationForegroundService.EXTRA_TEXT, text.take(200))
+        }
+        context.startService(intent)
+    }
+
+    private fun stopGenerationForeground() {
+        val intent = Intent(context, GenerationForegroundService::class.java).apply {
+            action = GenerationForegroundService.ACTION_STOP
+        }
+        context.stopService(intent)
+    }
+
+    // endregion
 
     private fun getPendingIntent(context: Context, conversationId: Uuid): PendingIntent {
-        return PendingIntent.getActivity(context, conversationId.hashCode(),
-            Intent(context, RouteActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra("conversationId", conversationId.toString())
-            }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val intent = Intent(context, RouteActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("conversationId", conversationId.toString())
+        }
+        return PendingIntent.getActivity(
+            context,
+            conversationId.hashCode(),
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
     }
+
+    // ---- 对话状态更新 ----
 
     private fun updateConversation(conversationId: Uuid, conversation: Conversation) {
         if (conversation.id != conversationId) return
@@ -939,13 +1386,16 @@ class ChatService(
     }
 
     fun updateConversationState(conversationId: Uuid, update: (Conversation) -> Conversation) {
-        val current = getConversationFlow(conversationId).value; updateConversation(conversationId, update(current))
+        val current = getConversationFlow(conversationId).value
+        updateConversation(conversationId, update(current))
     }
 
     private fun checkFilesDelete(newConversation: Conversation, oldConversation: Conversation) {
         val newFiles = newConversation.files
         val oldFiles = oldConversation.files
-        val deletedFiles = oldFiles.filter { file -> newFiles.none { it == file } }
+        val deletedFiles = oldFiles.filter { file ->
+            newFiles.none { it == file }
+        }
         if (deletedFiles.isNotEmpty()) {
             filesManager.deleteChatFiles(deletedFiles)
             Log.w(TAG, "checkFilesDelete: $deletedFiles")
@@ -954,108 +1404,294 @@ class ChatService(
 
     suspend fun saveConversation(conversationId: Uuid, conversation: Conversation) {
         val exists = conversationRepo.existsConversationById(conversation.id)
-        if (!exists && conversation.title.isBlank() && conversation.messageNodes.isEmpty()) return
-        val updated = conversation.copy()
-        updateConversation(conversationId, updated)
-        if (!exists) conversationRepo.insertConversation(updated) else conversationRepo.updateConversation(updated)
-        saveConversationSnapshot(conversationId, updated.currentMessages)
+        if (!exists && conversation.title.isBlank() && conversation.messageNodes.isEmpty()) {
+            return // 新会话且为空时不保存
+        }
+
+        val updatedConversation = conversation.copy()
+        updateConversation(conversationId, updatedConversation)
+
+        if (!exists) {
+            conversationRepo.insertConversation(updatedConversation)
+        } else {
+            conversationRepo.updateConversation(updatedConversation)
+        }
     }
 
-    fun translateMessage(conversationId: Uuid, message: UIMessage, targetLanguage: Locale) {
+    // ---- 翻译消息 ----
+
+    fun translateMessage(
+        conversationId: Uuid,
+        message: UIMessage,
+        targetLanguage: Locale
+    ) {
         appScope.launch(Dispatchers.IO) {
             try {
                 val settings = settingsStore.settingsFlow.first()
-                val messageText = message.parts.filterIsInstance<UIMessagePart.Text>().joinToString("\n\n") { it.text }.trim()
+
+                val messageText = message.parts.filterIsInstance<UIMessagePart.Text>()
+                    .joinToString("\n\n") { it.text }
+                    .trim()
+
                 if (messageText.isBlank()) return@launch
-                updateTranslationField(conversationId, message.id, context.getString(R.string.translating))
-                generationHandler.translateText(settings = settings, sourceText = messageText, targetLanguage = targetLanguage) { translatedText ->
+
+                // Set loading state for translation
+                val loadingText = context.getString(R.string.translating)
+                updateTranslationField(conversationId, message.id, loadingText)
+
+                generationHandler.translateText(
+                    settings = settings,
+                    sourceText = messageText,
+                    targetLanguage = targetLanguage
+                ) { translatedText ->
+                    // Update translation field in real-time
                     updateTranslationField(conversationId, message.id, translatedText)
-                }.collect { }
+                }.collect { /* Final translation already handled in onStreamUpdate */ }
+
+                // Save the conversation after translation is complete
                 saveConversation(conversationId, getConversationFlow(conversationId).value)
-            } catch (e: Exception) { clearTranslationField(conversationId, message.id); addError(e, conversationId, title = context.getString(R.string.error_title_translate_message)) }
+            } catch (e: Exception) {
+                // Clear translation field on error
+                clearTranslationField(conversationId, message.id)
+                addError(e, conversationId, title = context.getString(R.string.error_title_translate_message))
+            }
         }
     }
 
-    private fun updateTranslationField(conversationId: Uuid, messageId: Uuid, translationText: String) {
-        val current = getConversationFlow(conversationId).value
-        val updated = current.copy(messageNodes = current.messageNodes.map { node ->
-            if (node.messages.any { it.id == messageId }) node.copy(messages = node.messages.map { if (it.id == messageId) it.copy(translation = translationText) else it }) else node
-        })
-        updateConversation(conversationId, updated)
+    private fun updateTranslationField(
+        conversationId: Uuid,
+        messageId: Uuid,
+        translationText: String
+    ) {
+        val currentConversation = getConversationFlow(conversationId).value
+        val updatedNodes = currentConversation.messageNodes.map { node ->
+            if (node.messages.any { it.id == messageId }) {
+                val updatedMessages = node.messages.map { msg ->
+                    if (msg.id == messageId) {
+                        msg.copy(translation = translationText)
+                    } else {
+                        msg
+                    }
+                }
+                node.copy(messages = updatedMessages)
+            } else {
+                node
+            }
+        }
+
+        updateConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
     }
 
-    suspend fun editMessage(conversationId: Uuid, messageId: Uuid, parts: List<UIMessagePart>) {
+    // ---- 消息操作 ----
+
+    suspend fun editMessage(
+        conversationId: Uuid,
+        messageId: Uuid,
+        parts: List<UIMessagePart>
+    ) {
         if (parts.isEmptyInputMessage()) return
+
         val currentConversation = getConversationFlow(conversationId).value
         val settings = settingsStore.settingsFlow.first()
-        val assistant = settings.getAssistantById(currentConversation.assistantId) ?: settings.getCurrentAssistant()
+        val assistant = settings.getAssistantById(currentConversation.assistantId)
+            ?: settings.getCurrentAssistant()
         val processedParts = preprocessUserInputParts(parts, assistant)
         var edited = false
+
         val updatedNodes = currentConversation.messageNodes.mapIndexed { index, node ->
-            if (!node.messages.any { it.id == messageId }) return@mapIndexed node
-            edited = true; node.copy(messages = node.messages + UIMessage(role = node.role, parts = processedParts), selectIndex = node.messages.size)
+            if (!node.messages.any { it.id == messageId }) {
+                return@mapIndexed node
+            }
+            edited = true
+
+            // 追加新版本（保留编辑历史）
+            node.copy(
+                messages = node.messages + UIMessage(
+                    role = node.role,
+                    parts = processedParts,
+                ),
+                selectIndex = node.messages.size
+            )
         }
+
         if (!edited) return
-        val editIndex = updatedNodes.indexOfFirst { it.messages.any { msg -> msg.id == messageId } }
-        saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes.take(editIndex + 1)))
+
+        // 截断：保留到编辑位置，去掉之后的所有回复
+        val editIndex = updatedNodes.indexOfFirst { node ->
+            node.messages.any { it.id == messageId }
+        }
+        val truncated = updatedNodes.take(editIndex + 1)
+        saveConversation(conversationId, currentConversation.copy(messageNodes = truncated))
+
+        // 编辑后自动生成回复（替换旧的）
         handleMessageComplete(conversationId)
     }
 
-    suspend fun forkConversationAtMessage(conversationId: Uuid, messageId: Uuid): Conversation {
-        val current = getConversationFlow(conversationId).value
-        val idx = current.messageNodes.indexOfFirst { it.messages.any { msg -> msg.id == messageId } }
-        if (idx == -1) throw NotFoundException("Message not found")
-        val copied = current.messageNodes.subList(0, idx + 1).map { it.copy(id = Uuid.random(), messages = it.messages.map { msg -> msg.copy(parts = msg.parts.map { part -> copyWithForkedFileUrl(part) }) }) }
-        val fork = Conversation(id = Uuid.random(), assistantId = current.assistantId, messageNodes = copied,
-            customSystemPrompt = current.customSystemPrompt, modeInjectionIds = current.modeInjectionIds, lorebookIds = current.lorebookIds)
-        saveConversation(fork.id, fork); return fork
+    suspend fun forkConversationAtMessage(
+        conversationId: Uuid,
+        messageId: Uuid
+    ): Conversation {
+        val currentConversation = getConversationFlow(conversationId).value
+        val targetNodeIndex = currentConversation.messageNodes.indexOfFirst { node ->
+            node.messages.any { it.id == messageId }
+        }
+        if (targetNodeIndex == -1) {
+            throw NotFoundException("Message not found")
+        }
+
+        val copiedNodes = currentConversation.messageNodes
+            .subList(0, targetNodeIndex + 1)
+            .map { node ->
+                node.copy(
+                    id = Uuid.random(),
+                    messages = node.messages.map { message ->
+                        message.copy(
+                            parts = message.parts.map { part ->
+                                part.copyWithForkedFileUrl()
+                            }
+                        )
+                    }
+                )
+            }
+
+        val forkConversation = Conversation(
+            id = Uuid.random(),
+            assistantId = currentConversation.assistantId,
+            messageNodes = copiedNodes,
+            customSystemPrompt = currentConversation.customSystemPrompt,
+            modeInjectionIds = currentConversation.modeInjectionIds,
+            lorebookIds = currentConversation.lorebookIds,
+        )
+
+        saveConversation(forkConversation.id, forkConversation)
+        return forkConversation
     }
 
-    private fun copyWithForkedFileUrl(part: UIMessagePart): UIMessagePart {
-        fun copyIfNeeded(url: String): String {
+    suspend fun selectMessageNode(
+        conversationId: Uuid,
+        nodeId: Uuid,
+        selectIndex: Int
+    ) {
+        val currentConversation = getConversationFlow(conversationId).value
+        val targetNode = currentConversation.messageNodes.firstOrNull { it.id == nodeId }
+            ?: throw NotFoundException("Message node not found")
+
+        if (selectIndex !in targetNode.messages.indices) {
+            throw BadRequestException("Invalid selectIndex")
+        }
+
+        if (targetNode.selectIndex == selectIndex) {
+            return
+        }
+
+        val updatedNodes = currentConversation.messageNodes.map { node ->
+            if (node.id == nodeId) {
+                node.copy(selectIndex = selectIndex)
+            } else {
+                node
+            }
+        }
+
+        saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
+    }
+
+    suspend fun deleteMessage(
+        conversationId: Uuid,
+        messageId: Uuid,
+        failIfMissing: Boolean = true,
+    ) {
+        val currentConversation = getConversationFlow(conversationId).value
+        val updatedConversation = buildConversationAfterMessageDelete(currentConversation, messageId)
+
+        if (updatedConversation == null) {
+            if (failIfMissing) {
+                throw NotFoundException("Message not found")
+            }
+            return
+        }
+
+        saveConversation(conversationId, updatedConversation)
+    }
+
+    suspend fun deleteMessage(
+        conversationId: Uuid,
+        message: UIMessage,
+    ) {
+        deleteMessage(conversationId, message.id, failIfMissing = false)
+    }
+
+    private fun buildConversationAfterMessageDelete(
+        conversation: Conversation,
+        messageId: Uuid,
+    ): Conversation? {
+        val targetNodeIndex = conversation.messageNodes.indexOfFirst { node ->
+            node.messages.any { it.id == messageId }
+        }
+        if (targetNodeIndex == -1) {
+            return null
+        }
+
+        val updatedNodes = conversation.messageNodes.mapIndexedNotNull { index, node ->
+            if (index != targetNodeIndex) {
+                return@mapIndexedNotNull node
+            }
+
+            val nextMessages = node.messages.filterNot { it.id == messageId }
+            if (nextMessages.isEmpty()) {
+                return@mapIndexedNotNull null
+            }
+
+            val nextSelectIndex = node.selectIndex.coerceAtMost(nextMessages.lastIndex)
+            node.copy(
+                messages = nextMessages,
+                selectIndex = nextSelectIndex,
+            )
+        }
+
+        return conversation.copy(messageNodes = updatedNodes)
+    }
+
+    private fun UIMessagePart.copyWithForkedFileUrl(): UIMessagePart {
+        fun copyLocalFileIfNeeded(url: String): String {
             if (!url.startsWith("file:")) return url
-            return filesManager.createChatFilesByContents(listOf(url.toUri())).firstOrNull()?.toString() ?: url
+            val copied = filesManager.createChatFilesByContents(listOf(url.toUri())).firstOrNull()
+            return copied?.toString() ?: url
         }
-        return when (part) {
-            is UIMessagePart.Image -> part.copy(url = copyIfNeeded(part.url))
-            is UIMessagePart.Document -> part.copy(url = copyIfNeeded(part.url))
-            is UIMessagePart.Video -> part.copy(url = copyIfNeeded(part.url))
-            is UIMessagePart.Audio -> part.copy(url = copyIfNeeded(part.url))
-            else -> part
+
+        return when (this) {
+            is UIMessagePart.Image -> copy(url = copyLocalFileIfNeeded(url))
+            is UIMessagePart.Document -> copy(url = copyLocalFileIfNeeded(url))
+            is UIMessagePart.Video -> copy(url = copyLocalFileIfNeeded(url))
+            is UIMessagePart.Audio -> copy(url = copyLocalFileIfNeeded(url))
+            else -> this
         }
     }
-
-    suspend fun selectMessageNode(conversationId: Uuid, nodeId: Uuid, selectIndex: Int) {
-        val current = getConversationFlow(conversationId).value
-        val target = current.messageNodes.firstOrNull { it.id == nodeId } ?: throw NotFoundException("Node not found")
-        if (selectIndex !in target.messages.indices) throw BadRequestException("Invalid index")
-        if (target.selectIndex == selectIndex) return
-        saveConversation(conversationId, current.copy(messageNodes = current.messageNodes.map { if (it.id == nodeId) it.copy(selectIndex = selectIndex) else it }))
-    }
-
-    suspend fun deleteMessage(conversationId: Uuid, messageId: Uuid, failIfMissing: Boolean = true) {
-        val current = getConversationFlow(conversationId).value
-        val targetIdx = current.messageNodes.indexOfFirst { it.messages.any { msg -> msg.id == messageId } }
-        if (targetIdx == -1) { if (failIfMissing) throw NotFoundException("Message not found"); return }
-        val updated = current.messageNodes.mapIndexedNotNull { idx, node ->
-            if (idx != targetIdx) return@mapIndexedNotNull node
-            val remaining = node.messages.filterNot { it.id == messageId }
-            if (remaining.isEmpty()) null else node.copy(messages = remaining, selectIndex = node.selectIndex.coerceAtMost(remaining.lastIndex))
-        }
-        saveConversation(conversationId, current.copy(messageNodes = updated))
-    }
-
-    suspend fun deleteMessage(conversationId: Uuid, message: UIMessage) { deleteMessage(conversationId, message.id, failIfMissing = false) }
 
     fun clearTranslationField(conversationId: Uuid, messageId: Uuid) {
-        val current = getConversationFlow(conversationId).value
-        updateConversation(conversationId, current.copy(messageNodes = current.messageNodes.map { node ->
-            if (node.messages.any { it.id == messageId }) node.copy(messages = node.messages.map { if (it.id == messageId) it.copy(translation = null) else it }) else node
-        }))
+        val currentConversation = getConversationFlow(conversationId).value
+        val updatedNodes = currentConversation.messageNodes.map { node ->
+            if (node.messages.any { it.id == messageId }) {
+                val updatedMessages = node.messages.map { msg ->
+                    if (msg.id == messageId) {
+                        msg.copy(translation = null)
+                    } else {
+                        msg
+                    }
+                }
+                node.copy(messages = updatedMessages)
+            } else {
+                node
+            }
+        }
+
+        updateConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
     }
 
+    // 停止当前会话生成任务（不清理会话缓存）
     suspend fun stopGeneration(conversationId: Uuid) {
         val job = sessions[conversationId]?.getJob() ?: return
-        job.cancel(); runCatching { job.join() }; finishInterruptedPendingTools(conversationId)
+        job.cancel()
+        runCatching { job.join() }
+        finishInterruptedPendingTools(conversationId)
     }
 }
