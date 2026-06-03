@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import me.rerere.rikkahub.CHAT_GENERATION_FOREGROUND_CHANNEL_ID
@@ -19,6 +20,7 @@ class GenerationForegroundService : Service() {
         const val ACTION_START = "me.rerere.rikkahub.action.GENERATION_START"
         const val ACTION_STOP = "me.rerere.rikkahub.action.GENERATION_STOP"
         const val ACTION_UPDATE = "me.rerere.rikkahub.action.GENERATION_UPDATE"
+        private const val TAG = "GenFGS"
         const val EXTRA_TITLE = "extra_title"
         const val EXTRA_TEXT = "extra_text"
         const val EXTRA_CONVERSATION_ID = "extra_conversation_id"
@@ -36,7 +38,11 @@ class GenerationForegroundService : Service() {
             ACTION_START -> {
                 title = intent.getStringExtra(EXTRA_TITLE) ?: "正在生成回复"
                 conversationId = intent.getStringExtra(EXTRA_CONVERSATION_ID) ?: ""
-                startForeground(NOTIFICATION_ID, buildNotification())
+                try {
+                    startForeground(NOTIFICATION_ID, buildNotification())
+                } catch (e: Exception) {
+                    Log.e(TAG, "startForeground failed", e)
+                }
             }
             ACTION_UPDATE -> {
                 text = intent.getStringExtra(EXTRA_TEXT) ?: text

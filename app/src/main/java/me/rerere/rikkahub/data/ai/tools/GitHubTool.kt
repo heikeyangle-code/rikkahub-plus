@@ -1318,7 +1318,8 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 }.toString()
                 val result = gh("PUT", "https://api.github.com/repos/$fullRepo/contents/$path", payload)
                 val o = try { parseJSON(result) } catch (_: Exception) { null }
-                "已提交 $path: ${sj(o,"commit")?.let { parseJSON(it)["sha"]?.jsonPrimitive?.contentOrNull?.take(8) ?: "" }}"
+                val sha = (o?.get("commit") as? JsonObject)?.get("sha")?.jsonPrimitive?.contentOrNull?.take(8) ?: ""
+                "已提交 $path: $sha"
             }
             "commit_files" -> {
                 val filesStr = obj["files"]?.jsonPrimitive?.contentOrNull ?: error("files required (JSON array)")
