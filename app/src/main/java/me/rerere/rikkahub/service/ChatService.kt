@@ -87,6 +87,7 @@ import me.rerere.rikkahub.data.ai.tools.ToolRegistry
 import me.rerere.rikkahub.data.ai.tools.PlanModeState
 import me.rerere.rikkahub.data.ai.tools.TaskManager
 import me.rerere.rikkahub.data.ai.tools.AgentRegistry
+import me.rerere.rikkahub.data.ai.agent.AgentMemoryManager
 import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
 import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
 import me.rerere.rikkahub.data.ai.hooks.HookRegistry
@@ -414,7 +415,7 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.WorkerTools)) {
                         addAll(createWorkerTools(workerManager))
                     }
-                    if (assistant.localTools.contains(LocalToolOption.Agents)) {
+                    if (assistant.localTools.contains(LocalToolOption.Agents) && assistant.enableSubAgent) {
                         add(
                         Tool(
                             name = "sub_agent",
@@ -428,7 +429,7 @@ class ChatService(
                                     val color = it.color.name.lowercase()
                                     "${it.agentType} ($color, ${it.description.take(40)})"
                                 })
-                            }.replace("\\n", " "),
+                            }.replace("\n", " "),
                             needsApproval = false,
                             parameters = {
                                 InputSchema.Obj(
@@ -516,7 +517,10 @@ class ChatService(
                                 laneTracker.started()
 
                                 // Resolve model for sub-agent
-                                val effectiveModelId = agentDef?.modelId?.let { Uuid.parse(it) }
+                                val effectiveModelId = try {
+                                    modelOverride?.let { Uuid.parse(it) }
+                                } catch (_: Exception) { null }
+                                    ?: agentDef?.modelId?.let { Uuid.parse(it) }
                                     ?: assistant.subAgentModelId
                                     ?: assistant.chatModelId
                                     ?: settings.chatModelId
@@ -560,13 +564,14 @@ class ChatService(
                                         appendLine(resolvedSysPrompt)
                                         appendLine()
                                     }
-                                    // Load agent memory from repository
-                                    val agentMemories = memoryRepository.getMemoriesOfAssistant("agent:$agentType")
-                                    if (agentMemories.isNotEmpty()) {
-                                        appendLine("## Persistent Agent Memory")
-                                        agentMemories.forEach { m ->
-                                            appendLine("- ${m.content}")
+                                    // Load agent memory via AgentMemoryManager
+                                    val memoryPrompt = agentDef?.let { def ->
+                                        kotlinx.coroutines.runBlocking {
+                                            AgentMemoryManager(memoryRepository).loadMemoryPrompt(def)
                                         }
+                                    } ?: ""
+                                    if (memoryPrompt.isNotBlank()) {
+                                        appendLine(memoryPrompt)
                                         appendLine()
                                     }
                                     appendLine("Goal: $goal")
