@@ -64,6 +64,16 @@ import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
+import me.rerere.rikkahub.data.ai.tools.createWebFetchTool
+import me.rerere.rikkahub.data.ai.tools.createSleepTool
+import me.rerere.rikkahub.data.ai.tools.createCalculatorTool
+import me.rerere.rikkahub.data.ai.tools.createTaskTools
+import me.rerere.rikkahub.data.ai.tools.createToolSearchTool
+import me.rerere.rikkahub.data.ai.tools.createPlanModeTools
+import me.rerere.rikkahub.data.ai.tools.ToolRegistry
+import me.rerere.rikkahub.data.ai.tools.createMcpResourceTools
+import me.rerere.rikkahub.data.ai.worker.createWorkerTools
+import me.rerere.rikkahub.data.ai.worker.WorkerManager
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createAssetTool
 import me.rerere.rikkahub.data.ai.tools.createDataProcessTool
@@ -168,6 +178,7 @@ class ChatService(
     private val database: AppDatabase by lazy {
         KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java)
     }
+    private val workerManager: WorkerManager by lazy { WorkerManager(appScope) }
 
     // 错误状态
     private val _errors = MutableStateFlow<List<ChatError>>(emptyList())
@@ -582,6 +593,7 @@ class ChatService(
                     }
                     if (settings.enableWebSearch) {
                         addAll(createSearchTools(settings))
+                        add(createWebFetchTool())
                     }
                     addAll(localTools.getTools(assistant.localTools))
                     if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
@@ -598,6 +610,9 @@ class ChatService(
                     }
                     if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) {
                         add(createDatabaseQueryTool(database))
+                    }
+                    if (assistant.localTools.contains(LocalToolOption.Calculator)) {
+                        add(createCalculatorTool())
                     }
                     if (assistant.enabledSkills.isNotEmpty()) {
                         addAll(
@@ -621,6 +636,11 @@ class ChatService(
                             )
                         )
                     }
+                    if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
+                    if (assistant.localTools.contains(LocalToolOption.TaskTools)) addAll(createTaskTools())
+                    if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
+                    if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
+                    if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))
                     if (assistant.enableSubAgent) {
                         add(
                             Tool(
