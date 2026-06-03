@@ -90,6 +90,8 @@ import me.rerere.rikkahub.data.ai.tools.AgentRegistry
 import me.rerere.rikkahub.data.ai.agent.AgentMemoryManager
 import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
 import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
+import me.rerere.rikkahub.data.ai.agent.AgentRunner
+import me.rerere.rikkahub.data.ai.agent.AgentEventBus
 import me.rerere.rikkahub.data.ai.hooks.HookRegistry
 import me.rerere.rikkahub.data.ai.hooks.SafetyHook
 import me.rerere.rikkahub.data.ai.worker.WorkerManager
@@ -585,11 +587,18 @@ class ChatService(
                                     appendLine("When done, summarize what was accomplished.")
                                 }
 
-                                // Define the agent execution function (shared by sync and background modes)
-                                suspend fun runAgent(): List<UIMessagePart> {
-
-                                // Tool loop (max N rounds, no refunds)
-                                val messages = mutableListOf(UIMessage.user(prompt))
+                                // Execute via AgentRunner (lifecycle + context + events + summary)
+                                AgentRunner.run(
+                                    agentDef = agentDef,
+                                    agentCallId = agentCallId,
+                                    prompt = prompt,
+                                    subTools = subTools,
+                                    runInBackground = runInBackground,
+                                    agentType = agentType,
+                                    description = taskDesc.ifBlank { goal.take(50) },
+                                ) {
+                                    // Tool loop (max N rounds)
+                                    val messages = mutableListOf(UIMessage.user(prompt))
                                     var finalText = ""
                                     var remainingSteps = assistant.subAgentMaxSteps
                                     val stepLog = StringBuilder()
@@ -598,73 +607,70 @@ class ChatService(
                                         remainingSteps--
 
                                         try {
-                                        // Show real-time progress in UI (不覆盖主Agent状态，只追加)
-                                        val stepNum = stepLog.count { it == '\n' } + 1
-                                        val currentStatus = session.processingStatus.value
-                                        session.processingStatus.value = currentStatus + " | 子Agent: 第${stepNum}步..."
+                                            val stepNum = stepLog.count { it == '\n' } + 1
+                                            val currentStatus = session.processingStatus.value
+                                            session.processingStatus.value = currentStatus + " | 子Agent: 第${stepNum}步..."
 
-                                        val chunk = providerImpl.generateText(
-                                            providerSetting = providerSetting,
-                                            messages = messages,
-                                            params = me.rerere.ai.provider.TextGenerationParams(
-                                                model = subModel,
-                                                tools = subTools,
-                                                reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
-                                            ),
-                                        )
+                                            val chunk = providerImpl.generateText(
+                                                providerSetting = providerSetting,
+                                                messages = messages,
+                                                params = me.rerere.ai.provider.TextGenerationParams(
+                                                    model = subModel,
+                                                    tools = subTools,
+                                                    reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                                                ),
+                                            )
 
-                                        val assistantMsg = chunk.choices.firstOrNull()?.message
-                                        if (assistantMsg == null) break
+                                            val assistantMsg = chunk.choices.firstOrNull()?.message
+                                            if (assistantMsg == null) break
 
-                                        // Save any assistant text content for fallback
-                                        val assistantText = assistantMsg.toText()
-                                        val toolCalls = assistantMsg.getTools()
-                                            .filter { !it.isExecuted }
+                                            val assistantText = assistantMsg.toText()
+                                            val toolCalls = assistantMsg.getTools()
+                                                .filter { !it.isExecuted }
 
-                                        if (toolCalls.isEmpty()) {
-                                            // No tool calls — done
-                                            finalText = assistantText
-                                            stepLog.appendLine("→ 分析完成，生成回答")
-                                            break
-                                        }
+                                            if (toolCalls.isEmpty()) {
+                                                finalText = assistantText
+                                                stepLog.appendLine("→ 分析完成，生成回答")
+                                                break
+                                            }
 
-                                        // Log tool calls for this step
-                                        stepLog.append("→ 第${stepNum}步：")
-                                        stepLog.appendLine(toolCalls.joinToString("、") { tc ->
-                                            val args = tc.input.ifBlank { "{}" }
-                                            "${tc.toolName}(${args.take(40)})"
-                                        })
-                                        session.processingStatus.value = "子Agent: 调${toolCalls.first().toolName}..."
+                                            stepLog.append("→ 第${stepNum}步：")
+                                            stepLog.appendLine(toolCalls.joinToString("、") { tc ->
+                                                val args = tc.input.ifBlank { "{}" }
+                                                "${tc.toolName}(${args.take(40)})"
+                                            })
+                                            session.processingStatus.value = "子Agent: 调${toolCalls.first().toolName}..."
 
-                                        // Execute tools
-                                        val executedTools = toolCalls.map { toolCall ->
-                                            AgentTaskTracker.recordToolUse(agentCallId, toolCall.toolName, toolCall.toolName)
-                                            val toolDef = subTools.find { it.name == toolCall.toolName }
-                                            if (toolDef == null) {
-                                                toolCall.copy(
-                                                    output = listOf(UIMessagePart.Text("Error: tool ${toolCall.toolName} not found"))
-                                                )
-                                            } else {
-                                                val args = try {
-                                                    kotlinx.serialization.json.Json.parseToJsonElement(
-                                                        toolCall.input.ifBlank { "{}" }
-                                                    )
-                                                } catch (e: Exception) {
-                                                    error("Invalid arguments: ${e.message}")
+                                            // Emit tool use event
+                                            AgentEventBus.emit(me.rerere.rikkahub.data.ai.agent.AgentExecutionEvent(
+                                                agentId = agentCallId, agentType = agentType,
+                                                eventType = me.rerere.rikkahub.data.ai.agent.AgentEventType.TOOL_USE,
+                                                description = toolCalls.first().toolName,
+                                            ))
+
+                                            val executedTools = toolCalls.map { toolCall ->
+                                                AgentTaskTracker.recordToolUse(agentCallId, toolCall.toolName, toolCall.toolName)
+                                                val toolDef = subTools.find { it.name == toolCall.toolName }
+                                                if (toolDef == null) {
+                                                    toolCall.copy(output = listOf(UIMessagePart.Text("Error: tool ${toolCall.toolName} not found")))
+                                                } else {
+                                                    val args = try {
+                                                        kotlinx.serialization.json.Json.parseToJsonElement(toolCall.input.ifBlank { "{}" })
+                                                    } catch (e: Exception) {
+                                                        error("Invalid arguments: ${e.message}")
+                                                    }
+                                                    val result = toolDef.execute(args)
+                                                    toolCall.copy(output = result)
                                                 }
-                                                val result = toolDef.execute(args)
-                                                toolCall.copy(output = result)
                                             }
-                                        }
 
-                                        // Append assistant message (with tool calls) + tool results
-                                        messages.add(assistantMsg.copy(
-                                            parts = assistantMsg.parts.map { part ->
-                                                if (part is UIMessagePart.Tool) {
-                                                    executedTools.find { it.toolCallId == part.toolCallId } ?: part
-                                                } else part
-                                            }
-                                        ))
+                                            messages.add(assistantMsg.copy(
+                                                parts = assistantMsg.parts.map { part ->
+                                                    if (part is UIMessagePart.Tool) {
+                                                        executedTools.find { it.toolCallId == part.toolCallId } ?: part
+                                                    } else part
+                                                }
+                                            ))
                                         } catch (e: Exception) {
                                             laneTracker.failed(e.message ?: e.javaClass.simpleName)
                                             stepLog.appendLine("→ 错误: ${e.message?.take(100) ?: e.javaClass.simpleName}")
@@ -673,12 +679,10 @@ class ChatService(
                                         }
                                     }
 
-                                    // Fallback: if loop ended without text, extract from most recent message
                                     if (finalText.isBlank()) {
                                         finalText = messages.lastOrNull()?.toText()?.takeIf { it.isNotBlank() } ?: ""
                                     }
 
-                                    // Prepend step log to final output
                                     val outputText = if (stepLog.isNotEmpty()) {
                                         stepLog.appendLine()
                                         stepLog.append(finalText)
@@ -687,36 +691,9 @@ class ChatService(
                                         finalText
                                     }
 
-                                    // End agent session tracking
                                     AgentTaskTracker.endSession(agentCallId)
-
-                                    // Restore main agent status
-
-                                    // 在最终返回值前标记 LaneTracker 完成
-                                    laneTracker.finished("Sub-agent completed")
-
-                                    // 恢复主Agent状态，清除子Agent残留文字
                                     session.processingStatus.value = preSubStatus
-                                    return@runAgent listOf(UIMessagePart.Text(outputText))
-                                }
-
-                                // Execute: sync or background
-                                if (runInBackground) {
-                                    appScope.launch {
-                                        runAgent()
-                                        if (!teamName.isNullOrBlank()) {
-                                            TaskManager.listTasks().lastOrNull()?.let {
-                                                TaskManager.updateTask(it.id, me.rerere.rikkahub.data.ai.tools.TaskStatus.COMPLETED)
-                                            }
-                                        }
-                                    }
-                                    listOf(UIMessagePart.Text(buildJsonObject {
-                                        put("status", "async_launched")
-                                        put("agent_id", agentCallId)
-                                        put("goal", goal)
-                                    }.toString()))
-                                } else {
-                                    runAgent()
+                                    listOf(UIMessagePart.Text(outputText))
                                 }
                             },
                             )
