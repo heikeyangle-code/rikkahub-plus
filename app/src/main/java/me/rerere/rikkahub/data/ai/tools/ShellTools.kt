@@ -22,14 +22,25 @@ fun createShellTools(): List<Tool> {
     return listOf(
         Tool(
             name = "execute_command",
-            description = """
-                Execute a shell command on the Android device. Use file_read/write/list/copy/move for file operations.
-                DO NOT use for reading/writing/listing files — use the file_* tools instead.
-                Returns stdout, stderr, and exit code as a JSON object.
-                Commands run in the app's sandbox — no root, no system-wide access.
-                Use for: logcat, device info, grep, zip.
-                Avoid: interactive commands (they will hang), long-running commands (30s timeout).
-            """.trimIndent().replace("\n", " "),
+                        description = "Executes a shell command on the Android device and returns its output.\n\n" +
+                "The shell environment is the standard Android shell (sh). The working directory persists between commands, but shell state does not.\n\n" +
+                "IMPORTANT: Avoid using this tool for file operations — use dedicated tools instead:\n" +
+                "- Read files: file_read (NOT cat/head/tail)\n" +
+                "- Write files: file_write (NOT echo/cat/heredoc)\n" +
+                "- List directories: file_list (NOT ls)\n" +
+                "- Search files: file_search (NOT grep/find)\n\n" +
+                "Use execute_command for:\n" +
+                "- logcat -d to read device logs\n" +
+                "- pm, dumpsys, am for Android diagnostics\n" +
+                "- git operations\n" +
+                "- zip/unzip for archives\n" +
+                "- Running build scripts or tools\n" +
+                "- Any operation that has no dedicated tool\n\n" +
+                "Limitations:\n" +
+                "- Interactive commands will hang. Do not use commands that need stdin\n" +
+                "- Commands timeout after 30 seconds by default; specify custom timeout\n" +
+                "- Working directory is the app's data directory\n" +
+                "- Avoid unnecessary sleep commands — diagnose root cause instead",
             needsApproval = false,
             parameters = {
                 InputSchema.Obj(

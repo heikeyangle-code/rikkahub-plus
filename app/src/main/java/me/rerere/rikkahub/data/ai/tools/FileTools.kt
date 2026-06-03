@@ -147,7 +147,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         // ── file_list ──
         Tool(
             name = "file_list",
-            description = "List files and directories. Default: ${defaultDir}/. Only use when the user explicitly asks about files or directories. Do NOT use to browse or explore the filesystem searching for content — use use_skill for skills and other specific tools for their domains.",
+            description = "List files and directories in the local filesystem. Use this when you need to:\n- See what files exist in a directory\n- Find files by browsing rather than searching\n- Verify the parent directory exists before writing\n\nUsage:\n- Shows file names with size and type info\n- Use file_search for pattern-based file finding\n- Prefer this over execute_command with ls for directory listing",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {

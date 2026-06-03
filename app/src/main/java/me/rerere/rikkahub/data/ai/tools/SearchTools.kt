@@ -21,23 +21,19 @@ fun createSearchTools(settings: Settings): Set<Tool> {
         add(
             Tool(
                 name = "search_web",
-                description = """
-                    Search the web for up-to-date or specific information.
-                    Generate focused keywords and run multiple searches if needed.
-                    Today is ${LocalDate.now().toLocalString(true)}.
-
-                    Response format:
-                    - items[].id (short id), title, url, text
-
-                    Citations:
-                    - After using results, add `[citation,domain](id)` after the sentence.
-                    - Multiple citations are allowed.
-                    - If no results are cited, omit citations.
-
-                    Example:
-                    The capital of France is Paris. [citation,example.com](abc123)
-                    The population is about 2.1 million. [citation,example.com](abc123) [citation,example2.com](def456)
-                    """.trimIndent(),
+                                description = "Search the web for up-to-date information and use the results to inform responses.\n\n" +
+                    "- Provides up-to-date information for current events and recent data\n" +
+                    "- Returns search result information with titles, URLs, and snippets\n" +
+                    "- Use this tool for accessing information beyond your knowledge cutoff\n" +
+                    "- Today is ${LocalDate.now().toLocalString(true)}.\n\n" +
+                    "CRITICAL REQUIREMENT - You MUST follow this:\n" +
+                    "  - After using search results, you MUST include a \"Sources:\" section\n" +
+                    "  - Format: [citation,domain](id) after each cited sentence\n" +
+                    "  - Example: The capital of France is Paris. [citation,example.com](abc123)\n" +
+                    "  - This is MANDATORY - never skip citing sources\n\n" +
+                    "Usage notes:\n" +
+                    "  - Generate focused keywords and run multiple searches if needed\n" +
+                    "  - Use the current date (provided above) for time-sensitive queries'',,
                 parameters = {
                     val options = settings.searchServices.getOrElse(
                         index = settings.searchServiceSelected,

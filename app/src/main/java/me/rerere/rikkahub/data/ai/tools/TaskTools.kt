@@ -167,7 +167,7 @@ object TaskManager {
 }
 
 fun createTaskTools(): List<Tool> = listOf(
-    Tool(name = "task_create", description = "Create a new task for tracking. Use for complex multi-step tasks.",
+    Tool(name = "task_create", description = "Create a new task in the task list. Use for complex multi-step tasks (3+ steps).\n\nWhen to Use:\n- Complex multi-step tasks requiring 3+ steps\n- Non-trivial tasks requiring careful planning\n- User explicitly requests todo list\n- User provides multiple tasks\n- After receiving new instructions\n\nWhen NOT to Use:\n- Single straightforward task\n- Trivial tasks with no organizational benefit\n- Purely conversational requests\n\nTasks created with status pending. Use task_update to change status.",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("subject", buildJsonObject { put("type", "string"); put("description", "Task title") })
@@ -185,7 +185,7 @@ fun createTaskTools(): List<Tool> = listOf(
             listOf(UIMessagePart.Text("[${task.id}] created: ${task.subject}"))
         },
     ),
-    Tool(name = "task_get", description = "Get details of a task by ID.", permissionMode = PermissionMode.READ_ONLY,
+    Tool(name = "task_get", description = "Get details of a task by ID. Returns the full task including status, description, owner, and dependencies.", permissionMode = PermissionMode.READ_ONLY,
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
@@ -196,7 +196,7 @@ fun createTaskTools(): List<Tool> = listOf(
             listOf(UIMessagePart.Text(TaskManager.taskOutput(id) ?: error("Task $id not found")))
         },
     ),
-    Tool(name = "task_list", description = "List all tasks, optionally filtered.", permissionMode = PermissionMode.READ_ONLY,
+    Tool(name = "task_list", description = "List all tasks, optionally filtered by status or owner. Shows task IDs, subjects, statuses, and owners.", permissionMode = PermissionMode.READ_ONLY,
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed"); add("failed"); add("cancelled") }) })
@@ -217,7 +217,7 @@ fun createTaskTools(): List<Tool> = listOf(
             }))
         },
     ),
-    Tool(name = "task_update", description = "Update a task status, owner, or dependencies.",
+    Tool(name = "task_update", description = "Update a task: change status, owner, or dependencies.\n\nUpdate status to in_progress BEFORE starting work.\nMark completed AFTER finishing.\nSet up dependencies with dependsOn.\nOnly ONE task should be in_progress at a time.",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
@@ -247,7 +247,7 @@ fun createTaskTools(): List<Tool> = listOf(
             listOf(UIMessagePart.Text("[${task.id}] updated: ${task.status.name.lowercase()}"))
         },
     ),
-    Tool(name = "task_stop", description = "Cancel a task.",
+    Tool(name = "task_stop", description = "Cancel/stop a running task. Use to abandon a task that is no longer needed.",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
@@ -259,7 +259,7 @@ fun createTaskTools(): List<Tool> = listOf(
             listOf(UIMessagePart.Text("Task $id stopped"))
         },
     ),
-    Tool(name = "task_output", description = "Get task result/output.", permissionMode = PermissionMode.READ_ONLY,
+    Tool(name = "task_output", description = "Get the result or output of a completed/failed task.", permissionMode = PermissionMode.READ_ONLY,
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
@@ -270,7 +270,7 @@ fun createTaskTools(): List<Tool> = listOf(
             listOf(UIMessagePart.Text(TaskManager.taskOutput(id) ?: error("Task $id not found")))
         },
     ),
-    Tool(name = "todo_write", description = "Create a lightweight todo list.",
+    Tool(name = "todo_write", description = "Create and manage a lightweight todo list for the current session.\n\nUnlike task_create, todos are simpler and do not create Task objects.\n\nWhen to Use:\n- Quick checklist for simple multi-step tasks\n- Tracking progress in the current session\n- User provides a list of items to do\n\nWhen NOT to Use:\n- Single straightforward task\n- Use task_create for complex tasks with dependencies\n\nTask descriptions must have two forms:\n- content: Imperative form\n- activeForm: Present continuous form",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("todos", buildJsonObject {
@@ -295,7 +295,7 @@ fun createTaskTools(): List<Tool> = listOf(
             listOf(UIMessagePart.Text(results.joinToString("\n")))
         },
     ),
-    Tool(name = "team_create", description = "Create a new team for coordinating multiple agents.\n        The team name must be unique — creating a duplicate name overwrites the existing team.",
+    Tool(name = "team_create", description = "Create a new team for coordinating multiple agents. The team name must be unique — creating a duplicate name overwrites the existing team.",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("team_name", buildJsonObject { put("type", "string"); put("description", "Name for the new team") })
@@ -320,7 +320,7 @@ fun createTaskTools(): List<Tool> = listOf(
             TaskManager.deleteTeam(name); listOf(UIMessagePart.Text("Team '$name' deleted"))
         },
     ),
-    Tool(name = "send_message", description = "Send a message to another agent.",
+    Tool(name = "send_message", description = "Send a message to another agent by name. Used for inter-agent communication. The recipient must have been spawned with a name parameter.",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("to", buildJsonObject { put("type", "string"); put("description", "Target agent name, or '*' for broadcast") })

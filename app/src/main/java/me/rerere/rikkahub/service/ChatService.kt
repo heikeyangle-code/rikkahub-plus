@@ -81,6 +81,7 @@ import me.rerere.rikkahub.data.ai.tools.createDatabaseQueryTool
 import me.rerere.rikkahub.data.ai.tools.createTaskTools
 import me.rerere.rikkahub.data.ai.tools.createToolSearchTool
 import me.rerere.rikkahub.data.ai.tools.createPlanModeTools
+import me.rerere.rikkahub.data.ai.tools.createSleepTool
 import me.rerere.rikkahub.data.ai.tools.createCalculatorTool
 import me.rerere.rikkahub.data.ai.tools.createMcpResourceTools
 import me.rerere.rikkahub.data.ai.tools.ToolRegistry
@@ -545,6 +546,7 @@ class ChatService(
                                         addAll(createFileTools(skillDirs))
                                     }
                                     addAll(localTools.getTools(listOf(LocalToolOption.TimeInfo)))
+                                    add(createSleepTool())
                                 }
 
                                 // Agent's tool whitelist/blacklist
