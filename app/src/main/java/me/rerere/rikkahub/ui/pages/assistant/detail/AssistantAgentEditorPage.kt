@@ -53,6 +53,7 @@ import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.context.LocalNavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -465,7 +466,7 @@ fun AssistantAgentEditorPage(
                         val validation = validateAgent(agentDef)
                         if (validation.isValid) {
                             AgentRegistry.register(agentDef)
-                            onBack()
+                            LocalNavController.current.popBackStack()
                         } else {
                             validationResult = validation
                         }
@@ -506,7 +507,7 @@ fun AssistantAgentEditorPage(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("删除 Agent") },
             text = { Text("确定删除 \"$editAgentType\"？此操作不可撤销。") },
-            confirmButton = { TextButton(onClick = { AgentRegistry.delete(editAgentType); showDeleteConfirm = false; onBack() }) { Text("删除", color = MaterialTheme.colorScheme.error) } },
+            confirmButton = { TextButton(onClick = { AgentRegistry.delete(editAgentType); showDeleteConfirm = false; LocalNavController.current.popBackStack() }) { Text("删除", color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("取消") } },
         )
     }

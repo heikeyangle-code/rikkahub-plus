@@ -215,7 +215,7 @@ fun enqueueAgentNotification(
     agentId: String,
     agentType: String,
     description: String,
-    status: AgentLifecycleStatus,
+    status: AgentLifecycleManager.AgentLifecycleStatus,
     summary: String? = null,
     result: String? = null,
     error: String? = null,
