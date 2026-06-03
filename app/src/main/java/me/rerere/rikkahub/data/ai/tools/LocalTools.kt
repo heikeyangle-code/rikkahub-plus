@@ -25,6 +25,9 @@ import java.time.ZonedDateTime
 import java.time.format.TextStyle
 import java.util.Locale
 
+/**
+ * 清理 present_file 在 cache 目录留下的 shared_ 前缀缓存文件
+ */
 private fun cleanupPresentFileCache(cacheDir: File) {
     try {
         cacheDir.listFiles()
@@ -401,6 +404,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 if (!file.exists()) error("File not found: $path")
                 if (!file.canRead()) error("Cannot read file: $path")
 
+                // Copy to cache dir for FileProvider sharing
                 val cacheFile = File(context.cacheDir, "shared_" + file.name)
                 cacheFile.parentFile?.mkdirs()
                 file.copyTo(cacheFile, overwrite = true)
@@ -423,6 +427,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                     }
                 )
 
+                // 清理旧缓存文件
                 cleanupPresentFileCache(context.cacheDir)
 
                 val payload = buildJsonObject {

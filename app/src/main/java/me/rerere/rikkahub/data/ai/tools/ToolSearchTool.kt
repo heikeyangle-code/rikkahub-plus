@@ -18,7 +18,6 @@ object ToolRegistry {
     )
 
     private val tools = ConcurrentHashMap<String, ToolInfo>()
-    private val toolsLock = Any()
 
     fun register(name: String, description: String, category: String = "其他", enabled: Boolean = true) {
         tools[name] = ToolInfo(name, description, category, enabled)
