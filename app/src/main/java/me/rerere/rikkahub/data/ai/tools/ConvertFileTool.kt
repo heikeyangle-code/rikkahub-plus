@@ -12,6 +12,11 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.python.PythonBridge
+import me.rerere.rikkahub.data.db.AppDatabase
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
+import me.rerere.rikkahub.data.repository.ConversationRepository
+import org.koin.java.KoinJavaComponent
 import java.io.File
 
 fun createConvertFileTool(context: Context): Tool = Tool(

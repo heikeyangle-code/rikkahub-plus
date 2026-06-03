@@ -801,9 +801,9 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         finalText
                                     }
 
-                                    listOf(UIMessagePart.Text(outputText))
                                     // 恢复主Agent状态，清除子Agent残留文字
                                     session.processingStatus.value = preSubStatus
+                                    listOf(UIMessagePart.Text(outputText))
                                 },
                             )
                         )
