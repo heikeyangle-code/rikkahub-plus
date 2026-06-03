@@ -501,7 +501,7 @@ if (skill.mcpServers.isNotEmpty()) {
                             vm.setUpdating(true)
                             val toUpdate = selectedForUpdate.map { scannedForUpdate[it] }
                             // 逐个更新（仅选中的）
-                            updateNext(0, toUpdate, skillsVM, vm, toaster)
+                            updateNext(0, toUpdate, skillsVM, vm, toaster, updateRepoUrl)
                         }
                     },
                     enabled = selectedForUpdate.isNotEmpty() && !updating,
@@ -524,6 +524,7 @@ private fun updateNext(
     skillsVM: SkillsVM,
     detailVM: SkillDetailVM,
     toaster: com.dokar.sonner.ToasterState,
+    repoUrl: String = "",
 ) {
     if (index >= skills.size) {
         detailVM.setUpdating(false)
@@ -532,12 +533,27 @@ private fun updateNext(
         toaster.show("更新完成: ${skills.size} 个")
         return
     }
-    skillsVM.updateSkillFromGitHub(skills[index].name) { ok, msg ->
-        if (ok) {
-            updateNext(index + 1, skills, skillsVM, detailVM, toaster)
-        } else {
-            detailVM.setUpdating(false)
-            toaster.show("更新失败: $msg")
+    val skill = skills[index]
+    if (skill.isNew) {
+        // 新增（未安装）skill → 走安装路径
+        val fullUrl = if (repoUrl.startsWith("http")) repoUrl else "https://github.com/$repoUrl"
+        skillsVM.downloadSkillFromGitHub(fullUrl, skill) { ok, msg ->
+            if (ok) {
+                updateNext(index + 1, skills, skillsVM, detailVM, toaster, repoUrl)
+            } else {
+                detailVM.setUpdating(false)
+                toaster.show("安装失败: $msg")
+            }
+        }
+    } else {
+        // 已安装 skill → 走更新路径
+        skillsVM.updateSkillFromGitHub(skill.name) { ok, msg ->
+            if (ok) {
+                updateNext(index + 1, skills, skillsVM, detailVM, toaster, repoUrl)
+            } else {
+                detailVM.setUpdating(false)
+                toaster.show("更新失败: $msg")
+            }
         }
     }
 }

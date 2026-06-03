@@ -361,6 +361,10 @@ class SkillsVM(
                     return@launch
                 }
 
+                // 本地已安装列表和安装源信息
+                val installedNames = skillManager.listSkills().map { it.name }.toSet()
+                val sourceRepoUrl = repoUrl.trimEnd('/').substringBefore("/tree/")
+
                 // 并发下载每个 SKILL.md 获取 name/description
                 val results = coroutineScope {
                     filteredPaths.map { mdPath ->
@@ -371,7 +375,20 @@ class SkillsVM(
                             val fm = SkillFrontmatterParser.parse(content)
                             val name = fm["name"] ?: dirPath.split("/").last().ifBlank { "unknown" }
                             val desc = fm["description"] ?: ""
-                            GitHubSkillInfo(name, desc, dirPath, mdPath)
+                            val locallyInstalled = name in installedNames
+                            val installedSource = if (locallyInstalled) getSkillSource(name) else null
+                            val fromSameRepo = installedSource?.repoUrl == sourceRepoUrl
+                            // 目录哈希对比，检测是否有更新
+                            val newDirHash = computeDirHash(tree, dirPath)
+                            val hasUpdate = fromSameRepo && installedSource != null &&
+                                    installedSource.skillShas[name] != newDirHash
+                            val isNew = !locallyInstalled
+                            GitHubSkillInfo(
+                                name = name, description = desc,
+                                dirPath = dirPath, mdPath = mdPath,
+                                blobSha = newDirHash,
+                                hasUpdate = hasUpdate, isNew = isNew,
+                            )
                         }
                     }.awaitAll()
                 }

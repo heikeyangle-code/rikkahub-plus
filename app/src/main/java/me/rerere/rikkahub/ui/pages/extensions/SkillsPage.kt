@@ -683,7 +683,30 @@ fun SkillsPage() {
                                     }
                                     Spacer(Modifier.width(10.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(skill.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(skill.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                            if (skill.hasUpdate) {
+                                                Spacer(Modifier.width(6.dp))
+                                                Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.errorContainer) {
+                                                    Text("可更新", modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                                                }
+                                            }
+                                            if (!skill.isNew && !skill.hasUpdate) {
+                                                Spacer(Modifier.width(6.dp))
+                                                Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                                                    Text("已安装", modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                                }
+                                            }
+                                            if (skill.isNew) {
+                                                Spacer(Modifier.width(6.dp))
+                                                Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
+                                                    Text("新增", modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                                                }
+                                            }
+                                        }
                                         if (skill.description.isNotBlank()) {
                                             Text(skill.description, style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3)
