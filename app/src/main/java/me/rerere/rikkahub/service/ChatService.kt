@@ -392,8 +392,16 @@ class ChatService(
                     if (assistant.enableSubAgent) addAll(createWorkerTools(workerManager))
                     // sub_agent preserved from original implementation
                     if (assistant.enableSubAgent) {
-                        add(Tool(name = "sub_agent",
-                            description = "Delegate a focused subtask to a sub-agent. Only main agent should call this.",
+                        add(Tool(name = "sub_agent", description = "Delegate a focused subtask to a sub-agent.",
+                            needsApproval = false, parameters = {
+                                InputSchema.Obj(properties = buildJsonObject {
+                                    put("goal", buildJsonObject { put("type", "string"); put("description", "What to accomplish") })
+                                    put("context", buildJsonObject { put("type", "string"); put("description", "Background context") })
+                                    put("role", buildJsonObject { put("type", "string"); put("description", "Optional role") })
+                                    put("fork", buildJsonObject { put("type", "boolean"); put("description", "Async fork") })
+                                    put("name", buildJsonObject { put("type", "string"); put("description", "Fork name") })
+                                }, required = listOf("goal"))
+                            },
                             needsApproval = false,
                             parameters = {
                                 InputSchema.Obj(properties = buildJsonObject {
