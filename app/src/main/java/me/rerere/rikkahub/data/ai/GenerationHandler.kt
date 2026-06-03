@@ -662,7 +662,32 @@ private suspend fun executeToolCall(
                 error("Invalid tool arguments JSON for ${tool.toolName}: ${it.message}")
             }
             Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
+
+            // Pre-tool check via AgentEventBus (SafetyHook — blocking with reply)
+            val reply = kotlinx.coroutines.CompletableDeferred<Boolean>()
+            kotlinx.coroutines.coroutineScope {
+                launch {
+                    me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
+                        me.rerere.rikkahub.data.ai.listener.AgentEvent.PreToolCheck(toolDef, args, reply)
+                    )
+                }
+            }
+            val allowed = reply.await()
+            if (!allowed) {
+                return tool.copy(output = listOf(UIMessagePart.Text(
+                    json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Tool blocked by safety check")) })
+                )))
+            }
+
             val result = toolDef.execute(args)
+
+            // Post-tool notification (fire-and-forget)
+            launch {
+                me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
+                    me.rerere.rikkahub.data.ai.listener.AgentEvent.PostToolNotify(toolDef, args, result)
+                )
+            }
+
             tool.copy(output = result)
         }
     }

@@ -60,6 +60,11 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.listener.AgentEvent
+import me.rerere.rikkahub.data.ai.listener.AgentEventBus
+import me.rerere.rikkahub.data.ai.listener.AgentService
+import me.rerere.rikkahub.data.ai.session.SessionStore
+import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
@@ -74,6 +79,20 @@ import me.rerere.rikkahub.data.ai.tools.ToolRegistry
 import me.rerere.rikkahub.data.ai.tools.createMcpResourceTools
 import me.rerere.rikkahub.data.ai.worker.createWorkerTools
 import me.rerere.rikkahub.data.ai.worker.WorkerManager
+import me.rerere.rikkahub.data.ai.tools.AgentRegistry
+import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
+import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
+import me.rerere.rikkahub.data.ai.agent.AgentRunner
+import me.rerere.rikkahub.data.ai.agent.AgentMemoryManager
+import me.rerere.rikkahub.data.ai.lane.LaneTracker
+import me.rerere.rikkahub.data.ai.tools.TaskManager
+import me.rerere.rikkahub.data.ai.tools.isToolAllowed
+import me.rerere.rikkahub.data.ai.tools.createSleepTool
+import me.rerere.rikkahub.data.ai.tools.AgentColor
+import me.rerere.rikkahub.data.ai.agent.AgentExecutionEvent
+import me.rerere.rikkahub.data.ai.agent.AgentEventType
+import me.rerere.rikkahub.data.ai.agent.AgentEventBus
+import me.rerere.rikkahub.data.ai.tools.formatAgentTools
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createAssetTool
 import me.rerere.rikkahub.data.ai.tools.createDataProcessTool
@@ -179,6 +198,11 @@ class ChatService(
         KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java)
     }
     private val workerManager: WorkerManager by lazy { WorkerManager(appScope) }
+    private val autoCompactor: AutoCompactor by lazy { AutoCompactor() }
+    private val sessionStore: SessionStore by lazy { SessionStore(context) }
+    private val agentService: AgentService by lazy {
+        AgentService(appScope, autoCompactor, sessionStore)
+    }
 
     // 错误状态
     private val _errors = MutableStateFlow<List<ChatError>>(emptyList())
@@ -519,6 +543,12 @@ class ChatService(
             ?: settings.getCurrentAssistant()
         val model = settings.findModelById(assistant.chatModelId ?: settings.chatModelId) ?: return
 
+        // Fire-and-forget: 通知 AgentService 生成开始
+        launch {
+            val msgs = getConversationFlow(conversationId).value.currentMessages
+            AgentEventBus.emit(AgentEvent.GenerationStarted(conversationId, msgs))
+        }
+
         val senderName = if (assistant.useAssistantAvatar) {
             assistant.name.ifEmpty { context.getString(R.string.assistant_page_default_assistant) }
         } else {
@@ -645,25 +675,46 @@ class ChatService(
                         add(
                             Tool(
                                 name = "sub_agent",
-                                description = """Delegate a focused subtask to a sub-agent.
-Only the main agent should call this — sub-agents must NOT call sub_agent.
-The sub-agent runs a separate LLM call with no access to conversation history.
-Provide all needed context in the context parameter.""".trimIndent().replace("\n", " "),
+                                description = buildString {
+                                    append("Launch a specialized agent to handle a subtask. ")
+                                    append("Set subagent_type to pick a role or omit for general-purpose. ")
+                                    append("Use run_in_background=true for long-running tasks. ")
+                                    append("Available agents: ")
+                                    append(AgentRegistry.list().joinToString(", ") {
+                                        "${it.agentType} (${it.color.name.lowercase()}, ${it.description.take(40)})"
+                                    })
+                                }.replace("\n", " "),
                                 needsApproval = false,
                                 parameters = {
                                     InputSchema.Obj(
                                         properties = buildJsonObject {
                                             put("goal", buildJsonObject {
                                                 put("type", "string")
-                                                put("description", "What the sub-agent should accomplish. Be specific and self-contained.")
+                                                put("description", "What the agent should accomplish. Be specific and self-contained.")
                                             })
                                             put("context", buildJsonObject {
                                                 put("type", "string")
-                                                put("description", "Background information: code, data, text, etc. Do NOT put instructions here.")
+                                                put("description", "Background information: code, data, text, etc.")
                                             })
-                                            put("role", buildJsonObject {
+                                            put("subagent_type", buildJsonObject {
                                                 put("type", "string")
-                                                put("description", "Optional role for the sub-agent (e.g. 'code reviewer', 'researcher'). Default: general assistant.")
+                                                put("description", buildString {
+                                                    append("Agent role to use. Available: ")
+                                                    append(AgentRegistry.list().joinToString(", ") { it.agentType })
+                                                    append(". Default: general-purpose.")
+                                                })
+                                            })
+                                            put("model", buildJsonObject {
+                                                put("type", "string")
+                                                put("description", "Optional model override (e.g. model UUID). Uses default if omitted.")
+                                            })
+                                            put("run_in_background", buildJsonObject {
+                                                put("type", "boolean")
+                                                put("description", "Set to true to run this agent in the background. You will be notified when it completes.")
+                                            })
+                                            put("name", buildJsonObject {
+                                                put("type", "string")
+                                                put("description", "Optional name for the agent for display.")
                                             })
                                         },
                                         required = listOf("goal"),
@@ -674,16 +725,30 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                     val goal = obj["goal"]?.jsonPrimitive?.content
                                         ?: error("goal is required")
                                     val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
-                                    val role = obj["role"]?.jsonPrimitive?.contentOrNull ?: ""
+                                    val agentType = obj["subagent_type"]?.jsonPrimitive?.contentOrNull ?: "general-purpose"
+                                    val modelOverride = obj["model"]?.jsonPrimitive?.contentOrNull
+                                    val runInBackground = obj["run_in_background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+                                    val agentName = obj["name"]?.jsonPrimitive?.contentOrNull
+
+                                    // Load agent definition
+                                    val agentDef = AgentRegistry.get(agentType)
+                                    val agentCallId = agentName ?: "agent_${System.currentTimeMillis()}"
+
+                                    // Track progress
+                                    AgentTaskTracker.createSession(agentCallId)
 
                                     // 记住进入子Agent前的主Agent状态，退出后恢复
                                     val preSubStatus = session.processingStatus.value
 
                                     // Resolve model for sub-agent
-                                    val subModelId = assistant.subAgentModelId
+                                    val effectiveModelId = try {
+                                        modelOverride?.let { Uuid.parse(it) }
+                                    } catch (_: Exception) { null }
+                                        ?: agentDef?.modelId?.let { Uuid.parse(it) }
+                                        ?: assistant.subAgentModelId
                                         ?: assistant.chatModelId
                                         ?: settings.chatModelId
-                                    val subModel = settings.findModelById(subModelId)
+                                    val subModel = settings.findModelById(effectiveModelId)
                                         ?: error("Model not found for sub-agent")
                                     val providerSetting = subModel.findProvider(settings.providers)
                                         ?: error("Provider not found for model ${subModel.id}")
@@ -694,25 +759,45 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                     // Build curated tools for sub-agent
                                     val skillDirs = assistant.enabledSkills
                                         .mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
-                                    val subTools = buildList {
+                                    val allTools = buildList {
                                         if (settings.enableWebSearch) {
                                             addAll(createSearchTools(settings))
+                                            add(createWebFetchTool())
                                         }
                                         if (assistant.localTools.contains(LocalToolOption.FileTools)) {
-                                            addAll(
-                                                createFileTools(skillDirs)
-                                                    .filter { it.name in listOf("file_read", "file_write", "file_list") }
-                                            )
+                                            addAll(createFileTools(skillDirs))
                                         }
-                                        addAll(
-                                            localTools.getTools(listOf(LocalToolOption.TimeInfo))
-                                        )
+                                        addAll(localTools.getTools(listOf(LocalToolOption.TimeInfo)))
+                                        add(createSleepTool())
                                     }
 
-                                    // Build prompt
+                                    // Agent's tool whitelist/blacklist
+                                    val subTools = allTools.filter { tool ->
+                                        agentDef == null || isToolAllowed(agentDef, tool.name)
+                                    }
+
+                                    // Resolve system prompt
+                                    val resolvedSysPrompt = agentDef?.let { def ->
+                                        when (val sp = def.systemPrompt) {
+                                            is AgentSystemPrompt.Static -> sp.text
+                                            is AgentSystemPrompt.Dynamic -> sp.generator(def.agentType, def)
+                                        }
+                                    } ?: ""
+
+                                    // Build prompt with agent system prompt and memory
                                     val prompt = buildString {
-                                        if (role.isNotBlank()) {
-                                            appendLine("You are a $role.")
+                                        if (resolvedSysPrompt.isNotBlank()) {
+                                            appendLine(resolvedSysPrompt)
+                                            appendLine()
+                                        }
+                                        // Load agent memory via AgentMemoryManager
+                                        val memoryPrompt = agentDef?.let { def ->
+                                            kotlinx.coroutines.runBlocking {
+                                                AgentMemoryManager(memoryRepository).loadMemoryPrompt(def)
+                                            }
+                                        } ?: ""
+                                        if (memoryPrompt.isNotBlank()) {
+                                            appendLine(memoryPrompt)
                                             appendLine()
                                         }
                                         appendLine("Goal: $goal")
@@ -723,107 +808,58 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         appendLine()
                                         appendLine("You have access to tools. Use them when needed.")
                                         appendLine("After using tools, continue working until the goal is complete.")
+                                        appendLine("When done, summarize what was accomplished.")
                                     }
 
-                                    // Tool loop (max N rounds, no refunds)
-                                    val messages = mutableListOf(UIMessage.user(prompt))
-                                    var finalText = ""
-                                    var remainingSteps = assistant.subAgentMaxSteps
-                                    val stepLog = StringBuilder()
-
-                                    while (remainingSteps > 0) {
-                                        remainingSteps--
-
-                                        try {
-                                        // Show real-time progress in UI (不覆盖主Agent状态，只追加)
-                                        val stepNum = stepLog.count { it == '\n' } + 1
-                                        val currentStatus = session.processingStatus.value
-                                        session.processingStatus.value = currentStatus + " | 子Agent: 第${stepNum}步..."
-
-                                        val chunk = providerImpl.generateText(
-                                            providerSetting = providerSetting,
-                                            messages = messages,
-                                            params = me.rerere.ai.provider.TextGenerationParams(
-                                                model = subModel,
-                                                tools = subTools,
-                                                reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
-                                            ),
-                                        )
-
-                                        val assistantMsg = chunk.choices.firstOrNull()?.message
-                                        if (assistantMsg == null) break
-
-                                        // Save any assistant text content for fallback
-                                        val assistantText = assistantMsg.toText()
-                                        val toolCalls = assistantMsg.getTools()
-                                            .filter { !it.isExecuted }
-
-                                        if (toolCalls.isEmpty()) {
-                                            // No tool calls — done
-                                            finalText = assistantText
-                                            stepLog.appendLine("→ 分析完成，生成回答")
-                                            break
-                                        }
-
-                                        // Log tool calls for this step
-                                        stepLog.append("→ 第${stepNum}步：")
-                                        stepLog.appendLine(toolCalls.joinToString("、") { tc ->
-                                            val args = tc.input.ifBlank { "{}" }
-                                            "${tc.toolName}(${args.take(40)})"
-                                        })
-                                        session.processingStatus.value = "子Agent: 调${toolCalls.first().toolName}..."
-
-                                        // Execute tools
-                                        val executedTools = toolCalls.map { toolCall ->
-                                            val toolDef = subTools.find { it.name == toolCall.toolName }
-                                            if (toolDef == null) {
-                                                toolCall.copy(
-                                                    output = listOf(UIMessagePart.Text("Error: tool ${toolCall.toolName} not found"))
-                                                )
-                                            } else {
-                                                val args = try {
-                                                    kotlinx.serialization.json.Json.parseToJsonElement(
-                                                        toolCall.input.ifBlank { "{}" }
-                                                    )
-                                                } catch (e: Exception) {
-                                                    error("Invalid arguments: ${e.message}")
+                                    if (runInBackground) {
+                                        // 后台执行
+                                        appScope.launch {
+                                            runCatching {
+                                                AgentRunner.run(
+                                                    agentDef = agentDef,
+                                                    agentCallId = agentCallId,
+                                                    prompt = prompt,
+                                                    subTools = subTools,
+                                                    runInBackground = true,
+                                                    agentType = agentType,
+                                                    description = goal.take(50),
+                                                ) {
+                                                    executeSubAgentLoop(subModel, providerSetting, providerImpl, subTools, assistant, prompt)
                                                 }
-                                                val result = toolDef.execute(args)
-                                                toolCall.copy(output = result)
+                                            }.onFailure { e ->
+                                                Log.w("SubAgent", "Background agent failed: ${e.message}")
+                                                AgentTaskTracker.endSession(agentCallId)
                                             }
                                         }
-
-                                        // Append assistant message (with tool calls) + tool results
-                                        messages.add(assistantMsg.copy(
-                                            parts = assistantMsg.parts.map { part ->
-                                                if (part is UIMessagePart.Tool) {
-                                                    executedTools.find { it.toolCallId == part.toolCallId } ?: part
-                                                } else part
-                                            }
-                                        ))
-                                        } catch (e: Exception) {
-                                            stepLog.appendLine("→ 错误: ${e.message?.take(100) ?: e.javaClass.simpleName}")
-                                            break
-                                        }
-                                    }
-
-                                    // Fallback: if loop ended without text, extract from most recent message
-                                    if (finalText.isBlank()) {
-                                        finalText = messages.lastOrNull()?.toText()?.takeIf { it.isNotBlank() } ?: ""
-                                    }
-
-                                    // Prepend step log to final output
-                                    val outputText = if (stepLog.isNotEmpty()) {
-                                        stepLog.appendLine()
-                                        stepLog.append(finalText)
-                                        stepLog.toString()
+                                        session.processingStatus.value = preSubStatus
+                                        listOf(UIMessagePart.Text("{\"status\":\"running\",\"agentId\":\"$agentCallId\",\"message\":\"Agent '$agentType' started in background\"}"))
                                     } else {
-                                        finalText
+                                        // 前台执行
+                                        val laneTracker = LaneTracker()
+                                        laneTracker.started()
+                                        try {
+                                            val outputText = AgentRunner.run(
+                                                agentDef = agentDef,
+                                                agentCallId = agentCallId,
+                                                prompt = prompt,
+                                                subTools = subTools,
+                                                runInBackground = false,
+                                                agentType = agentType,
+                                                description = goal.take(50),
+                                            ) {
+                                                executeSubAgentLoop(subModel, providerSetting, providerImpl, subTools, assistant, prompt)
+                                            }
+                                            laneTracker.completed()
+                                            AgentTaskTracker.endSession(agentCallId)
+                                            session.processingStatus.value = preSubStatus
+                                            listOf(UIMessagePart.Text(outputText))
+                                        } catch (e: Exception) {
+                                            laneTracker.failed(e.message ?: e.javaClass.simpleName)
+                                            AgentTaskTracker.endSession(agentCallId)
+                                            session.processingStatus.value = preSubStatus
+                                            throw e
+                                        }
                                     }
-
-                                    // 恢复主Agent状态，清除子Agent残留文字
-                                    session.processingStatus.value = preSubStatus
-                                    listOf(UIMessagePart.Text(outputText))
                                 },
                             )
                         )
@@ -859,6 +895,9 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                             stopGenerationForeground()
                         }
 
+                        // Fire-and-forget: 通知 AgentService 轮次完成（触发 AutoCompactor）
+                        launch { AgentEventBus.emit(AgentEvent.GenerationRoundComplete(conversationId, chunk.messages)) }
+
                         // 如果应用不在前台，发送 Live Update 通知
                         if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration && settings.displaySetting.enableLiveUpdateNotification) {
                             sendLiveUpdateNotification(conversationId, chunk.messages, senderName)
@@ -885,6 +924,9 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
             launchWithConversationReference(conversationId) {
                 generateSuggestion(conversationId, finalConversation)
             }
+
+            // Fire-and-forget: 通知 AgentService 生成完成
+            launch { AgentEventBus.emit(AgentEvent.GenerationCompleted(conversationId, finalConversation.currentMessages)) }
         }
     }
 
@@ -1436,6 +1478,9 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
         } else {
             conversationRepo.updateConversation(updatedConversation)
         }
+
+        // Fire-and-forget: AgentService 异步处理
+        launch { AgentEventBus.emit(AgentEvent.ConversationModified(conversationId, updatedConversation)) }
     }
 
     // ---- 翻译消息 ----
@@ -1713,5 +1758,95 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
         job.cancel()
         runCatching { job.join() }
         finishInterruptedPendingTools(conversationId)
+    }
+
+    /**
+     * 子 Agent 执行循环。
+     * 被 AgentRunner.run() 调用，运行在子 Agent 上下文中。
+     */
+    private suspend fun executeSubAgentLoop(
+        subModel: me.rerere.ai.provider.Model,
+        providerSetting: me.rerere.ai.provider.ProviderSetting,
+        providerImpl: me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>,
+        subTools: List<Tool>,
+        assistant: Assistant,
+        prompt: String,
+    ): List<UIMessagePart> {
+        val messages = mutableListOf(UIMessage.user(prompt))
+        var finalText = ""
+        var remainingSteps = assistant.subAgentMaxSteps
+        val stepLog = StringBuilder()
+
+        while (remainingSteps > 0) {
+            remainingSteps--
+
+            try {
+                val stepNum = stepLog.count { it == '\n' } + 1
+                session.processingStatus.value = "子Agent: 第${stepNum}步..."
+
+                val chunk = providerImpl.generateText(
+                    providerSetting = providerSetting,
+                    messages = messages,
+                    params = me.rerere.ai.provider.TextGenerationParams(
+                        model = subModel,
+                        tools = subTools,
+                        reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                    ),
+                )
+
+                val assistantMsg = chunk.choices.firstOrNull()?.message ?: break
+                val assistantText = assistantMsg.toText()
+                val toolCalls = assistantMsg.getTools().filter { !it.isExecuted }
+
+                if (toolCalls.isEmpty()) {
+                    finalText = assistantText
+                    stepLog.appendLine("→ 分析完成")
+                    break
+                }
+
+                stepLog.append("→ 第${stepNum}步：")
+                stepLog.appendLine(toolCalls.joinToString("、") { tc ->
+                    "${tc.toolName}(${tc.input.take(40)})"
+                })
+                session.processingStatus.value = "子Agent: 调${toolCalls.first().toolName}..."
+
+                val executedTools = toolCalls.map { toolCall ->
+                    val toolDef = subTools.find { it.name == toolCall.toolName }
+                    if (toolDef == null) {
+                        toolCall.copy(output = listOf(UIMessagePart.Text("Error: tool ${toolCall.toolName} not found")))
+                    } else {
+                        val args = try {
+                            kotlinx.serialization.json.Json.parseToJsonElement(toolCall.input.ifBlank { "{}" })
+                        } catch (e: Exception) {
+                            error("Invalid args: ${e.message}")
+                        }
+                        val result = toolDef.execute(args)
+                        toolCall.copy(output = result)
+                    }
+                }
+
+                messages.add(assistantMsg.copy(
+                    parts = assistantMsg.parts.map { part ->
+                        if (part is UIMessagePart.Tool) executedTools.find { it.toolCallId == part.toolCallId } ?: part else part
+                    }
+                ))
+            } catch (e: Exception) {
+                stepLog.appendLine("→ 错误: ${e.message?.take(100)}")
+                break
+            }
+        }
+
+        if (finalText.isBlank()) {
+            finalText = messages.lastOrNull()?.toText()?.takeIf { it.isNotBlank() } ?: ""
+        }
+
+        val outputText = if (stepLog.isNotEmpty()) {
+            stepLog.appendLine().append(finalText)
+            stepLog.toString()
+        } else {
+            finalText
+        }
+
+        return listOf(UIMessagePart.Text(outputText))
     }
 }
