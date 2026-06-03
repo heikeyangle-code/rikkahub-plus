@@ -274,15 +274,11 @@ if (skill.mcpServers.isNotEmpty()) {
                                                     if (success) {
                                                         scannedForUpdate = skills
                                                         updateRepoUrl = repoUrl
-                                                        // 仅默认勾选有更新的（有变更的 + 新增的）
+                                                        // 默认勾选有更新的和新增的
                                                         selectedForUpdate = skills.indices
                                                             .filter { skills[it].hasUpdate || skills[it].isNew }
                                                             .toSet()
-                                                        if (selectedForUpdate.isEmpty()) {
-                                                            toaster.show("已是最新版本")
-                                                        } else {
-                                                            showUpdatePicker = true
-                                                        }
+                                                        showUpdatePicker = true
                                                     } else {
                                                         toaster.show(repoUrl)
                                                     }
