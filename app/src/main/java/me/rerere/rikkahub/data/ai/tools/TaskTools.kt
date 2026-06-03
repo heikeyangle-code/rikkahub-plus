@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 enum class TaskStatus {
-    PENDING, IN_PROGRESS, DONE, FAILED, CANCELLED
+    PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED
 }
 
 data class Task(
@@ -19,6 +19,9 @@ data class Task(
     val status: TaskStatus = TaskStatus.PENDING,
     val owner: String? = null,
     val dependsOn: List<String> = emptyList(),
+    val blockedBy: List<String> = emptyList(),
+    val metadata: Map<String, String> = emptyMap(),
+    val activeForm: String = "",
     val createdAt: Long = System.currentTimeMillis(),
 )
 
@@ -36,9 +39,12 @@ object TaskManager {
 
     private var counter = AtomicInteger(0)
 
-    fun createTask(subject: String, description: String = "", dependsOn: List<String> = emptyList(), status: TaskStatus = TaskStatus.PENDING): Task {
+    fun createTask(subject: String, description: String = "", dependsOn: List<String> = emptyList(),
+                   status: TaskStatus = TaskStatus.PENDING, activeForm: String = "",
+                   metadata: Map<String, String> = emptyMap(), blockedBy: List<String> = emptyList()): Task {
         val id = "task-${counter.incrementAndGet()}"
-        val task = Task(id = id, subject = subject, description = description, status = status, dependsOn = dependsOn)
+        val task = Task(id = id, subject = subject, description = description, status = status,
+            dependsOn = dependsOn, blockedBy = blockedBy, metadata = metadata, activeForm = activeForm)
         tasks[id] = task
         return task
     }
@@ -58,13 +64,18 @@ object TaskManager {
     fun listTasks(): List<Task> = tasks.values.toList().sortedBy { it.createdAt }
 
     fun updateTask(id: String, status: TaskStatus? = null, owner: String? = null,
-                   description: String? = null, dependsOn: List<String>? = null): Task? {
+                   description: String? = null, dependsOn: List<String>? = null,
+                   activeForm: String? = null, metadata: Map<String, String>? = null,
+                   addBlocks: List<String>? = null, addBlockedBy: List<String>? = null): Task? {
         val t = tasks[id] ?: return null
         tasks[id] = t.copy(
             status = status ?: t.status,
             owner = owner ?: t.owner,
             description = description ?: t.description,
-            dependsOn = dependsOn ?: t.dependsOn,
+            dependsOn = (dependsOn ?: t.dependsOn) + (addBlocks ?: emptyList()),
+            activeForm = activeForm ?: t.activeForm,
+            metadata = metadata ?: t.metadata,
+            blockedBy = t.blockedBy + (addBlockedBy ?: emptyList()),
         )
         return tasks[id]
     }
@@ -75,12 +86,29 @@ object TaskManager {
         val t = tasks[id] ?: return null
         return buildString {
             appendLine("[${t.id}] ${t.subject}")
-            appendLine("Status: ${t.status}")
+            appendLine("Status: ${t.status.name.lowercase()}")
             if (t.owner != null) appendLine("Owner: ${t.owner}")
             if (t.description.isNotBlank()) appendLine("Description: ${t.description}")
-            if (t.dependsOn.isNotEmpty()) appendLine("Depends on: ${t.dependsOn.joinToString(", ")}")
+            if (t.activeForm.isNotBlank()) appendLine("Progress: ${t.activeForm}")
+            if (t.dependsOn.isNotEmpty()) appendLine("Blocks: ${t.dependsOn.joinToString(", ")}")
+            if (t.blockedBy.isNotEmpty()) appendLine("Blocked by: ${t.blockedBy.joinToString(", ")}")
+            if (t.metadata.isNotEmpty()) appendLine("Metadata: ${t.metadata.entries.joinToString(", ") { "${it.key}=${it.value}" }}")
         }
     }
+
+    // Lightweight todo list (separate from Task system)
+    data class TodoItem(val id: String, val subject: String, val status: String = "pending", val createdAt: Long = System.currentTimeMillis())
+    private val todos = ConcurrentHashMap<String, TodoItem>()
+    private val todoCounter = AtomicInteger(0)
+
+    fun createTodo(subject: String, status: String = "pending"): TodoItem {
+        val id = "todo-${todoCounter.incrementAndGet()}"
+        val item = TodoItem(id = id, subject = subject, status = status)
+        todos[id] = item
+        return item
+    }
+
+    fun listTodos(): List<TodoItem> = todos.values.toList().sortedBy { it.createdAt }
 
     fun createTeam(name: String, description: String = ""): Team {
         val team = Team(name = name, description = description)
@@ -141,14 +169,16 @@ fun createTaskTools(): List<Tool> = listOf(
             InputSchema.Obj(properties = buildJsonObject {
                 put("subject", buildJsonObject { put("type", "string"); put("description", "Task title") })
                 put("description", buildJsonObject { put("type", "string"); put("description", "Details") })
+                put("active_form", buildJsonObject { put("type", "string"); put("description", "Progress text shown when in_progress") })
                 put("depends_on", buildJsonObject { put("type", "string"); put("description", "Comma-separated task IDs this depends on") })
             }, required = listOf("subject"))
         }},
         execute = { args ->
             val obj = args.jsonObject; val subject = obj["subject"]?.jsonPrimitive?.contentOrNull ?: error("subject required")
             val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
+            val af = obj["active_form"]?.jsonPrimitive?.contentOrNull ?: ""
             val deps = obj["depends_on"]?.jsonPrimitive?.contentOrNull?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
-            val task = TaskManager.createTask(subject, desc, deps)
+            val task = TaskManager.createTask(subject, desc, deps, activeForm = af)
             listOf(UIMessagePart.Text("[${task.id}] created: ${task.subject}"))
         },
     ),
@@ -166,7 +196,7 @@ fun createTaskTools(): List<Tool> = listOf(
     Tool(name = "task_list", description = "List all tasks, optionally filtered.", permissionMode = PermissionMode.READ_ONLY,
         parameters = {{
             InputSchema.Obj(properties = buildJsonObject {
-                put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("done"); add("failed"); add("cancelled") }) })
+                put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed"); add("failed"); add("cancelled") }) })
                 put("owner", buildJsonObject { put("type", "string"); put("description", "Filter by owner") })
             })
         }},
@@ -179,7 +209,7 @@ fun createTaskTools(): List<Tool> = listOf(
             }
             if (filtered.isEmpty()) return@Tool listOf(UIMessagePart.Text("(no tasks)"))
             listOf(UIMessagePart.Text(filtered.joinToString("\n") { t ->
-                val icon = when (t.status) { TaskStatus.DONE -> "✅"; TaskStatus.IN_PROGRESS -> "🔄"; TaskStatus.FAILED -> "❌"; TaskStatus.CANCELLED -> "🚫"; else -> "⏳" }
+                val icon = when (t.status) { TaskStatus.COMPLETED -> "✅"; TaskStatus.IN_PROGRESS -> "🔄"; TaskStatus.FAILED -> "❌"; TaskStatus.CANCELLED -> "🚫"; else -> "⏳" }
                 "$icon ${t.id}: ${t.subject}${if (t.owner != null) " [${t.owner}]" else ""}"
             }))
         },
@@ -188,21 +218,30 @@ fun createTaskTools(): List<Tool> = listOf(
         parameters = {{
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
-                put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("done"); add("failed"); add("cancelled") }) })
+                put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed"); add("failed"); add("cancelled") }) })
                 put("owner", buildJsonObject { put("type", "string"); put("description", "Assign to agent") })
-                put("description", buildJsonObject { put("type", "string") })
-                put("depends_on", buildJsonObject { put("type", "string"); put("description", "Comma-separated task IDs") })
+                put("description", buildJsonObject { put("type", "string"); put("description", "Updated description") })
+                put("active_form", buildJsonObject { put("type", "string"); put("description", "Progress text when in_progress") })
+                put("depends_on", buildJsonObject { put("type", "string"); put("description", "Comma-separated task IDs this blocks") })
+                put("blocked_by", buildJsonObject { put("type", "string"); put("description", "Comma-separated task IDs blocking this") })
+                put("metadata", buildJsonObject { put("type", "string"); put("description", "JSON key=value pairs, comma-separated") })
             }, required = listOf("id"))
         }},
         execute = { args ->
             val obj = args.jsonObject; val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
+            val meta = obj["metadata"]?.jsonPrimitive?.contentOrNull
+                ?.split(",")?.mapNotNull { it.trim().split("=", limit=2).let { if (it.size == 2) it[0].trim() to it[1].trim() else null } }
+                ?.toMap()
             val task = TaskManager.updateTask(id = id,
                 status = obj["status"]?.jsonPrimitive?.contentOrNull?.let { TaskStatus.valueOf(it.uppercase()) },
                 owner = obj["owner"]?.jsonPrimitive?.contentOrNull,
                 description = obj["description"]?.jsonPrimitive?.contentOrNull,
                 dependsOn = obj["depends_on"]?.jsonPrimitive?.contentOrNull?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() },
+                activeForm = obj["active_form"]?.jsonPrimitive?.contentOrNull,
+                metadata = meta,
+                addBlockedBy = obj["blocked_by"]?.jsonPrimitive?.contentOrNull?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() },
             ) ?: error("Task $id not found")
-            listOf(UIMessagePart.Text("[${task.id}] updated: ${task.status.name}"))
+            listOf(UIMessagePart.Text("[${task.id}] updated: ${task.status.name.lowercase()}"))
         },
     ),
     Tool(name = "task_stop", description = "Cancel a task.",
@@ -236,7 +275,7 @@ fun createTaskTools(): List<Tool> = listOf(
                     put("items", buildJsonObject {
                         put("type", "object"); put("properties", buildJsonObject {
                             put("subject", buildJsonObject { put("type", "string") })
-                            put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("done") }) })
+                            put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed") }) })
                         }); put("required", listOf("subject"))
                     })
                 })
@@ -247,8 +286,8 @@ fun createTaskTools(): List<Tool> = listOf(
             val results = todos.map { item ->
                 val obj = item.jsonObject; val s = obj["subject"]?.jsonPrimitive?.contentOrNull ?: ""
                 val st = obj["status"]?.jsonPrimitive?.contentOrNull ?: "pending"
-                TaskManager.createTask(s, status = TaskStatus.valueOf(st.uppercase().replace("DONE", "COMPLETED")))
-                "${when (st) { "done" -> "✅"; "in_progress" -> "🔄"; else -> "⏳" }} $s"
+                TaskManager.createTodo(s, st)
+                "${when (st) { "completed" -> "✅"; "in_progress" -> "🔄"; else -> "⏳" }} $s"
             }
             listOf(UIMessagePart.Text(results.joinToString("\n")))
         },
@@ -281,16 +320,18 @@ fun createTaskTools(): List<Tool> = listOf(
         parameters = {{
             InputSchema.Obj(properties = buildJsonObject {
                 put("to", buildJsonObject { put("type", "string"); put("description", "Target agent name, or '*' for broadcast") })
-                put("message", buildJsonObject { put("type", "string"); put("description", "Message content") })
+                put("message", buildJsonObject { put("type", "string"); put("description", "Message content (plain text or JSON for protocol responses)") })
                 put("from", buildJsonObject { put("type", "string"); put("description", "Sender agent name (default: main_agent)") })
+                put("summary", buildJsonObject { put("type", "string"); put("description", "Optional short summary visible in UI") })
             }, required = listOf("to", "message"))
         }},
         execute = { args ->
             val obj = args.jsonObject; val to = obj["to"]?.jsonPrimitive?.contentOrNull ?: error("to required")
             val msg = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
             val from = obj["from"]?.jsonPrimitive?.contentOrNull ?: "main_agent"
+            val summary = obj["summary"]?.jsonPrimitive?.contentOrNull
             val m = TaskManager.sendMessage(from, to, msg)
-            listOf(UIMessagePart.Text("[${m.id}] $from -> $to"))
+            listOf(UIMessagePart.Text("[${m.id}] $from -> $to${if (summary != null) " ($summary)" else ""}"))
         },
     ),
     Tool(name = "read_messages", description = "Read messages for your agent. Clears inbox.",
@@ -345,7 +386,7 @@ fun createTaskTools(): List<Tool> = listOf(
                     appendLine("  ${t.id} [${t.status.name}] -> depends: ${t.dependsOn.joinToString(", ")}")
                 }
                 val blocked = tasks.filter { t -> t.dependsOn.any { depId ->
-                    val dep = TaskManager.getTask(depId); dep != null && dep.status != TaskStatus.DONE
+                    val dep = TaskManager.getTask(depId); dep != null && dep.status != TaskStatus.COMPLETED
                 }}
                 if (blocked.isNotEmpty()) {
                     appendLine("\nBlocked tasks:")
