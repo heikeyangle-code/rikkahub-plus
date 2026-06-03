@@ -795,9 +795,9 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
             else -> Triple(context.getString(R.string.notification_live_update_chip_writing), context.getString(R.string.notification_live_update_title), "")
         }
         context.sendNotification(channelId = CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID, notificationId = getLiveUpdateNotificationId(conversationId)) {
-            setTitle(senderName); setContentText(content); setSubText(sub); setOngoing(true); setOnlyAlertOnce(true)
-            setCategory(NotificationCompat.CATEGORY_PROGRESS); setStyle(NotificationCompat.BigTextStyle())
-            setContentIntent(getPendingIntent(context, conversationId)); requestPromotedOngoing = true; shortCriticalText = chip
+            title = senderName; this.content = content; subText = sub; ongoing = true; onlyAlertOnce = true
+            category = NotificationCompat.CATEGORY_PROGRESS; useBigTextStyle = true
+            contentIntent = getPendingIntent(context, conversationId); requestPromotedOngoing = true; shortCriticalText = chip
         }
     }
 
