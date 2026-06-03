@@ -36,23 +36,28 @@ fun createCalculatorTool(): Tool = Tool(
         val expression = obj["expression"]?.jsonPrimitive?.contentOrNull ?: error("expression required")
         val precision = obj["precision"]?.jsonPrimitive?.intOrNull ?: 10
 
-        val jsContext = QuickJSContext.create()
+        val executor = Executors.newSingleThreadExecutor()
         try {
-            val future = Executors.newSingleThreadExecutor().submit<String> {
-                val wrapped = """
-                    (function() {
-                        try {
-                            var result = eval(${JsonPrimitive(expression)});
-                            if (typeof result === 'number') {
-                                result = Number(result.toFixed($precision));
+            val future = executor.submit<String> {
+                val jsContext = QuickJSContext.create()
+                try {
+                    val wrapped = """
+                        (function() {
+                            try {
+                                var result = eval(${JsonPrimitive(expression)});
+                                if (typeof result === 'number') {
+                                    result = Number(result.toFixed($precision));
+                                }
+                                return String(result);
+                            } catch (e) {
+                                return 'Error: ' + e.message;
                             }
-                            return String(result);
-                        } catch (e) {
-                            return 'Error: ' + e.message;
-                        }
-                    })()
-                """.trimIndent()
-                jsContext.evaluate(wrapped).toString()
+                        })()
+                    """.trimIndent()
+                    jsContext.evaluate(wrapped).toString()
+                } finally {
+                    jsContext.destroy()
+                }
             }
             val result = future.get(15, TimeUnit.SECONDS)
             val payload = buildJsonObject {
@@ -63,7 +68,7 @@ fun createCalculatorTool(): Tool = Tool(
         } catch (e: java.util.concurrent.TimeoutException) {
             error("Calculation timed out after 15 seconds")
         } finally {
-            jsContext.destroy()
+            executor.shutdownNow()
         }
     },
 )

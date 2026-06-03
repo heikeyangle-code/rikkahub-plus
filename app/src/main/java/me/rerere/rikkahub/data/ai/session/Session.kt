@@ -25,6 +25,9 @@ data class TaskSnapshot(
     val status: String,
     val owner: String? = null,
     val dependsOn: List<String> = emptyList(),
+    val activeForm: String = "",
+    val metadata: Map<String, String> = emptyMap(),
+    val blockedBy: List<String> = emptyList(),
 )
 
 @Serializable

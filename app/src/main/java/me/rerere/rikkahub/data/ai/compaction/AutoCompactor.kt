@@ -31,10 +31,11 @@ class AutoCompactor {
                 when (part) {
                     is UIMessagePart.Text -> part.text.length / 4
                     is UIMessagePart.Reasoning -> part.reasoning.length / 4
+                    is UIMessagePart.Image -> 170 // approx 170 tokens per image (rough estimate for 512x512)
                     is UIMessagePart.Tool -> {
                         part.input.length / 4 +
                         part.output.sumOf {
-                            when (it) { is UIMessagePart.Text -> it.text.length / 4; else -> 0 }
+                            when (it) { is UIMessagePart.Text -> it.text.length / 4; is UIMessagePart.Image -> 170; else -> 0 }
                         }
                     }
                     else -> 0

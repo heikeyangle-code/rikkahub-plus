@@ -49,12 +49,15 @@ object TaskManager {
         return task
     }
 
-    fun restoreTask(id: String, subject: String, description: String, status: String, dependsOn: List<String>) {
+    fun restoreTask(id: String, subject: String, description: String, status: String, dependsOn: List<String>,
+                    owner: String? = null, activeForm: String = "", metadata: Map<String, String> = emptyMap(),
+                    blockedBy: List<String> = emptyList()) {
         if (!tasks.containsKey(id)) {
             val task = Task(
                 id = id, subject = subject, description = description,
                 status = try { TaskStatus.valueOf(status) } catch (_: Exception) { TaskStatus.PENDING },
-                dependsOn = dependsOn,
+                dependsOn = dependsOn, owner = owner,
+                activeForm = activeForm, metadata = metadata, blockedBy = blockedBy,
             )
             tasks[id] = task
         }
@@ -292,12 +295,11 @@ fun createTaskTools(): List<Tool> = listOf(
             listOf(UIMessagePart.Text(results.joinToString("\n")))
         },
     ),
-    Tool(name = "team_create", description = "Create a new team for coordinating multiple agents.",
+    Tool(name = "team_create", description = "Create a new team for coordinating multiple agents.\n        The team name must be unique — creating a duplicate name overwrites the existing team.",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("team_name", buildJsonObject { put("type", "string"); put("description", "Name for the new team") })
                 put("description", buildJsonObject { put("type", "string"); put("description", "Team purpose") })
-                put("agent_type", buildJsonObject { put("type", "string"); put("description", "Type/role of the team lead (e.g. 'researcher')") })
             }, required = listOf("team_name"))
         },
         execute = { args ->

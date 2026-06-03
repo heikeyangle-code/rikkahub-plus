@@ -10,6 +10,9 @@ import java.util.concurrent.ConcurrentHashMap
  * 工具注册表 — 记录所有可用工具的元数据
  */
 object ToolRegistry {
+    @Volatile
+    private var builtinRegistered = false
+
     data class ToolInfo(
         val name: String,
         val description: String,
@@ -48,6 +51,8 @@ object ToolRegistry {
     fun listByCategory(): Map<String, List<ToolInfo>> = tools.values.filter { it.enabled }.groupBy { it.category }
 
     fun registerBuiltin() {
+        if (builtinRegistered) return
+        builtinRegistered = true
         register("file_read", "Read file contents", "文件")
         register("file_write", "Create or overwrite files", "文件")
         register("file_list", "List directory contents", "文件")

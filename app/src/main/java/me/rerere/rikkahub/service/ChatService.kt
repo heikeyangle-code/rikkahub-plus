@@ -253,7 +253,9 @@ class ChatService(
             settingsStore.updateAssistant(conversation.assistantId)
             sessionStore.loadSnapshot(conversationId.toString())?.let { snapshot ->
                 runCatching {
-                    snapshot.taskState.forEach { ts -> TaskManager.restoreTask(ts.id, ts.subject, ts.description, ts.status, ts.dependsOn) }
+                    snapshot.taskState.forEach { ts -> TaskManager.restoreTask(id = ts.id, subject = ts.subject, description = ts.description,
+                        status = ts.status, dependsOn = ts.dependsOn, owner = ts.owner,
+                        activeForm = ts.activeForm, metadata = ts.metadata, blockedBy = ts.blockedBy) }
                     snapshot.planModeState?.let { pms ->
                         PlanModeState.isInPlanMode = pms.isInPlanMode
                         PlanModeState.effectiveMode = try { PermissionMode.valueOf(pms.effectiveMode) } catch (_: Exception) { PermissionMode.DANGER_FULL_ACCESS }
@@ -642,6 +644,8 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                         taskState = TaskManager.listTasks().map { me.rerere.rikkahub.data.ai.session.TaskSnapshot(
                             id = it.id, subject = it.subject, description = it.description,
                             status = it.status.name, dependsOn = it.dependsOn,
+                            owner = it.owner, activeForm = it.activeForm,
+                            metadata = it.metadata, blockedBy = it.blockedBy,
                         ) },
                         planModeState = me.rerere.rikkahub.data.ai.session.PlanModeSnapshot(PlanModeState.isInPlanMode, PlanModeState.effectiveMode.name),
                     ))
