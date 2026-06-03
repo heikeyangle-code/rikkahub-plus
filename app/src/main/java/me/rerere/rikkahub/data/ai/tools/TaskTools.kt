@@ -62,12 +62,14 @@ object TaskManager {
         status: TaskStatus? = null,
         owner: String? = null,
         description: String? = null,
+        dependsOn: List<String>? = null,
     ): Task? {
         val t = tasks[id] ?: return null
         tasks[id] = t.copy(
             status = status ?: t.status,
             owner = owner ?: t.owner,
             description = description ?: t.description,
+            dependsOn = dependsOn ?: t.dependsOn,
         )
         return tasks[id]
     }
@@ -158,8 +160,7 @@ object TaskManager {
     private val msgCounter = java.util.concurrent.atomic.AtomicInteger(0)
 
     fun sendMessage(from: String, to: String, content: String): Message {
-        val msg = Message(
-            id = "msg-${msgCounter.incrementAndGet()}",
+        val msg = Message =msg-${msgCounter.incrementAndGet()}",
             from = from,
             to = to,
             content = content,
@@ -191,9 +192,21 @@ fun createTaskTools(): List<Tool> = listOf(
     Tool(
         name = "task_create",
         description = """
-            Create a new task in the task list. Tasks track progress and can be assigned to agents.
-            Use for: complex multi-step tasks, tracking progress, organizing work.
-            Create tasks with clear, specific subjects. Include enough detail for another agent to understand.
+            Create a new task in the task list.
+
+            When to use:
+            - Complex multi-step tasks (3+ steps)
+            - Tasks that need tracking or delegation to other agents
+            - After receiving new instructions, capture requirements as tasks
+            - When user explicitly requests a task list
+
+            When NOT to use:
+            - Single straightforward task that can be done directly
+            - Purely conversational or informational requests
+
+            Create tasks with clear, specific subjects (imperative form, e.g. "Fix login bug").
+            Include enough detail in the description for another agent to understand and complete the task.
+            New tasks are created with status 'pending' and no owner.
         """.trimIndent().replace("\n", " "),
         parameters = {
             InputSchema.Obj(
@@ -221,14 +234,14 @@ fun createTaskTools(): List<Tool> = listOf(
             val dependsOn = obj["depends_on"]?.jsonPrimitive?.contentOrNull
                 ?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
             val task = TaskManager.createTask(subject, description, dependsOn)
-            listOf(UIMessagePart.Text("[${task.id}] 已创建: ${task.subject}"))
+            listOf(UIMessagePart.Text("[${task.id}] created: ${task.subject}"))
         },
     ),
 
     // ── TaskGet ──
     Tool(
         name = "task_get",
-        description = "Get details of a specific task by ID.",
+        description = "Get details of a specific task by ID. Returns full task info including subject, description, status, owner, and dependencies.",
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
@@ -250,7 +263,7 @@ fun createTaskTools(): List<Tool> = listOf(
     // ── TaskList ──
     Tool(
         name = "task_list",
-        description = "List all tasks, optionally filtered by status.",
+        description = "List all tasks, optionally filtered by status. Before assigning tasks to teammates, check what's available.",
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
@@ -259,7 +272,11 @@ fun createTaskTools(): List<Tool> = listOf(
                         put("enum", buildJsonArray {
                             add("pending"); add("in_progress"); add("done"); add("failed"); add("cancelled")
                         })
-                        put("description", "Optional: filter by status")
+                        put("description", "Filter by status (optional)")
+                    })
+                    put("owner", buildJsonObject {
+                        put("type", "string")
+                        put("description", "Filter by owner agent name (optional)")
                     })
                 },
                 required = emptyList(),
@@ -267,12 +284,15 @@ fun createTaskTools(): List<Tool> = listOf(
         },
         execute = { args ->
             val filterStatus = args.jsonObject["status"]?.jsonPrimitive?.contentOrNull
+            val filterOwner = args.jsonObject["owner"]?.jsonPrimitive?.contentOrNull
             val all = TaskManager.listTasks()
-            val filtered = if (filterStatus != null) {
-                all.filter { it.status.name.lowercase() == filterStatus }
-            } else all
+            val filtered = all.filter { t ->
+                val matchStatus = filterStatus == null || t.status.name.lowercase() == filterStatus
+                val matchOwner = filterOwner == null || t.owner == filterOwner
+                matchStatus && matchOwner
+            }
             if (filtered.isEmpty()) {
-                listOf(UIMessagePart.Text("(没有任务)"))
+                listOf(UIMessagePart.Text("(no tasks)"))
             } else {
                 val output = filtered.joinToString("\n") { t ->
                     val icon = when (t.status) {
@@ -283,7 +303,7 @@ fun createTaskTools(): List<Tool> = listOf(
                         TaskStatus.CANCELLED -> "🚫"
                     }
                     val owner = if (t.owner != null) " [${t.owner}]" else ""
-                    val deps = if (t.dependsOn.isNotEmpty()) " (依赖: ${t.dependsOn.joinToString(",")})" else ""
+                    val deps = if (t.dependsOn.isNotEmpty()) " (depends: ${t.dependsOn.joinToString(",")})" else ""
                     "$icon ${t.id}: ${t.subject}$owner$deps"
                 }
                 listOf(UIMessagePart.Text(output))
@@ -294,7 +314,7 @@ fun createTaskTools(): List<Tool> = listOf(
     // ── TaskUpdate ──
     Tool(
         name = "task_update",
-        description = "Update a task's status, owner, or description.",
+        description = "Update a task's status, owner, description, or dependencies. Mark tasks as resolved when you finish them.",
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
@@ -317,6 +337,10 @@ fun createTaskTools(): List<Tool> = listOf(
                         put("type", "string")
                         put("description", "Updated description / notes")
                     })
+                    put("depends_on", buildJsonObject {
+                        put("type", "string")
+                        put("description", "Comma-separated task IDs this task depends on")
+                    })
                 },
                 required = listOf("id"),
             )
@@ -327,20 +351,23 @@ fun createTaskTools(): List<Tool> = listOf(
             val status = obj["status"]?.jsonPrimitive?.contentOrNull
             val owner = obj["owner"]?.jsonPrimitive?.contentOrNull
             val description = obj["description"]?.jsonPrimitive?.contentOrNull
+            val dependsOn = obj["depends_on"]?.jsonPrimitive?.contentOrNull
+                ?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }
             val task = TaskManager.updateTask(
                 id = id,
                 status = status?.let { TaskStatus.valueOf(it.uppercase()) },
                 owner = owner,
                 description = description,
+                dependsOn = dependsOn,
             ) ?: error("Task $id not found")
-            listOf(UIMessagePart.Text("[${task.id}] 已更新: ${task.status.name}"))
+            listOf(UIMessagePart.Text("[${task.id}] updated: ${task.status.name}"))
         },
     ),
 
     // ── TaskStop ──
     Tool(
         name = "task_stop",
-        description = "Cancel/stop a task by ID.",
+        description = "Cancel/stop a running or pending task by ID.",
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
@@ -355,7 +382,7 @@ fun createTaskTools(): List<Tool> = listOf(
         execute = { args ->
             val id = args.jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
             val task = TaskManager.stopTask(id) ?: error("Task $id not found")
-            listOf(UIMessagePart.Text("[${task.id}] 已停止"))
+            listOf(UIMessagePart.Text("[${task.id}] stopped"))
         },
     ),
 
@@ -385,8 +412,19 @@ fun createTaskTools(): List<Tool> = listOf(
     Tool(
         name = "todo_write",
         description = """
-            Create and manage a lightweight task list. Use for tracking progress.
-            When a task requires 3+ steps, create a todo list. Mark items as in_progress BEFORE starting.
+            Create a lightweight task list for tracking progress.
+
+            When to use:
+            - Complex multi-step tasks (3+ steps)
+            - After receiving new instructions, capture requirements as todos
+            - When user provides multiple tasks
+
+            When NOT to use:
+            - Single straightforward task
+            - Purely conversational or informational requests
+
+            Mark items as in_progress BEFORE beginning work.
+            After completing a task, mark it as completed.
         """.trimIndent().replace("\n", " "),
         parameters = {
             InputSchema.Obj(
@@ -418,7 +456,7 @@ fun createTaskTools(): List<Tool> = listOf(
             val results = todos.map { item ->
                 val obj = item.jsonObject
                 val subject = obj["subject"]?.jsonPrimitive?.contentOrNull ?: ""
-                val status = obj["status"]?.jsonPrimitive?.contentOrNull ?: "pending"
+                val status = obj["status"]?.jsonPrimitive?. ?: "pending"
                 val icon = when (status) { "done" -> "✅"; "in_progress" -> "🔄"; else -> "⏳" }
                 TaskManager.createTask(subject, status = TaskStatus.valueOf(status.uppercase()))
                 "$icon $subject"
@@ -430,7 +468,7 @@ fun createTaskTools(): List<Tool> = listOf(
     // ── TeamCreate ──
     Tool(
         name = "team_create",
-        description = "Create a team to coordinate multiple agents. Teams have their own task list.",
+        description = "Create a team to coordinate multiple agents working on a project. Teams have their own task list (Team = TaskList).",
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
@@ -451,7 +489,7 @@ fun createTaskTools(): List<Tool> = listOf(
             val name = obj["name"]?.jsonPrimitive?.contentOrNull ?: error("name required")
             val description = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
             TaskManager.createTeam(name, description)
-            listOf(UIMessagePart.Text("团队 '$name' 已创建"))
+            listOf(UIMessagePart.Text("Team '$name' created"))
         },
     ),
 
@@ -473,14 +511,14 @@ fun createTaskTools(): List<Tool> = listOf(
         execute = { args ->
             val name = args.jsonObject["name"]?.jsonPrimitive?.contentOrNull ?: error("name required")
             TaskManager.deleteTeam(name)
-            listOf(UIMessagePart.Text("团队 '$name' 已删除"))
+            listOf(UIMessagePart.Text("Team '$name' deleted"))
         },
     ),
 
     // ── send_message ──
     Tool(
         name = "send_message",
-        description = "Send a message to another agent. Messages are stored and can be read by the target agent. Use this to coordinate with other agents.",
+        description = "Send a message to another agent. Messages are stored and can be read by the target agent. Teammate messages are delivered automatically. Refer to teammates by name, never by UUID.",
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
@@ -502,11 +540,11 @@ fun createTaskTools(): List<Tool> = listOf(
         },
         execute = { args ->
             val obj = args.jsonObject
-            val to = obj["to"]?.jsonPrimitive?.contentOrNull ?: error("to required")
+            val to = obj["jsonPrimitive?.contentOrNull ?: error("to required")
             val msg = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
             val from = obj["from"]?.jsonPrimitive?.contentOrNull ?: "main_agent"
             val message = TaskManager.sendMessage(from, to, msg)
-            listOf(UIMessagePart.Text("[${message.id}] $from → $to: ${message.content.take(100)}"))
+            listOf(UIMessagePart.Text("[${message.id}] $from -> $to: ${message.content.take(100)}"))
         },
     ),
 
