@@ -16,23 +16,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -73,7 +66,6 @@ fun AssistantAgentPage(id: String) {
     val assistant by vm.assistant.collectAsStateWithLifecycle()
     val providers by vm.providers.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    var detailAgent by remember { mutableStateOf<AgentDefinition?>(null) }
     val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
 
     val grouped = remember {
@@ -210,8 +202,7 @@ fun AssistantAgentPage(id: String) {
                             val colorValue = Color(agent.color.hex)
                             item(
                                 onClick = {
-                                    if (agent.isBuiltin) detailAgent = agent
-                                    else navController.navigate(me.rerere.rikkahub.Screen.AssistantAgentEditor(id, agent.agentType))
+                                    navController.navigate(me.rerere.rikkahub.Screen.AssistantAgentEditor(id, agent.agentType))
                                 },
                                 leadingContent = {
                                     Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(colorValue))
@@ -232,9 +223,13 @@ fun AssistantAgentPage(id: String) {
                                 supportingContent = { Text(agent.description.take(100), maxLines = 2) },
                                 trailingContent = {
                                     Text(
-                                        if (agent.tools.contains("*") && agent.disallowedTools.isEmpty()) "全工具"
-                                        else if (agent.disallowedTools.isNotEmpty()) "屏蔽 ${agent.disallowedTools.size}"
-                                        else "${agent.tools.size} 工具",
+                                        when {
+                                            agent.background && agent.disallowedTools.isNotEmpty() -> "后台 · 禁${agent.disallowedTools.size}工具"
+                                            agent.background -> "后台执行"
+                                            agent.disallowedTools.isNotEmpty() -> "禁${agent.disallowedTools.size}工具"
+                                            agent.tools.contains("*") -> "全工具"
+                                            else -> "${agent.tools.size} 工具"
+                                        },
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -247,51 +242,6 @@ fun AssistantAgentPage(id: String) {
 
             Spacer(Modifier.height(32.dp))
         }
-    }
-
-    // Agent 详情对话框
-    detailAgent?.let { agent ->
-        AlertDialog(
-            onDismissRequest = { detailAgent = null },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(14.dp).clip(CircleShape).background(Color(agent.color.hex)))
-                    Spacer(Modifier.width(8.dp))
-                    Text("${agent.agentType} Agent")
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(agent.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (agent.modelId != null) DetailInfoRow("模型", agent.modelId)
-                    if (agent.memory != null) DetailInfoRow("记忆", when (agent.memory) {
-                        me.rerere.rikkahub.data.ai.tools.AgentMemoryScope.USER -> "用户级"
-                        me.rerere.rikkahub.data.ai.tools.AgentMemoryScope.PROJECT -> "项目级"
-                        me.rerere.rikkahub.data.ai.tools.AgentMemoryScope.LOCAL -> "本地"
-                    })
-                    if (agent.maxTurns != null) DetailInfoRow("最大轮次", "${agent.maxTurns}")
-                    if (agent.criticalReminder != null) Text(agent.criticalReminder.take(200), style = MaterialTheme.typography.bodySmall, color = Color(agent.color.hex))
-                    val sysPrompt = when (val sp = agent.systemPrompt) {
-                        is AgentSystemPrompt.Static -> sp.text
-                        is AgentSystemPrompt.Dynamic -> "(运行时动态生成)"
-                    }
-                    if (sysPrompt.isNotBlank()) {
-                        Spacer(Modifier.height(4.dp))
-                        Text("系统提示词", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(sysPrompt.take(500), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { detailAgent = null }) { Text("关闭") } },
-        )
-    }
-}
-
-@Composable
-private fun DetailInfoRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
     }
 }
 

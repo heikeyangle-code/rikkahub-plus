@@ -114,38 +114,52 @@ private fun CardGroupListItem(
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
     )
     val bottomCorner by animateDpAsState(
-        targetValue = if (isPressed || count == 1 || isLast) CardGroupCorner else CardGroupInnerCorner,
+        targetValue = if (isPressed || count == 1 || isLast && item.content == null) CardGroupCorner else CardGroupInnerCorner,
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
     )
 
-    ListItem(
-        headlineContent = item.headlineContent,
+    Column(
         modifier = item.modifier
             .fillMaxWidth()
             .clip(
                 RoundedCornerShape(
                     topStart = topCorner,
                     topEnd = topCorner,
-                    bottomStart = bottomCorner,
-                    bottomEnd = bottomCorner,
+                    bottomStart = if (item.content != null) CardGroupInnerCorner else bottomCorner,
+                    bottomEnd = if (item.content != null) CardGroupInnerCorner else bottomCorner,
                 )
             )
-            .then(
-                if (item.onClick != null) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = LocalIndication.current,
-                        onClick = item.onClick,
-                    )
-                } else Modifier
-            ),
-        overlineContent = item.overlineContent,
-        supportingContent = item.supportingContent,
-        leadingContent = item.leadingContent,
-        trailingContent = item.trailingContent,
-        colors = item.colors ?: CustomColors.listItemColors,
-    )
-    item.content?.invoke()
+    ) {
+        ListItem(
+            headlineContent = item.headlineContent,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (item.onClick != null) {
+                        Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = LocalIndication.current,
+                            onClick = item.onClick,
+                        )
+                    } else Modifier
+                ),
+            overlineContent = item.overlineContent,
+            supportingContent = item.supportingContent,
+            leadingContent = item.leadingContent,
+            trailingContent = item.trailingContent,
+            colors = item.colors ?: CustomColors.listItemColors,
+        )
+        item.content?.let { content ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 12.dp)
+            ) {
+                content()
+            }
+        }
+    }
 }
 
 @Composable

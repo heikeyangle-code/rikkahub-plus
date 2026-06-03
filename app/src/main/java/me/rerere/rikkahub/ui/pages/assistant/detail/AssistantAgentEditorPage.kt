@@ -69,6 +69,7 @@ fun AssistantAgentEditorPage(
 
     // 表单状态
     var agentType by remember { mutableStateOf(existingAgent?.agentType ?: "") }
+    var displayName by remember { mutableStateOf(existingAgent?.name ?: "") }
     var description by remember { mutableStateOf(existingAgent?.description ?: "") }
     var promptText by remember {
         mutableStateOf(
@@ -159,6 +160,21 @@ fun AssistantAgentEditorPage(
                             placeholder = { Text("如 code-reviewer") },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isReadonly && !isEditing,
+                            singleLine = true,
+                        )
+                    },
+                )
+                // 显示名称
+                item(
+                    headlineContent = { Text("显示名称") },
+                    supportingContent = { Text("可读的名称，留空则使用类型名") },
+                    content = {
+                        OutlinedTextField(
+                            value = displayName,
+                            onValueChange = { if (!isReadonly) displayName = it },
+                            placeholder = { Text("如 代码审查员") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isReadonly,
                             singleLine = true,
                         )
                     },
@@ -446,7 +462,7 @@ fun AssistantAgentEditorPage(
                     onClick = {
                         val agentDef = AgentDefinition(
                             agentType = agentType,
-                            name = agentType,
+                            name = displayName.ifBlank { agentType },
                             description = description,
                             systemPrompt = AgentSystemPrompt.Static(promptText),
                             color = selectedColor,
