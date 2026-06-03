@@ -667,6 +667,14 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                                 put("type", "string")
                                                 put("description", "Optional role for the sub-agent (e.g. 'code reviewer', 'researcher'). Default: general assistant.")
                                             })
+                                            put("fork", buildJsonObject {
+                                                put("type", "boolean")
+                                                put("description", "Run asynchronously (fork). Default: false")
+                                            })
+                                            put("name", buildJsonObject {
+                                                put("type", "string")
+                                                put("description", "Fork name (required when fork=true)")
+                                            })
                                         },
                                         required = listOf("goal"),
                                     )
@@ -677,6 +685,63 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         ?: error("goal is required")
                                     val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
                                     val role = obj["role"]?.jsonPrimitive?.contentOrNull ?: ""
+                                    val fork = obj["fork"]?.jsonPrimitive?.booleanOrNull ?: false
+                                    val forkName = obj["name"]?.jsonPrimitive?.contentOrNull ?: ""
+
+                                    if (fork) {
+                                        val fName = forkName.ifBlank { "fork-" + (System.currentTimeMillis() % 10000).toString() }
+                                        if (!TaskManager.registerFork(fName, goal)) {
+                                            error("Fork '$fName' already exists")
+                                        }
+                                        appScope.launch {
+                                            try {
+                                                val fSkillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
+                                                val fSubTools = buildList {
+                                                    if (settings.enableWebSearch) addAll(createSearchTools(settings))
+                                                    if (assistant.localTools.contains(LocalToolOption.FileTools)) {
+                                                        addAll(createFileTools(fSkillDirs).filter { it.name in listOf("file_read","file_write","file_list") })
+                                                    }
+                                                    addAll(localTools.getTools(listOf(LocalToolOption.TimeInfo)))
+                                                    if (assistant.localTools.contains(LocalToolOption.TaskTools)) addAll(createTaskTools())
+                                                    if (assistant.localTools.contains(LocalToolOption.ShellTools)) addAll(createShellTools())
+                                                }
+                                                val fPrompt = buildString {
+                                                    if (role.isNotBlank()) { appendLine("You are a $role."); appendLine() }
+                                                    appendLine("Goal: $goal")
+                                                    if (context.isNotBlank()) { appendLine(); appendLine("Context: $context") }
+                                                    appendLine(); appendLine("You have access to tools. Use them when needed.")
+                                                    appendLine("After using tools, continue working until the goal is complete.")
+                                                }
+                                                val fMessages = mutableListOf(UIMessage.user(fPrompt))
+                                                var fResult = ""
+                                                for (fStep in 0 until assistant.subAgentMaxSteps) {
+                                                    val fChunk = providerImpl.generateText(
+                                                        providerSetting = providerSetting,
+                                                        messages = fMessages,
+                                                        params = TextGenerationParams(model = fSubModel, tools = fSubTools, reasoningLevel = ReasoningLevel.OFF),
+                                                    )
+                                                    val fMsg = fChunk.choices.firstOrNull()?.message ?: break
+                                                    val fText = fMsg.toText()
+                                                    val fTools = fMsg.getTools().filter { !it.isExecuted }
+                                                    if (fTools.isEmpty()) { fResult = fText; break }
+                                                    val fExecuted = fTools.map { tc ->
+                                                        val td = fSubTools.find { it.name == tc.toolName }
+                                                        if (td == null) tc.copy(output = listOf(UIMessagePart.Text("Error: tool ${tc.toolName} not found")))
+                                                        else {
+                                                            val args = try { kotlinx.serialization.json.Json.parseToJsonElement(tc.input.ifBlank { "{}" }) } catch (e: Exception) { error("bad args") }
+                                                            tc.copy(output = td.execute(args))
+                                                        }
+                                                    }
+                                                    fMessages.add(fMsg.copy(parts = fMsg.parts.map { p -> if (p is UIMessagePart.Tool) fExecuted.find { it.toolCallId == p.toolCallId } ?: p else p }))
+                                                }
+                                                if (fResult.isBlank()) fResult = fMessages.lastOrNull()?.toText()?.takeIf { it.isNotBlank() } ?: ""
+                                                TaskManager.completeFork(fName, fResult)
+                                            } catch (e: Exception) {
+                                                TaskManager.failFork(fName, e.message ?: "error")
+                                            }
+                                        }
+                                        return@Tool listOf(UIMessagePart.Text("[Fork: $fName] started: $goal"))
+                                    }
 
                                     // 记住进入子Agent前的主Agent状态，退出后恢复
                                     val preSubStatus = session.processingStatus.value
