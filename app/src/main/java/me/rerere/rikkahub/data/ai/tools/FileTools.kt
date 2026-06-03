@@ -77,8 +77,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         // ── file_read ──
         Tool(
             name = "file_read",
-            description = "Read a file from the Android filesystem. Returns the file content as text. " +
-                "Absolute paths work as-is. Relative paths resolve against ${defaultDir} first.",
+            description = "Read a file from the local filesystem. You can access any file directly by using this tool.\nAssume this tool is able to read all files on the device. If the user provides a path to a file assume that path is valid. It is okay to read a file that does not exist; an error will be returned.\n\nUsage:\n- The path parameter must be an absolute path for reliable access\n- Relative paths also supported, resolve against the default directory\n- By default, it reads up to 2000 lines starting from the beginning of the file\n- You can optionally specify offset and limit (handy for large files)\n- When you know which part of the file you need, only read that part\n- Results show line numbers starting at 1\n- This tool can read images (PNG, JPG). When reading an image the content is presented visually\n- This tool can only read files, not directories. To read a directory, use file_list\n- The tool reports if a file is unchanged since last read",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -115,8 +114,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
         // ── file_write ──
         Tool(
             name = "file_write",
-            description = "Create or overwrite a file on the Android filesystem. " +
-                    "Relative paths go to $defaultDir.$writeHint",
+            description = "Description: Write a file to the local filesystem.\n\nUsage:\n- This tool will overwrite the existing file if there is one at the provided path.\n- If this is an existing file, you MUST use file_read tool first to read the file's contents.\n- Prefer file_edit for modifying existing files — it only sends the diff. Only use this tool to create new files or for complete rewrites.\n- NEVER create documentation files (*.md) or README files unless explicitly requested by the User.\n- Only use emojis if the user explicitly requests it.\n" + writeHint,
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
