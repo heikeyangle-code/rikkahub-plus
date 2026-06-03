@@ -713,6 +713,14 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         if (assistant.localTools.contains(LocalToolOption.TaskTools)) {
                                             addAll(createTaskTools())
                                         }
+                                        // Shell
+                                        if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
+                                            addAll(createShellTools())
+                                        }
+                                        // Calculator
+                                        if (assistant.localTools.contains(LocalToolOption.Calculator)) {
+                                            add(createCalculatorTool())
+                                        }
                                     }
 
                                     // Build prompt
