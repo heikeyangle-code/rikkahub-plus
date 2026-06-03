@@ -69,6 +69,7 @@ import me.rerere.rikkahub.data.ai.session.SessionStore
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
+import me.rerere.rikkahub.data.ai.tools.createWebFetchTool
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createAssetTool
 import me.rerere.rikkahub.data.ai.tools.createDataProcessTool
@@ -397,7 +398,7 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.FileTools)) addAll(createFileTools(skillDirs))
                     if (assistant.localTools.contains(LocalToolOption.AssetGenerator)) add(createAssetTool(context.filesDir.absolutePath))
                     if (assistant.localTools.contains(LocalToolOption.DataProcess)) add(createDataProcessTool())
-                    if (settings.enableWebSearch) addAll(createSearchTools(settings))
+                    if (settings.enableWebSearch) { addAll(createSearchTools(settings)); add(createWebFetchTool()) }
                     addAll(localTools.getTools(assistant.localTools))
                     if (assistant.localTools.contains(LocalToolOption.ShellTools)) addAll(createShellTools())
                     if (assistant.localTools.contains(LocalToolOption.PythonEngine)) add(createPythonTool(context, assistant.toolExecTimeout))
@@ -541,6 +542,7 @@ class ChatService(
                                 val allTools = buildList {
                                     if (settings.enableWebSearch) {
                                         addAll(createSearchTools(settings))
+                                        add(createWebFetchTool())
                                     }
                                     if (assistant.localTools.contains(LocalToolOption.FileTools)) {
                                         addAll(createFileTools(skillDirs))
@@ -819,7 +821,7 @@ class ChatService(
             memories = if (assistant.useGlobalMemory) memoryRepository.getGlobalMemories() else memoryRepository.getMemoriesOfAssistant(assistant.id.toString()),
             tools = buildList {
                 if (assistant.localTools.contains(LocalToolOption.FileTools)) addAll(createFileTools(skillDirs))
-                if (settings.enableWebSearch) addAll(createSearchTools(settings))
+                if (settings.enableWebSearch) { addAll(createSearchTools(settings)); add(createWebFetchTool()) }
                 addAll(localTools.getTools(assistant.localTools))
                 if (assistant.localTools.contains(LocalToolOption.ShellTools)) addAll(createShellTools())
                 if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {

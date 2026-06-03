@@ -21,8 +21,18 @@ import java.io.File
 
 fun createConvertFileTool(context: Context): Tool = Tool(
     name = "convert_file",
-    description = "Convert files between formats: txt↔md↔docx↔html, pdf→txt/md, xlsx↔csv↔json, pptx→txt/md, " +
-            "image format conversion (png/jpg/webp), zip extract, combine files.",
+    description = "Convert files between supported formats.\n\n" +
+        "Supported conversions:\n" +
+        "- txt <-> md <-> docx <-> html\n" +
+        "- pdf -> txt, pdf -> md\n" +
+        "- xlsx <-> csv <-> json\n" +
+        "- pptx -> txt, pptx -> md\n" +
+        "- Various image format conversions\n\n" +
+        "When to Use:\n" +
+        "- User needs to change file format\n" +
+        "- Extracting text from PDFs or presentations\n" +
+        "- Converting data between spreadsheet formats\n\n" +
+        "Specify source path and output format. The converted file is saved alongside the original.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

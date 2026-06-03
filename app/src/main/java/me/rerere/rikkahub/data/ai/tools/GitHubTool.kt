@@ -85,12 +85,22 @@ private fun ghDescribe(url: String): String {
 
 fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, enableAutoFixCi: Boolean = false): Tool = Tool(
     name = "github_tool",
-    description = "Interact with GitHub REST API: search repos/code/users/issues, manage issues/PRs " +
+    description = "Interact with GitHub REST API to manage repositories, issues, PRs, and CI/CD.\n\n" +
+        "When to Use:\n" +
+        "- User asks about GitHub repos, issues, PRs, or code\n" +
+        "- Need to search GitHub for code, repos, or users\n" +
+        "- Managing CI/CD: check workflow runs, view logs, cancel/rerun\n" +
+        "- Creating or reviewing pull requests\n" +
+        "- Reading or committing files to GitHub repos\n\n" +
+        "When NOT to Use:\n" +
+        "- For local git operations (use execute_command with git)\n" +
+        "- For web scraping GitHub pages (use WebFetch instead)\n\n" +
+        "Capabilities: search repos/code/users/issues, manage issues/PRs " +
             "(create, comment, label, assign, review, merge, update), CI/CD (workflows, runs, jobs, logs, cancel, rerun, dispatch), " +
             "repo info (stats, languages, contributors, releases, tags), files (read, list, commit, delete), " +
             "git data (branches, commits, compare, revert, status), gists, user info, rate limit, create/fork repos. " +
             "Requires a GitHub token configured in Settings." +
-            if (enableAutoFixCi) " Auto-fix CI is enabled: when CI fails, read logs, fix code, and re-push."
+            if (enableAutoFixCi) " Auto-fix CI is enabled: when CI fails, read logs, fix code, and re-push.",
             else "",
     parameters = {
         InputSchema.Obj(
