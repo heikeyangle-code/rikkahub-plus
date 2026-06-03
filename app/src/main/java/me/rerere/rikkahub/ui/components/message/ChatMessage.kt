@@ -361,7 +361,7 @@ private fun MessagePartsBlock(
             is MessagePartBlock.ContentBlock -> key(block.index) {
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
-                        SelectionContainer(modifier = Modifier.defaultMinSize(1.dp)) {
+                        SelectionContainer(modifier = Modifier.minSize(1.dp)) {
                             if (role == MessageRole.USER) {
                                 Surface(
                                     modifier = Modifier.widthIn(max = 360.dp).wrapContentWidth().animateContentSize(),
