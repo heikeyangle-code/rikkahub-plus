@@ -419,14 +419,24 @@ class ChatService(
                         Tool(
                             name = "sub_agent",
                             description = buildString {
-                                append("Launch a specialized agent to handle a subtask. Available agents: ")
-                                append(AgentRegistry.list().joinToString(", ") { "${it.agentType} (${it.description.take(50)})" })
-                                append(". Set subagent_type to choose. Default: general-purpose.")
-                            }.replace("\n", " "),
+                                append("Launch a specialized agent to handle a subtask. ")
+                                append("Set subagent_type to pick a role or omit for general-purpose. ")
+                                append("Use run_in_background=true for long-running tasks. ")
+                                append("Set name=<label> to make the agent addressable. ")
+                                append("Available agents: ")
+                                append(AgentRegistry.list().joinToString(", ") {
+                                    val color = it.color.name.lowercase()
+                                    "${it.agentType} ($color, ${it.description.take(40)})"
+                                })
+                            }.replace("\\n", " "),
                             needsApproval = false,
                             parameters = {
                                 InputSchema.Obj(
                                     properties = buildJsonObject {
+                                        put("description", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "A short (3-5 word) description of this task for display.")
+                                        })
                                         put("goal", buildJsonObject {
                                             put("type", "string")
                                             put("description", "What the agent should accomplish. Be specific and self-contained.")
@@ -437,11 +447,35 @@ class ChatService(
                                         })
                                         put("subagent_type", buildJsonObject {
                                             put("type", "string")
-                                            put("description", "Agent role: 'general-purpose' (default), 'explorer' (code analysis), 'planner' (architecture design)")
+                                            put("description", buildString {
+                                                append("Agent role to use. Available: ")
+                                                append(AgentRegistry.list().joinToString(", ") { it.agentType })
+                                                append(". Default: general-purpose.")
+                                            })
                                         })
                                         put("model", buildJsonObject {
                                             put("type", "string")
-                                            put("description", "Optional model override for this agent (e.g. 'sonnet', 'opus'). Uses default if omitted.")
+                                            put("description", "Optional model override (e.g. 'sonnet', 'opus'). Uses default if omitted.")
+                                        })
+                                        put("run_in_background", buildJsonObject {
+                                            put("type", "boolean")
+                                            put("description", "Set to true to run this agent in the background. You will be notified when it completes.")
+                                        })
+                                        put("name", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Optional name for the agent. Makes it addressable via send_message(to: name).")
+                                        })
+                                        put("team_name", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Team name for spawning. Uses current team context if omitted.")
+                                        })
+                                        put("mode", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Permission mode for the agent (e.g. 'plan' to require plan approval).")
+                                        })
+                                        put("cwd", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Absolute path to run the agent in. Overrides working directory.")
                                         })
                                     },
                                     required = listOf("goal"),
@@ -449,17 +483,21 @@ class ChatService(
                             },
                             execute = {
                                 val obj = it.jsonObject
+                                val taskDesc = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
                                 val goal = obj["goal"]?.jsonPrimitive?.content
                                     ?: error("goal is required")
                                 val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
                                 val agentType = obj["subagent_type"]?.jsonPrimitive?.contentOrNull ?: "general-purpose"
                                 val modelOverride = obj["model"]?.jsonPrimitive?.contentOrNull
                                 val runInBackground = obj["run_in_background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+                                val agentName = obj["name"]?.jsonPrimitive?.contentOrNull
                                 val teamName = obj["team_name"]?.jsonPrimitive?.contentOrNull
+                                val permissionMode = obj["mode"]?.jsonPrimitive?.contentOrNull
+                                val cwdOverride = obj["cwd"]?.jsonPrimitive?.contentOrNull
 
                                 // Load agent definition
                                 val agentDef = AgentRegistry.get(agentType)
-                                val agentCallId = "agent_${System.currentTimeMillis()}"
+                                val agentCallId = agentName ?: "agent_${System.currentTimeMillis()}"
 
                                 // Track progress
                                 AgentTaskTracker.createSession(agentCallId)
