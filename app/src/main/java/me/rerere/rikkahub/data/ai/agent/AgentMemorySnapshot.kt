@@ -163,3 +163,49 @@ object SnapshotMetaSchema {
         return SnapshotMeta(timestamp)
     }
 }
+
+// ===== Synced meta schema (aligned to leaked syncedMetaSchema) =====
+
+/**
+ * 快照同步元数据，对齐官方 SyncedMeta 类型。
+ */
+data class SyncedMeta(
+    val syncedFrom: String,
+)
+
+/**
+ * 从快照替换本地记忆（覆盖）。
+ * 对齐官方 replaceFromSnapshot()。
+ */
+suspend fun replaceFromSnapshot(
+    agentType: String,
+    scope: me.rerere.rikkahub.data.ai.tools.AgentMemoryScope,
+    snapshotTimestamp: String,
+    memoryRepository: me.rerere.rikkahub.data.repository.MemoryRepository,
+) {
+    val agentSnapshotManager = AgentMemorySnapshotManager(memoryRepository)
+    
+    // 清空本地
+    val localId = "agent:${scope.name.lowercase()}:$agentType"
+    memoryRepository.deleteMemoriesOfAssistant(localId)
+    
+    // 从快照复制
+    agentSnapshotManager.initializeFromSnapshot(agentType, scope)
+    
+    // 标记已同步
+    agentSnapshotManager.markSynced(agentType, scope, snapshotTimestamp)
+}
+
+/**
+ * 仅标记快照已同步，不更改本地记忆。
+ * 对齐官方 markSnapshotSynced()。
+ */
+suspend fun markSnapshotSynced(
+    agentType: String,
+    scope: me.rerere.rikkahub.data.ai.tools.AgentMemoryScope,
+    snapshotTimestamp: String,
+    memoryRepository: me.rerere.rikkahub.data.repository.MemoryRepository,
+) {
+    val agentSnapshotManager = AgentMemorySnapshotManager(memoryRepository)
+    agentSnapshotManager.markSynced(agentType, scope, snapshotTimestamp)
+}

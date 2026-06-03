@@ -26,6 +26,41 @@ import kotlinx.coroutines.launch
  */
 object AgentRunner {
 
+    /** Agent MCP 初始化回调。由 ChatService 设置。 */
+    var onInitAgentMcp: ((agentDef: AgentDefinition) -> Unit)? = null
+
+    /** Agent MCP 清理回调。由 ChatService 设置。 */
+    var onCleanupAgentMcp: ((agentDef: AgentDefinition) -> Unit)? = null
+
+    /** Agent skill 预加载回调。由 ChatService 设置。 */
+    var onPreloadSkills: ((agent: AgentDefinition, callback: (String) -> Unit) -> Unit)? = null
+
+    /**
+     * 在 Agent 执行前初始化 MCP。
+     * 对齐官方 initializeAgentMcpServers()。
+     */
+    fun initAgentMcp(agentDef: AgentDefinition?) {
+        if (agentDef == null) return
+        onInitAgentMcp?.invoke(agentDef)
+    }
+
+    /**
+     * 在 Agent 执行后清理 MCP。
+     */
+    fun cleanupAgentMcp(agentDef: AgentDefinition?) {
+        if (agentDef == null) return
+        onCleanupAgentMcp?.invoke(agentDef)
+    }
+
+    /**
+     * 预加载 agent 定义的 skill。
+     * 对齐官方 skillsToPreload 逻辑。
+     */
+    fun preloadSkills(agentDef: AgentDefinition?, onSkill: (String) -> Unit) {
+        if (agentDef == null || agentDef.skills.isEmpty()) return
+        onPreloadSkills?.invoke(agentDef, onSkill)
+    }
+
     private val backgroundScopes = ConcurrentHashMap<String, CoroutineScope>()
 
     /**

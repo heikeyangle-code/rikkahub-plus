@@ -91,6 +91,92 @@ object AgentLoader {
     }
 
     /**
+     * 检查 agent 的 MCP 服务器需求是否满足。
+     * 对齐官方 hasRequiredMcpServers()。
+     */
+    fun hasRequiredMcpServers(
+        agent: AgentDefinition,
+        availableServers: List<String>,
+    ): Boolean {
+        if (agent.requiredMcpServers.isEmpty()) return true
+        return agent.requiredMcpServers.all { pattern ->
+            availableServers.any { server ->
+                server.lowercase().contains(pattern.lowercase())
+            }
+        }
+    }
+
+    /**
+     * 过滤满足 MCP 服务器依赖的 agent。
+     * 对齐官方 filterAgentsByMcpRequirements()。
+     */
+    fun filterAgentsByMcpRequirements(
+        agents: List<AgentDefinition>,
+        availableServers: List<String>,
+    ): List<AgentDefinition> {
+        return agents.filter { hasRequiredMcpServers(it, availableServers) }
+    }
+
+    /**
+     * 从 markdown frontmatter 解析 agent 定义。
+     * 对齐官方 parseAgentFromMarkdown()。
+     */
+    fun parseAgentFromMarkdown(
+        agentType: String,
+        description: String,
+        promptText: String,
+        frontmatter: Map<String, Any?>,
+    ): AgentDefinition? {
+        if (agentType.isBlank() || description.isBlank()) return null
+        
+        val color = (frontmatter["color"] as? String)?.let {
+            try { AgentColor.valueOf(it.uppercase()) } catch (_: Exception) { null }
+        }
+        val model = frontmatter["model"] as? String
+        val background = frontmatter["background"] == true || frontmatter["background"] == "true"
+        val memoryStr = frontmatter["memory"] as? String
+        val memory = memoryStr?.let {
+            try { AgentMemoryScope.valueOf(it.uppercase()) } catch (_: Exception) { null }
+        }
+        @Suppress("UNCHECKED_CAST")
+        val tools = frontmatter["tools"] as? List<String>
+        @Suppress("UNCHECKED_CAST")
+        val disallowedTools = frontmatter["disallowedTools"] as? List<String>
+        val maxTurns = (frontmatter["maxTurns"] as? Number)?.toInt()
+        val effort = (frontmatter["effort"] as? Number)?.toInt()
+        val permissionMode = frontmatter["permissionMode"] as? String
+        @Suppress("UNCHECKED_CAST")
+        val skills = frontmatter["skills"] as? List<String>
+        val initialPrompt = frontmatter["initialPrompt"] as? String
+        val criticalReminder = frontmatter["criticalReminder"] as? String
+        val omitContext = frontmatter["omitProjectContext"] == true
+        val isolation = frontmatter["isolation"] as? String
+        
+        return AgentDefinition(
+            agentType = agentType,
+            name = agentType,
+            description = description,
+            systemPrompt = AgentSystemPrompt.Static(promptText),
+            tools = tools ?: listOf("*"),
+            disallowedTools = disallowedTools ?: emptyList(),
+            color = color ?: AgentColor.BLUE,
+            modelId = model,
+            background = background,
+            memory = memory,
+            maxTurns = maxTurns,
+            effort = effort,
+            permissionMode = permissionMode,
+            skills = skills ?: emptyList(),
+            initialPrompt = initialPrompt,
+            criticalReminder = criticalReminder,
+            omitProjectContext = omitContext,
+            isolation = isolation,
+            source = AgentSource.USER,
+            isBuiltin = false,
+        )
+    }
+
+    /**
      * 从 JSON 设置对象解析 agent 列表（对应官方 parseAgentsFromJson）。
      *
      * settings JSON 格式：
