@@ -70,7 +70,13 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
         val workdir = context.filesDir.absolutePath
 
         // Inject Android bridge (passed as parameter to execute())
-        val bridge = PythonBridge(context)
+        val bridge = PythonBridge(
+            context = context,
+            db = KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java),
+            settingsStore = KoinJavaComponent.get<SettingsStore>(SettingsStore::class.java),
+            conversationRepo = KoinJavaComponent.get<ConversationRepository>(ConversationRepository::class.java),
+            kbService = KoinJavaComponent.get<KnowledgeBaseService>(KnowledgeBaseService::class.java),
+        )
 
         val rawResult = withContext(Dispatchers.IO) {
             kotlinx.coroutines.withTimeout(timeoutSec * 1000L) {

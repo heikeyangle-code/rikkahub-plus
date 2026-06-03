@@ -15,12 +15,13 @@ import me.rerere.ai.ui.UIMessagePart
 import org.koin.java.KoinJavaComponent
 import kotlin.uuid.Uuid
 
-class PythonBridge(private val context: Context) {
-
-    private val db by lazy { KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java) }
-    private val settingsStore by lazy { KoinJavaComponent.get<SettingsStore>(SettingsStore::class.java) }
-    private val conversationRepo by lazy { KoinJavaComponent.get<ConversationRepository>(ConversationRepository::class.java) }
-    private val kbService by lazy { KoinJavaComponent.get<KnowledgeBaseService>(KnowledgeBaseService::class.java) }
+class PythonBridge(
+    private val context: Context,
+    private val db: AppDatabase,
+    private val settingsStore: SettingsStore,
+    private val conversationRepo: ConversationRepository,
+    private val kbService: KnowledgeBaseService,
+) {
 
     private fun td(a: Assistant) = a.tavernData ?: TavernCharacterData()
     private fun book(a: Assistant) = td(a).embeddedBook ?: TavernEmbeddedBook()

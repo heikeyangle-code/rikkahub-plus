@@ -251,7 +251,13 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                 appendLine("print(result)")
             }
             val executor = py.getModule("executor")
-            val bridge = PythonBridge(context)
+            val bridge = PythonBridge(
+                context = context,
+                db = KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java),
+                settingsStore = KoinJavaComponent.get<SettingsStore>(SettingsStore::class.java),
+                conversationRepo = KoinJavaComponent.get<ConversationRepository>(ConversationRepository::class.java),
+                kbService = KoinJavaComponent.get<KnowledgeBaseService>(KnowledgeBaseService::class.java),
+            )
             val raw = withContext(Dispatchers.IO) {
                 kotlinx.coroutines.withTimeout(60_000L) {
                     executor.callAttr("execute", pyScript, workdir, bridge).toString()

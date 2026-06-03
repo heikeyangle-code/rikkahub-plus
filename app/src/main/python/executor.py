@@ -28,76 +28,115 @@ import traceback
 # Bridge to Android services - set from Kotlin via execute() parameter
 _bridge = None
 
+
 # ============================================================
 # Bridge wrapper functions
 # ============================================================
 
 def query_knowledge_base(query, limit=10):
-    """Search knowledge base. Returns matching entries."""
-    if _bridge: return _bridge.queryKnowledgeBase(query, limit)
+    if _bridge:
+        try:
+            return _bridge.queryKnowledgeBase(query, limit)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def add_knowledge_entry(title, content, assistant_id=None):
-    """Add an entry to the knowledge base."""
-    if _bridge: return _bridge.addKnowledgeEntry(title, content, assistant_id)
+    if _bridge:
+        try:
+            return _bridge.addKnowledgeEntry(title, content, assistant_id)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def list_knowledge_entries(limit=20):
-    """List all knowledge base entries."""
-    if _bridge: return _bridge.listKnowledgeEntries(limit)
+    if _bridge:
+        try:
+            return _bridge.listKnowledgeEntries(limit)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def list_conversations(limit=10):
-    """List recent conversations."""
-    if _bridge: return _bridge.listConversations(limit)
+    if _bridge:
+        try:
+            return _bridge.listConversations(limit)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def get_conversation_messages(conversation_id, limit=50):
-    """Get messages from a conversation."""
-    if _bridge: return _bridge.getConversationMessages(conversation_id, limit)
+    if _bridge:
+        try:
+            return _bridge.getConversationMessages(conversation_id, limit)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def get_app_info():
-    """Get app information."""
-    if _bridge: return _bridge.getAppInfo()
+    if _bridge:
+        try:
+            return _bridge.getAppInfo()
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def list_assistants():
-    """List all assistants with their settings."""
-    if _bridge: return _bridge.listAssistants()
+    if _bridge:
+        try:
+            return _bridge.listAssistants()
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def get_assistant_settings(assistant_id):
-    """Get settings for a specific assistant."""
-    if _bridge: return _bridge.getAssistantSettings(assistant_id)
+    if _bridge:
+        try:
+            return _bridge.getAssistantSettings(assistant_id)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def update_assistant_setting(assistant_id, key, value):
-    """Update an assistant setting. Keys: name, model, system_prompt,
-    total_steps, tool_timeout, js_timeout, shell_timeout, temperature,
-    enable_web_search, sub_agent."""
-    if _bridge: return _bridge.updateAssistantSetting(assistant_id, key, value)
+    if _bridge:
+        try:
+            return _bridge.updateAssistantSetting(assistant_id, key, value)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def update_knowledge_entry(entry_id, title=None, content=None):
-    """Update a knowledge base entry."""
-    if _bridge: return _bridge.updateKnowledgeEntry(entry_id, title, content)
+    if _bridge:
+        try:
+            return _bridge.updateKnowledgeEntry(entry_id, title, content)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def delete_knowledge_entry(entry_id):
-    """Delete a knowledge base entry."""
-    if _bridge: return _bridge.deleteKnowledgeEntry(entry_id)
+    if _bridge:
+        try:
+            return _bridge.deleteKnowledgeEntry(entry_id)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def get_setting(key):
-    """Read a global app setting."""
-    if _bridge: return _bridge.getSetting(key)
+    if _bridge:
+        try:
+            return _bridge.getSetting(key)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
 
 def update_setting(key, value):
-    """Change a global app setting."""
-    if _bridge: return _bridge.updateSetting(key, value)
+    if _bridge:
+        try:
+            return _bridge.updateSetting(key, value)
+        except Exception as e:
+            return f"Bridge error: {e}"
     return "Bridge not available"
+
 
 # ============================================================
 # Main executor
@@ -151,7 +190,7 @@ def execute(code: str, workdir: str, bridge=None) -> str:
             import matplotlib.pyplot as plt
             for i, fig_num in enumerate(plt.get_fignums()):
                 fig = plt.figure(fig_num)
-                fname = f"figure_{i+1}.png" if plt.get_fignums() else "figure.png"
+                fname = "figure_{}.png".format(i+1) if plt.get_fignums() else "figure.png"
                 fig.savefig(os.path.join(workdir, fname), dpi=150,
                            bbox_inches='tight', facecolor='white', edgecolor='none')
                 output_files.append(fname)
@@ -160,7 +199,7 @@ def execute(code: str, workdir: str, bridge=None) -> str:
             pass
 
     except Exception as e:
-        error = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+        error = "{}\n{}".format(e, traceback.format_exc())
 
     finally:
         stdout = sys.stdout.getvalue()
