@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -33,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.data.ai.agent.AgentEventBus
 import me.rerere.rikkahub.data.ai.agent.AgentEventType
@@ -58,19 +57,24 @@ fun AgentExecutionPanel(
 ) {
     val events = remember { mutableStateListOf<AgentExecutionEvent>() }
     var isCompleted by remember { mutableStateOf(false) }
-    var currentDescription by remember { mutableStateOf("starting...") }
+    var currentDescription by remember { mutableStateOf("") }
 
     // 订阅事件（用于实时 tool 调用流）
     LaunchedEffect(agentId) {
         AgentEventBus.subscribe { event ->
             if (event.agentId == agentId) {
                 events.add(event)
-                currentDescription = event.description
-
                 when (event.eventType) {
+                    AgentEventType.TOOL_USE -> currentDescription = event.description
+                    AgentEventType.PROGRESS -> currentDescription = event.description
+                    AgentEventType.SUMMARY -> if (currentDescription.isBlank()) currentDescription = event.description
                     AgentEventType.COMPLETED,
                     AgentEventType.FAILED,
-                    AgentEventType.CANCELLED -> isCompleted = true
+                    AgentEventType.CANCELLED -> {
+                        isCompleted = true
+                        currentDescription = event.description
+                    }
+                    AgentEventType.STARTED -> currentDescription = event.description
                     else -> {}
                 }
             }
@@ -83,7 +87,7 @@ fun AgentExecutionPanel(
 
     // 从 progress 初始化状态（面板晚于事件时有用）
     LaunchedEffect(agentId, progress) {
-        if (progress != null) {
+        if (progress != null && currentDescription.isBlank()) {
             when (progress.status) {
                 AgentStatus.COMPLETED,
                 AgentStatus.FAILED,
@@ -92,50 +96,62 @@ fun AgentExecutionPanel(
                 }
                 else -> {}
             }
-            if (progress.toolUseCount > 0 && currentDescription == "starting...") {
+            if (progress.toolUseCount > 0) {
                 currentDescription = "已执行 ${progress.toolUseCount} 个工具调用"
+            } else {
+                currentDescription = "思考中..."
             }
         }
     }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = agentColor.copy(alpha = 0.08f),
+            containerColor = agentColor.copy(alpha = 0.07f),
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            // Header row
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Header row: dot + name + status + meta
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                // Agent color dot with pulse effect (simulated via alpha)
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
+                        .size(12.dp)
                         .clip(CircleShape)
-                        .background(agentColor),
+                        .background(if (isCompleted) agentColor.copy(alpha = 0.5f) else agentColor),
                 )
                 Text(
-                    text = agentType,
+                    text = agentType.replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 if (isCompleted) {
+                    val hasError = events.any { it.eventType == AgentEventType.FAILED }
                     Text(
-                        text = "✓",
-                        color = if (events.any { it.eventType == AgentEventType.FAILED }) MaterialTheme.colorScheme.error
-                        else Color(0xFF22C55E),
+                        text = if (hasError) "✕" else "✓",
+                        color = if (hasError) MaterialTheme.colorScheme.error else Color(0xFF22C55E),
                         style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                } else {
+                    Text(
+                        text = "●",
+                        color = agentColor,
+                        style = MaterialTheme.typography.labelSmall,
                     )
                 }
                 Spacer(Modifier.weight(1f))
+                // Stats
                 if (totalTokens > 0) {
+                    val kTokens = "%.1fk".format(totalTokens / 1000.0)
                     Text(
-                        text = "${totalTokens} tokens",
+                        text = kTokens,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -144,43 +160,47 @@ fun AgentExecutionPanel(
                     Text(
                         text = "${progress.toolUseCount} 步",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium,
+                        color = agentColor,
                     )
                 }
             }
 
-            Spacer(Modifier.height(6.dp))
-
-            // Current action description
-            Text(
-                text = currentDescription.take(100),
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            // Progress bar (not completed)
+            // Progress bar
             if (!isCompleted) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(10.dp))
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
                     color = agentColor,
-                    trackColor = agentColor.copy(alpha = 0.15f),
+                    trackColor = agentColor.copy(alpha = 0.12f),
                 )
             }
 
-            // Tool use events list
+            // Current action description
+            if (currentDescription.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = currentDescription,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // Tool use events
             val toolEvents = events.filter { it.eventType == AgentEventType.TOOL_USE }
             if (toolEvents.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
-                toolEvents.takeLast(5).forEach { event ->
+                toolEvents.takeLast(4).forEach { event ->
                     ToolUseLine(event.description)
                 }
-                if (toolEvents.size > 5) {
+                if (toolEvents.size > 4) {
                     Text(
-                        text = "... 还有 ${toolEvents.size - 5} 个工具调用",
+                        text = "... 还有 ${toolEvents.size - 4} 个工具调用",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 18.dp, top = 2.dp),
                     )
                 }
             }
@@ -188,22 +208,26 @@ fun AgentExecutionPanel(
             // Result text (completed)
             val resultEvent = events.find { it.eventType == AgentEventType.COMPLETED }
             if (resultEvent != null && !resultEvent.result.isNullOrBlank()) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     text = resultEvent.result.take(200),
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 5,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
             // Error
             val errorEvent = events.find { it.eventType == AgentEventType.FAILED }
             if (errorEvent != null) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     text = "失败: ${errorEvent.error ?: errorEvent.description}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -214,18 +238,23 @@ fun AgentExecutionPanel(
 private fun ToolUseLine(toolName: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.padding(vertical = 1.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .padding(vertical = 1.dp)
+            .padding(start = 18.dp),
     ) {
         Text(
             text = "→",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
         )
         Text(
             text = toolName,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

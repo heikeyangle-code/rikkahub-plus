@@ -385,27 +385,30 @@ private fun ChatListNormal(
 
             if (loading) {
                 item(LoadingIndicatorKey) {
-                    Row(
-                        modifier = Modifier.padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        RabbitLoadingIndicator(
-                            modifier = Modifier.size(28.dp)
+                    val runningAgents = me.rerere.rikkahub.data.ai.agent.AgentTaskTracker.runningAgents()
+                    val activeAgent = runningAgents.firstOrNull()
+                    if (activeAgent != null) {
+                        val (agentId, progress) = activeAgent
+                        // Agent 执行时显示进度面板，替代 loading 指示器
+                        AgentExecutionPanel(
+                            agentId = agentId,
+                            agentType = progress.agentType.ifEmpty { "agent" },
+                            agentColor = androidx.compose.ui.graphics.Color(
+                                me.rerere.rikkahub.data.ai.tools.AgentColorManager.getColor(progress.agentType).hex
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                         )
-                        // Agent 执行进度面板（替换原来的 processingStatus 文本）
-                        val runningAgents = me.rerere.rikkahub.data.ai.agent.AgentTaskTracker.runningAgents()
-                        val activeAgent = runningAgents.firstOrNull()
-                        if (activeAgent != null) {
-                            val (agentId, progress) = activeAgent
-                            AgentExecutionPanel(
-                                agentId = agentId,
-                                agentType = progress.agentType.ifEmpty { "agent" },
-                                agentColor = androidx.compose.ui.graphics.Color(
-                                    me.rerere.rikkahub.data.ai.tools.AgentColorManager.getColor(progress.agentType).hex
-                                ),
+                    } else {
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            RabbitLoadingIndicator(
+                                modifier = Modifier.size(28.dp)
                             )
-                        } else {
                             AnimatedVisibility(
                                 visible = processingStatus != null,
                             ) {
