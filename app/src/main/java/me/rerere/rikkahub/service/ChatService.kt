@@ -973,7 +973,6 @@ class ChatService(
                                             add(createGetTeammateMessagesTool())
                                             addAll(createKanbanTools())
                                         }
-                                        addAll(localTools.getTools(listOf(LocalToolOption.TimeInfo)))
                                         add(createSleepTool())
                                     }
 
