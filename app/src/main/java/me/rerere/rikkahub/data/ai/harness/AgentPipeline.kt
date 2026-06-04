@@ -40,14 +40,13 @@ private const val TAG = "AgentPipeline"
 /**
  * Agent Pipeline — 对标 learn-claude-code s20 的 agent_loop。
  *
- * 完整管线：
+ * 管线步骤：
  *   0. injectCronJobs — cron 任务注入
  *   1. injectBackgroundNotifications — 后台结果注入
- *   2. prepareContext — 压缩 (toolResultBudget→snip→micro→truncate→LLM summary)
+ *   2. prepareContext — 压缩
  *   3. selectRelevantMemories — side-query 侧选记忆
  *   4. LLM call (委托 GenerationHandler)
- *   5. extractMemories — LLM 自动从对话提取记忆
- *   6. consolidateMemories — 记忆数>10时去重整理（Dream）
+ *   5. extractMemories — LLM 自动从对话提取记忆（只增加不删除）
  */
 class AgentPipeline(
     private val generationHandler: GenerationHandler,
@@ -60,7 +59,6 @@ class AgentPipeline(
             "pip install", "npm install", "cargo build",
             "pytest", "make", "gradle", "mvn",
         )
-        private const val CONSOLIDATE_THRESHOLD = 10
         private val json = Json { ignoreUnknownKeys = true }
     }
 
@@ -69,10 +67,9 @@ class AgentPipeline(
         return slowKeywords.any { command.lowercase().contains(it) }
     }
 
-    /** 管线入口 — 对标 s20 agent_loop */
+    /** 管线入口 */
     fun run(
-        settings: Settings,
-        model: Model,
+        settings: Settings, model: Model,
         messages: List<UIMessage>,
         inputTransformers: List<InputMessageTransformer> = emptyList(),
         outputTransformers: List<OutputMessageTransformer> = emptyList(),
@@ -87,36 +84,29 @@ class AgentPipeline(
         policyEngine: PolicyEngine? = null,
         autoCompactor: AutoCompactor? = null,
     ): Flow<GenerationChunk> {
-        // [s20 Step 0] 注入 cron + 后台通知
         var pipelineMessages = messages
         pipelineMessages = injectCronJobs(pipelineMessages)
         pipelineMessages = injectBackgroundNotifications(pipelineMessages)
-
-        // [s20 Step 2] 压缩（含 LLM 摘要压过阈值时）
         pipelineMessages = prepareContext(pipelineMessages, autoCompactor)
 
-        // [s20 Step 3] 侧选记忆（只注入相关）
         val selectedMemories = selectRelevantMemories(memories ?: emptyList(), pipelineMessages)
-
-        // [s20 Step 4] 委托 GenerationHandler 执行 LLM + 工具循环
         val assistantId = if (assistant.useGlobalMemory) "__global__" else assistant.id.toString()
+
         val flow = generationHandler.generateText(
             settings = settings, model = model,
             messages = pipelineMessages,
             inputTransformers = inputTransformers,
             outputTransformers = outputTransformers,
-            assistant = assistant,
-            memories = selectedMemories,
+            assistant = assistant, memories = selectedMemories,
             tools = tools, maxSteps = maxSteps,
             processingStatus = processingStatus,
             conversationSystemPrompt = conversationSystemPrompt,
             conversationModeInjectionIds = conversationModeInjectionIds,
             conversationLorebookIds = conversationLorebookIds,
-            policyEngine = policyEngine,
-            autoCompactor = autoCompactor,
+            policyEngine = policyEngine, autoCompactor = autoCompactor,
         )
 
-        // [s20 Step 6] emit 后提取记忆 + 整理
+        // emit 后提取记忆（只添加不删除）
         return flow.map { chunk ->
             if (chunk is GenerationChunk.Messages && memoryRepository != null) {
                 try {
@@ -134,11 +124,8 @@ class AgentPipeline(
         }
     }
 
-    // ═══════════════════════════════════════════════
-    //  管线步骤
-    // ═══════════════════════════════════════════════
+    // ═══════════════════ 管线步骤 ═══════════════════
 
-    /** [s20 Step 0] cron 注入 */
     private fun injectCronJobs(messages: List<UIMessage>): List<UIMessage> {
         val cronJobs = CronScheduler.consumeQueue()
         if (cronJobs.isEmpty()) return messages
@@ -146,10 +133,8 @@ class AgentPipeline(
             .also { Log.i(TAG, "[cron] injected ${cronJobs.size} job(s)") }
     }
 
-    /** [s20 Step 1] 后台通知注入（预留） */
     private fun injectBackgroundNotifications(messages: List<UIMessage>): List<UIMessage> = messages
 
-    /** [s20 Step 2] 压缩管线 — 超阈值时用 LLM 摘要替代文字拼接 */
     private fun prepareContext(messages: List<UIMessage>, autoCompactor: AutoCompactor?): List<UIMessage> {
         val compactor = autoCompactor ?: return messages
         var current = compactor.toolResultBudget(messages)
@@ -163,8 +148,7 @@ class AgentPipeline(
             if (result != null) {
                 AgentEventBus.emit(AgentEvent.CompactTriggered(
                     reason = "threshold exceeded",
-                    messagesBefore = messages.size,
-                    messagesAfter = result.compactedMessages.size,
+                    messagesBefore = messages.size, messagesAfter = result.compactedMessages.size,
                 ))
                 return result.compactedMessages
             }
@@ -172,17 +156,13 @@ class AgentPipeline(
         return current
     }
 
-    /** [s20 Step 3] 侧选记忆 — 关键词匹配，只注入相关（>5条时） */
     private fun selectRelevantMemories(
-        allMemories: List<AssistantMemory>,
-        recentMessages: List<UIMessage>,
+        allMemories: List<AssistantMemory>, recentMessages: List<UIMessage>,
     ): List<AssistantMemory> {
         if (allMemories.size <= 5) return allMemories
         val recentText = recentMessages.takeLast(3)
-            .flatMap { it.parts }
-            .filterIsInstance<UIMessagePart.Text>()
-            .joinToString(" ") { it.text }
-            .lowercase().take(500)
+            .flatMap { it.parts }.filterIsInstance<UIMessagePart.Text>()
+            .joinToString(" ") { it.text }.lowercase().take(500)
         if (recentText.isBlank()) return allMemories.take(3)
         val keywords = recentText.split("\\s+".toRegex()).filter { it.length > 3 }.toSet()
         if (keywords.isEmpty()) return allMemories.take(3)
@@ -193,18 +173,14 @@ class AgentPipeline(
         return if (scored.isEmpty()) allMemories.take(3) else scored.take(5).map { it.first }
     }
 
-    /** 占位符结果 — 对标 s20 后台任务 */
     fun buildBackgroundPlaceholder(toolName: String, command: String, bgId: String): String = buildString {
         appendLine("[Background task $bgId started]")
         appendLine("Command: ${command.take(200)}")
         appendLine("Result will arrive as task_notification.")
     }
 
-    // ═══════════════════════════════════════════════
-    //  LLM 辅助调用（s08 摘要 + s09 记忆提取/整理）
-    // ═══════════════════════════════════════════════
+    // ═══════════════════ LLM 辅助调用 ═══════════════════
 
-    /** 构建对话文本（s09/s20 共用） */
     private fun buildDialogueText(messages: List<UIMessage>): String =
         messages.takeLast(10).joinToString("\n") { msg ->
             val role = when (msg.role) { MessageRole.USER -> "user"
@@ -215,7 +191,6 @@ class AgentPipeline(
             if (text.isNotBlank()) "$role: $text" else ""
         }
 
-    /** 简单 LLM 调用（非流式），用于辅助任务 */
     private suspend fun callLLM(
         settings: Settings, model: Model, prompt: String, maxTokens: Int = 2000,
     ): String? = withContext(Dispatchers.IO) {
@@ -224,12 +199,10 @@ class AgentPipeline(
             val impl = providerManager.getProviderByType(provider) ?: return@withContext null
             val msgs = listOf(UIMessage.user(prompt))
             val result = impl.generateText(
-                providerSetting = provider,
-                messages = msgs,
+                providerSetting = provider, messages = msgs,
                 params = TextGenerationParams(
                     model = model, tools = emptyList(),
-                    maxTokens = maxTokens,
-                    reasoningLevel = ReasoningLevel.OFF,
+                    maxTokens = maxTokens, reasoningLevel = ReasoningLevel.OFF,
                 ),
             )
             result.choices.firstOrNull()?.message?.toText()
@@ -239,16 +212,15 @@ class AgentPipeline(
     }
 
     /**
-     * [s20/s09] 提取记忆 — 对标 s09 extract_memories。
-     * 每轮结束后自动从对话提取用户偏好/项目事实。
+     * 提取记忆 — 对标 s09 extract_memories。
+     * 用 LLM 从最近对话中提取用户偏好/项目事实，追加到记忆库。
+     * 只增加不删除，不影响 AI 手动写的记忆。
      */
     private suspend fun extractMemoriesWithLLM(
-        settings: Settings, model: Model,
-        assistantId: String, dialogue: String,
+        settings: Settings, model: Model, assistantId: String, dialogue: String,
     ) {
         val repo = memoryRepository ?: return
 
-        // 获取现有记忆避免重复
         val existing = repo.getMemoriesOfAssistant(assistantId)
         val existingDesc = if (existing.isEmpty()) "(none)"
             else existing.joinToString("\n") { "- ${it.content.take(100)}" }
@@ -272,9 +244,13 @@ class AgentPipeline(
         if (response.isNullOrBlank()) return
 
         try {
-            val jsonText = response.substringAfter('[').substringBeforeLast(']')
-            if (jsonText.isBlank()) return
-            val items = json.parseToJsonElement("[$jsonText]").jsonArray
+            // 提取 JSON 数组
+            val start = response.indexOf('[')
+            val end = response.lastIndexOf(']')
+            if (start < 0 || end < 0) return
+            val jsonText = response.substring(start, end + 1)
+            val items = json.parseToJsonElement(jsonText).jsonArray
+
             var count = 0
             for (item in items) {
                 val obj = item.jsonObject
@@ -285,63 +261,9 @@ class AgentPipeline(
                     count++
                 }
             }
-            if (count > 0) {
-                Log.i(TAG, "[memory] extracted $count new memories")
-                consolidateMemories(settings, model, assistantId)
-            }
+            if (count > 0) Log.i(TAG, "[memory] extracted $count new memories")
         } catch (e: Exception) {
             Log.w(TAG, "Memory parse failed: ${e.message}")
-        }
-    }
-
-    /**
-     * [s09] 记忆整理 (Dream) — 对标 s09 consolidate_memories。
-     * 当记忆数 ≥ 10 时调用 LLM 去重合并。
-     */
-    private suspend fun consolidateMemories(
-        settings: Settings, model: Model, assistantId: String,
-    ) {
-        val repo = memoryRepository ?: return
-        val allMemories = repo.getMemoriesOfAssistant(assistantId)
-        if (allMemories.size < CONSOLIDATE_THRESHOLD) return
-
-        val catalog = allMemories.joinToString("\n\n") { m ->
-            "## ${m.id}\n${m.content}"
-        }
-
-        val prompt = buildString {
-            appendLine("Consolidate these memories. Rules:")
-            appendLine("1. Merge duplicates into one")
-            appendLine("2. Remove outdated/contradicted ones")
-            appendLine("3. Keep under 30 items")
-            appendLine("4. Preserve user preferences above all")
-            appendLine()
-            appendLine("Return JSON array. Each item: {content: string}")
-            appendLine()
-            appendLine(catalog.take(12000))
-        }
-
-        val response = callLLM(settings, model, prompt, 2000)
-        if (response.isNullOrBlank()) return
-
-        try {
-            val jsonText = response.substringAfter('[').substringBeforeLast(']')
-            if (jsonText.isBlank()) return
-            val items = json.parseToJsonElement("[$jsonText]").jsonArray
-
-            // 删旧 + 写新
-            repo.deleteMemoriesOfAssistant(assistantId)
-            var count = 0
-            for (item in items) {
-                val content = item.jsonObject["content"]?.jsonPrimitive?.content ?: ""
-                if (content.isNotBlank()) {
-                    repo.addMemory(assistantId, content)
-                    count++
-                }
-            }
-            Log.i(TAG, "[memory] consolidated ${allMemories.size} → $count")
-        } catch (e: Exception) {
-            Log.w(TAG, "Memory consolidate failed: ${e.message}")
         }
     }
 }
