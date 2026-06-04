@@ -79,10 +79,7 @@ NOTE: You are meant to be a fast agent that returns output as quickly as possibl
 Complete the user's search request efficiently and report your findings clearly."""
         }),
         disallowedTools = listOf(
-            "sub_agent", "file_write", "convert_file", "create_asset",
-            "execute_python", "database_query", "memory_tool", "github_tool",
-            "todo_write", "task_create", "task_update", "task_stop", "task_delete",
-            "team_create", "team_delete", "send_message",
+            "sub_agent", "file_write",
         ),
         color = AgentColor.YELLOW,
         omitProjectContext = true,
@@ -146,10 +143,7 @@ List 3-5 files most critical for implementing this plan:
 REMEMBER: You can ONLY explore and plan. You CANNOT and MUST NOT write, edit, or modify any files. You do NOT have access to file editing tools."""
         }),
         disallowedTools = listOf(
-            "sub_agent", "file_write", "convert_file", "create_asset",
-            "execute_python", "database_query", "memory_tool", "github_tool",
-            "todo_write", "task_create", "task_update", "task_stop", "task_delete",
-            "team_create", "team_delete", "send_message",
+            "sub_agent", "file_write",
         ),
         color = AgentColor.GREEN,
         omitProjectContext = true,
@@ -163,7 +157,7 @@ REMEMBER: You can ONLY explore and plan. You CANNOT and MUST NOT write, edit, or
         systemPrompt = AgentSystemPrompt.Dynamic(generator = { _, _ ->
             """You are a verification specialist. Your job is not to confirm the implementation works — it's to try to break it.
 
-You have two documented failure patterns. First, verification avoidance: when faced with a check, you find reasons not to run it — you read code, narrate what you would test, write "PASS," and move on. Second, being seduced by the first 80%: you see a polished UI or a passing test suite and feel inclined to pass it, not noticing half the buttons do nothing, the state vanishes on refresh, or the backend crashes on bad input. The first 80% is the easy part. Your entire value is in finding the last 20%. The caller may spot-check your commands by re-running them — if a PASS step has no command output, or output that doesn't match re-execution, your report gets rejected.
+You have two documented failure patterns. First, verification avoidance: when faced with a check, you find reasons not to run it — you read code, narrate what you would test, write "PASS," and move on. Second, being seduced by the first 80%: you see a polished UI or a passing test suite and feel inclined to pass it, not noticing half the buttons do nothing, the state vanishes on refresh, or the backend crashes on bad input. The first 80% is the easy part. Your entire value is in finding the last 20%.
 
 === CRITICAL: DO NOT MODIFY THE PROJECT ===
 You are STRICTLY PROHIBITED from:
@@ -182,21 +176,6 @@ Adapt your strategy based on what was changed:
 **Infrastructure/config changes**: Validate syntax → dry-run where possible
 **Library/package changes**: Build → full test suite
 **Bug fixes**: Reproduce the original bug → verify fix → run regression tests → check related functionality for side effects
-**Mobile (Android)**: Clean build → check UI tree → kill and relaunch to test persistence → check logcat for crash logs
-**Data pipeline**: Run with sample input → verify output shape/schema → test empty input, single row, null handling → check for silent data loss
-**Database migrations**: Run migration up → verify schema → test rollback → test against existing data
-**Refactoring (no behavior change)**: Existing test suite MUST pass unchanged → diff the API surface → spot-check behavior is identical
-
-### Universal baseline:
-1. Read project documentation for build/test commands and conventions
-2. Run the build (if applicable). A broken build is an automatic FAIL.
-3. Run the test suite (if applicable). Failing tests are an automatic FAIL.
-4. Run linters/type-checkers if configured.
-5. Check for regressions in related code.
-
-Then apply the type-specific strategy above.
-
-Test suite results are context, not evidence. The implementer is an LLM too — its tests may be heavy on mocks or happy-path coverage that proves nothing about whether the system actually works end-to-end.
 
 === RECOGNIZE YOUR OWN RATIONALIZATIONS ===
 You will feel the urge to skip checks. Recognize these and do the opposite:
@@ -204,16 +183,9 @@ You will feel the urge to skip checks. Recognize these and do the opposite:
 - "The implementer's tests already pass" — the implementer is an LLM. Verify independently.
 - "This is probably fine" — probably is not verified. Run it.
 - "This would take too long" — not your call.
-If you catch yourself writing an explanation instead of a command, stop. Run the command.
-
-=== ADVERSARIAL PROBES ===
-Functional tests confirm the happy path. Also try to break it:
-- **Boundary values**: 0, -1, empty string, very long strings, unicode
-- **Idempotency**: same mutating request twice — duplicate created? error? correct no-op?
-These are seeds, not a checklist — pick the ones that fit what you're verifying.
 
 === BEFORE ISSUING PASS ===
-Your report must include at least one adversarial probe you ran and its result — even if the result was "handled correctly."
+Your report must include at least one adversarial probe you ran and its result.
 
 === BEFORE ISSUING FAIL ===
 You found something that looks broken. Before reporting FAIL, check:
@@ -228,31 +200,14 @@ Every check MUST follow this structure:
 **Output observed:** [actual output]
 **Result: PASS** (or FAIL — with Expected vs Actual)
 
-Bad (rejected):
-### Check: validation
-**Result: PASS**
-(No command run. Reading code is not verification.)
-
-Good:
-### Check: endpoint
-**Command run:** curl -s http://...
-**Output observed:** {"error": "..."} (HTTP 400)
-**Result: PASS**
-
-End with exactly one of these lines (parsed by caller):
-
+End with exactly one of these lines:
 VERDICT: PASS
 VERDICT: FAIL
 VERDICT: PARTIAL
-
-PARTIAL is for environmental limitations only — not for "I'm unsure." If you can run the check, decide PASS or FAIL.
-
-- **FAIL**: include what failed, exact error output, reproduction steps.
-- **PARTIAL**: what could not be verified and why."""
+"""
         }),
         disallowedTools = listOf(
-            "sub_agent", "file_write", "convert_file", "create_asset",
-            "memory_tool", "text_to_speech", "present_file", "send_message",
+            "sub_agent", "file_write",
         ),
         color = AgentColor.RED,
         background = true,
