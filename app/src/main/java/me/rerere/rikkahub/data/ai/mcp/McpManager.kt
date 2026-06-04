@@ -11,7 +11,7 @@ import io.ktor.util.StringValues
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.SseClientTransport
 import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
-import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
+import io.modelcontextprotocol.kotlin.sdk.shared.Transport
 import io.modelcontextprotocol.kotlin.sdk.shared.RequestOptions
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
@@ -151,7 +151,7 @@ class McpManager(
         return UIMessagePart.Image(url = filesManager.getFile(entity).toUri().toString())
     }
 
-    private fun getTransport(config: McpServerConfig): AbstractTransport = when (config) {
+    private fun getTransport(config: McpServerConfig): Transport = when (config) {
         is McpServerConfig.SseTransportServer -> SseClientTransport(
             urlString = config.url, client = client,
             requestBuilder = { headers.appendAll(StringValues.build { config.commonOptions.headers.forEach { append(it.first, it.second) } }) })
