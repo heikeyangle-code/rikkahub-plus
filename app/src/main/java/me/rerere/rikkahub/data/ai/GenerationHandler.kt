@@ -410,6 +410,11 @@ class GenerationHandler(
                         appendLine()
                         append(buildRecentChatsPrompt(assistant, conversationRepo))
                     }
+                    // s05: nag reminder — 连续多轮没更新计划时提醒
+                    if (me.rerere.rikkahub.data.ai.tools.PlanManager.shouldNag()) {
+                        appendLine()
+                        appendLine("[Reminder] You have an active plan but haven't updated it in a while. Use todo_write to update your progress.")
+                    }
                 },
                 constraints = emptyList(),
             )
@@ -678,6 +683,17 @@ private suspend fun executeToolCall(
                         Log.w(TAG, "PolicyEngine denied ${toolDef.name}: ${result.reason}")
                         return tool.copy(output = listOf(UIMessagePart.Text(
                             json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Permission denied: ${result.reason}")) })
+                        )))
+                    }
+                    is me.rerere.rikkahub.data.ai.policy.PermissionResult.NeedsApproval -> {
+                        Log.w(TAG, "PolicyEngine needs approval for ${toolDef.name}: ${result.reason}")
+                        return tool.copy(output = listOf(UIMessagePart.Text(
+                            json.encodeToString(buildJsonObject {
+                                put("error", JsonPrimitive("⚠ ${result.reason}: tool '${result.toolName}' needs your approval before execution. Type 'approve' to allow or 'deny' to reject."))
+                                put("needs_approval", true)
+                                put("tool_name", JsonPrimitive(result.toolName))
+                                put("reason", JsonPrimitive(result.reason))
+                            })
                         )))
                     }
                     is me.rerere.rikkahub.data.ai.policy.PermissionResult.Allowed -> {}

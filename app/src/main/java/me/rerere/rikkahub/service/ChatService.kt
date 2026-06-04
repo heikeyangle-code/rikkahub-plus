@@ -273,8 +273,19 @@ class ChatService(
         AgentService(appScope, autoCompactor, sessionStore)
     }
 
-    // s13: 后台 Agent 完成通知 → 注入到活跃会话
+    // s13: 后台 Agent 完成通知 + s14: CronScheduler 启动 + s04: UserPromptSubmit 发射
     init {
+        // s14: 启动 cron 调度器
+        val cronDataDir = java.io.File(context.filesDir, ".cron_jobs")
+        cronDataDir.parentFile?.mkdirs()
+        me.rerere.rikkahub.data.ai.scheduler.CronScheduler.setDurableFile(
+            java.io.File(context.filesDir, ".cron_jobs/scheduled_tasks.json")
+        )
+        me.rerere.rikkahub.data.ai.scheduler.CronScheduler.start(appScope) { job ->
+            Log.i(TAG, "[cron] job '${job.id}' fired: ${job.prompt.take(60)}")
+        }
+
+        // s13: 后台 agent 完成通知
         me.rerere.rikkahub.data.ai.agent.AgentLifecycleManager.addNotificationListener { notification ->
             Log.i(TAG, "[bg notification] ${notification.agentType} ${notification.status}: ${notification.summary?.take(80)}")
         }
@@ -474,6 +485,18 @@ class ChatService(
                     ).toMessageNode(),
                 )
                 saveConversation(conversationId, newConversation)
+
+                // s04: 发射 UserPromptSubmit 事件
+                appScope.launch {
+                    ListenerEventBus.emit(
+                        AgentEvent.UserPromptSubmit(
+                            conversationId = conversationId,
+                            userInput = content.joinToString("") { part ->
+                                if (part is UIMessagePart.Text) part.text else ""
+                            },
+                        )
+                    )
+                }
 
                 // 开始补全
                 if (answer) {
