@@ -287,7 +287,7 @@ class ChatService(
         }
 
         // s13: 后台 agent 完成通知
-        me.rerere.rikkahub.data.ai.agent.AgentLifecycleManager.addNotificationListener { notification ->
+        me.rerere.rikkahub.data.ai.agent.addNotificationListener { notification ->
             Log.i(TAG, "[bg notification] ${notification.agentType} ${notification.status}: ${notification.summary?.take(80)}")
         }
     }
@@ -868,7 +868,7 @@ class ChatService(
                                     val obj = it.jsonObject
                                     val goal = obj["goal"]?.jsonPrimitive?.content
                                         ?: error("goal is required")
-                                    val context = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
+                                    val toolContext = obj["context"]?.jsonPrimitive?.contentOrNull ?: ""
                                     val agentType = obj["subagent_type"]?.jsonPrimitive?.contentOrNull ?: "general-purpose"
                                     val modelOverride = obj["model"]?.jsonPrimitive?.contentOrNull
                                     val runInBackground = obj["run_in_background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false

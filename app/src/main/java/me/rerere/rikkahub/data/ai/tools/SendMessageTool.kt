@@ -176,7 +176,7 @@ fun createKanbanTools(): List<Tool> = listOf(
             if (tasks.isEmpty()) {
                 listOf(UIMessagePart.Text("No unclaimed tasks."))
             } else {
-                val output = tasks.joinToString("\n") { t ->
+                val output = tasks.joinToString("\n") { t: me.rerere.rikkahub.data.ai.team.KanbanTask ->
                     val deps = if (t.blockedBy.isNotEmpty()) " [blockedBy: ${t.blockedBy.joinToString()}]" else ""
                     "  ${t.id}: ${t.subject}$deps"
                 }

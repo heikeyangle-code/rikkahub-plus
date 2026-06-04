@@ -1,64 +1,31 @@
 package me.rerere.rikkahub.data.ai.team
 
 import android.util.Log
-import kotlinx.coroutines.*
-import kotlinx.serialization.Serializable
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
-/**
- * s15-s17: Agent Teams + Protocols + Autonomous Kanban。
- *
- * 对标 learn-claude-code s15_agent_teams / s16_team_protocols / s17_autonomous_agents：
- *
- * s15:
- * - MessageBus: 文件收件箱 (.mailboxes/*.jsonl)
- * - spawnTeammate: 创建队友线程
- * - Teammate 运行简化 agent loop (bash/read/write/send_message)
- * - Lead 工具: spawn_teammate, send_message, check_inbox
- *
- * s16:
- * - ProtocolState: 请求-响应状态机 (pending → approved/rejected)
- * - dispatchMessage: 按消息类型路由到处理器
- * - matchResponse: 通过 request_id 关联回复与请求
- * - shutdown_request / plan_approval_request 协议
- *
- * s17:
- * - idlePoll: 空闲时每5秒轮询
- * - scanUnclaimedTasks: 扫描可认领任务
- * - autoClaim: 自动认领
- */
 private const val TAG = "AgentTeam"
 
-// ── MessageBus (s15) ──
+// -- MessageBus (s15) --
 
 object MessageBus {
     private val mailboxesDir: File by lazy {
-        File(System.getProperty("java.io.tmpdir"), ".rikkahub-mailboxes").also { it.mkdirs() }
+        File(System.getProperty("java.io.tmpdir") ?: "/tmp", ".rikkahub-mailboxes").also { it.mkdirs() }
     }
-
     private val inboxMemory = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
 
-    /**
-     * 发送消息到指定队友的收件箱。
-     */
     fun send(toAgent: String, message: String) {
         val mailbox = inboxMemory.getOrPut(toAgent) { CopyOnWriteArrayList() }
         mailbox.add(message)
-
-        // 也写入文件
         val file = mailboxFile(toAgent)
         file.parentFile?.mkdirs()
         file.appendText("$message\n")
         Log.d(TAG, "Message sent to '$toAgent': ${message.take(100)}")
     }
 
-    /**
-     * 读取并清空收件箱。
-     */
     fun readInbox(agentName: String): List<String> {
         val mailbox = inboxMemory[agentName] ?: return emptyList()
         val messages = mailbox.toList()
@@ -66,9 +33,6 @@ object MessageBus {
         return messages
     }
 
-    /**
-     * 检查是否有未读消息。
-     */
     fun hasMessages(agentName: String): Boolean {
         return inboxMemory[agentName]?.isNotEmpty() == true
     }
@@ -83,14 +47,14 @@ object MessageBus {
     }
 }
 
-// ── Protocol (s16) ──
+// -- Protocol (s16) --
 
 data class ProtocolState(
     val requestId: String,
-    val type: String,          // "shutdown" | "plan_approval"
+    val type: String,
     val sender: String,
     val recipient: String,
-    val status: String,        // "pending" | "approved" | "rejected"
+    val status: String,
     val content: String = "",
     val createdAt: Long = System.currentTimeMillis(),
 )
@@ -128,13 +92,13 @@ object ProtocolManager {
     }
 }
 
-// ── Kanban / Autonomous (s17) ──
+// -- Kanban / Autonomous (s17) --
 
 data class KanbanTask(
     val id: String,
     val subject: String,
     val description: String = "",
-    val status: String = "pending",   // pending | in_progress | completed
+    val status: String = "pending",
     val owner: String? = null,
     val blockedBy: List<String> = emptyList(),
     val createdAt: Long = System.currentTimeMillis(),
@@ -161,15 +125,12 @@ object KanbanBoard {
         val task = tasks[taskId] ?: return "Task $taskId not found"
         if (task.status != "pending") return "Task $taskId is ${task.status}"
         if (task.owner != null) return "Task $taskId already claimed by ${task.owner}"
-
-        // Check dependencies
         for (dep in task.blockedBy) {
             val depTask = tasks[dep]
             if (depTask == null || depTask.status != "completed") {
                 return "Task $taskId blocked by $dep (${depTask?.status ?: "not found"})"
             }
         }
-
         tasks[taskId] = task.copy(status = "in_progress", owner = owner)
         return null
     }
@@ -178,19 +139,16 @@ object KanbanBoard {
         val task = tasks[taskId] ?: return "Task $taskId not found"
         if (task.status != "in_progress") return "Task $taskId is ${task.status}"
         tasks[taskId] = task.copy(status = "completed")
-
-        // Check newly unblocked tasks
         val unblocked = tasks.values.filter {
             it.status == "pending" && it.owner == null &&
-                    it.blockedBy.all { dep -> tasks[dep]?.status == "completed" }
+                it.blockedBy.all { dep -> tasks[dep]?.status == "completed" }
         }
-        val msg = buildString {
+        return buildString {
             append("Completed ${task.subject}")
             if (unblocked.isNotEmpty()) {
                 append(". Unblocked: ")
                 append(unblocked.joinToString(", ") { it.subject })
             }
         }
-        return msg
     }
 }
