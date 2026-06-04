@@ -162,6 +162,15 @@ val dataSourceModule = module {
         )
     }
 
+    single {
+        me.rerere.rikkahub.data.ai.harness.AgentPipeline(
+            generationHandler = get(),
+            providerManager = get(),
+            memoryManager = null,
+            memoryRepository = get(),
+        )
+    }
+
     single<OkHttpClient> {
         val acceptLang = AcceptLanguageBuilder.fromAndroid(get())
             .build()

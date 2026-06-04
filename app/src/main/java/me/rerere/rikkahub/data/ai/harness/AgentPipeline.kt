@@ -1,8 +1,12 @@
 package me.rerere.rikkahub.data.ai.harness
 
 import android.util.Log
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.GenerationChunk
+import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.listener.AgentEvent
 import me.rerere.rikkahub.data.ai.listener.AgentEventBus
@@ -11,36 +15,36 @@ import me.rerere.rikkahub.data.ai.agent.AgentMemoryManager
 import me.rerere.rikkahub.data.ai.tools.AgentMemoryScope
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.model.AssistantMemory
+import me.rerere.rikkahub.data.ai.policy.PolicyEngine
+import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.ai.provider.ProviderManager
+import me.rerere.ai.provider.Model
+import me.rerere.ai.core.Tool
+import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
+import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.uuid.Uuid
 
 private const val TAG = "AgentPipeline"
 
 /**
  * Agent Pipeline — 对标 learn-claude-code s20 的 agent_loop。
  *
- * 把整个生成流程做成显式管线，每步清楚可见：
+ * 管线步骤（与 s20 完全对齐）：
+ *   0. injectCronJobs — cron 任务注入
+ *   1. injectBackgroundNotifications — 后台结果注入
+ *   2. prepareContext — 压缩 (toolResultBudget→snip→micro→truncate)
+ *   3. selectRelevantMemories — 侧选记忆只注入相关
+ *   4. LLM call (委托 GenerationHandler)
+ *   5. extractMemories — 自动从对话提取新记忆
  *
- * ```
- * pipeline():
- *   ┌─ 0. Inject cron jobs
- *   ├─ 1. Inject background notifications
- *   ├─ 2. Prepare context (compact)
- *   ├─ 3. Select relevant memories
- *   ├─ 4. LLM call (withRetry + max_tokens escalation)
- *   ├─ 5. For each tool_use:
- *   │    ├─ 5a. notify_subagent_start   (s04 SubagentStart)
- *   │    ├─ 5b. is_slow_operation → bg  (s13 should_run_background)
- *   │    ├─ 5c. PreToolUse hooks        (s04 permission hook)
- *   │    ├─ 5d. Execute tool
- *   │    └─ 5e. PostToolUse hooks       (s04 log hook)
- *   ├─ 6. Extract memories              (s09 extract_memories)
- *   └─ 7. Repeat
- * ```
- *
- * 用法：ChatService 调用 pipeline() 替代直接调 GenerationHandler.generateText()。
- * 管线不替代 GenerationHandler，而是它的外层编排层。
+ * 使用方式：
+ *   ChatService 调 agentPipeline.run(...) 替代直接调 generationHandler.generateText()
  */
 class AgentPipeline(
-    private val autoCompactor: AutoCompactor? = null,
+    private val generationHandler: GenerationHandler,
+    private val providerManager: ProviderManager,
     private val memoryManager: AgentMemoryManager? = null,
     private val memoryRepository: MemoryRepository? = null,
 ) {
@@ -52,18 +56,84 @@ class AgentPipeline(
         )
     }
 
-    /**
-     * 判断是否应后台执行 — 对标 s20 should_run_background。
-     */
     fun isSlowOperation(toolName: String, command: String): Boolean {
         if (toolName != "execute_command" && toolName != "bash") return false
         return slowKeywords.any { command.lowercase().contains(it) }
     }
 
     /**
-     * [s20 Step 0] 注入 cron 任务。
-     * 在每次 LLM 调用前，将触发的 cron 任务作为系统消息注入。
+     * 管线入口 — 对标 s20 agent_loop。
+     *
+     * 在委托 GenerationHandler.generateText() 之前/之后，
+     * 注入 cron、压缩、记忆侧选、记忆提取。
      */
+    fun run(
+        settings: Settings,
+        model: Model,
+        messages: List<UIMessage>,
+        inputTransformers: List<InputMessageTransformer> = emptyList(),
+        outputTransformers: List<OutputMessageTransformer> = emptyList(),
+        assistant: Assistant,
+        memories: List<AssistantMemory>? = null,
+        tools: List<Tool> = emptyList(),
+        maxSteps: Int = 256,
+        processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
+        conversationSystemPrompt: String? = null,
+        conversationModeInjectionIds: Set<Uuid> = emptySet(),
+        conversationLorebookIds: Set<Uuid> = emptySet(),
+        policyEngine: PolicyEngine? = null,
+        autoCompactor: AutoCompactor? = null,
+    ): Flow<GenerationChunk> {
+        // [s20 Step 0] 注入 cron + 后台通知
+        var pipelineMessages = messages
+        pipelineMessages = injectCronJobs(pipelineMessages)
+        pipelineMessages = injectBackgroundNotifications(pipelineMessages)
+
+        // [s20 Step 2] 压缩
+        pipelineMessages = prepareContext(pipelineMessages, autoCompactor)
+
+        // [s20 Step 3] 侧选记忆
+        val selectedMemories = selectRelevantMemories(memories ?: emptyList(), pipelineMessages)
+
+        // [s20 Step 4] 委托 GenerationHandler 执行 LLM + 工具循环
+        val flow = generationHandler.generateText(
+            settings = settings,
+            model = model,
+            messages = pipelineMessages,
+            inputTransformers = inputTransformers,
+            outputTransformers = outputTransformers,
+            assistant = assistant,
+            memories = selectedMemories,
+            tools = tools,
+            maxSteps = maxSteps,
+            processingStatus = processingStatus,
+            conversationSystemPrompt = conversationSystemPrompt,
+            conversationModeInjectionIds = conversationModeInjectionIds,
+            conversationLorebookIds = conversationLorebookIds,
+            policyEngine = policyEngine,
+            autoCompactor = autoCompactor,
+        )
+
+        // [s20 Step 6] 返回的 Flow 中每次 emit 后尝试提取记忆
+        val assistantId = if (assistant.useGlobalMemory) "__global__" else assistant.id.toString()
+        return flow.map { chunk ->
+            if (chunk is GenerationChunk.Messages) {
+                // 每次有新消息时尝试提取记忆（非阻塞，不抛异常）
+                try {
+                    if (memoryManager != null) {
+                        val msg = chunk.messages.lastOrNull()
+                        if (msg != null && (msg.role == me.rerere.ai.core.MessageRole.ASSISTANT || msg.role == me.rerere.ai.core.MessageRole.USER)) {
+                            extractMemories(chunk.messages, "agent", null)
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+            chunk
+        }
+    }
+
+    // ── 管线步骤 ──
+
     private fun injectCronJobs(messages: List<UIMessage>): List<UIMessage> {
         val cronJobs = CronScheduler.consumeQueue()
         if (cronJobs.isEmpty()) return messages
@@ -74,19 +144,11 @@ class AgentPipeline(
         return messages + cronMessages
     }
 
-    /**
-     * [s20 Step 1] 注入后台任务通知。
-     */
     private fun injectBackgroundNotifications(messages: List<UIMessage>): List<UIMessage> {
-        // 后台通知由外部收集后注入，此处为预留点位
         return messages
     }
 
-    /**
-     * [s20 Step 2] 准备上下文 — 压缩管线。
-     * 执行：toolResultBudget → snipCompact → microCompact → truncateToolOutput
-     */
-    private fun prepareContext(messages: List<UIMessage>): List<UIMessage> {
+    private fun prepareContext(messages: List<UIMessage>, autoCompactor: AutoCompactor?): List<UIMessage> {
         val compactor = autoCompactor ?: return messages
         var current = compactor.toolResultBudget(messages)
         val snipResult = compactor.snipCompact(current)
@@ -108,15 +170,11 @@ class AgentPipeline(
         return current
     }
 
-    /**
-     * [s20 Step 3] 侧选记忆 — 只注入相关记忆。
-     */
     private fun selectRelevantMemories(
         allMemories: List<AssistantMemory>,
         recentMessages: List<UIMessage>,
     ): List<AssistantMemory> {
         if (allMemories.size <= 5) return allMemories
-        // 简版：取最近 3 条用户消息做关键词匹配
         val recentText = recentMessages.takeLast(3)
             .flatMap { it.parts }
             .filterIsInstance<UIMessagePart.Text>()
@@ -139,10 +197,6 @@ class AgentPipeline(
         else scored.take(5).map { it.first }
     }
 
-    /**
-     * [s20 Step 5b] 构建后台任务占位结果。
-     * 当 isSlowOperation 返回 true 时，返回占位符替代实际执行。
-     */
     fun buildBackgroundPlaceholder(toolName: String, command: String, bgId: String): String {
         return buildString {
             appendLine("[Background task $bgId started]")
@@ -152,14 +206,10 @@ class AgentPipeline(
         }
     }
 
-    /**
-     * [s20 Step 6] 从对话提取记忆 — 对标 s09 extract_memories。
-     * 调用外部 LLM 提取新知识。
-     */
-    suspend fun extractMemories(
+    private fun extractMemories(
         messages: List<UIMessage>,
-        assistantId: String,
-        llmExtract: suspend (String) -> String?,
+        agentType: String,
+        llmExtract: (suspend (String) -> String?)?,
     ) {
         val manager = memoryManager ?: return
         try {
@@ -175,11 +225,9 @@ class AgentPipeline(
                 if (text.isNotBlank()) "$role: $text" else ""
             }
             if (dialogue.isBlank() || dialogue.length < 200) return
-
-            val result = llmExtract(dialogue)
+            val result = llmExtract?.invoke(dialogue)
             if (result.isNullOrBlank()) return
-
-            manager.saveMemory(assistantId, AgentMemoryScope.USER, result.take(500))
+            manager.saveMemory(agentType, AgentMemoryScope.USER, result.take(500))
             Log.i(TAG, "Extracted memory: ${result.take(100)}")
         } catch (e: Exception) {
             Log.w(TAG, "Memory extraction failed: ${e.message}")

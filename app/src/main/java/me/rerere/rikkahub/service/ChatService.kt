@@ -187,6 +187,7 @@ class ChatService(
     private val conversationRepo: ConversationRepository,
     private val memoryRepository: MemoryRepository,
     private val generationHandler: GenerationHandler,
+    private val agentPipeline: me.rerere.rikkahub.data.ai.harness.AgentPipeline,
     private val templateTransformer: TemplateTransformer,
     private val providerManager: ProviderManager,
     private val localTools: LocalTools,
@@ -709,7 +710,7 @@ class ChatService(
                 startGenerationForeground(senderName, conversationId.toString())
             }
 
-            generationHandler.generateText(
+            agentPipeline.run(
                 settings = settings,
                 model = model,
                 processingStatus = session.processingStatus,
@@ -1344,7 +1345,7 @@ class ChatService(
 
         val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
 
-        generationHandler.generateText(
+        agentPipeline.run(
             settings = settings,
             model = model,
             messages = messages,
