@@ -20,7 +20,6 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
-import me.rerere.rikkahub.data.ai.agent.AgentMemoryManager
 import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.listener.AgentEvent
 import me.rerere.rikkahub.data.ai.listener.AgentEventBus
@@ -55,7 +54,6 @@ private const val TAG = "AgentPipeline"
 class AgentPipeline(
     private val generationHandler: GenerationHandler,
     private val providerManager: ProviderManager,
-    private val memoryManager: AgentMemoryManager? = null,
     private val memoryRepository: MemoryRepository? = null,
 ) {
     companion object {
@@ -122,14 +120,14 @@ class AgentPipeline(
 
         // [s20 Step 6] emit 后提取记忆 + 整理
         return flow.map { chunk ->
-            if (chunk is GenerationChunk.Messages && memoryManager != null) {
+            if (chunk is GenerationChunk.Messages && memoryRepository != null) {
                 try {
                     val msgs = chunk.messages
                     val last = msgs.lastOrNull()
                     if (last != null && (last.role == MessageRole.ASSISTANT || last.role == MessageRole.USER)) {
                         val dialogue = buildDialogueText(msgs)
                         if (dialogue.length >= 200) {
-                            extractMemoriesWithLLM(settings, model, assistantId, dialogue, msgs)
+                            extractMemoriesWithLLM(settings, model, assistantId, dialogue)
                         }
                     }
                 } catch (_: Exception) { }
@@ -249,9 +247,7 @@ class AgentPipeline(
     private suspend fun extractMemoriesWithLLM(
         settings: Settings, model: Model,
         assistantId: String, dialogue: String,
-        allMessages: List<UIMessage>,
     ) {
-        val manager = memoryManager ?: return
         val repo = memoryRepository ?: return
 
         // 获取现有记忆避免重复
@@ -265,7 +261,7 @@ class AgentPipeline(
             appendLine("type: one of 'user' (preference), 'feedback' (guidance), 'project' (fact)")
             appendLine("description: one-line summary")
             appendLine("body: full detail")
-            appendLine("If nothing new, return [].")
+            appendLine("If nothing new or already covered by existing memories, return [].")
             appendLine()
             appendLine("Existing memories:")
             appendLine(existingDesc)
@@ -287,13 +283,12 @@ class AgentPipeline(
                 val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: continue
                 val body = obj["body"]?.jsonPrimitive?.contentOrNull ?: continue
                 if (desc.isNotBlank() && body.isNotBlank()) {
-                    manager.saveMemory(assistantId, AgentMemoryScope.USER, "$desc\n$body")
+                    repo.addMemory(assistantId, "$desc\n$body")
                     count++
                 }
             }
             if (count > 0) {
                 Log.i(TAG, "[memory] extracted $count new memories")
-                // 提取后检查是否需要整理
                 consolidateMemories(settings, model, assistantId)
             }
         } catch (e: Exception) {

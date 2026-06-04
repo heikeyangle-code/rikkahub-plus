@@ -166,7 +166,6 @@ val dataSourceModule = module {
         me.rerere.rikkahub.data.ai.harness.AgentPipeline(
             generationHandler = get(),
             providerManager = get(),
-            memoryManager = null,
             memoryRepository = get(),
         )
     }
