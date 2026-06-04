@@ -106,7 +106,7 @@ fun AssistantAgentPage(id: String) {
                 // 启用 Agent 系统
                 item(
                     headlineContent = { Text("启用 Agent 系统") },
-                    supportingContent = { Text("关闭后 AI 无法委托子任务") },
+                    supportingContent = { Text("开启后 AI 可委托子任务，查看和管理 Agent 角色列表") },
                     trailingContent = {
                         Switch(
                             checked = assistant.enableSubAgent,
@@ -114,19 +114,15 @@ fun AssistantAgentPage(id: String) {
                         )
                     },
                 )
-                // AI 可使用 sub_agent 工具
+                // AI 调子 Agent 状态
                 item(
                     headlineContent = { Text("AI 调子 Agent") },
-                    supportingContent = { Text("允许 AI 自行选择角色委托任务") },
-                    trailingContent = {
-                        Switch(
-                            checked = assistant.localTools.contains(LocalToolOption.Agents),
-                            onCheckedChange = { enabled ->
-                                val newTools = if (enabled) assistant.localTools + LocalToolOption.Agents
-                                else assistant.localTools - LocalToolOption.Agents
-                                vm.update(assistant.copy(localTools = newTools))
-                            },
-                        )
+                    supportingContent = {
+                        val enabled = assistant.enableSubAgent && assistant.localTools.contains(LocalToolOption.Agents)
+                        val status = if (enabled) "✓ 已启用，AI 可自主调 Agent"
+                        else "✕ 已禁用"
+                        Text(status, color = if (enabled) androidx.compose.ui.graphics.Color(0xFF22C55E)
+                            else MaterialTheme.colorScheme.onSurfaceVariant)
                     },
                 )
             }
