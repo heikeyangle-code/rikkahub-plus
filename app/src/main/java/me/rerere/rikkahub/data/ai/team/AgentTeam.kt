@@ -1,6 +1,10 @@
 package me.rerere.rikkahub.data.ai.team
 
 import android.util.Log
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToStream
+import kotlinx.serialization.decodeFromStream
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -12,17 +16,23 @@ private const val TAG = "AgentTeam"
 // -- MessageBus (s15) --
 
 object MessageBus {
-    private val mailboxesDir: File by lazy {
-        File(System.getProperty("java.io.tmpdir") ?: "/tmp", ".rikkahub-mailboxes").also { it.mkdirs() }
-    }
+    private var baseDir: File? = null
     private val inboxMemory = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
+
+    fun setBaseDir(dir: File) {
+        baseDir = dir
+        dir.mkdirs()
+    }
 
     fun send(toAgent: String, message: String) {
         val mailbox = inboxMemory.getOrPut(toAgent) { CopyOnWriteArrayList() }
         mailbox.add(message)
-        val file = mailboxFile(toAgent)
-        file.parentFile?.mkdirs()
-        file.appendText("$message\n")
+        val dir = baseDir
+        if (dir != null) {
+            val file = mailboxFile(dir, toAgent)
+            file.parentFile?.mkdirs()
+            file.appendText("$message\n")
+        }
         Log.d(TAG, "Message sent to '$toAgent': ${message.take(100)}")
     }
 
@@ -37,13 +47,13 @@ object MessageBus {
         return inboxMemory[agentName]?.isNotEmpty() == true
     }
 
-    private fun mailboxFile(agentName: String): File {
-        return File(mailboxesDir, "${agentName.replace(" ", "_")}.jsonl")
+    private fun mailboxFile(dir: File, agentName: String): File {
+        return File(dir, "${agentName.replace(" ", "_")}.jsonl")
     }
 
     fun clear() {
         inboxMemory.clear()
-        mailboxesDir.deleteRecursively()
+        baseDir?.let { it.deleteRecursively() }
     }
 }
 
@@ -104,14 +114,34 @@ data class KanbanTask(
     val createdAt: Long = System.currentTimeMillis(),
 )
 
+@Serializable
+private data class KanbanPersistTask(
+    val id: String,
+    val subject: String,
+    val description: String,
+    val status: String,
+    val owner: String?,
+    val blockedBy: List<String>,
+    val createdAt: Long,
+)
+
 object KanbanBoard {
     private val tasks = ConcurrentHashMap<String, KanbanTask>()
     private val counter = AtomicInteger(0)
+    private var persistFile: File? = null
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
+
+    fun setDurableFile(file: File) {
+        persistFile = file
+        file.parentFile?.mkdirs()
+        loadFromDisk()
+    }
 
     fun createTask(subject: String, description: String = "", blockedBy: List<String> = emptyList()): KanbanTask {
         val id = "kanban_${counter.incrementAndGet()}"
         val task = KanbanTask(id = id, subject = subject, description = description, blockedBy = blockedBy)
         tasks[id] = task
+        saveToDisk()
         return task
     }
 
@@ -132,6 +162,7 @@ object KanbanBoard {
             }
         }
         tasks[taskId] = task.copy(status = "in_progress", owner = owner)
+        saveToDisk()
         return null
     }
 
@@ -143,12 +174,58 @@ object KanbanBoard {
             it.status == "pending" && it.owner == null &&
                 it.blockedBy.all { dep -> tasks[dep]?.status == "completed" }
         }
+        saveToDisk()
         return buildString {
             append("Completed ${task.subject}")
             if (unblocked.isNotEmpty()) {
                 append(". Unblocked: ")
                 append(unblocked.joinToString(", ") { it.subject })
             }
+        }
+    }
+
+    private fun saveToDisk() {
+        val file = persistFile ?: return
+        try {
+            val persistList = tasks.values.map {
+                KanbanPersistTask(
+                    id = it.id, subject = it.subject, description = it.description,
+                    status = it.status, owner = it.owner, blockedBy = it.blockedBy,
+                    createdAt = it.createdAt,
+                )
+            }
+            file.parentFile?.mkdirs()
+            file.outputStream().use { out ->
+                json.encodeToStream(persistList, out)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Kanban save failed: ${e.message}")
+        }
+    }
+
+    private fun loadFromDisk() {
+        val file = persistFile ?: return
+        if (!file.exists()) return
+        try {
+            val persistList = file.inputStream().use { `in` ->
+                json.decodeFromStream<List<KanbanPersistTask>>(`in`)
+            }
+            tasks.clear()
+            var maxNum = 0
+            for (pt in persistList) {
+                val task = KanbanTask(
+                    id = pt.id, subject = pt.subject, description = pt.description,
+                    status = pt.status, owner = pt.owner, blockedBy = pt.blockedBy,
+                    createdAt = pt.createdAt,
+                )
+                tasks[pt.id] = task
+                val num = pt.id.removePrefix("kanban_").toIntOrNull() ?: 0
+                if (num > maxNum) maxNum = num
+            }
+            counter.set(maxNum)
+            Log.i(TAG, "Kanban loaded ${persistList.size} tasks from disk")
+        } catch (e: Exception) {
+            Log.w(TAG, "Kanban load failed: ${e.message}")
         }
     }
 }

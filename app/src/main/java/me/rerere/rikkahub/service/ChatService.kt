@@ -268,7 +268,12 @@ class ChatService(
             chunk.choices.firstOrNull()?.message?.toText() ?: "No response"
         }
     }
-    private val autoCompactor: AutoCompactor by lazy { AutoCompactor() }
+    private val autoCompactor: AutoCompactor by lazy {
+        AutoCompactor().apply {
+            setToolResultsDir(java.io.File(context.filesDir, "tool_results"))
+            setTranscriptDir(java.io.File(context.filesDir, "transcripts"))
+        }
+    }
     private val sessionStore: SessionStore by lazy { SessionStore(context) }
     private val agentService: AgentService by lazy {
         AgentService(appScope, autoCompactor, sessionStore)
@@ -285,6 +290,16 @@ class ChatService(
         me.rerere.rikkahub.data.ai.scheduler.CronScheduler.start(appScope) { job ->
             Log.i(TAG, "[cron] job '${job.id}' fired: ${job.prompt.take(60)}")
         }
+
+        // s15: MessageBus 持久化目录
+        me.rerere.rikkahub.data.ai.team.MessageBus.setBaseDir(
+            java.io.File(context.filesDir, "mailboxes")
+        )
+
+        // s17: KanbanBoard 持久化
+        me.rerere.rikkahub.data.ai.team.KanbanBoard.setDurableFile(
+            java.io.File(context.filesDir, ".kanban/kanban_tasks.json")
+        )
 
         // s13: 后台 agent 完成通知
         me.rerere.rikkahub.data.ai.agent.addNotificationListener { notification ->
@@ -379,6 +394,7 @@ class ChatService(
         }
         if (sessions.remove(conversationId, session)) {
             session.cleanup()
+            appScope.launch { ListenerEventBus.emit(AgentEvent.SessionStopped(conversationId)) }
             _sessionsVersion.value++
             Log.i(TAG, "removeSession: $conversationId (remaining: ${sessions.size})")
         }
