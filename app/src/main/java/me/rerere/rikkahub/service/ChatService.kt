@@ -273,6 +273,13 @@ class ChatService(
         AgentService(appScope, autoCompactor, sessionStore)
     }
 
+    // s13: 后台 Agent 完成通知 → 注入到活跃会话
+    init {
+        me.rerere.rikkahub.data.ai.agent.AgentLifecycleManager.addNotificationListener { notification ->
+            Log.i(TAG, "[bg notification] ${notification.agentType} ${notification.status}: ${notification.summary?.take(80)}")
+        }
+    }
+
     // 错误状态
     private val _errors = MutableStateFlow<List<ChatError>>(emptyList())
     val errors: StateFlow<List<ChatError>> = _errors.asStateFlow()

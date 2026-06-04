@@ -5,6 +5,8 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.PermissionMode
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.PlanManager
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -46,6 +48,7 @@ object TaskManager {
         val task = Task(id = id, subject = subject, description = description, status = status,
             dependsOn = dependsOn, blockedBy = blockedBy, metadata = metadata, activeForm = activeForm)
         tasks[id] = task
+        saveToDisk(task)
         return task
     }
 
@@ -84,6 +87,77 @@ object TaskManager {
     }
 
     fun stopTask(id: String): Task? = updateTask(id, TaskStatus.CANCELLED)
+
+    // ── 文件持久化（s12 标准：.tasks/{id}.json）──
+    private var tasksDir: File? = null
+
+    fun setPersistenceDir(dir: File) {
+        tasksDir = dir
+        dir.mkdirs()
+        loadFromDisk()
+    }
+
+    private fun saveToDisk(task: Task) {
+        val dir = tasksDir ?: return
+        val file = File(dir, "${task.id}.json")
+        try {
+            file.writeText(
+                buildJsonObject {
+                    put("id", task.id)
+                    put("subject", task.subject)
+                    put("description", task.description)
+                    put("status", task.status.name)
+                    put("owner", task.owner ?: "")
+                    put("dependsOn", buildJsonArray { task.dependsOn.forEach { add(it) } })
+                    put("blockedBy", buildJsonArray { task.blockedBy.forEach { add(it) } })
+                    put("activeForm", task.activeForm)
+                    put("createdAt", task.createdAt)
+                }.toString()
+            )
+        } catch (_: Exception) {}
+    }
+
+    private fun saveAllToDisk() {
+        tasks.values.forEach { saveToDisk(it) }
+    }
+
+    private fun loadFromDisk() {
+        val dir = tasksDir ?: return
+        if (!dir.exists()) return
+        dir.listFiles()?.filter { it.name.endsWith(".json") }?.forEach { file ->
+            try {
+                val json = Json.parseToJsonElement(file.readText()).jsonObject
+                val id = json["id"]?.jsonPrimitive?.contentOrNull ?: return@forEach
+                val subject = json["subject"]?.jsonPrimitive?.contentOrNull ?: return@forEach
+                val description = json["description"]?.jsonPrimitive?.contentOrNull ?: ""
+                val status = json["status"]?.jsonPrimitive?.contentOrNull ?: "PENDING"
+                val owner = json["owner"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+                val dependsOn = json["dependsOn"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
+                val blockedBy = json["blockedBy"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
+                val activeForm = json["activeForm"]?.jsonPrimitive?.contentOrNull ?: ""
+                val createdAt = json["createdAt"]?.jsonPrimitive?.longOrNull ?: System.currentTimeMillis()
+                val count = counter.get()
+                val numId = id.removePrefix("task-").toIntOrNull()
+                if (numId != null && numId > count) counter.set(numId)
+                val task = Task(
+                    id = id, subject = subject, description = description,
+                    status = try { TaskStatus.valueOf(status) } catch (_: Exception) { TaskStatus.PENDING },
+                    owner = owner, dependsOn = dependsOn, blockedBy = blockedBy,
+                    activeForm = activeForm, createdAt = createdAt,
+                )
+                tasks[id] = task
+            } catch (_: Exception) {}
+        }
+    }
+
+    /** 持久化包装：createTask 之后自动保存 */
+    private fun createTaskAndSave(subject: String, description: String, dependsOn: List<String>,
+                                   status: TaskStatus, activeForm: String,
+                                   metadata: Map<String, String>, blockedBy: List<String>): Task {
+        val task = createTask(subject, description, dependsOn, status, activeForm, metadata, blockedBy)
+        saveToDisk(task)
+        return task
+    }
 
     fun taskOutput(id: String): String? {
         val t = tasks[id] ?: return null
@@ -166,7 +240,8 @@ object TaskManager {
     fun clearMessages(agentName: String) { messages.removeAll { it.to == agentName } }
 }
 
-fun createTaskTools(): List<Tool> = listOf(
+fun createTaskTools(): List<Tool> = buildList {
+    addAll(listOf(
     Tool(name = "task_create", description = "Create a new task in the task list. Use for complex multi-step tasks (3+ steps).\n\nWhen to Use:\n- Complex multi-step tasks requiring 3+ steps\n- Non-trivial tasks requiring careful planning\n- User explicitly requests todo list\n- User provides multiple tasks\n- After receiving new instructions\n\nWhen NOT to Use:\n- Single straightforward task\n- Trivial tasks with no organizational benefit\n- Purely conversational requests\n\nTasks created with status pending. Use task_update to change status.",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
@@ -292,6 +367,8 @@ fun createTaskTools(): List<Tool> = listOf(
                 TaskManager.createTodo(s, st)
                 "${when (st) { "completed" -> "✅"; "in_progress" -> "🔄"; else -> "⏳" }} $s"
             }
+            // s05: nag reminder — AI 每次更新计划时重置计数器
+            PlanManager.resetNag()
             listOf(UIMessagePart.Text(results.joinToString("\n")))
         },
     ),
@@ -400,4 +477,7 @@ fun createTaskTools(): List<Tool> = listOf(
             listOf(UIMessagePart.Text(output.ifEmpty { "(no dependencies)" }))
         },
     ),
-)
+    ))
+    // s14: cron 调度工具
+    addAll(buildCronTools())
+}
