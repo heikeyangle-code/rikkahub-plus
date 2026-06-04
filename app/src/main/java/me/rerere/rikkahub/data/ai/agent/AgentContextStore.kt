@@ -42,6 +42,11 @@ object AgentContextStore {
         context.remove()
     }
 
+    /** 获取当前 agent 名称 */
+    fun currentAgentName(): String? {
+        return context.get()?.subagentName
+    }
+
     /**
      * 在指定上下文中执行代码块。
      * 对齐官方 runWithAgentContext()。

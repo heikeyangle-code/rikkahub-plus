@@ -510,6 +510,26 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = { Text("并行队友系统") },
+                supportingContent = { Text("允许 AI spawn 并行队友协同工作，队友通过 send_message 通信") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.TeammateTools),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.TeammateTools, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = { Text("Agent 间通信") },
+                supportingContent = { Text("允许 AI 使用 send_message 收发消息，与队友/Worker 协作") },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.SendMessage),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.SendMessage, it) }
+                    )
+                }
+            )
         }
         CardGroup {
             item(

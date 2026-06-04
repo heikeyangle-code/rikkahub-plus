@@ -117,6 +117,14 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("agents")
     data object Agents : LocalToolOption()
+
+    @Serializable
+    @SerialName("teammate_tools")
+    data object TeammateTools : LocalToolOption()
+
+    @Serializable
+    @SerialName("send_message")
+    data object SendMessage : LocalToolOption()
 }
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {

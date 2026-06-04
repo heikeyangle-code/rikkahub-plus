@@ -71,10 +71,13 @@ import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
+import me.rerere.rikkahub.data.ai.tools.createSendMessageTool
+import me.rerere.rikkahub.data.ai.tools.createGetTeammateMessagesTool
 import me.rerere.rikkahub.data.ai.tools.createWebFetchTool
 import me.rerere.rikkahub.data.ai.tools.createSleepTool
 import me.rerere.rikkahub.data.ai.tools.createCalculatorTool
 import me.rerere.rikkahub.data.ai.tools.createTaskTools
+import me.rerere.rikkahub.data.ai.tools.createTeammateTools
 import me.rerere.rikkahub.data.ai.tools.createToolSearchTool
 import me.rerere.rikkahub.data.ai.tools.createPlanModeTools
 import me.rerere.rikkahub.data.ai.tools.ToolRegistry
@@ -94,6 +97,7 @@ import me.rerere.rikkahub.data.ai.tools.AgentColor
 import me.rerere.rikkahub.data.ai.agent.AgentExecutionEvent
 import me.rerere.rikkahub.data.ai.agent.AgentEventType
 import me.rerere.rikkahub.data.ai.agent.AgentEventBus
+import me.rerere.rikkahub.data.ai.agent.TeammateRunner
 import me.rerere.rikkahub.data.ai.tools.formatAgentTools
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createAssetTool
@@ -232,6 +236,7 @@ class ChatService(
             chunk.choices.firstOrNull()?.message?.toText() ?: "No response"
         }
     }
+    private val teammateRunner: TeammateRunner by lazy { TeammateRunner(appScope) }
     private val autoCompactor: AutoCompactor by lazy { AutoCompactor() }
     private val sessionStore: SessionStore by lazy { SessionStore(context) }
     private val agentService: AgentService by lazy {
@@ -711,6 +716,11 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
                     if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
                     if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))
+                    if (assistant.localTools.contains(LocalToolOption.TeammateTools)) addAll(createTeammateTools(teammateRunner))
+                    if (assistant.localTools.contains(LocalToolOption.SendMessage)) {
+                        add(createSendMessageTool())
+                        add(createGetTeammateMessagesTool())
+                    }
                     if (assistant.enableSubAgent) {
                         add(
                             Tool(
@@ -1224,6 +1234,11 @@ class ChatService(
                 if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
                 if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
                 if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))
+                if (assistant.localTools.contains(LocalToolOption.TeammateTools)) addAll(createTeammateTools(teammateRunner))
+                if (assistant.localTools.contains(LocalToolOption.SendMessage)) {
+                    add(createSendMessageTool())
+                    add(createGetTeammateMessagesTool())
+                }
             },
             inputTransformers = buildList {
                 addAll(inputTransformers)
