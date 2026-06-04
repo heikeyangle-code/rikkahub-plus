@@ -472,6 +472,15 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     }
 }
 
+/**
+ * 去重：同名工具保留第一个（对标 Claude Code uniqBy）。
+ * Provider 不接受同名工具，用这个兜底防止 "Tool names must be unique" 错误。
+ */
+fun deduplicateTools(tools: List<Tool>): List<Tool> {
+    val seen = LinkedHashSet<String>()
+    return tools.filter { seen.add(it.name) }
+}
+
 private fun guessMimeType(fileName: String): String {
     val ext = fileName.substringAfterLast('.', "").lowercase()
     return android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"

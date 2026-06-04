@@ -106,6 +106,7 @@ import me.rerere.rikkahub.data.ai.tools.createPythonTool
 import me.rerere.rikkahub.data.ai.tools.createGitHubTool
 import me.rerere.rikkahub.data.ai.tools.createConvertFileTool
 import me.rerere.rikkahub.data.ai.tools.createDatabaseQueryTool
+import me.rerere.rikkahub.data.ai.tools.deduplicateTools
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -242,14 +243,17 @@ class ChatService(
             @Suppress("UNCHECKED_CAST")
             val impl = providerManager.getProviderByType(p)
                 as me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>
-            val tools = buildList {
+            val tools = deduplicateTools(buildList {
                 if (s.enableWebSearch) {
                     addAll(createSearchTools(s))
                     add(createWebFetchTool())
                 }
+                addAll(me.rerere.rikkahub.data.ai.tools.createFileTools())
+                addAll(me.rerere.rikkahub.data.ai.tools.createShellTools())
+                add(me.rerere.rikkahub.data.ai.tools.createCalculatorTool())
                 addAll(localTools.getTools(listOf(me.rerere.rikkahub.data.ai.tools.LocalToolOption.TimeInfo)))
                 add(createSleepTool())
-            }
+            })
             val messages = listOf(
                 me.rerere.ai.ui.UIMessage.system("You are a teammate agent. Complete the assigned task and report the results concisely."),
                 me.rerere.ai.ui.UIMessage.user(prompt),
@@ -736,7 +740,7 @@ class ChatService(
                 outputTransformers = outputTransformers,
                 policyEngine = PolicyEngine(currentMode = me.rerere.rikkahub.data.ai.tools.PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath),
                 autoCompactor = autoCompactor,
-                tools = buildList {
+                tools = deduplicateTools(buildList {
                     val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
                     if (assistant.localTools.contains(LocalToolOption.FileTools)) {
                         addAll(createFileTools(skillDirs))
@@ -914,7 +918,7 @@ class ChatService(
                                     // Build sub-agent tools — 全工具池（对齐主Agent），按 agent 过滤
                                     val skillDirs = assistant.enabledSkills
                                         .mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
-                                    val allTools = buildList {
+                                    val allTools = deduplicateTools(buildList {
                                         if (settings.enableWebSearch) {
                                             addAll(createSearchTools(settings))
                                             add(createWebFetchTool())
@@ -974,7 +978,7 @@ class ChatService(
                                             addAll(createKanbanTools())
                                         }
                                         add(createSleepTool())
-                                    }
+                                    })
 
                                     // 过滤规则：
                                     // 1. Agent 通用禁用（sub_agent防递归）
@@ -1069,7 +1073,7 @@ class ChatService(
                             )
                         )
                     }
-                },
+                }),
             ).onCompletion {
                 // 取消 Live Update 通知 + 前台服务
                 cancelLiveUpdateNotification(conversationId)
@@ -1353,7 +1357,7 @@ class ChatService(
                 memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
             },
             policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath),
-            tools = buildList {
+            tools = deduplicateTools(buildList {
                 if (assistant.localTools.contains(LocalToolOption.FileTools)) {
                     addAll(createFileTools(skillDirs))
                 }
@@ -1415,7 +1419,7 @@ class ChatService(
                     add(createGetTeammateMessagesTool())
                     addAll(createKanbanTools())
                 }
-            },
+            }),
             inputTransformers = buildList {
                 addAll(inputTransformers)
                 add(templateTransformer)
