@@ -78,7 +78,7 @@ fun AgentExecutionPanel(
     }
 
     // 从 AgentTaskTracker 读取当前进度（事件可能已经发出，面板没赶上）
-    val progress = remember(agentId) { AgentTaskTracker.getProgress(agentId) }
+    val progress = AgentTaskTracker.getProgress(agentId)
     val totalTokens = progress?.let { it.latestInputTokens + it.cumulativeOutputTokens } ?: 0
 
     // 从 progress 初始化状态（面板晚于事件时有用）
