@@ -118,7 +118,7 @@ class AgentPipeline(
 
         // [s20 Step 6] emit 后提取记忆 + 整理
         return flow.map { chunk ->
-            if (chunk is GenerationChunk.Messages && memoryRepository != null && assistant.enableMemory) {
+            if (chunk is GenerationChunk.Messages && memoryRepository != null) {
                 try {
                     val msgs = chunk.messages
                     val last = msgs.lastOrNull()
@@ -278,8 +278,8 @@ class AgentPipeline(
             var count = 0
             for (item in items) {
                 val obj = item.jsonObject
-                val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: continue
-                val body = obj["body"]?.jsonPrimitive?.contentOrNull ?: continue
+                val desc = obj["description"]?.jsonPrimitive?.content ?: continue
+                val body = obj["body"]?.jsonPrimitive?.content ?: continue
                 if (desc.isNotBlank() && body.isNotBlank()) {
                     repo.addMemory(assistantId, "$desc\n$body")
                     count++
@@ -333,8 +333,8 @@ class AgentPipeline(
             repo.deleteMemoriesOfAssistant(assistantId)
             var count = 0
             for (item in items) {
-                val content = item.jsonObject["content"]?.jsonPrimitive?.contentOrNull
-                if (!content.isNullOrBlank()) {
+                val content = item.jsonObject["content"]?.jsonPrimitive?.content ?: ""
+                if (content.isNotBlank()) {
                     repo.addMemory(assistantId, content)
                     count++
                 }

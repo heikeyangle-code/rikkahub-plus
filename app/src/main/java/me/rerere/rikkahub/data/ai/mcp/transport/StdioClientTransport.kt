@@ -7,25 +7,21 @@ import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.io.OutputStreamWriter
+import java.io.OutputStream
 
 /**
  * Stdio MCP Transport — 通过子进程标准输入/输出与 MCP server 通信。
- *
- * 对标 learn-claude-code s19 MCP 的 stdio transport。
- * 使用 ProcessBuilder 启动 MCP server 进程，通过 stdin/stdout 交换 JSON-RPC 消息。
+ * 对标 learn-claude-code s19 的 stdio transport。
  */
 class StdioClientTransport(
     private val command: String,
     private val args: List<String> = emptyList(),
 ) : AbstractTransport() {
 
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private var process: Process? = null
-    private var outputWriter: OutputStreamWriter? = null
+    private var outputWriter: OutputStream? = null
     private val messageChannel = Channel<String>(Channel.BUFFERED)
     private var closed = false
 
@@ -33,58 +29,48 @@ class StdioClientTransport(
         if (process != null) return
         withContext(Dispatchers.IO) {
             try {
-                val pb = ProcessBuilder(listOf(command) + args)
-                    .redirectErrorStream(false)
-
+                val pb = ProcessBuilder(listOf(command) + args).redirectErrorStream(false)
                 process = pb.start()
-                outputWriter = OutputStreamWriter(process!!.outputStream, "UTF-8")
+                outputWriter = process!!.outputStream
 
-                // 读取 stdout 线程
+                // stdout reader
                 Thread {
                     try {
                         val reader = BufferedReader(InputStreamReader(process!!.inputStream, "UTF-8"))
                         var line: String?
                         while (reader.readLine().also { line = it } != null) {
                             if (closed) break
-                            val msg = line!!
-                            if (msg.isNotBlank()) {
-                                messageChannel.trySend(msg)
-                            }
+                            if (line!!.isNotBlank()) messageChannel.trySend(line!!)
                         }
                     } catch (_: Exception) {
-                        if (!closed) onError("Stdio read error")
+                        if (!closed) _onError(RuntimeException("Stdio read failed"))
                     }
                 }.apply { isDaemon = true }.start()
 
-                // 读取 stderr 线程（日志）
+                // stderr reader (discard)
                 Thread {
                     try {
-                        val errorReader = BufferedReader(InputStreamReader(process!!.errorStream, "UTF-8"))
-                        var line: String?
-                        while (errorReader.readLine().also { line = it } != null) {
-                            if (closed) break
-                            // stderr 仅用于日志，不发送消息
-                        }
-                    } catch (_: Exception) {}
+                        val err = BufferedReader(InputStreamReader(process!!.errorStream, "UTF-8"))
+                        while (err.readLine() != null) { }
+                    } catch (_: Exception) { }
                 }.apply { isDaemon = true }.start()
 
-                // 等待进程准备就绪
-                Thread.sleep(500)
-
+                // Brief delay to let process start
+                try { Thread.sleep(500) } catch (_: InterruptedException) {}
             } catch (e: Exception) {
-                onError("Failed to start MCP server: ${e.message}")
+                _onError(e)
             }
         }
     }
 
     override suspend fun send(message: JSONRPCMessage, options: TransportSendOptions) {
-        val jsonStr = json.encodeToString(McpJson.serializer(), McpJson(message))
         withContext(Dispatchers.IO) {
             try {
-                outputWriter?.write(jsonStr + "\n")
+                val jsonStr = McpJson.encodeToString(JSONRPCMessage.serializer(), message)
+                outputWriter?.write((jsonStr + "\n").toByteArray(Charsets.UTF_8))
                 outputWriter?.flush()
             } catch (e: Exception) {
-                onError("Failed to send message: ${e.message}")
+                _onError(e)
             }
         }
     }
@@ -92,8 +78,7 @@ class StdioClientTransport(
     override suspend fun receive(): JSONRPCMessage? {
         val line = messageChannel.receive()
         return try {
-            val element = json.parseToJsonElement(line)
-            McpJson.decode(element)
+            McpJson.decodeFromString<JSONRPCMessage>(line)
         } catch (_: Exception) {
             null
         }
@@ -107,7 +92,7 @@ class StdioClientTransport(
                 process?.destroy()
                 process?.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)
                 process?.destroyForcibly()
-            } catch (_: Exception) {}
+            } catch (_: Exception) { }
             process = null
             outputWriter = null
         }
