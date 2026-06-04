@@ -248,23 +248,14 @@ fun MarkdownBlock(
             .collect { setData(it) }
     }
 
-    // 只含 HTML 着色（引用块等）的内容走 MarkdownNew 的 HTML 渲染管道，
-    // 纯文本/纯 Markdown 走 AST 渲染，避免 fillMaxWidth 撑宽气泡
-    if (data.hasHtml) {
-        MarkdownNew(
-            content = coloredContent,
-            modifier = modifier,
-            style = style,
-            onClickCitation = onClickCitation,
-        )
-    } else {
-        MarkdownNode(
-            node = data.astTree,
-            content = data.preprocessed,
-            modifier = modifier.animateContentSize(),
-            onClickCitation = onClickCitation,
-        )
-    }
+    // Always use MarkdownNew — it handles emphasis/bold/italic properly
+    // via the HTML pipeline, unlike the AST-based fallback.
+    MarkdownNew(
+        content = coloredContent,
+        modifier = modifier,
+        style = style,
+        onClickCitation = onClickCitation,
+    )
 }
 
 // for debug
