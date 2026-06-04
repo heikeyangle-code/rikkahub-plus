@@ -118,7 +118,7 @@ class AgentPipeline(
 
         // [s20 Step 6] emit 后提取记忆 + 整理
         return flow.map { chunk ->
-            if (chunk is GenerationChunk.Messages && memoryRepository != null) {
+            if (chunk is GenerationChunk.Messages && memoryRepository != null && assistant.enableMemory) {
                 try {
                     val msgs = chunk.messages
                     val last = msgs.lastOrNull()
