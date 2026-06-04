@@ -1,14 +1,25 @@
 package me.rerere.rikkahub.data.ai.worker
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-class WorkerManager(private val scope: CoroutineScope) {
+/**
+ * 在 Android 上，Worker 无法 spawn 真实子进程。
+ * 改用同进程协程模拟：sendPrompt 时启动一个协程执行 promptHandler，完成时更新状态。
+ */
+typealias WorkerPromptHandler = suspend (workerId: String, prompt: String) -> String
 
+class WorkerManager(
+    private val scope: CoroutineScope,
+    /** 当 sendPrompt 被调用时，执行此 handler 来处理 prompt（Android 上必须设置） */
+    private val promptHandler: WorkerPromptHandler? = null,
+) {
     private val workers = ConcurrentHashMap<String, Worker>()
     private val _workerStates = MutableStateFlow<Map<String, WorkerState>>(emptyMap())
     val workerStates: StateFlow<Map<String, WorkerState>> = _workerStates.asStateFlow()
@@ -44,20 +55,41 @@ class WorkerManager(private val scope: CoroutineScope) {
     }
 
     fun resolveTrust(workerId: String): Worker {
-        return updateWorker(workerId) { it.copy(state = WorkerState.Spawning, lastError = null) }
+        return updateWorker(workerId) { it.copy(state = WorkerState.ReadyForPrompt, lastError = null) }
     }
 
+    /**
+     * 发送 prompt 给 worker。
+     * 如果有 promptHandler，会自动在后台协程中执行，完成后设 Finished/Failed。
+     */
     fun sendPrompt(workerId: String, prompt: String): Worker {
         val worker = workers[workerId] ?: error("Worker $workerId not found")
         require(worker.state is WorkerState.ReadyForPrompt) {
             "Worker $workerId is not ready (state: ${worker.state::class.simpleName})"
         }
-        return updateWorker(workerId) {
+        val taskId = prompt.hashCode().toString()
+        val updated = updateWorker(workerId) {
             it.copy(
-                state = WorkerState.Running(prompt.hashCode().toString(), prompt),
+                state = WorkerState.Running(taskId, prompt),
                 promptDeliveryAttempts = it.promptDeliveryAttempts + 1,
             )
         }
+
+        // 如果有 handler，在后台执行
+        if (promptHandler != null) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val result = promptHandler(workerId, prompt)
+                    updateWorker(workerId) { it.copy(state = WorkerState.Finished(result)) }
+                } catch (e: Exception) {
+                    updateWorker(workerId) {
+                        it.copy(state = WorkerState.Failed(e.message ?: "Unknown error"))
+                    }
+                }
+            }
+        }
+
+        return updated
     }
 
     fun getWorker(workerId: String): Worker? = workers[workerId]

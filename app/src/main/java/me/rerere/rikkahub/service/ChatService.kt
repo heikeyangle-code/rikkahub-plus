@@ -199,7 +199,39 @@ class ChatService(
     private val database: AppDatabase by lazy {
         KoinJavaComponent.get<AppDatabase>(AppDatabase::class.java)
     }
-    private val workerManager: WorkerManager by lazy { WorkerManager(appScope) }
+    private val workerManager: WorkerManager by lazy {
+        WorkerManager(appScope) { workerId, prompt ->
+            // Android 同进程 Worker：执行一次带工具的 LLM 调用
+            val s = settingsStore.getSettings()
+            val m = s.findModelById(s.chatModelId) ?: return@WorkerManager "No model"
+            val p = m.findProvider(s.providers) ?: return@WorkerManager "No provider"
+            @Suppress("UNCHECKED_CAST")
+            val impl = providerManager.getProviderByType(p)
+                as me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>
+            val tools = buildList {
+                if (s.enableWebSearch) {
+                    addAll(createSearchTools(s))
+                    add(createWebFetchTool())
+                }
+                addAll(localTools.getTools(listOf(me.rerere.rikkahub.data.ai.tools.LocalToolOption.TimeInfo)))
+                add(createSleepTool())
+            }
+            val messages = listOf(
+                me.rerere.ai.ui.UIMessage.system("You are a helpful worker agent. Complete the task using tools as needed. Summarize what you did."),
+                me.rerere.ai.ui.UIMessage.user(prompt),
+            )
+            val chunk = impl.generateText(
+                providerSetting = p,
+                messages = messages,
+                params = me.rerere.ai.provider.TextGenerationParams(
+                    model = m,
+                    tools = tools,
+                    reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                ),
+            )
+            chunk.choices.firstOrNull()?.message?.toText() ?: "No response"
+        }
+    }
     private val autoCompactor: AutoCompactor by lazy { AutoCompactor() }
     private val sessionStore: SessionStore by lazy { SessionStore(context) }
     private val agentService: AgentService by lazy {
