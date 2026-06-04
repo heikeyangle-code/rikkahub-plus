@@ -20,6 +20,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.agent.BackgroundTaskQueue
+import me.rerere.rikkahub.data.ai.tools.TaskManager
 import me.rerere.rikkahub.data.ai.tools.PlanManager
 import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.listener.AgentEvent
@@ -90,6 +91,7 @@ class AgentPipeline(
         pipelineMessages = injectCronJobs(pipelineMessages)
         pipelineMessages = injectBackgroundNotifications(pipelineMessages)
         pipelineMessages = injectTodoReminder(pipelineMessages)
+        pipelineMessages = injectStateSummary(pipelineMessages)
         pipelineMessages = prepareContext(pipelineMessages, autoCompactor)
 
         val selectedMemories = selectRelevantMemories(memories ?: emptyList(), pipelineMessages)
@@ -148,6 +150,26 @@ class AgentPipeline(
             messages + listOf(UIMessage.user(
                 "<reminder>Update your todo list with todo_write to track current progress.</reminder>"
             )).also { PlanManager.resetNag(); Log.i(TAG, "[todo] injected reminder") }
+        } else messages
+    }
+
+    private fun injectStateSummary(messages: List<UIMessage>): List<UIMessage> {
+        val tasks = TaskManager.listTasks()
+        val taskCount = tasks.size
+        val pendingCount = tasks.count { it.status.name == "PENDING" }
+        val runningCount = tasks.count { it.status.name == "IN_PROGRESS" }
+        val bgRunning = if (BackgroundTaskQueue.hasRunning()) "1 bg" else "bg idle"
+        val summary = buildString {
+            append("[State: ${taskCount}tasks")
+            if (pendingCount > 0) append(", ${pendingCount}pending")
+            if (runningCount > 0) append(", ${runningCount}running")
+            append(" | $bgRunning")
+            append("]")
+        }
+        // Only inject if there's meaningful state
+        return if (taskCount > 0 || BackgroundTaskQueue.hasRunning()) {
+            messages + listOf(UIMessage.system(summary))
+                .also { Log.i(TAG, "[state] injected: $summary") }
         } else messages
     }
 

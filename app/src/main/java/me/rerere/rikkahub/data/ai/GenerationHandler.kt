@@ -402,7 +402,12 @@ class GenerationHandler(
                         }
                     append(effectiveSystemPrompt)
                 },
-                enabledTools = tools.map { it.name },
+                leadInInstructions = buildString {
+                    appendLine("Guidelines:")
+                    appendLine("- Prefer dedicated tools over shell commands for file operations")
+                    appendLine("- When a tool fails, try an alternative approach before giving up")
+                    appendLine("- If you need clarification, ask the user directly")
+                },
                 workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
                 memories = if (assistant.enableMemory) memories else emptyList(),
                 extraInstructions = buildString {

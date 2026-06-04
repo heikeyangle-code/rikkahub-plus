@@ -8,12 +8,11 @@ import kotlinx.serialization.json.encodeToJsonElement
 /**
  * s10: System Prompt — 运行时分段组装 + 确定性缓存。
  *
- * 对标 learn-claude-code s10_system_prompt：
- * - 分节（identity / tools / workspace / memory / instructions）
+ * 对标 learn-claude-code s10_system_prompt 和 Claude Code 泄露源码 prompt 架构：
+ * - 分节（identity / lead-in / workspace / memory / plan / instructions / constraints）
+ * - 去掉冗余的 tools 列表（API tools 参数已含完整描述）
  * - 根据当前上下文选择包含哪些节
  * - json.dumps(context) 确定性 key，命中缓存跳过组装
- *
- * 用法：每次 LLM 调用前调用 assemble()，传入当前 context。
  */
 object SystemPromptAssembler {
 
@@ -38,10 +37,9 @@ object SystemPromptAssembler {
         // Always: identity
         sections.add(context.identitySection)
 
-        // Always: tools description
-        if (context.enabledTools.isNotEmpty()) {
-            val toolNames = context.enabledTools.joinToString(", ")
-            sections.add("Available tools: $toolNames.")
+        // Conditional: lead-in guidelines (对标 Claude Code 行为指引)
+        if (context.leadInInstructions.isNotBlank()) {
+            sections.add(context.leadInInstructions)
         }
 
         // Conditional: workspace
@@ -60,6 +58,11 @@ object SystemPromptAssembler {
         // Conditional: active plan
         if (context.activePlanSummary.isNotBlank()) {
             sections.add(context.activePlanSummary)
+        }
+
+        // Conditional: session state (对标 BriefTool 可见性控制)
+        if (context.sessionState.isNotBlank()) {
+            sections.add(context.sessionState)
         }
 
         // Conditional: extra instructions
@@ -93,10 +96,12 @@ object SystemPromptAssembler {
  */
 data class PromptContext(
     /** Agent 身份描述 */
-    val identitySection: String = "You are an AI assistant. Act, don't explain.",
+    val identitySection: String = "You are an AI agent running in Rikkahub on Android. Be concise and act directly — don't describe what you will do, just do it.",
 
-    /** 启用的工具名称列表，用于生成 "Available tools: ..." 段 */
-    val enabledTools: List<String> = emptyList(),
+    /** Lead-in 行为指引（对标 Claude Code behavior guidelines） */
+    val leadInInstructions: String = "",
+
+    /** 注：工具定义通过 API tools 参数传递，不在 prompt 里重复列出 */
 
     /** 工作空间描述，如 "Working directory: /path" */
     val workspaceDescription: String = "",
@@ -106,6 +111,9 @@ data class PromptContext(
 
     /** AI 当前的执行计划摘要（来自 TodoWrite/PlanManager） */
     val activePlanSummary: String = "",
+
+    /** 会话状态摘要（对标 Claude Code briefVisibility） */
+    val sessionState: String = "",
 
     /** 额外的指令文本，会作为一个独立段追加 */
     val extraInstructions: String = "",
@@ -121,12 +129,13 @@ data class PromptContext(
     fun cacheKey(): String {
         val map = linkedMapOf(
             "identity" to identitySection,
-            "tools" to enabledTools.sorted().toString(),
+            "leadIn" to leadInInstructions,
             "workspace" to workspaceDescription,
             "memories" to memories.map {
                 linkedMapOf("id" to it.id, "content" to it.content)
             }.toString(),
             "plan" to activePlanSummary,
+            "session" to sessionState,
             "instructions" to extraInstructions,
             "constraints" to constraints.sorted().toString(),
         )
