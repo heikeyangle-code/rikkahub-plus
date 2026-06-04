@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.data.ai.agent.AgentEventBus
 import me.rerere.rikkahub.data.ai.agent.AgentEventType
 import me.rerere.rikkahub.data.ai.agent.AgentExecutionEvent
+import me.rerere.rikkahub.data.ai.agent.AgentStatus
 import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
 
 /**
