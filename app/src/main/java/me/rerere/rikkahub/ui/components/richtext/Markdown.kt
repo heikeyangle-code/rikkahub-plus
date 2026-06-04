@@ -247,26 +247,14 @@ fun MarkdownBlock(
             .collect { setData(it) }
     }
 
-    if (data.hasHtml) {
-        MarkdownNew(
-            content = coloredContent,
-            modifier = modifier,
-            style = style,
-            onClickCitation = onClickCitation,
-        )
-    } else {
-        ProvideTextStyle(style) {
-            Column(
-                modifier = modifier.padding(horizontal = 4.dp)
-            ) {
-                data.astTree.children.fastForEach { child ->
-                    MarkdownNode(
-                        node = child, content = data.preprocessed, onClickCitation = onClickCitation
-                    )
-                }
-            }
-        }
-    }
+    // Always use MarkdownNew — it handles emphasis/bold/italic properly
+    // via the HTML pipeline, unlike the AST-based fallback
+    MarkdownNew(
+        content = coloredContent,
+        modifier = modifier,
+        style = style,
+        onClickCitation = onClickCitation,
+    )
 }
 
 // for debug
