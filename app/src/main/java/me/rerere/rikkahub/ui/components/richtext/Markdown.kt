@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -248,23 +247,15 @@ fun MarkdownBlock(
             .collect { setData(it) }
     }
 
-    // 只含 HTML 着色（引用块等）的内容走 MarkdownNew 的 HTML 渲染管道，
-    // 纯文本/纯 Markdown 走 AST 渲染，避免 fillMaxWidth 撑宽气泡
-    if (data.hasHtml) {
-        MarkdownNew(
-            content = coloredContent,
-            modifier = modifier,
-            style = style,
-            onClickCitation = onClickCitation,
-        )
-    } else {
-        MarkdownNode(
-            node = data.astTree,
-            content = data.preprocessed,
-            modifier = modifier.animateContentSize(),
-            onClickCitation = onClickCitation,
-        )
-    }
+    // Always use MarkdownNew — it handles emphasis/bold/italic and streaming content
+    // properly via the HTML pipeline, unlike the AST-based fallback.
+    // Bubble width is controlled by removing fillMaxWidth inside HtmlParagraphContent.
+    MarkdownNew(
+        content = coloredContent,
+        modifier = modifier,
+        style = style,
+        onClickCitation = onClickCitation,
+    )
 }
 
 // for debug

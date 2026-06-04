@@ -335,7 +335,7 @@ private fun HtmlParagraphContent(
     if (hasImages || hasBlockMath) {
         // Mixed block content: render children individually in a FlowRow
         FlowRow(
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier,
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             element.childNodes().fastForEach { child ->
@@ -383,7 +383,7 @@ private fun HtmlParagraphContent(
         inlineContent = inlineContents,
         softWrap = true,
         overflow = TextOverflow.Visible,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
         style = textStyle.copy(
             lineHeight = if (hasInlineMath && enableLatexRendering)
                 TextUnit.Unspecified
