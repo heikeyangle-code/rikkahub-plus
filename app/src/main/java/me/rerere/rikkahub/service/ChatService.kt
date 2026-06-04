@@ -742,10 +742,6 @@ class ChatService(
                                     val agentDef = AgentRegistry.get(agentType)
                                     val agentCallId = agentName ?: "agent_${System.currentTimeMillis()}"
 
-                                    // Track progress（AgentLifecycleManager.register 内部已调 createSession）
-                                    // 记住进入子Agent前的主Agent状态，退出后恢复
-                                    val preSubStatus = session.processingStatus.value
-
                                     // Resolve model for sub-agent
                                     val effectiveModelId = try {
                                         modelOverride?.let { Uuid.parse(it) }
@@ -836,7 +832,6 @@ class ChatService(
                                                 Log.w("SubAgent", "Background agent failed: ${e.message}")
                                             }
                                         }
-                                        session.processingStatus.value = preSubStatus
                                         listOf(UIMessagePart.Text("{\"status\":\"running\",\"agentId\":\"$agentCallId\",\"message\":\"Agent '$agentType' started in background\"}"))
                                     } else {
                                         // 前台执行
@@ -855,11 +850,9 @@ class ChatService(
                                                 executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt, agentCallId)
                                             }
                                             laneTracker.completed()
-                                            session.processingStatus.value = preSubStatus
                                             outputText
                                         } catch (e: Exception) {
                                             laneTracker.failed(e.message ?: e.javaClass.simpleName)
-                                            session.processingStatus.value = preSubStatus
                                             throw e
                                         }
                                     }
@@ -1801,7 +1794,6 @@ class ChatService(
 
             try {
                 val stepNum = stepLog.count { it == '\n' } + 1
-                session.processingStatus.value = "子Agent: 第${stepNum}步..."
 
                 val chunk = providerImpl.generateText(
                     providerSetting = providerSetting,
@@ -1847,7 +1839,6 @@ class ChatService(
                 stepLog.appendLine(toolCalls.joinToString("、") { tc ->
                     "${tc.toolName}(${tc.input.take(40)})"
                 })
-                session.processingStatus.value = "子Agent: 调${toolCalls.first().toolName}..."
 
                 val executedTools = toolCalls.map { toolCall ->
                     val toolDef = subTools.find { it.name == toolCall.toolName }
