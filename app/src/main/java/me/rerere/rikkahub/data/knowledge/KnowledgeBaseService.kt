@@ -173,8 +173,7 @@ class KnowledgeBaseService(
             autoEmbedIfEnabled(sourceId)
 
             // 5. 更新计数
-            dao.deleteSource(sourceId)
-            dao.insertSource(source.copy(chunkCount = parentEntities.size))
+            dao.updateSourceChunkCount(sourceId, parentEntities.size)
 
             Log.i(TAG, "Imported $fileName: ${parentEntities.size} parent chunks, ${childEntities.size} child chunks")
             sourceId
@@ -254,8 +253,7 @@ class KnowledgeBaseService(
                     val (parentEntities, childEntities) = createDualChunks(sourceId, text)
                     dao.insertChunks(parentEntities + childEntities)
                     indexFts5(childEntities)
-                    dao.deleteSource(sourceId)
-                    dao.insertSource(source.copy(chunkCount = parentEntities.size))
+                    dao.updateSourceChunkCount(sourceId, parentEntities.size)
                     imported++
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to import $name in folder", e)
@@ -310,8 +308,7 @@ class KnowledgeBaseService(
             dao.insertChunks(parentEntities + childEntities)
             indexFts5(childEntities)
 
-            dao.deleteSource(sourceId)
-            dao.insertSource(source.copy(chunkCount = parentEntities.size))
+            dao.updateSourceChunkCount(sourceId, parentEntities.size)
 
             Log.i(TAG, "Imported chat '$title': ${parentEntities.size} parent chunks, ${childEntities.size} child chunks")
             sourceId
@@ -348,8 +345,7 @@ class KnowledgeBaseService(
             dao.insertChunks(parentEntities + childEntities)
             indexFts5(childEntities)
 
-            dao.deleteSource(sourceId)
-            dao.insertSource(source.copy(chunkCount = parentEntities.size))
+            dao.updateSourceChunkCount(sourceId, parentEntities.size)
 
             Log.i(TAG, "Imported text '$title': ${parentEntities.size} parent chunks, ${childEntities.size} child chunks")
             sourceId

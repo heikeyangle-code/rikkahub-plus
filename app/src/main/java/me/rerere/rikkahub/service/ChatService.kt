@@ -91,10 +91,8 @@ import me.rerere.rikkahub.data.ai.agent.AgentMemoryManager
 import me.rerere.rikkahub.data.ai.lane.LaneTracker
 import me.rerere.rikkahub.data.ai.tools.TaskManager
 import me.rerere.rikkahub.data.ai.tools.isToolAllowed
-import me.rerere.rikkahub.data.ai.tools.createSleepTool
 import me.rerere.rikkahub.data.ai.tools.AgentColor
 import me.rerere.rikkahub.data.ai.agent.AgentExecutionEvent
-import me.rerere.rikkahub.data.ai.agent.AgentEventType
 import me.rerere.rikkahub.data.ai.agent.AgentEventBus
 import me.rerere.rikkahub.data.ai.agent.TeammateRunner
 import me.rerere.rikkahub.data.ai.tools.isToolAllowedForAsync
@@ -921,6 +919,15 @@ class ChatService(
                                         if (assistant.localTools.contains(LocalToolOption.FileTools)) {
                                             addAll(createFileTools(skillDirs))
                                         }
+                                        if (assistant.localTools.contains(LocalToolOption.AssetGenerator)) {
+                                            add(createAssetTool(context.filesDir.absolutePath))
+                                        }
+                                        if (assistant.localTools.contains(LocalToolOption.DataProcess)) {
+                                            add(createDataProcessTool())
+                                        }
+                                        if (assistant.localTools.contains(LocalToolOption.PythonEngine)) {
+                                            add(createPythonTool(context, assistant.toolExecTimeout))
+                                        }
                                         addAll(localTools.getTools(assistant.localTools))
                                         if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
                                             addAll(createShellTools())
@@ -1347,6 +1354,15 @@ class ChatService(
             tools = buildList {
                 if (assistant.localTools.contains(LocalToolOption.FileTools)) {
                     addAll(createFileTools(skillDirs))
+                }
+                if (assistant.localTools.contains(LocalToolOption.AssetGenerator)) {
+                    add(createAssetTool(context.filesDir.absolutePath))
+                }
+                if (assistant.localTools.contains(LocalToolOption.DataProcess)) {
+                    add(createDataProcessTool())
+                }
+                if (assistant.localTools.contains(LocalToolOption.PythonEngine)) {
+                    add(createPythonTool(context, assistant.toolExecTimeout))
                 }
                 if (settings.enableWebSearch) {
                     addAll(createSearchTools(settings))

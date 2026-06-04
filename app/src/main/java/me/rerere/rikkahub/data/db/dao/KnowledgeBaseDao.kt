@@ -35,6 +35,9 @@ interface KnowledgeBaseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSource(source: KnowledgeSourceEntity)
 
+    @Query("UPDATE knowledge_sources SET chunk_count = :chunkCount WHERE id = :id")
+    suspend fun updateSourceChunkCount(id: String, chunkCount: Int)
+
     @Query("DELETE FROM knowledge_sources WHERE id = :id")
     suspend fun deleteSource(id: String)
 
