@@ -383,43 +383,47 @@ class GenerationHandler(
         conversationLorebookIds: Set<Uuid> = emptySet(),
     ) {
         val internalMessages = buildList {
-            val system = buildString {
-                val effectiveSystemPrompt =
-                    if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
-                        conversationSystemPrompt
-                    } else {
-                        // 如果导入了酒馆卡，使用模板组装；否则使用原始 system prompt
-                        if (assistant.tavernData != null) {
-                            val persona = settings.personas.find { it.id == settings.activePersonaId }
-                            assistant.assembleContext(
-                                userName = settings.displaySetting.userNickname.ifBlank { "User" },
-                                personaDesc = persona?.description ?: ""
-                            )
+            // ── s10: 使用 SystemPromptAssembler 替代硬编码 ──
+            val assemblerContext = me.rerere.rikkahub.data.ai.prompts.PromptContext(
+                identitySection = buildString {
+                    val effectiveSystemPrompt =
+                        if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
+                            conversationSystemPrompt
                         } else {
-                            assistant.systemPrompt
+                            if (assistant.tavernData != null) {
+                                val persona = settings.personas.find { it.id == settings.activePersonaId }
+                                assistant.assembleContext(
+                                    userName = settings.displaySetting.userNickname.ifBlank { "User" },
+                                    personaDesc = persona?.description ?: ""
+                                )
+                            } else {
+                                assistant.systemPrompt
+                            }
                         }
-                    }
-                if (effectiveSystemPrompt.isNotBlank()) {
                     append(effectiveSystemPrompt)
-                }
+                },
+                enabledTools = tools.map { it.name },
+                workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
+                memories = memories,
+                extraInstructions = buildString {
+                    if (assistant.enableRecentChatsReference) {
+                        appendLine()
+                        append(buildRecentChatsPrompt(assistant, conversationRepo))
+                    }
+                },
+                constraints = emptyList(),
+            )
+            val system = me.rerere.rikkahub.data.ai.prompts.SystemPromptAssembler.assemble(assemblerContext)
 
-                // 记忆
-                if (assistant.enableMemory) {
-                    appendLine()
-                    append(buildMemoryPrompt(memories = memories))
-                }
-                if (assistant.enableRecentChatsReference) {
-                    appendLine()
-                    append(buildRecentChatsPrompt(assistant, conversationRepo))
-                }
-
-                // 工具prompt
+            // ── 工具prompt（保持原有逻辑，追加在 assembler 结果之后）──
+            val fullSystem = buildString {
+                append(system)
                 tools.forEach { tool ->
                     appendLine()
                     append(tool.systemPrompt(model, messages))
                 }
             }
-            if (system.isNotBlank()) add(UIMessage.system(prompt = system))
+            if (fullSystem.isNotBlank()) add(UIMessage.system(prompt = fullSystem))
             addAll(messages.limitContext(assistant.contextMessageSize))
         }.transforms(
             transformers = transformers,
@@ -511,24 +515,25 @@ class GenerationHandler(
                     stream = false
                 )
             )
+            val recoveryState = me.rerere.rikkahub.data.ai.error.RecoveryState()
             val chunk = try {
-                providerImpl.generateText(
-                    providerSetting = provider,
-                    messages = internalMessages,
-                    params = params,
+                me.rerere.rikkahub.data.ai.error.withRetry(
+                    block = suspend {
+                        providerImpl.generateText(
+                            providerSetting = provider,
+                            messages = internalMessages,
+                            params = params.copy(
+                                maxTokens = if (recoveryState.hasEscalated)
+                                    me.rerere.rikkahub.data.ai.error.ESCALATED_MAX_TOKENS
+                                else params.maxTokens
+                            ),
+                        )
+                    },
+                    state = recoveryState,
                 )
             } catch (e: Exception) {
-                val msg = e.message ?: ""
-                if (msg.contains("429 ") || msg.contains("5") || msg.contains("timeout") || msg.contains("reset")) {
-                    Log.w(TAG, "generateText: retrying once after: ${e.message}")
-                    providerImpl.generateText(
-                        providerSetting = provider,
-                        messages = internalMessages,
-                        params = params,
-                    )
-                } else {
-                    throw e
-                }
+                Log.e(TAG, "generateText failed after retries: ${e.message}")
+                throw e
             }
             messages = messages.handleMessageChunk(chunk = chunk, model = model)
             chunk.usage?.let { usage ->

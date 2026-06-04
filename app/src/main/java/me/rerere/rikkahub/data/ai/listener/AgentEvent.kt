@@ -20,6 +20,13 @@ import kotlin.uuid.Uuid
  * 其他事件全部 fire-and-forget。
  */
 sealed interface AgentEvent {
+    /** 用户输入提交后、LLM 调用前。context 可被修改以注入额外信息 */
+    data class UserPromptSubmit(
+        val conversationId: Uuid,
+        val userInput: String,
+        val context: MutableMap<String, String> = mutableMapOf(),
+    ) : AgentEvent
+
     /** 工具执行前检查。reply 回复 true=允许执行，false=阻止 */
     data class PreToolCheck(
         val tool: Tool,
@@ -54,6 +61,12 @@ sealed interface AgentEvent {
 
     /** 生成完成 */
     data class GenerationCompleted(
+        val conversationId: Uuid,
+        val messages: List<UIMessage>,
+    ) : AgentEvent
+
+    /** 会话停止时触发（用于摘要生成等） */
+    data class SessionStopped(
         val conversationId: Uuid,
         val messages: List<UIMessage>,
     ) : AgentEvent
