@@ -101,6 +101,9 @@ class AgentPipeline(
         val tasks = TaskManager.listTasks()
         val taskCount = tasks.size
         val bgRunning = BackgroundTaskQueue.hasRunning()
+        if (cronJobs.isNotEmpty()) Log.i(TAG, "[cron] injected ${cronJobs.size} job(s)")
+        if (shouldNag) Log.i(TAG, "[todo] injected reminder")
+        if (taskCount > 0 || bgRunning) Log.i(TAG, "[state] summary active")
 
         val contextInjector = ContextInjectorTransformer(
             cronMessages = cronJobs.map { it.prompt },

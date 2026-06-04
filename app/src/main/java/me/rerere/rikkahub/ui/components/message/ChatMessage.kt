@@ -136,6 +136,10 @@ fun ChatMessage(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
+
+    // 跳过 SYSTEM 角色消息（只供 LLM 上下文，不在界面上显示）
+    if (message.role == me.rerere.ai.core.MessageRole.SYSTEM) return
+
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
