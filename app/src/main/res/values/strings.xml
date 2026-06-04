@@ -1149,5 +1149,7 @@
   <string name="prompt_page_apply_to_group">Apply to %d entries</string>
   <string name="prompt_page_add_content">Tap to add injection content</string>
   <string name="impersonate">Reply as User</string>
+  <string name="setting_display_page_bubble_opacity_title">Bubble Opacity</string>
+  <string name="setting_provider_page_include_history_reasoning">Include History Reasoning</string>
 </resources>
 

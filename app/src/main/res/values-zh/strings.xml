@@ -1146,5 +1146,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="prompt_page_sticky">粘性</string>
   <string name="prompt_page_cooldown">冷却(轮)</string>
   <string name="prompt_page_sticky_desc">0 = 关闭, N = 持续N轮</string>
+  <string name="setting_display_page_bubble_opacity_title">气泡不透明度</string>
+  <string name="setting_provider_page_include_history_reasoning">回传历史思考过程</string>
 </resources>
 
