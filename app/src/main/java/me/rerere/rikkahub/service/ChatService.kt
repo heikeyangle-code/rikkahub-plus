@@ -392,7 +392,10 @@ class ChatService(
         }
         if (sessions.remove(conversationId, session)) {
             session.cleanup()
-            appScope.launch { ListenerEventBus.emit(AgentEvent.SessionStopped(conversationId)) }
+            appScope.launch {
+                val msgs = getConversationFlow(conversationId).value.currentMessages
+                ListenerEventBus.emit(AgentEvent.SessionStopped(conversationId, msgs))
+            }
             _sessionsVersion.value++
             Log.i(TAG, "removeSession: $conversationId (remaining: ${sessions.size})")
         }

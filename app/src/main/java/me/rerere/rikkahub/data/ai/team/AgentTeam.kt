@@ -3,8 +3,6 @@ package me.rerere.rikkahub.data.ai.team
 import android.util.Log
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.encodeToStream
-import kotlinx.serialization.decodeFromStream
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -195,9 +193,7 @@ object KanbanBoard {
                 )
             }
             file.parentFile?.mkdirs()
-            file.outputStream().use { out ->
-                json.encodeToStream(persistList, out)
-            }
+            file.writeText(json.encodeToString(persistList))
         } catch (e: Exception) {
             Log.w(TAG, "Kanban save failed: ${e.message}")
         }
@@ -207,9 +203,7 @@ object KanbanBoard {
         val file = persistFile ?: return
         if (!file.exists()) return
         try {
-            val persistList = file.inputStream().use { `in` ->
-                json.decodeFromStream<List<KanbanPersistTask>>(`in`)
-            }
+            val persistList = json.decodeFromString<List<KanbanPersistTask>>(file.readText())
             tasks.clear()
             var maxNum = 0
             for (pt in persistList) {
