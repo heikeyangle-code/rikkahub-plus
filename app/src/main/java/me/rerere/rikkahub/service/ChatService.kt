@@ -750,7 +750,7 @@ class ChatService(
                         add(createSendMessageTool())
                         add(createGetTeammateMessagesTool())
                     }
-                    if (assistant.enableSubAgent && assistant.localTools.contains(LocalToolOption.Agents)) {
+                    if (assistant.enableSubAgent) {
                         val allAgentTypes = AgentRegistry.list()
                         add(
                             Tool(

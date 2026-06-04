@@ -43,8 +43,6 @@ import me.rerere.rikkahub.data.ai.tools.AgentColor
 import me.rerere.rikkahub.data.ai.tools.AgentDefinition
 import me.rerere.rikkahub.data.ai.tools.AgentRegistry
 import me.rerere.rikkahub.data.ai.tools.AgentSource
-import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
-import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.formatAgentTools
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
@@ -118,10 +116,9 @@ fun AssistantAgentPage(id: String) {
                 item(
                     headlineContent = { Text("AI 调子 Agent") },
                     supportingContent = {
-                        val enabled = assistant.enableSubAgent && assistant.localTools.contains(LocalToolOption.Agents)
-                        val status = if (enabled) "✓ 已启用，AI 可自主调 Agent"
+                        val status = if (assistant.enableSubAgent) "✓ 已启用，AI 可自主调 Agent"
                         else "✕ 已禁用"
-                        Text(status, color = if (enabled) androidx.compose.ui.graphics.Color(0xFF22C55E)
+                        Text(status, color = if (assistant.enableSubAgent) androidx.compose.ui.graphics.Color(0xFF22C55E)
                             else MaterialTheme.colorScheme.onSurfaceVariant)
                     },
                 )
