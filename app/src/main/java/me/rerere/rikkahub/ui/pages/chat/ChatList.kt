@@ -394,16 +394,16 @@ private fun ChatListNormal(
                             modifier = Modifier.size(28.dp)
                         )
                         // Agent 执行进度面板（替换原来的 processingStatus 文本）
-                        val runningAgents = remember { me.rerere.rikkahub.data.ai.agent.AgentTaskTracker.runningAgents() }
+                        val runningAgents = me.rerere.rikkahub.data.ai.agent.AgentTaskTracker.runningAgents()
                         val activeAgent = runningAgents.firstOrNull()
                         if (activeAgent != null) {
                             val (agentId, progress) = activeAgent
-                            val agentDef = remember(agentId) { me.rerere.rikkahub.data.ai.tools.AgentRegistry.get(progress.recentActivities.lastOrNull()?.toolName ?: "") }
-                            val agentColor = me.rerere.rikkahub.data.ai.tools.AgentColorManager.getColor(agentDef?.agentType ?: "")
                             AgentExecutionPanel(
                                 agentId = agentId,
-                                agentType = agentDef?.agentType ?: "agent",
-                                agentColor = androidx.compose.ui.graphics.Color(agentDef?.color?.hex ?: me.rerere.rikkahub.data.ai.tools.AgentColor.BLUE.hex),
+                                agentType = progress.agentType.ifEmpty { "agent" },
+                                agentColor = androidx.compose.ui.graphics.Color(
+                                    me.rerere.rikkahub.data.ai.tools.AgentColorManager.getColor(progress.agentType).hex
+                                ),
                             )
                         } else {
                             AnimatedVisibility(

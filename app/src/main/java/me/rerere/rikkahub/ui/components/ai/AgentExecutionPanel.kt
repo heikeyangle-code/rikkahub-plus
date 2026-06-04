@@ -59,7 +59,7 @@ fun AgentExecutionPanel(
     var isCompleted by remember { mutableStateOf(false) }
     var currentDescription by remember { mutableStateOf("starting...") }
 
-    // 订阅事件
+    // 订阅事件（用于实时 tool 调用流）
     LaunchedEffect(agentId) {
         AgentEventBus.subscribe { event ->
             if (event.agentId == agentId) {
@@ -76,8 +76,26 @@ fun AgentExecutionPanel(
         }
     }
 
+    // 从 AgentTaskTracker 读取当前进度（事件可能已经发出，面板没赶上）
     val progress = remember(agentId) { AgentTaskTracker.getProgress(agentId) }
     val totalTokens = progress?.let { it.latestInputTokens + it.cumulativeOutputTokens } ?: 0
+
+    // 从 progress 初始化状态（面板晚于事件时有用）
+    LaunchedEffect(agentId, progress) {
+        if (progress != null) {
+            when (progress.status) {
+                AgentStatus.COMPLETED,
+                AgentStatus.FAILED,
+                AgentStatus.CANCELLED -> {
+                    isCompleted = true
+                }
+                else -> {}
+            }
+            if (progress.toolUseCount > 0 && currentDescription == "starting...") {
+                currentDescription = "已执行 ${progress.toolUseCount} 个工具调用"
+            }
+        }
+    }
 
     Card(
         modifier = modifier

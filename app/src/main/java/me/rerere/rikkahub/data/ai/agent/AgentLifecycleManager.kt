@@ -78,7 +78,7 @@ class AgentLifecycleManager {
             status = AgentLifecycleStatus.RUNNING,
         )
         tasks[agentId] = task
-        AgentTaskTracker.createSession(agentId)
+        AgentTaskTracker.createSession(agentId, agentType)
         notify(task)
         return task
     }

@@ -12,6 +12,8 @@ data class AgentProgress(
     val recentActivities: List<ActivityInfo> = emptyList(),
     val summary: String? = null,
     val status: AgentStatus = AgentStatus.RUNNING,
+    val agentType: String = "",
+    val agentCallId: String = "",
 )
 
 enum class AgentStatus {
@@ -41,8 +43,8 @@ private const val MAX_RECENT_ACTIVITIES = 10
 object AgentTaskTracker {
     private val progressMap = ConcurrentHashMap<String, AgentProgress>()
 
-    fun createSession(agentCallId: String) {
-        progressMap[agentCallId] = AgentProgress()
+    fun createSession(agentCallId: String, agentType: String = "") {
+        progressMap[agentCallId] = AgentProgress(agentType = agentType, agentCallId = agentCallId)
     }
 
     fun recordToolUse(agentCallId: String, toolName: String, activityDescription: String) {

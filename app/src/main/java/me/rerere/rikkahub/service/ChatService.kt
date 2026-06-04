@@ -742,9 +742,7 @@ class ChatService(
                                     val agentDef = AgentRegistry.get(agentType)
                                     val agentCallId = agentName ?: "agent_${System.currentTimeMillis()}"
 
-                                    // Track progress
-                                    AgentTaskTracker.createSession(agentCallId)
-
+                                    // Track progress（AgentLifecycleManager.register 内部已调 createSession）
                                     // 记住进入子Agent前的主Agent状态，退出后恢复
                                     val preSubStatus = session.processingStatus.value
 
@@ -832,11 +830,10 @@ class ChatService(
                                                     agentType = agentType,
                                                     description = goal.take(50),
                                                 ) {
-                                                    executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt)
+                                                    executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt, agentCallId)
                                                 }
                                             }.onFailure { e ->
                                                 Log.w("SubAgent", "Background agent failed: ${e.message}")
-                                                AgentTaskTracker.endSession(agentCallId)
                                             }
                                         }
                                         session.processingStatus.value = preSubStatus
@@ -855,15 +852,13 @@ class ChatService(
                                                 agentType = agentType,
                                                 description = goal.take(50),
                                             ) {
-                                                executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt)
+                                                executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt, agentCallId)
                                             }
                                             laneTracker.completed()
-                                            AgentTaskTracker.endSession(agentCallId)
                                             session.processingStatus.value = preSubStatus
                                             outputText
                                         } catch (e: Exception) {
                                             laneTracker.failed(e.message ?: e.javaClass.simpleName)
-                                            AgentTaskTracker.endSession(agentCallId)
                                             session.processingStatus.value = preSubStatus
                                             throw e
                                         }
@@ -1793,6 +1788,7 @@ class ChatService(
         subTools: List<Tool>,
         assistant: Assistant,
         prompt: String,
+        agentCallId: String = conversationId.toString(),
     ): List<UIMessagePart> {
         val session = getOrCreateSession(conversationId)
         val messages = mutableListOf(UIMessage.user(prompt))
@@ -1820,6 +1816,26 @@ class ChatService(
                 val assistantMsg = chunk.choices.firstOrNull()?.message ?: break
                 val assistantText = assistantMsg.toText()
                 val toolCalls = assistantMsg.getTools().filter { !it.isExecuted }
+
+                // 更新 Agent 进度追踪
+                chunk.usage?.let { usage ->
+                    AgentTaskTracker.recordTokenUsage(agentCallId, usage.promptTokens, usage.completionTokens)
+                }
+                if (toolCalls.isNotEmpty()) {
+                    AgentTaskTracker.recordToolUse(
+                        agentCallId,
+                        toolCalls.first().toolName,
+                        "调 ${toolCalls.first().toolName}: ${toolCalls.first().input.take(40)}",
+                    )
+                    me.rerere.rikkahub.data.ai.agent.AgentEventBus.emit(
+                        me.rerere.rikkahub.data.ai.agent.AgentExecutionEvent(
+                            agentId = agentCallId,
+                            agentType = "general-purpose",
+                            eventType = me.rerere.rikkahub.data.ai.agent.AgentEventType.TOOL_USE,
+                            description = "调 ${toolCalls.first().toolName}",
+                        )
+                    )
+                }
 
                 if (toolCalls.isEmpty()) {
                     finalText = assistantText
