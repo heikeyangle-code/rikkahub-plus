@@ -860,7 +860,7 @@ class ChatService(
                                             laneTracker.completed()
                                             AgentTaskTracker.endSession(agentCallId)
                                             session.processingStatus.value = preSubStatus
-                                            listOf(UIMessagePart.Text(outputText))
+                                            outputText
                                         } catch (e: Exception) {
                                             laneTracker.failed(e.message ?: e.javaClass.simpleName)
                                             AgentTaskTracker.endSession(agentCallId)
