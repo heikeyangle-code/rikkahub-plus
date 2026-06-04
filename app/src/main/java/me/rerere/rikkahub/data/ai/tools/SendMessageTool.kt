@@ -11,6 +11,7 @@ import me.rerere.rikkahub.data.ai.agent.AgentContextStore
 import me.rerere.rikkahub.data.ai.agent.MailMessageType
 import me.rerere.rikkahub.data.ai.team.MessageBus
 import me.rerere.rikkahub.data.ai.team.ProtocolManager
+import me.rerere.rikkahub.data.ai.team.KanbanTask
 
 /**
  * agent 间通信工具。
@@ -186,7 +187,7 @@ fun createKanbanTools(): List<Tool> = listOf(
     Tool(
         name = "claim_task",
         description = "Claim a kanban task by ID. Sets status to in_progress and assigns owner.",
-        permissionMode = PermissionMode.AUTO,
+        permissionMode = me.rerere.ai.core.PermissionMode.READ_ONLY,
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("task_id", buildJsonObject {

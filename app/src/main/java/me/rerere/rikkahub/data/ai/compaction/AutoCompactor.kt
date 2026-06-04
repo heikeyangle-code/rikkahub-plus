@@ -100,60 +100,6 @@ class AutoCompactor {
     }
 
     /**
-     * Tool result budget: keep total tool output under maxBytes by persisting largest ones.
-     * 对标 s20 tool_result_budget。
-     */
-    fun toolResultBudget(
-        messages: List<UIMessage>,
-        maxBytes: Int = TOOL_RESULT_BUDGET_BYTES,
-    ): List<UIMessage> {
-        if (messages.isEmpty()) return messages
-        val last = messages.last()
-        val newParts = last.parts.map { part ->
-            if (part is UIMessagePart.Tool) {
-                val text = part.toText()
-                if (text.length <= maxBytes) return@map part
-                val persisted = persistLargeOutput(part.name, text)
-                UIMessagePart.Tool(
-                    id = part.id, name = part.name, input = part.input,
-                    output = listOf(UIMessagePart.Text(persisted)),
-                    isExecuted = part.isExecuted,
-                )
-            } else part
-        }
-        return messages.dropLast(1) + UIMessage(
-            role = last.role, parts = newParts, usage = last.usage,
-            createAt = last.createAt, model = last.model, annotations = last.annotations,
-        )
-    }
-
-    /**
-     * Micro compact: old tool results -> short marker.
-     * 对标 s20 micro_compact。
-     */
-    fun microCompact(messages: List<UIMessage>, keepRecent: Int = MICRO_COMPACT_KEEP_RECENT): List<UIMessage> {
-        var toolResultCount = 0
-        return messages.map { msg ->
-            val newParts = msg.parts.map { part ->
-                if (part is UIMessagePart.Tool) {
-                    toolResultCount++
-                    if (toolResultCount > messages.size - keepRecent && part.toText().length > 120) {
-                        UIMessagePart.Tool(
-                            id = part.id, name = part.name, input = part.input,
-                            output = listOf(UIMessagePart.Text("[Earlier tool result compacted. Re-run if needed.]")),
-                            isExecuted = part.isExecuted,
-                        )
-                    } else part
-                } else part
-            }
-            UIMessage(
-                role = msg.role, parts = newParts, usage = msg.usage,
-                createAt = msg.createAt, model = msg.model, annotations = msg.annotations,
-            )
-        }
-    }
-
-    /**
      * Snip compact (head+tail variant): keep head N + tail N, snip middle.
      * 对标 s20 snip_compact。
      */
@@ -209,21 +155,20 @@ class AutoCompactor {
                         }
                     }
                     UIMessagePart.Tool(
-                        id = part.id,
-                        name = part.name,
+                        toolCallId = part.toolCallId,
+                        toolName = part.toolName,
                         input = part.input,
                         output = truncatedOutput,
-                        isExecuted = part.isExecuted,
+                        approvalState = part.approvalState,
                     )
                 } else part
             }
             UIMessage(
                 role = msg.role,
                 parts = newParts,
+                createdAt = msg.createdAt,
+                modelId = msg.modelId,
                 usage = msg.usage,
-                createAt = msg.createAt,
-                model = msg.model,
-                annotations = msg.annotations,
             )
         }
     }
@@ -281,7 +226,7 @@ class AutoCompactor {
             )
         }
 
-        // L3: LLM summary (original behavior — keep for backward compatibility)
+        // L3: LLM summary (original behavior)
         if (current.size <= preserveRecent * 2) return null
 
         val toCompact = current.dropLast(preserveRecent)

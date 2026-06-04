@@ -5,7 +5,6 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.PermissionMode
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.rikkahub.data.ai.tools.PlanManager
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -238,6 +237,72 @@ object TaskManager {
 
     fun readMessages(agentName: String): List<Message> = messages.filter { it.to == agentName || it.to == "*" }
     fun clearMessages(agentName: String) { messages.removeAll { it.to == agentName } }
+}
+
+/**
+ * s05: TodoWrite/Planning — AI 自主写计划、按步骤执行。
+ * 对标 learn-claude-code s05_todo_write。
+ */
+object PlanManager {
+    private val currentTodos = java.util.concurrent.CopyOnWriteArrayList<TodoItem>()
+    private val roundsSinceTodoUpdate = java.util.concurrent.atomic.AtomicInteger(0)
+    private const val NAG_THRESHOLD = 3
+
+    data class TodoItem(val content: String, val status: String)
+
+    fun updateTodos(todos: List<TodoItem>): String {
+        currentTodos.clear()
+        currentTodos.addAll(todos)
+        roundsSinceTodoUpdate.set(0)
+        return formatTodos()
+    }
+
+    fun getTodos(): List<TodoItem> = currentTodos.toList()
+
+    fun getPlanSummary(): String {
+        if (currentTodos.isEmpty()) return ""
+        return buildString {
+            appendLine("## Current Plan")
+            currentTodos.forEachIndexed { i, item ->
+                val icon = when (item.status) {
+                    "completed" -> "✅"
+                    "in_progress" -> "▶"
+                    else -> "⬜"
+                }
+                appendLine("$icon [$i] ${item.content} (${item.status})")
+            }
+        }
+    }
+
+    fun shouldNag(): Boolean {
+        if (currentTodos.isEmpty()) return false
+        val rounds = roundsSinceTodoUpdate.incrementAndGet()
+        return rounds > NAG_THRESHOLD
+    }
+
+    fun resetNag() {
+        roundsSinceTodoUpdate.set(0)
+    }
+
+    fun clear() {
+        currentTodos.clear()
+        roundsSinceTodoUpdate.set(0)
+    }
+
+    private fun formatTodos(): String {
+        if (currentTodos.isEmpty()) return "Plan cleared (0 tasks)"
+        return buildString {
+            appendLine("Updated ${currentTodos.size} tasks:")
+            currentTodos.forEach { item ->
+                val icon = when (item.status) {
+                    "completed" -> "✓"
+                    "in_progress" -> "▸"
+                    else -> " "
+                }
+                appendLine("  [$icon] ${item.content} [${item.status}]")
+            }
+        }
+    }
 }
 
 fun createTaskTools(): List<Tool> = buildList {

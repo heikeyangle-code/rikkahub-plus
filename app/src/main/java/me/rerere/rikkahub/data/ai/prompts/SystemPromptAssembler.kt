@@ -52,7 +52,7 @@ object SystemPromptAssembler {
         // Conditional: memory
         if (context.memories.isNotEmpty()) {
             val memoryText = context.memories.joinToString("\n") { memory ->
-                "- ${memory.description}${if (memory.content.isNotBlank()) ": ${memory.content}" else ""}"
+                "- ${memory.id}: ${memory.content.take(200)}"
             }
             sections.add("Relevant knowledge:\n$memoryText")
         }
@@ -124,7 +124,7 @@ data class PromptContext(
             "tools" to enabledTools.sorted().toString(),
             "workspace" to workspaceDescription,
             "memories" to memories.map {
-                linkedMapOf("description" to it.description, "content" to it.content)
+                linkedMapOf("id" to it.id, "content" to it.content)
             }.toString(),
             "plan" to activePlanSummary,
             "instructions" to extraInstructions,
