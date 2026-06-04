@@ -249,6 +249,7 @@ class ChatService(
                     add(createWebFetchTool())
                 }
                 addAll(me.rerere.rikkahub.data.ai.tools.createFileTools())
+                addAll(me.rerere.rikkahub.data.ai.tools.createShellTools())
                 addAll(localTools.getTools(listOf(me.rerere.rikkahub.data.ai.tools.LocalToolOption.TimeInfo)))
             })
             val messages = listOf(
