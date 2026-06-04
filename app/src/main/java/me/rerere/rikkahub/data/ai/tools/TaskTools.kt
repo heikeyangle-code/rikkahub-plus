@@ -621,4 +621,4 @@ fun createTaskTools(): List<Tool> = buildList {
             listOf(UIMessagePart.Text(msg))
         },
     ))
-})
+}

@@ -20,7 +20,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.agent.BackgroundTaskQueue
-import me.rerere.rikkahub.data.ai.agent.PlanManager
+import me.rerere.rikkahub.data.ai.tools.PlanManager
 import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.listener.AgentEvent
 import me.rerere.rikkahub.data.ai.listener.AgentEventBus
