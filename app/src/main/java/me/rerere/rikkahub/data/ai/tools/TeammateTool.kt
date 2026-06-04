@@ -70,12 +70,6 @@ fun createTeammateTools(teammateRunner: TeammateRunner): List<Tool> = listOf(
                 name = name,
                 prompt = prompt,
                 model = model,
-                executeBlock = { agentName, taskPrompt ->
-                    // 队友将在协程中执行此 block
-                    // 实际执行体由 ChatService 注册时注入
-                    // 这里仅返回占位，实际逻辑在 ChatService 的 promptHandler 中
-                    "Teammate $agentName is processing..."
-                },
             )
 
             listOf(UIMessagePart.Text(buildJsonObject {

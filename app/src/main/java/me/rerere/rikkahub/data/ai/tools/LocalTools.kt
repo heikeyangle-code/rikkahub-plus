@@ -99,10 +99,6 @@ sealed class LocalToolOption {
     data object TaskTools : LocalToolOption()
 
     @Serializable
-    @SerialName("tool_search")
-    data object ToolSearch : LocalToolOption()
-
-    @Serializable
     @SerialName("plan_mode")
     data object PlanMode : LocalToolOption()
 

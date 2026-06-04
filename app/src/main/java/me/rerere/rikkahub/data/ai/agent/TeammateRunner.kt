@@ -17,7 +17,13 @@ import java.util.concurrent.ConcurrentHashMap
  * - 通过 AgentMailbox 收发消息
  * - 通过 TeammateRunner 管理生命周期
  */
-class TeammateRunner(private val scope: CoroutineScope) {
+typealias TeammatePromptHandler = suspend (agentName: String, prompt: String) -> String
+
+class TeammateRunner(
+    private val scope: CoroutineScope,
+    /** 队友执行体。不传则 spawn 返回占位，不实际执行。 */
+    private val promptHandler: TeammatePromptHandler? = null,
+) {
 
     private val teammates = ConcurrentHashMap<String, TeammateState>()
     private val jobs = ConcurrentHashMap<String, Job>()
@@ -39,7 +45,8 @@ class TeammateRunner(private val scope: CoroutineScope) {
         prompt: String,
         model: String? = null,
         planModeRequired: Boolean = false,
-        executeBlock: suspend (agentName: String, prompt: String) -> String,
+        executeBlock: suspend (agentName: String, prompt: String) -> String = promptHandler
+            ?: { agentName, _ -> "Teammate $agentName started but no handler configured" },
     ): String {
         val id = "teammate-${counter.incrementAndGet()}-${System.currentTimeMillis() % 10000}"
         val color = AgentColor.entries[counter.get() % AgentColor.entries.size]

@@ -78,9 +78,7 @@ import me.rerere.rikkahub.data.ai.tools.createSleepTool
 import me.rerere.rikkahub.data.ai.tools.createCalculatorTool
 import me.rerere.rikkahub.data.ai.tools.createTaskTools
 import me.rerere.rikkahub.data.ai.tools.createTeammateTools
-import me.rerere.rikkahub.data.ai.tools.createToolSearchTool
 import me.rerere.rikkahub.data.ai.tools.createPlanModeTools
-import me.rerere.rikkahub.data.ai.tools.ToolRegistry
 import me.rerere.rikkahub.data.ai.tools.createMcpResourceTools
 import me.rerere.rikkahub.data.ai.worker.createWorkerTools
 import me.rerere.rikkahub.data.ai.worker.WorkerManager
@@ -237,7 +235,38 @@ class ChatService(
             chunk.choices.firstOrNull()?.message?.toText() ?: "No response"
         }
     }
-    private val teammateRunner: TeammateRunner by lazy { TeammateRunner(appScope) }
+    private val teammateRunner: TeammateRunner by lazy {
+        TeammateRunner(appScope) { agentName, prompt ->
+            val s = settingsStore.getSettings()
+            val m = s.findModelById(s.chatModelId) ?: return@TeammateRunner "No model"
+            val p = m.findProvider(s.providers) ?: return@TeammateRunner "No provider"
+            @Suppress("UNCHECKED_CAST")
+            val impl = providerManager.getProviderByType(p)
+                as me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>
+            val tools = buildList {
+                if (s.enableWebSearch) {
+                    addAll(createSearchTools(s))
+                    add(createWebFetchTool())
+                }
+                addAll(localTools.getTools(listOf(me.rerere.rikkahub.data.ai.tools.LocalToolOption.TimeInfo)))
+                add(createSleepTool())
+            }
+            val messages = listOf(
+                me.rerere.ai.ui.UIMessage.system("You are a teammate agent. Complete the assigned task and report the results concisely."),
+                me.rerere.ai.ui.UIMessage.user(prompt),
+            )
+            val chunk = impl.generateText(
+                providerSetting = p,
+                messages = messages,
+                params = me.rerere.ai.provider.TextGenerationParams(
+                    model = m,
+                    tools = tools,
+                    reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                ),
+            )
+            chunk.choices.firstOrNull()?.message?.toText() ?: "No response"
+        }
+    }
     private val autoCompactor: AutoCompactor by lazy { AutoCompactor() }
     private val sessionStore: SessionStore by lazy { SessionStore(context) }
     private val agentService: AgentService by lazy {
@@ -714,7 +743,6 @@ class ChatService(
                     }
                     if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
                     if (assistant.localTools.contains(LocalToolOption.TaskTools)) addAll(createTaskTools())
-                    if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
                     if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
                     if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))
                     if (assistant.localTools.contains(LocalToolOption.TeammateTools)) addAll(createTeammateTools(teammateRunner))
@@ -875,7 +903,6 @@ class ChatService(
                                         }
                                         if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
                                         if (assistant.localTools.contains(LocalToolOption.TaskTools)) addAll(createTaskTools())
-                                        if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
                                         if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
                                         if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))
                                         if (assistant.localTools.contains(LocalToolOption.TeammateTools)) addAll(createTeammateTools(teammateRunner))
@@ -1309,7 +1336,6 @@ class ChatService(
                 if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
                 if (assistant.localTools.contains(LocalToolOption.Calculator)) add(createCalculatorTool())
                 if (assistant.localTools.contains(LocalToolOption.TaskTools)) addAll(createTaskTools())
-                if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
                 if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
                 if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))
                 if (assistant.localTools.contains(LocalToolOption.TeammateTools)) addAll(createTeammateTools(teammateRunner))

@@ -471,16 +471,6 @@ private fun AssistantLocalToolContent(
                 }
             )
             item(
-                headlineContent = { Text("工具搜索") },
-                supportingContent = { Text("允许 AI 搜索已注册的工具，按需加载") },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.ToolSearch),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.ToolSearch, it) }
-                    )
-                }
-            )
-            item(
                 headlineContent = { Text("计划模式") },
                 supportingContent = { Text("AI 进入只读计划模式，不可执行写操作") },
                 trailingContent = {
