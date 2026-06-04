@@ -27,6 +27,7 @@ import me.rerere.rikkahub.data.ai.listener.AgentEvent
 import me.rerere.rikkahub.data.ai.listener.AgentEventBus
 import me.rerere.rikkahub.data.ai.policy.PolicyEngine
 import me.rerere.rikkahub.data.ai.scheduler.CronScheduler
+import me.rerere.rikkahub.data.ai.transformers.ContextInjectorTransformer
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
 import me.rerere.rikkahub.data.datastore.Settings
@@ -44,12 +45,11 @@ private const val TAG = "AgentPipeline"
  * Agent Pipeline — 对标 learn-claude-code s20 的 agent_loop。
  *
  * 管线步骤：
- *   0. injectCronJobs — cron 任务注入
- *   1. injectBackgroundNotifications — 后台结果注入
- *   2. prepareContext — 压缩
- *   3. selectRelevantMemories — side-query 侧选记忆
- *   4. LLM call (委托 GenerationHandler)
- *   5. extractMemories — LLM 自动从对话提取记忆（只增加不删除）
+ *   0. prepareContext — 压缩
+ *   1. selectRelevantMemories — side-query 侧选记忆
+ *   2. contextInject — 通过 InputMessageTransformer 注入 cron/后台/todo/状态
+ *   3. LLM call (委托 GenerationHandler)
+ *   4. extractMemories — LLM 自动从对话提取记忆（只增加不删除）
  */
 class AgentPipeline(
     private val generationHandler: GenerationHandler,
@@ -88,19 +88,42 @@ class AgentPipeline(
         autoCompactor: AutoCompactor? = null,
     ): Flow<GenerationChunk> {
         var pipelineMessages = messages
-        pipelineMessages = injectCronJobs(pipelineMessages)
-        pipelineMessages = injectBackgroundNotifications(pipelineMessages)
-        pipelineMessages = injectTodoReminder(pipelineMessages)
-        pipelineMessages = injectStateSummary(pipelineMessages)
         pipelineMessages = prepareContext(pipelineMessages, autoCompactor)
 
         val selectedMemories = selectRelevantMemories(memories ?: emptyList(), pipelineMessages)
         val assistantId = if (assistant.useGlobalMemory) "__global__" else assistant.id.toString()
 
+        // ── 收集注入数据（不污染 pipelineMessages）──
+        val cronJobs = CronScheduler.consumeQueue()
+        val bgNotifications = BackgroundTaskQueue.collectCompleted()
+        val shouldNag = PlanManager.shouldNag()
+        if (shouldNag) PlanManager.resetNag()
+        val tasks = TaskManager.listTasks()
+        val taskCount = tasks.size
+        val bgRunning = BackgroundTaskQueue.hasRunning()
+
+        val contextInjector = ContextInjectorTransformer(
+            cronMessages = cronJobs.map { it.prompt },
+            backgroundNotifications = bgNotifications,
+            todoReminder = if (shouldNag)
+                "<reminder>Update your todo list with todo_write to track current progress.</reminder>"
+            else null,
+            stateSummary = if (taskCount > 0 || bgRunning) {
+                buildString {
+                    append("[State: ${taskCount}tasks")
+                    val pendingCount = tasks.count { it.status.name == "PENDING" }
+                    val runningCount = tasks.count { it.status.name == "IN_PROGRESS" }
+                    if (pendingCount > 0) append(", ${pendingCount}pending")
+                    if (runningCount > 0) append(", ${runningCount}running")
+                    append(" | ${if (bgRunning) "1 bg" else "bg idle"}]")
+                }
+            } else null,
+        )
+
         val flow = generationHandler.generateText(
             settings = settings, model = model,
             messages = pipelineMessages,
-            inputTransformers = inputTransformers,
+            inputTransformers = inputTransformers + contextInjector,
             outputTransformers = outputTransformers,
             assistant = assistant, memories = selectedMemories,
             tools = tools, maxSteps = maxSteps,
@@ -130,48 +153,6 @@ class AgentPipeline(
     }
 
     // ═══════════════════ 管线步骤 ═══════════════════
-
-    private fun injectCronJobs(messages: List<UIMessage>): List<UIMessage> {
-        val cronJobs = CronScheduler.consumeQueue()
-        if (cronJobs.isEmpty()) return messages
-        return messages + cronJobs.map { UIMessage.system("[Scheduled] ${it.prompt}") }
-            .also { Log.i(TAG, "[cron] injected ${cronJobs.size} job(s)") }
-    }
-
-    private fun injectBackgroundNotifications(messages: List<UIMessage>): List<UIMessage> {
-        val notifications = BackgroundTaskQueue.collectCompleted()
-        if (notifications.isEmpty()) return messages
-        return messages + notifications.map { UIMessage.system(it) }
-            .also { Log.i(TAG, "[background] injected ${notifications.size} notification(s)") }
-    }
-
-    private fun injectTodoReminder(messages: List<UIMessage>): List<UIMessage> {
-        return if (PlanManager.shouldNag()) {
-            messages + listOf(UIMessage.user(
-                "<reminder>Update your todo list with todo_write to track current progress.</reminder>"
-            )).also { PlanManager.resetNag(); Log.i(TAG, "[todo] injected reminder") }
-        } else messages
-    }
-
-    private fun injectStateSummary(messages: List<UIMessage>): List<UIMessage> {
-        val tasks = TaskManager.listTasks()
-        val taskCount = tasks.size
-        val pendingCount = tasks.count { it.status.name == "PENDING" }
-        val runningCount = tasks.count { it.status.name == "IN_PROGRESS" }
-        val bgRunning = if (BackgroundTaskQueue.hasRunning()) "1 bg" else "bg idle"
-        val summary = buildString {
-            append("[State: ${taskCount}tasks")
-            if (pendingCount > 0) append(", ${pendingCount}pending")
-            if (runningCount > 0) append(", ${runningCount}running")
-            append(" | $bgRunning")
-            append("]")
-        }
-        // Only inject if there's meaningful state
-        return if (taskCount > 0 || BackgroundTaskQueue.hasRunning()) {
-            messages + listOf(UIMessage.system(summary))
-                .also { Log.i(TAG, "[state] injected: $summary") }
-        } else messages
-    }
 
     private fun prepareContext(messages: List<UIMessage>, autoCompactor: AutoCompactor?): List<UIMessage> {
         val compactor = autoCompactor ?: return messages
