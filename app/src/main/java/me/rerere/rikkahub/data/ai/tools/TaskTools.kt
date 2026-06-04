@@ -397,37 +397,6 @@ fun createTaskTools(): List<Tool> = buildList {
             TaskManager.deleteTeam(name); listOf(UIMessagePart.Text("Team '$name' deleted"))
         },
     ),
-    Tool(name = "send_message", description = "Send a message to another agent by name. Used for inter-agent communication. The recipient must have been spawned with a name parameter.",
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("to", buildJsonObject { put("type", "string"); put("description", "Target agent name, or '*' for broadcast") })
-                put("message", buildJsonObject { put("type", "string"); put("description", "Message content (plain text or JSON for protocol responses)") })
-                put("from", buildJsonObject { put("type", "string"); put("description", "Sender agent name (default: main_agent)") })
-                put("summary", buildJsonObject { put("type", "string"); put("description", "Optional short summary visible in UI") })
-            }, required = listOf("to", "message"))
-        },
-        execute = { args ->
-            val obj = args.jsonObject; val to = obj["to"]?.jsonPrimitive?.contentOrNull ?: error("to required")
-            val msg = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
-            val from = obj["from"]?.jsonPrimitive?.contentOrNull ?: "main_agent"
-            val summary = obj["summary"]?.jsonPrimitive?.contentOrNull
-            val m = TaskManager.sendMessage(from, to, msg)
-            listOf(UIMessagePart.Text("[${m.id}] $from -> $to${if (summary != null) " ($summary)" else ""}"))
-        },
-    ),
-    Tool(name = "read_messages", description = "Read messages for your agent. Clears inbox.",
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("agent_name", buildJsonObject { put("type", "string"); put("description", "Your agent name") })
-            }, required = listOf("agent_name"))
-        },
-        execute = { args ->
-            val name = args.jsonObject["agent_name"]?.jsonPrimitive?.contentOrNull ?: error("agent_name required")
-            val msgs = TaskManager.readMessages(name); TaskManager.clearMessages(name)
-            if (msgs.isEmpty()) listOf(UIMessagePart.Text("(no messages)"))
-            else listOf(UIMessagePart.Text(msgs.joinToString("\n") { m -> "[${m.id}] ${m.from}: ${m.content.take(200)}" }))
-        },
-    ),
 
     // ── NEW: run_task_packet ──
     Tool(name = "run_task_packet", description = "Create a structured task with acceptance criteria, commit policy, and escalation rules.",
