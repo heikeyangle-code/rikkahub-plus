@@ -987,9 +987,9 @@ class ChatService(
                                             appendLine()
                                         }
                                         appendLine("Goal: $goal")
-                                        if (context.isNotBlank()) {
+                                        if (toolContext.isNotBlank()) {
                                             appendLine()
-                                            appendLine("Context: $context")
+                                            appendLine("Context: $toolContext")
                                         }
                                         appendLine()
                                         appendLine("You have access to tools. Use them when needed.")
