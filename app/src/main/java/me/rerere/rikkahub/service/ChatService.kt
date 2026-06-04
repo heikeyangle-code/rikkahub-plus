@@ -753,7 +753,7 @@ class ChatService(
                     }
                     addAll(localTools.getTools(assistant.localTools))
                     if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
-                        addAll(createShellTools())
+                        addAll(createShellTools(assistant.shellTimeout))
                     }
                     if (assistant.localTools.contains(LocalToolOption.PythonEngine)) {
                         add(createPythonTool(context, assistant.toolExecTimeout))
@@ -933,7 +933,7 @@ class ChatService(
                                         }
                                         addAll(localTools.getTools(assistant.localTools))
                                         if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
-                                            addAll(createShellTools())
+                                            addAll(createShellTools(assistant.shellTimeout))
                                         }
                                         if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
                                             add(createGitHubTool(settingsStore, assistant.enableCiTimeout, assistant.enableAutoFixCi))
@@ -1372,7 +1372,7 @@ class ChatService(
                 }
                 addAll(localTools.getTools(assistant.localTools))
                 if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
-                    addAll(createShellTools())
+                    addAll(createShellTools(assistant.shellTimeout))
                 }
                 if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
                     add(createGitHubTool(settingsStore, assistant.enableCiTimeout, assistant.enableAutoFixCi))

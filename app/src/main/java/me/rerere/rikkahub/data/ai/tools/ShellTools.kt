@@ -77,7 +77,7 @@ private fun isCommandAllowedInReadOnly(command: String): Boolean {
 private val backgroundProcesses = mutableMapOf<String, Process>()
 private val backgroundRead = mutableMapOf<String, AtomicBoolean>()
 
-fun createShellTools(): List<Tool> {
+fun createShellTools(shellTimeoutSec: Int = 120): List<Tool> {
     return listOf(
         Tool(
             name = "execute_command",
