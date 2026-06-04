@@ -1991,7 +1991,7 @@ class ChatService(
     suspend fun stopGeneration(conversationId: Uuid) {
         val job = sessions[conversationId]?.getJob() ?: return
         job.cancel()
-        runCatching { job.join() }
+        runCatching { kotlinx.coroutines.withTimeout(5000) { job.join() } }
         finishInterruptedPendingTools(conversationId)
     }
 

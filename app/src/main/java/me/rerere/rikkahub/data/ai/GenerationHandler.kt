@@ -391,7 +391,7 @@ class GenerationHandler(
                 // 顺序执行（原版行为）
                 toolsToProcess.forEach { tool ->
                     val result = runCatching {
-                        kotlinx.coroutines.withTimeout(60_000) {
+                        kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) {
                             executeToolCall(tool, toolsInternal, json, policyEngine)
                         }
                     }
