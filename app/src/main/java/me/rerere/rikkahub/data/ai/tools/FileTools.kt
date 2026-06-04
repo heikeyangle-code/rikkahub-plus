@@ -85,6 +85,14 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
                             put("type", "string")
                             put("description", "Absolute or relative file path.")
                         })
+                        put("offset", buildJsonObject {
+                            put("type", "integer")
+                            put("description", "Starting line number (1-indexed). Default: 1")
+                        })
+                        put("limit", buildJsonObject {
+                            put("type", "integer")
+                            put("description", "Max lines to read. Default: 2000 (full file if smaller)")
+                        })
                     },
                     required = listOf("path"),
                 )
@@ -105,8 +113,22 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
                     listOf(UIMessagePart.Text("[${file.absolutePath}] 目录内容:\n$listing"))
                 } else {
                     if (file.length() > 5 * 1024 * 1024) error("文件超过 5MB，为防止内存溢出无法读取: $path")
-                    val content = file.readText()
-                    listOf(UIMessagePart.Text(content))
+                    val offset = args.jsonObject["offset"]?.jsonPrimitive?.intOrNull ?: 1
+                    val limit = args.jsonObject["limit"]?.jsonPrimitive?.intOrNull ?: 2000
+                    val lines = file.readLines()
+                    val totalLines = lines.size
+                    val startIdx = (offset - 1).coerceIn(0, totalLines - 1)
+                    val endIdx = (startIdx + limit).coerceAtMost(totalLines)
+                    val selected = lines.subList(startIdx, endIdx)
+                    val result = buildString {
+                        selected.forEachIndexed { idx, line ->
+                            appendLine("${startIdx + idx + 1}|$line")
+                        }
+                        if (endIdx < totalLines) {
+                            appendLine("... (${totalLines - endIdx} more lines, total $totalLines)")
+                        }
+                    }
+                    listOf(UIMessagePart.Text(result))
                 }
             },
         ),

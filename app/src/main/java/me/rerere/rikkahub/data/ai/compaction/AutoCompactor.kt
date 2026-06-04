@@ -117,14 +117,16 @@ class AutoCompactor {
     /**
      * L2: Tool output truncation — 截断过长的工具输出。
      * 每个工具输出保留前 maxChars 字符。
+     * 跳过 file_read 等文件读取类工具——它们是用户想看的内容，不该被截。
      */
     fun truncateToolOutput(
         messages: List<UIMessage>,
         maxChars: Int = TOOL_OUTPUT_MAX_CHARS,
     ): List<UIMessage> {
+        val skipTools = setOf("file_read", "file_write", "present_file", "convert_file")
         return messages.map { msg ->
             val newParts = msg.parts.map { part ->
-                if (part is UIMessagePart.Tool) {
+                if (part is UIMessagePart.Tool && part.toolName !in skipTools) {
                     val truncatedOutput = part.output.map { out ->
                         when (out) {
                             is UIMessagePart.Text -> {
