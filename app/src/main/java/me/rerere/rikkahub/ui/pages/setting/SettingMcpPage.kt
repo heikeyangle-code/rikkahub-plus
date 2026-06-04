@@ -482,6 +482,10 @@ private fun McpCommonOptionsConfigure(
                                 is McpServerConfig.StreamableHTTPServer -> config.copy(
                                     commonOptions = config.commonOptions.copy(enable = enabled)
                                 )
+
+                                is McpServerConfig.StdioTransportServer -> config.copy(
+                                    commonOptions = config.commonOptions.copy(enable = enabled)
+                                )
                             }
                         )
                     }
@@ -512,6 +516,10 @@ private fun McpCommonOptionsConfigure(
                             is McpServerConfig.StreamableHTTPServer -> config.copy(
                                 commonOptions = config.commonOptions.copy(name = name)
                             )
+
+                            is McpServerConfig.StdioTransportServer -> config.copy(
+                                commonOptions = config.commonOptions.copy(name = name)
+                            )
                         }
                     )
                 },
@@ -534,11 +542,13 @@ private fun McpCommonOptionsConfigure(
         ) {
             val transportTypes = listOf(
                 "Streamable HTTP",
-                "SSE"
+                "SSE",
+                "Stdio"
             )
             val currentTypeIndex = when (config) {
                 is McpServerConfig.StreamableHTTPServer -> 0
                 is McpServerConfig.SseTransportServer -> 1
+                is McpServerConfig.StdioTransportServer -> 2
             }
 
             SingleChoiceSegmentedButtonRow(
@@ -556,6 +566,7 @@ private fun McpCommonOptionsConfigure(
                                         url = when (config) {
                                             is McpServerConfig.SseTransportServer -> config.url
                                             is McpServerConfig.StreamableHTTPServer -> config.url
+                                            is McpServerConfig.StdioTransportServer -> ""
                                         }
                                     )
 
@@ -565,7 +576,15 @@ private fun McpCommonOptionsConfigure(
                                         url = when (config) {
                                             is McpServerConfig.SseTransportServer -> config.url
                                             is McpServerConfig.StreamableHTTPServer -> config.url
+                                            is McpServerConfig.StdioTransportServer -> ""
                                         }
+                                    )
+
+                                    2 -> McpServerConfig.StdioTransportServer(
+                                        id = config.id,
+                                        commonOptions = config.commonOptions,
+                                        command = "",
+                                        args = emptyList()
                                     )
 
                                     else -> config
@@ -583,44 +602,74 @@ private fun McpCommonOptionsConfigure(
 
         HorizontalDivider()
 
-        // 服务器地址配置
+        // 服务器地址/命令配置
         FormItem(
             label = {
-                Text(stringResource(R.string.setting_mcp_page_server_url))
+                Text(if (config is McpServerConfig.StdioTransportServer) "命令" else stringResource(R.string.setting_mcp_page_server_url))
             },
             description = {
                 Text(
                     when (config) {
                         is McpServerConfig.SseTransportServer -> stringResource(R.string.setting_mcp_page_sse_url_desc)
                         is McpServerConfig.StreamableHTTPServer -> stringResource(R.string.setting_mcp_page_streamable_http_url_desc)
+                        is McpServerConfig.StdioTransportServer -> "MCP 服务器的可执行命令"
                     }
                 )
             }
         ) {
-            OutlinedTextField(
-                value = when (config) {
-                    is McpServerConfig.SseTransportServer -> config.url
-                    is McpServerConfig.StreamableHTTPServer -> config.url
-                },
-                onValueChange = { url ->
-                    update(
-                        when (config) {
-                            is McpServerConfig.SseTransportServer -> config.copy(url = url)
-                            is McpServerConfig.StreamableHTTPServer -> config.copy(url = url)
-                        }
-                    )
-                },
-                label = { Text(stringResource(R.string.setting_mcp_page_url_label)) },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text(
-                        when (config) {
-                            is McpServerConfig.SseTransportServer -> stringResource(R.string.setting_mcp_page_sse_url_placeholder)
-                            is McpServerConfig.StreamableHTTPServer -> stringResource(R.string.setting_mcp_page_streamable_http_url_placeholder)
+            when (config) {
+                is McpServerConfig.SseTransportServer, is McpServerConfig.StreamableHTTPServer -> {
+                    val urlConfig = config
+                    OutlinedTextField(
+                        value = urlConfig.url,
+                        onValueChange = { url ->
+                            update(
+                                when (config) {
+                                    is McpServerConfig.SseTransportServer -> config.copy(url = url)
+                                    is McpServerConfig.StreamableHTTPServer -> config.copy(url = url)
+                                    is McpServerConfig.StdioTransportServer -> config
+                                }
+                            )
+                        },
+                        label = { Text(stringResource(R.string.setting_mcp_page_url_label)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(
+                                when (config) {
+                                    is McpServerConfig.SseTransportServer -> stringResource(R.string.setting_mcp_page_sse_url_placeholder)
+                                    is McpServerConfig.StreamableHTTPServer -> stringResource(R.string.setting_mcp_page_streamable_http_url_placeholder)
+                                    is McpServerConfig.StdioTransportServer -> ""
+                                }
+                            )
                         }
                     )
                 }
-            )
+
+                is McpServerConfig.StdioTransportServer -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = config.command,
+                            onValueChange = { cmd ->
+                                update(config.copy(command = cmd))
+                            },
+                            label = { Text("命令") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("例如: npx") }
+                        )
+                        OutlinedTextField(
+                            value = config.args.joinToString(" "),
+                            onValueChange = { argsStr ->
+                                val newArgs = if (argsStr.isBlank()) emptyList()
+                                    else argsStr.split(" ").filter { it.isNotBlank() }
+                                update(config.copy(args = newArgs))
+                            },
+                            label = { Text("参数") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("例如: -y @modelcontextprotocol/server-filesystem /path") }
+                        )
+                    }
+                }
+            }
         }
 
         HorizontalDivider()
@@ -663,6 +712,10 @@ private fun McpCommonOptionsConfigure(
                                             is McpServerConfig.StreamableHTTPServer -> config.copy(
                                                 commonOptions = config.commonOptions.copy(headers = updatedHeaders)
                                             )
+
+                                            is McpServerConfig.StdioTransportServer -> config.copy(
+                                                commonOptions = config.commonOptions.copy(headers = updatedHeaders)
+                                            )
                                         }
                                     )
                                 },
@@ -687,6 +740,10 @@ private fun McpCommonOptionsConfigure(
                                             is McpServerConfig.StreamableHTTPServer -> config.copy(
                                                 commonOptions = config.commonOptions.copy(headers = updatedHeaders)
                                             )
+
+                                            is McpServerConfig.StdioTransportServer -> config.copy(
+                                                commonOptions = config.commonOptions.copy(headers = updatedHeaders)
+                                            )
                                         }
                                     )
                                 },
@@ -705,6 +762,10 @@ private fun McpCommonOptionsConfigure(
                                     )
 
                                     is McpServerConfig.StreamableHTTPServer -> config.copy(
+                                        commonOptions = config.commonOptions.copy(headers = updatedHeaders)
+                                    )
+
+                                    is McpServerConfig.StdioTransportServer -> config.copy(
                                         commonOptions = config.commonOptions.copy(headers = updatedHeaders)
                                     )
                                 }
@@ -729,6 +790,10 @@ private fun McpCommonOptionsConfigure(
                                 )
 
                                 is McpServerConfig.StreamableHTTPServer -> config.copy(
+                                    commonOptions = config.commonOptions.copy(headers = updatedHeaders)
+                                )
+
+                                is McpServerConfig.StdioTransportServer -> config.copy(
                                     commonOptions = config.commonOptions.copy(headers = updatedHeaders)
                                 )
                             }

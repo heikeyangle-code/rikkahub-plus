@@ -136,4 +136,8 @@ object AgentEventBus {
     suspend fun emit(event: AgentEvent) {
         _events.emit(event)
     }
+
+    fun tryEmit(event: AgentEvent): Boolean {
+        return _events.tryEmit(event)
+    }
 }

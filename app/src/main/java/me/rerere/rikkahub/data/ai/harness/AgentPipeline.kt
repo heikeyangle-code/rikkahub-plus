@@ -146,7 +146,7 @@ class AgentPipeline(
         if (compactor.estimateTokens(current) > AutoCompactor.DEFAULT_THRESHOLD_TOKENS) {
             val result = compactor.maybeCompact(current)
             if (result != null) {
-                AgentEventBus.emit(AgentEvent.CompactTriggered(
+                AgentEventBus.tryEmit(AgentEvent.CompactTriggered(
                     reason = "threshold exceeded",
                     messagesBefore = messages.size, messagesAfter = result.compactedMessages.size,
                 ))
