@@ -707,11 +707,13 @@ private fun HtmlInlineGroup(nodes: List<Node>, onClickCitation: (String) -> Unit
     val colorScheme = MaterialTheme.colorScheme
     val textStyle = LocalTextStyle.current
     val density = LocalDensity.current
+    val italicsColor = LocalSettings.current.displaySetting.italicsColor.takeIf { it.isNotBlank() }
 
     val key = remember(nodes) { nodes.joinToString("") { if (it is Element) it.outerHtml() else it.toString() } }
     val (annotatedString, inlineContents) = remember(
         key,
         enableLatexRendering,
+        italicsColor,
         colorScheme,
         density,
         textStyle,
@@ -728,6 +730,7 @@ private fun HtmlInlineGroup(nodes: List<Node>, onClickCitation: (String) -> Unit
                     style = textStyle,
                     enableLatexRendering = enableLatexRendering,
                     onClickCitation = onClickCitation,
+                    italicsColor = italicsColor,
                 )
             }
         }
@@ -900,7 +903,7 @@ private fun AnnotatedString.Builder.appendHtmlInlineElement(
             } else null
             appendElementChildren(SpanStyle(
                 fontStyle = FontStyle.Italic,
-                color = color ?: Color.Unspecified,
+                color = color ?: colorScheme.secondary,
             ))
         }
 
