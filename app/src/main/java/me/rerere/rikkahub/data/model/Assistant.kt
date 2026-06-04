@@ -70,6 +70,7 @@ data class Assistant(
     val talkativeness: Float = 0.5f,                    // 群聊发言倾向 (0-1)，酒馆对齐
     val embeddingModelId: Uuid? = null,                  // 专用embedding模型（null=使用聊天模型）
     val enableAutoCompact: Boolean = true,               // 自动压缩对话历史（token过多时）
+    val enableAutoMemoryExtract: Boolean = true,          // [新增] 自动从对话提取记忆（独立开关，不依赖 enableMemory）
 )
 
 @Serializable

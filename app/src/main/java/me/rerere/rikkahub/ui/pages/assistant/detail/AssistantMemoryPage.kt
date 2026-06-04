@@ -246,6 +246,31 @@ private fun AssistantMemoryContent(
             )
         }
 
+        // ── 自动提取记忆开关（我新增的）──
+        CardGroup {
+            item(
+                headlineContent = { Text("自动提取记忆") },
+                supportingContent = {
+                    Text(
+                        text = "每轮对话结束后自动用AI提取用户偏好和项目事实，" +
+                               "追加到记忆库。关闭时AI只能通过 memory_create 手动写入。",
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.enableAutoMemoryExtract,
+                        onCheckedChange = {
+                            onUpdateAssistant(
+                                assistant.copy(
+                                    enableAutoMemoryExtract = it
+                                )
+                            )
+                        }
+                    )
+                }
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()

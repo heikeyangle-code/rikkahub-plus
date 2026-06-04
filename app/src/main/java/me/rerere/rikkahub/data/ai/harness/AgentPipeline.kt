@@ -108,7 +108,7 @@ class AgentPipeline(
 
         // emit 后提取记忆（只添加不删除）
         return flow.map { chunk ->
-            if (chunk is GenerationChunk.Messages && memoryRepository != null && assistant.enableMemory) {
+            if (chunk is GenerationChunk.Messages && memoryRepository != null && assistant.enableAutoMemoryExtract) {
                 try {
                     val msgs = chunk.messages
                     val last = msgs.lastOrNull()
