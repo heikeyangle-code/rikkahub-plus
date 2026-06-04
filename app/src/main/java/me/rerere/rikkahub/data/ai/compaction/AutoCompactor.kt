@@ -16,7 +16,7 @@ data class CompactionResult(
  *
  * L1: snip_compact — 裁掉无关的旧对话（最便宜，无API调用）
  * L2: tool_output_truncation — 截断过长的工具输出（最便宜，无API调用）
- * L3: LLM 摘要 — 把旧消息压缩成摘要文本（中等成本，1次API调用）
+ * L3: context_trim — 裁剪旧消息，保留最近 N 条（免费，无API调用）
  * L4: emergency trim — API 拒绝 prompt_too_long 时的应急裁剪
  *
  * 核心设计：便宜的先跑，贵的后跑。
@@ -40,18 +40,18 @@ class AutoCompactor {
     fun setToolResultsDir(dir: File) { toolResultsDir = dir; dir.mkdirs() }
     fun setTranscriptDir(dir: File) { transcriptDir = dir; dir.mkdirs() }
 
-    /** 粗略 token 估算 */
+    /** 粗略 token 估算（中英文混合，每字~0.75 token，对标 DocumentChunker） */
     fun estimateTokens(messages: List<UIMessage>): Int {
         return messages.sumOf { msg ->
             msg.parts.sumOf { part ->
                 when (part) {
-                    is UIMessagePart.Text -> part.text.length / 4
-                    is UIMessagePart.Reasoning -> part.reasoning.length / 4
+                    is UIMessagePart.Text -> maxOf(1, (part.text.length * 0.75).toInt())
+                    is UIMessagePart.Reasoning -> maxOf(1, (part.reasoning.length * 0.75).toInt())
                     is UIMessagePart.Image -> 170
                     is UIMessagePart.Tool -> {
-                        part.input.length / 4 +
+                        maxOf(1, (part.input.length * 0.75).toInt()) +
                         part.output.sumOf {
-                            when (it) { is UIMessagePart.Text -> it.text.length / 4; is UIMessagePart.Image -> 170; else -> 0 }
+                            when (it) { is UIMessagePart.Text -> maxOf(1, (it.text.length * 0.75).toInt()); is UIMessagePart.Image -> 170; else -> 0 }
                         }
                     }
                     else -> 0
@@ -209,7 +209,7 @@ class AutoCompactor {
             )
         }
 
-        // Step 2: L3 — LLM summary (original behavior, costs 1 API call)
+        // Step 2: L3 — Context trim (preserve recent messages, trim old ones)
         if (current.size <= preserveRecent * 2) return null
 
         val toCompact = current.dropLast(preserveRecent)
@@ -236,6 +236,31 @@ class AutoCompactor {
         }
 
         val compacted = listOf(UIMessage.system(prompt = summary)) + toKeep
+
+        // 二次检查：L3 后如果还超阈值，走 L4 应急裁剪
+        estimated = estimateTokens(compacted)
+        if (estimated > threshold) {
+            val trimmed = emergencyTrim(compacted, preserveRecent)
+            val trimmedSummary = buildString {
+                appendLine("=== 会话自动压缩摘要 ===")
+                appendLine("压缩前: ${toCompact.size} 条消息 + 应急裁剪")
+                appendLine("估计 tokens: $estimated / $threshold, 裁剪至 emergency 保留 ${preserveRecent} 条")
+                appendLine()
+                toCompact.forEachIndexed { i, msg ->
+                    val text = msg.toText().take(200)
+                    if (text.isNotBlank()) {
+                        appendLine("[${msg.role.name}] ${text}...")
+                    }
+                }
+                appendLine()
+                appendLine("=== 以上为自动压缩的历史记录 ===")
+            }
+            return CompactionResult(
+                removedCount = totalRemoved + (compacted.size - trimmed.size),
+                summary = trimmedSummary,
+                compactedMessages = trimmed,
+            )
+        }
 
         return CompactionResult(
             removedCount = totalRemoved,
