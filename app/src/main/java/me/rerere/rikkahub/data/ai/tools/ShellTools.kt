@@ -18,9 +18,9 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.agent.AgentContextStore
+import me.rerere.rikkahub.data.ai.agent.BackgroundTaskQueue
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Shell 执行工具 — execute_command。
@@ -72,10 +72,6 @@ private fun isCommandAllowedInReadOnly(command: String): Boolean {
     // Default: block unknown commands in read-only mode
     return false
 }
-
-// Background process tracking
-private val backgroundProcesses = mutableMapOf<String, Process>()
-private val backgroundRead = mutableMapOf<String, AtomicBoolean>()
 
 fun createShellTools(shellTimeoutSec: Int = 120): List<Tool> {
     return listOf(
@@ -161,22 +157,21 @@ fun createShellTools(shellTimeoutSec: Int = 120): List<Tool> {
                 }
 
                 if (runInBackground) {
-                    // Background execution
-                    val bgId = "bg-${System.currentTimeMillis()}"
-                    val done = AtomicBoolean(false)
-                    backgroundRead[bgId] = AtomicBoolean(false)
-
-                    kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                        try {
+                    val bgId = BackgroundTaskQueue.start(
+                        toolName = "execute_command",
+                        command = command,
+                        executor = {
                             val proc = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
-                            backgroundProcesses[bgId] = proc
                             val stdout = proc.inputStream.bufferedReader().readText()
                             val stderr = proc.errorStream.bufferedReader().readText()
                             proc.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)
-                            done.set(true)
-                            backgroundRead[bgId]?.set(true)
-                        } catch (_: Exception) { }
-                    }
+                            buildJsonObject {
+                                put("stdout", JsonPrimitive(stdout))
+                                put("stderr", JsonPrimitive(stderr))
+                                put("exit_code", JsonPrimitive(proc.exitValue()))
+                            }.toString()
+                        }
+                    )
 
                     listOf(UIMessagePart.Text(buildJsonObject {
                         put("status", "running")

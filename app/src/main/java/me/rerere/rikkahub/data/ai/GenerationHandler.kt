@@ -415,11 +415,6 @@ class GenerationHandler(
                         appendLine()
                         append(buildRecentChatsPrompt(assistant, conversationRepo))
                     }
-                    // s05: nag reminder — 连续多轮没更新计划时提醒
-                    if (me.rerere.rikkahub.data.ai.tools.PlanManager.shouldNag()) {
-                        appendLine()
-                        appendLine("[Reminder] You have an active plan but haven't updated it in a while. Use todo_write to update your progress.")
-                    }
                 },
                 constraints = emptyList(),
             )
