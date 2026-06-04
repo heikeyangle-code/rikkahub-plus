@@ -61,7 +61,7 @@ import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.listener.AgentEvent
-import me.rerere.rikkahub.data.ai.listener.AgentEventBus
+import me.rerere.rikkahub.data.ai.listener.AgentEventBus as ListenerEventBus
 import me.rerere.rikkahub.data.ai.listener.AgentService
 import me.rerere.rikkahub.data.ai.session.SessionStore
 import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
@@ -548,9 +548,11 @@ class ChatService(
         val model = settings.findModelById(assistant.chatModelId ?: settings.chatModelId) ?: return
 
         // Fire-and-forget: 通知 AgentService 生成开始
-        launch {
-            val msgs = getConversationFlow(conversationId).value.currentMessages
-            AgentEventBus.emit(AgentEvent.GenerationStarted(conversationId, msgs))
+        coroutineScope {
+            launch {
+                val msgs = getConversationFlow(conversationId).value.currentMessages
+                ListenerEventBus.emit(AgentEvent.GenerationStarted(conversationId, msgs))
+            }
         }
 
         val senderName = if (assistant.useAssistantAvatar) {
@@ -830,7 +832,7 @@ class ChatService(
                                                     agentType = agentType,
                                                     description = goal.take(50),
                                                 ) {
-                                                    executeSubAgentLoop(subModel, providerSetting, providerImpl, subTools, assistant, prompt)
+                                                    executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt)
                                                 }
                                             }.onFailure { e ->
                                                 Log.w("SubAgent", "Background agent failed: ${e.message}")
@@ -853,7 +855,7 @@ class ChatService(
                                                 agentType = agentType,
                                                 description = goal.take(50),
                                             ) {
-                                                executeSubAgentLoop(subModel, providerSetting, providerImpl, subTools, assistant, prompt)
+                                                executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt)
                                             }
                                             laneTracker.completed()
                                             AgentTaskTracker.endSession(agentCallId)
@@ -902,7 +904,9 @@ class ChatService(
                         }
 
                         // Fire-and-forget: 通知 AgentService 轮次完成（触发 AutoCompactor）
-                        launch { AgentEventBus.emit(AgentEvent.GenerationRoundComplete(conversationId, chunk.messages)) }
+                        kotlinx.coroutines.coroutineScope {
+                            launch { ListenerEventBus.emit(AgentEvent.GenerationRoundComplete(conversationId, chunk.messages)) }
+                        }
 
                         // 如果应用不在前台，发送 Live Update 通知
                         if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration && settings.displaySetting.enableLiveUpdateNotification) {
@@ -932,7 +936,9 @@ class ChatService(
             }
 
             // Fire-and-forget: 通知 AgentService 生成完成
-            launch { AgentEventBus.emit(AgentEvent.GenerationCompleted(conversationId, finalConversation.currentMessages)) }
+            kotlinx.coroutines.coroutineScope {
+                launch { ListenerEventBus.emit(AgentEvent.GenerationCompleted(conversationId, finalConversation.currentMessages)) }
+            }
         }
     }
 
@@ -1493,7 +1499,9 @@ class ChatService(
         }
 
         // Fire-and-forget: AgentService 异步处理
-        launch { AgentEventBus.emit(AgentEvent.ConversationModified(conversationId, updatedConversation)) }
+        kotlinx.coroutines.coroutineScope {
+            launch { ListenerEventBus.emit(AgentEvent.ConversationModified(conversationId, updatedConversation)) }
+        }
     }
 
     // ---- 翻译消息 ----
@@ -1778,6 +1786,7 @@ class ChatService(
      * 被 AgentRunner.run() 调用，运行在子 Agent 上下文中。
      */
     private suspend fun executeSubAgentLoop(
+        conversationId: kotlin.uuid.Uuid,
         subModel: me.rerere.ai.provider.Model,
         providerSetting: me.rerere.ai.provider.ProviderSetting,
         providerImpl: me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>,
@@ -1785,6 +1794,7 @@ class ChatService(
         assistant: Assistant,
         prompt: String,
     ): List<UIMessagePart> {
+        val session = getOrCreateSession(conversationId)
         val messages = mutableListOf(UIMessage.user(prompt))
         var finalText = ""
         var remainingSteps = assistant.subAgentMaxSteps

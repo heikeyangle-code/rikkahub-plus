@@ -7,6 +7,7 @@ import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.session.SessionStore
 import me.rerere.rikkahub.data.ai.tools.AgentDefinition
 import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
+import kotlinx.serialization.json.jsonObject
 
 private const val TAG = "AgentService"
 

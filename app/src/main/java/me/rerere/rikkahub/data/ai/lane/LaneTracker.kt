@@ -50,6 +50,11 @@ class LaneTracker {
             detail = result))
     }
 
+    fun completed() {
+        events.add(LaneEvent(LaneEventName.LANE_FINISHED, LaneEventStatus.COMPLETED,
+            detail = "completed"))
+    }
+
     fun failed(error: String, failureClass: String = "infra") {
         events.add(LaneEvent(LaneEventName.LANE_FAILED, LaneEventStatus.FAILED,
             detail = error, failureClass = failureClass))
