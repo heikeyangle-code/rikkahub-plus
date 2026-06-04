@@ -327,6 +327,9 @@ class ChatService(
         ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
         sessions.values.forEach { it.cleanup() }
         sessions.clear()
+        me.rerere.rikkahub.data.ai.agent.AgentTaskTracker.clear()
+        teammateRunner.killAll()
+        me.rerere.rikkahub.data.ai.agent.AgentMailbox.clear()
     }
 
     // ---- Session 管理 ----

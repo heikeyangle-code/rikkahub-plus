@@ -85,6 +85,10 @@ object AgentTaskTracker {
         progressMap.remove(agentCallId)
     }
 
+    fun clear() {
+        progressMap.clear()
+    }
+
     fun isRunning(agentCallId: String): Boolean {
         return progressMap[agentCallId]?.status == AgentStatus.RUNNING
     }

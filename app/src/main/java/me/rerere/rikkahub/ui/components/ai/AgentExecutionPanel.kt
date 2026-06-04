@@ -20,6 +20,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -59,26 +60,30 @@ fun AgentExecutionPanel(
     var isCompleted by remember { mutableStateOf(false) }
     var currentDescription by remember { mutableStateOf("") }
 
-    // 订阅事件（用于实时 tool 调用流）
-    LaunchedEffect(agentId) {
-        AgentEventBus.subscribe { event ->
-            if (event.agentId == agentId) {
-                events.add(event)
-                when (event.eventType) {
-                    AgentEventType.TOOL_USE -> currentDescription = event.description
-                    AgentEventType.PROGRESS -> currentDescription = event.description
-                    AgentEventType.SUMMARY -> if (currentDescription.isBlank()) currentDescription = event.description
-                    AgentEventType.COMPLETED,
-                    AgentEventType.FAILED,
-                    AgentEventType.CANCELLED -> {
-                        isCompleted = true
-                        currentDescription = event.description
-                    }
-                    AgentEventType.STARTED -> currentDescription = event.description
-                    else -> {}
+    // 订阅事件，离开时取消订阅
+    val listener: (AgentExecutionEvent) -> Unit = remember {{
+        if (it.agentId == agentId) {
+            events.add(it)
+            when (it.eventType) {
+                AgentEventType.TOOL_USE -> currentDescription = it.description
+                AgentEventType.PROGRESS -> currentDescription = it.description
+                AgentEventType.SUMMARY -> if (currentDescription.isBlank()) currentDescription = it.description
+                AgentEventType.COMPLETED,
+                AgentEventType.FAILED,
+                AgentEventType.CANCELLED -> {
+                    isCompleted = true
+                    currentDescription = it.description
                 }
+                AgentEventType.STARTED -> currentDescription = it.description
+                else -> {}
             }
         }
+    }}
+    LaunchedEffect(agentId) {
+        AgentEventBus.subscribe(listener)
+    }
+    DisposableEffect(agentId) {
+        onDispose { AgentEventBus.unsubscribe(listener) }
     }
 
     // 从 AgentTaskTracker 读取当前进度（事件可能已经发出，面板没赶上）
