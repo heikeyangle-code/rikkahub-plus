@@ -73,6 +73,7 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
 import me.rerere.rikkahub.data.ai.tools.createSendMessageTool
 import me.rerere.rikkahub.data.ai.tools.createGetTeammateMessagesTool
+import me.rerere.rikkahub.data.ai.tools.createKanbanTools
 import me.rerere.rikkahub.data.ai.tools.createWebFetchTool
 import me.rerere.rikkahub.data.ai.tools.createSleepTool
 import me.rerere.rikkahub.data.ai.tools.createCalculatorTool
@@ -782,6 +783,8 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.SendMessage)) {
                         add(createSendMessageTool())
                         add(createGetTeammateMessagesTool())
+                        // s17: 看板工具 — 多 Agent 认领任务
+                        addAll(createKanbanTools())
                     }
                     if (assistant.enableSubAgent) {
                         val allAgentTypes = AgentRegistry.list()
@@ -942,6 +945,7 @@ class ChatService(
                                         if (assistant.localTools.contains(LocalToolOption.SendMessage)) {
                                             add(createSendMessageTool())
                                             add(createGetTeammateMessagesTool())
+                                            addAll(createKanbanTools())
                                         }
                                         addAll(localTools.getTools(listOf(LocalToolOption.TimeInfo)))
                                         add(createSleepTool())
@@ -1375,6 +1379,7 @@ class ChatService(
                 if (assistant.localTools.contains(LocalToolOption.SendMessage)) {
                     add(createSendMessageTool())
                     add(createGetTeammateMessagesTool())
+                    addAll(createKanbanTools())
                 }
             },
             inputTransformers = buildList {

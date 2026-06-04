@@ -9,13 +9,17 @@ import me.rerere.rikkahub.data.ai.agent.AgentMailMessage
 import me.rerere.rikkahub.data.ai.agent.AgentMailbox
 import me.rerere.rikkahub.data.ai.agent.AgentContextStore
 import me.rerere.rikkahub.data.ai.agent.MailMessageType
+import me.rerere.rikkahub.data.ai.team.MessageBus
+import me.rerere.rikkahub.data.ai.team.ProtocolManager
 
 /**
  * agent 间通信工具。
  * 对应泄露版 SendMessageTool/SendMessageTool.ts (27KB)。
  *
  * 支持：单播(to=agentName)、广播(to="*")、结构化消息(shutdown/plan_approval)。
- * 消息存储于 AgentMailbox，被叫方通过 get_teammate_messages 读取。
+ * 消息存储于双通道：AgentMailbox（原有）+ MessageBus（文件持久化）。
+ * 结构化消息自动更新 ProtocolManager 状态机。
+ * 看板任务通过 create_task / claim_task / complete_task 管理。
  */
 fun createSendMessageTool(): Tool = Tool(
     name = "send_message",
@@ -65,13 +69,31 @@ fun createSendMessageTool(): Tool = Tool(
         val message = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
         val summary = obj["summary"]?.jsonPrimitive?.contentOrNull
 
-        // Detect structured message
+        // Detect structured message and update ProtocolManager
         val msgType = try {
             val parsed = Json.parseToJsonElement(message).jsonObject
-            when (parsed["type"]?.jsonPrimitive?.contentOrNull) {
-                "shutdown_request" -> MailMessageType.SHUTDOWN_REQUEST
-                "shutdown_response" -> MailMessageType.SHUTDOWN_RESPONSE
-                "plan_approval_response" -> MailMessageType.PLAN_APPROVAL_RESPONSE
+            val type = parsed["type"]?.jsonPrimitive?.contentOrNull
+            when (type) {
+                "shutdown_request" -> {
+                    val reason = parsed["reason"]?.jsonPrimitive?.contentOrNull ?: ""
+                    MailMessageType.SHUTDOWN_REQUEST
+                }
+                "shutdown_response" -> {
+                    val requestId = parsed["request_id"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val approve = parsed["approve"]?.jsonPrimitive?.booleanOrNull ?: false
+                    if (requestId.isNotBlank()) {
+                        ProtocolManager.respondToRequest(requestId, approve)
+                    }
+                    MailMessageType.SHUTDOWN_RESPONSE
+                }
+                "plan_approval_response" -> {
+                    val requestId = parsed["request_id"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val approve = parsed["approve"]?.jsonPrimitive?.booleanOrNull ?: false
+                    if (requestId.isNotBlank()) {
+                        ProtocolManager.respondToRequest(requestId, approve)
+                    }
+                    MailMessageType.PLAN_APPROVAL_RESPONSE
+                }
                 else -> MailMessageType.TEXT
             }
         } catch (_: Exception) {
@@ -80,14 +102,17 @@ fun createSendMessageTool(): Tool = Tool(
 
         val sender = AgentContextStore.currentAgentName() ?: "main"
 
+        // 双通道：AgentMailbox（原有）+ MessageBus（文件持久化）
         if (to == "*") {
             AgentMailbox.broadcast(sender, message, summary, msgType)
+            MessageBus.send("*", "[$sender] $message")
             listOf(UIMessagePart.Text(buildJsonObject {
                 put("success", true)
                 put("message", "Broadcast sent to all teammates")
             }.toString()))
         } else {
             AgentMailbox.send(to, sender, message, summary, msgType)
+            MessageBus.send(to, "[$sender] $message")
             listOf(UIMessagePart.Text(buildJsonObject {
                 put("success", true)
                 put("message", "Message sent to $to")
@@ -131,4 +156,54 @@ fun createGetTeammateMessagesTool(): Tool = Tool(
             listOf(UIMessagePart.Text(json.toString()))
         }
     },
+)
+
+/**
+ * 看板工具 — 未认领任务扫描+自动认领。
+ * 对标 learn-claude-code s17 autonomous_agents 的 idle poll + scan_unclaimed。
+ */
+fun createKanbanTools(): List<Tool> = listOf(
+    Tool(
+        name = "list_unclaimed_tasks",
+        description = "List all unclaimed kanban tasks. Call this when idle to find work.",
+        permissionMode = PermissionMode.READ_ONLY,
+        parameters = {
+            InputSchema.Obj(properties = buildJsonObject {})
+        },
+        execute = {
+            val tasks = me.rerere.rikkahub.data.ai.team.KanbanBoard.getUnclaimedTasks()
+            if (tasks.isEmpty()) {
+                listOf(UIMessagePart.Text("No unclaimed tasks."))
+            } else {
+                val output = tasks.joinToString("\n") { t ->
+                    val deps = if (t.blockedBy.isNotEmpty()) " [blockedBy: ${t.blockedBy.joinToString()}]" else ""
+                    "  ${t.id}: ${t.subject}$deps"
+                }
+                listOf(UIMessagePart.Text("Unclaimed tasks:\n$output"))
+            }
+        },
+    ),
+    Tool(
+        name = "claim_task",
+        description = "Claim a kanban task by ID. Sets status to in_progress and assigns owner.",
+        permissionMode = PermissionMode.AUTO,
+        parameters = {
+            InputSchema.Obj(properties = buildJsonObject {
+                put("task_id", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Task ID from list_unclaimed_tasks")
+                })
+            }, required = listOf("task_id"))
+        },
+        execute = { args ->
+            val taskId = args.jsonObject["task_id"]?.jsonPrimitive?.contentOrNull ?: error("task_id required")
+            val agentName = AgentContextStore.currentAgentName() ?: "main"
+            val error = me.rerere.rikkahub.data.ai.team.KanbanBoard.claimTask(taskId, agentName)
+            if (error != null) {
+                listOf(UIMessagePart.Text("Error: $error"))
+            } else {
+                listOf(UIMessagePart.Text("Claimed task $taskId"))
+            }
+        },
+    ),
 )
