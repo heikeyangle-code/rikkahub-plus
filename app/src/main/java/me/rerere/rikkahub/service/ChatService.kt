@@ -1094,8 +1094,9 @@ class ChatService(
             }.collect { chunk ->
                 when (chunk) {
                     is GenerationChunk.Messages -> {
+                        val uiMessages = chunk.messages.filter { it.role != MessageRole.SYSTEM }
                         val updatedConversation = getConversationFlow(conversationId).value
-                            .updateCurrentMessages(chunk.messages)
+                            .updateCurrentMessages(uiMessages)
                         updateConversation(conversationId, updatedConversation)
 
                         // 前台时停止前台 Service（用户切回来了）
