@@ -108,7 +108,65 @@ class GenerationHandler(
         name.startsWith("present_file") -> "🔧 文件 → 正在分享..."
         name.startsWith("eval_javascript") -> "🔧 JS → 正在执行..."
         name.startsWith("memory_") -> "🔧 记忆 → 正在处理..."
-        else -> "🔧 $name → 正在处理..."
+            else -> "🔧 $name → 正在处理..."
+    }
+
+    /**
+     * 缓存 system prompt（循环不变，避免每步重建 PromptContext + tool.systemPrompt）
+     */
+    suspend fun buildCachedSystemPrompt(
+        assistant: Assistant,
+        settings: Settings,
+        messages: List<UIMessage>,
+        memories: List<AssistantMemory>,
+        conversationSystemPrompt: String?,
+        tools: List<Tool>,
+        model: Model,
+        context: android.content.Context,
+        conversationRepo: me.rerere.rikkahub.data.repository.ConversationRepository,
+    ): String {
+        val assemblerContext = me.rerere.rikkahub.data.ai.prompts.PromptContext(
+            identitySection = buildString {
+                val effectiveSystemPrompt =
+                    if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
+                        conversationSystemPrompt
+                    } else {
+                        if (assistant.tavernData != null) {
+                            val persona = settings.personas.find { it.id == settings.activePersonaId }
+                            assistant.assembleContext(
+                                userName = settings.displaySetting.userNickname.ifBlank { "User" },
+                                personaDesc = persona?.description ?: ""
+                            )
+                        } else {
+                            assistant.systemPrompt
+                        }
+                    }
+                append(effectiveSystemPrompt)
+            },
+            leadInInstructions = buildString {
+                appendLine("Guidelines:")
+                appendLine("- Prefer dedicated tools over shell commands for file operations")
+                appendLine("- When a tool fails, try an alternative approach before giving up")
+                appendLine("- If you need clarification, ask the user directly")
+            },
+            workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
+            memories = if (assistant.enableMemory) memories else emptyList(),
+            extraInstructions = buildString {
+                if (assistant.enableRecentChatsReference) {
+                    appendLine()
+                    append(buildRecentChatsPrompt(assistant, conversationRepo))
+                }
+            },
+            constraints = emptyList(),
+        )
+        val system = me.rerere.rikkahub.data.ai.prompts.SystemPromptAssembler.assemble(assemblerContext)
+        return buildString {
+            append(system)
+            tools.forEach { tool ->
+                appendLine()
+                append(tool.systemPrompt(model, messages))
+            }
+        }
     }
 
     // ── 预构建：tools + systemPrompt（循环不变，移到外面）──
@@ -160,9 +218,8 @@ class GenerationHandler(
         )
     }
     // ── 预构建：system prompt 全文（循环不变，移到外面）──
-    val prebuiltSystemPrompt = buildString {
-        append(buildCachedSystemPrompt(assistant, settings, messages, memories ?: emptyList(), conversationSystemPrompt, tools))
-    }
+    // buildString 不是 suspend 上下文，直接调用即可
+    val prebuiltSystemPrompt = buildCachedSystemPrompt(assistant, settings, messages, memories ?: emptyList(), conversationSystemPrompt, tools, model, context, conversationRepo)
 
     for (stepIndex in 0 until maxSteps) {
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
@@ -736,62 +793,8 @@ private suspend fun executeToolCall(
             tool.copy(output = result)
         }
     }
-
-    /**
-     * 缓存 system prompt（循环不变，避免每步重建 PromptContext + tool.systemPrompt）
-     */
-    private fun buildCachedSystemPrompt(
-        assistant: Assistant,
-        settings: Settings,
-        messages: List<UIMessage>,
-        memories: List<AssistantMemory>,
-        conversationSystemPrompt: String?,
-        tools: List<Tool>,
-    ): String {
-        val assemblerContext = me.rerere.rikkahub.data.ai.prompts.PromptContext(
-            identitySection = buildString {
-                val effectiveSystemPrompt =
-                    if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
-                        conversationSystemPrompt
-                    } else {
-                        if (assistant.tavernData != null) {
-                            val persona = settings.personas.find { it.id == settings.activePersonaId }
-                            assistant.assembleContext(
-                                userName = settings.displaySetting.userNickname.ifBlank { "User" },
-                                personaDesc = persona?.description ?: ""
-                            )
-                        } else {
-                            assistant.systemPrompt
-                        }
-                    }
-                append(effectiveSystemPrompt)
-            },
-            leadInInstructions = buildString {
-                appendLine("Guidelines:")
-                appendLine("- Prefer dedicated tools over shell commands for file operations")
-                appendLine("- When a tool fails, try an alternative approach before giving up")
-                appendLine("- If you need clarification, ask the user directly")
-            },
-            workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
-            memories = if (assistant.enableMemory) memories else emptyList(),
-            extraInstructions = buildString {
-                if (assistant.enableRecentChatsReference) {
-                    appendLine()
-                    append(buildRecentChatsPrompt(assistant, conversationRepo))
-                }
-            },
-            constraints = emptyList(),
-        )
-        val system = me.rerere.rikkahub.data.ai.prompts.SystemPromptAssembler.assemble(assemblerContext)
-        return buildString {
-            append(system)
-            tools.forEach { tool ->
-                appendLine()
-                append(tool.systemPrompt(model, messages))
-            }
-        }
-    }
 }
+
 
 /**
  * 将工具执行结果添加到列表中（处理成功和失败两种情况）
