@@ -249,10 +249,7 @@ class ChatService(
                     add(createWebFetchTool())
                 }
                 addAll(me.rerere.rikkahub.data.ai.tools.createFileTools())
-                addAll(me.rerere.rikkahub.data.ai.tools.createShellTools())
-                add(me.rerere.rikkahub.data.ai.tools.createCalculatorTool())
                 addAll(localTools.getTools(listOf(me.rerere.rikkahub.data.ai.tools.LocalToolOption.TimeInfo)))
-                add(createSleepTool())
             })
             val messages = listOf(
                 me.rerere.ai.ui.UIMessage.system("You are a teammate agent. Complete the assigned task and report the results concisely."),
