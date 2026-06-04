@@ -394,7 +394,7 @@ private fun ChatListNormal(
                             agentId = agentId,
                             agentType = progress.agentType.ifEmpty { "agent" },
                             agentColor = androidx.compose.ui.graphics.Color(
-                                me.rerere.rikkahub.data.ai.tools.AgentColorManager.getColor(progress.agentType).hex
+                                me.rerere.rikkahub.data.ai.tools.AgentColorManager.getColor(progress.agentType)?.hex ?: me.rerere.rikkahub.data.ai.tools.AgentColor.BLUE.hex
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
