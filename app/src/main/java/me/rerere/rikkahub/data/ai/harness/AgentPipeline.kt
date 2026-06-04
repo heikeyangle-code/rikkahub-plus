@@ -2,8 +2,10 @@ package me.rerere.rikkahub.data.ai.harness
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -146,7 +148,9 @@ class AgentPipeline(
                     if (last != null && (last.role == MessageRole.ASSISTANT || last.role == MessageRole.USER)) {
                         val dialogue = buildDialogueText(msgs)
                         if (dialogue.length >= 200) {
-                            extractMemoriesWithLLM(settings, model, assistantId, dialogue)
+                            GlobalScope.launch(Dispatchers.IO) {
+                                extractMemoriesWithLLM(settings, model, assistantId, dialogue)
+                            }
                         }
                     }
                 } catch (_: Exception) { }
