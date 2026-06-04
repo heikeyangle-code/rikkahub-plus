@@ -1,3 +1,4 @@
+/*
 package me.rerere.rikkahub.data.ai.mcp.transport
 
 import android.util.Log
@@ -367,3 +368,4 @@ public class StreamableHttpClientTransport(
         }
     }
 }
+*/

@@ -1,3 +1,4 @@
+/*
 package me.rerere.rikkahub.data.ai.mcp.transport
 
 import android.util.Log
@@ -199,3 +200,4 @@ class SseClientTransport(
         _onClose()
     }
 }
+*/
