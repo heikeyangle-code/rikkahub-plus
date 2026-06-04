@@ -100,24 +100,6 @@ class AutoCompactor {
     }
 
     /**
-     * Snip compact (head+tail variant): keep head N + tail N, snip middle.
-     * 对标 s20 snip_compact。
-     */
-    fun snipHeadTail(
-        messages: List<UIMessage>,
-        keepHead: Int = SNIP_KEEP_OLDEST,
-        maxMessages: Int = 50,
-    ): SnipResult {
-        if (messages.size <= maxMessages) return SnipResult(messages, 0)
-        val keepTail = maxMessages - keepHead
-        val head = messages.take(keepHead)
-        val tail = messages.takeLast(keepTail)
-        val snipped = messages.size - keepHead - keepTail
-        val marker = listOf(UIMessage.system(prompt = "[snipped $snipped messages]"))
-        return SnipResult(head + marker + tail, snipped)
-    }
-
-    /**
      * Write transcript to disk.
      * 对标 s20 write_transcript。
      */
@@ -190,8 +172,13 @@ class AutoCompactor {
     }
 
     /**
-     * 完整压缩管线：按需触发 L1 → L2 → L3。
-     * 先跑便宜的（L1/L2），token 仍然超阈值才跑贵的（L3 摘要）。
+     * 完整压缩管线：智能选择压缩方式。
+     *
+     * 1. 先跑 L2 截断工具输出（免费、安全）
+     * 2. 还超阈值才跑 L3 LLM 摘要（原版行为，花一次 API）
+     * 3. API 报错时由外部调用 emergencyTrim
+     *
+     * 不跑 L1 裁旧对话——直接裁消息比摘要损失更多信息。
      */
     fun maybeCompact(
         messages: List<UIMessage>,
@@ -201,37 +188,31 @@ class AutoCompactor {
         var current = messages
         var totalRemoved = 0
 
-        // L1: Snip old turns (cheapest)
-        val snipResult = snipCompact(current, preserveRecent)
-        totalRemoved += snipResult.removedCount
-        current = snipResult.messages
-
-        // L2: Truncate tool output (cheap)
+        // Step 1: L2 — Truncate tool output (free, safe)
         current = truncateToolOutput(current)
 
         var estimated = estimateTokens(current)
 
-        // If under threshold after L1+L2, no need for L3
+        // If under threshold after L2, no need for L3
         if (estimated <= threshold) {
             val summary = buildString {
                 appendLine("=== Context compacted ===")
-                appendLine("L1 snip: removed ${snipResult.removedCount} intermediate messages")
-                appendLine("L2 truncation: tool outputs capped at ${TOOL_OUTPUT_MAX_CHARS} chars each")
+                appendLine("Tool outputs capped at ${TOOL_OUTPUT_MAX_CHARS} chars each")
                 appendLine("Estimated tokens: $estimated / $threshold")
             }
             return CompactionResult(
-                removedCount = totalRemoved,
+                removedCount = 0,
                 summary = summary,
                 compactedMessages = current,
             )
         }
 
-        // L3: LLM summary (original behavior)
+        // Step 2: L3 — LLM summary (original behavior, costs 1 API call)
         if (current.size <= preserveRecent * 2) return null
 
         val toCompact = current.dropLast(preserveRecent)
         val toKeep = current.takeLast(preserveRecent)
-        totalRemoved += toCompact.size
+        totalRemoved = toCompact.size
 
         val summary = buildString {
             appendLine("=== 会话自动压缩摘要 ===")
