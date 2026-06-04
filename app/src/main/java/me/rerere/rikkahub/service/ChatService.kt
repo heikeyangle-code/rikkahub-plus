@@ -205,7 +205,7 @@ class ChatService(
     private val workerManager: WorkerManager by lazy {
         WorkerManager(appScope) { workerId, prompt ->
             // Android 同进程 Worker：执行一次带工具的 LLM 调用
-            val s = settingsStore.getSettings()
+            val s = settingsStore.settingsFlow.value
             val m = s.findModelById(s.chatModelId) ?: return@WorkerManager "No model"
             val p = m.findProvider(s.providers) ?: return@WorkerManager "No provider"
             @Suppress("UNCHECKED_CAST")
@@ -237,7 +237,7 @@ class ChatService(
     }
     private val teammateRunner: TeammateRunner by lazy {
         TeammateRunner(appScope) { agentName, prompt ->
-            val s = settingsStore.getSettings()
+            val s = settingsStore.settingsFlow.value
             val m = s.findModelById(s.chatModelId) ?: return@TeammateRunner "No model"
             val p = m.findProvider(s.providers) ?: return@TeammateRunner "No provider"
             @Suppress("UNCHECKED_CAST")
