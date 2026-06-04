@@ -134,12 +134,45 @@ data class AgentDefinition(
 /**
  * 工具过滤逻辑，对齐官方 isToolAllowed() + disallowedTools 黑名单优先。
  */
+/**
+ * 所有 Agent 通用禁用工具。
+ * 对齐 CC 的 ALL_AGENT_DISALLOWED_TOOLS。
+ * 子 Agent 绝对不能拥有的工具（防递归/死锁）。
+ */
+val ALL_AGENT_DISALLOWED_TOOLS = setOf(
+    "sub_agent",
+)
+
+/**
+ * 后台 Agent 允许的工具集。
+ * 对齐 CC 的 ASYNC_AGENT_ALLOWED_TOOLS。
+ * 后台 agent 只能读/搜/写结果，不能递归调 Agent。
+ */
+val ASYNC_AGENT_ALLOWED_TOOLS = setOf(
+    "file_search", "file_read", "file_list",
+    "web_search", "web_fetch",
+    "execute_command", "execute_python",
+    "file_edit", "file_write",
+    "sleep",
+    "todo_write", "todo_read", "todo_list",
+    "task_get", "task_list", "task_create", "task_update",
+)
+
 fun isToolAllowed(agent: AgentDefinition, toolName: String): Boolean {
-    // 黑名单优先
+    // 底层禁用：所有 agent 都不能递归调 sub_agent
+    if (toolName in ALL_AGENT_DISALLOWED_TOOLS) return false
+    // agent 自身黑名单
     if (toolName in agent.disallowedTools) return false
     // 白名单：* = 全部
     if (agent.tools.contains("*")) return true
     return toolName in agent.tools
+}
+
+/**
+ * 后台模式工具过滤。
+ */
+fun isToolAllowedForAsync(toolName: String): Boolean {
+    return toolName in ASYNC_AGENT_ALLOWED_TOOLS
 }
 
 /**

@@ -98,6 +98,7 @@ import me.rerere.rikkahub.data.ai.agent.AgentExecutionEvent
 import me.rerere.rikkahub.data.ai.agent.AgentEventType
 import me.rerere.rikkahub.data.ai.agent.AgentEventBus
 import me.rerere.rikkahub.data.ai.agent.TeammateRunner
+import me.rerere.rikkahub.data.ai.tools.isToolAllowedForAsync
 import me.rerere.rikkahub.data.ai.tools.formatAgentTools
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createAssetTool
@@ -722,18 +723,47 @@ class ChatService(
                         add(createGetTeammateMessagesTool())
                     }
                     if (assistant.enableSubAgent) {
+                        val allAgentTypes = AgentRegistry.list()
                         add(
                             Tool(
                                 name = "sub_agent",
                                 description = buildString {
-                                    append("Launch a specialized agent to handle a subtask. ")
-                                    append("Set subagent_type to pick a role or omit for general-purpose. ")
-                                    append("Use run_in_background=true for long-running tasks. ")
-                                    append("Available agents: ")
-                                    append(AgentRegistry.list().joinToString(", ") {
-                                        "${it.agentType} (${it.color.name.lowercase()}, ${it.description.take(40)})"
-                                    })
-                                }.replace("\n", " "),
+                                    appendLine("Launch a specialized agent to handle multi-step tasks autonomously.")
+                                    appendLine()
+                                    appendLine("Available agent types and the tools they have access to:")
+                                    allAgentTypes.forEach { agent ->
+                                        appendLine("- ${agent.agentType}: ${agent.description} (Tools: ${formatAgentTools(agent)})")
+                                    }
+                                    appendLine()
+                                    appendLine("When to use sub_agent:")
+                                    appendLine("- For researching complex questions that require exploring many files")
+                                    appendLine("- For code review and getting a second opinion")
+                                    appendLine("- For running verification and tests")
+                                    appendLine("- For independent sub-tasks that can run in parallel")
+                                    appendLine("- Launch multiple agents concurrently by sending a single message with multiple sub_agent tool calls")
+                                    appendLine()
+                                    appendLine("When NOT to use sub_agent:")
+                                    appendLine("- If you can do it directly with your own tools (read, search, write)")
+                                    appendLine("- If you need to read a specific file, use file_read instead")
+                                    appendLine("- The agent result is returned to you — you must relay it to the user")
+                                    appendLine()
+                                    appendLine("Usage notes:")
+                                    appendLine("- Always include a short description (3-5 words) summarizing what the agent will do")
+                                    appendLine("- When the agent is done, it returns a message back to you — relay it to the user")
+                                    appendLine("- For background agents: use run_in_background=true, continue working, you'll be notified on completion")
+                                    appendLine("- Use foreground (default) when you need the agent's results before proceeding")
+                                    appendLine("- Each agent starts fresh — provide a complete task description")
+                                    appendLine("- Clearly tell the agent whether you expect it to write code or just do research")
+                                    appendLine("- The agent's outputs should generally be trusted")
+                                    appendLine("- To continue a previously spawned agent, use send_message with its name as the \"to\" field")
+                                    appendLine()
+                                    appendLine("Example:")
+                                    appendLine("  sub_agent({")
+                                    appendLine("    description: \"Review migration safety\",")
+                                    appendLine("    subagent_type: \"verification\",")
+                                    appendLine("    prompt: \"Review migration 0042_user_schema.sql for safety...\"")
+                                    appendLine("  })")
+                                },
                                 needsApproval = false,
                                 parameters = {
                                     InputSchema.Obj(
@@ -800,7 +830,7 @@ class ChatService(
                                     val providerImpl = providerManager.getProviderByType(providerSetting)
                                         as me.rerere.ai.provider.Provider<me.rerere.ai.provider.ProviderSetting>
 
-                                    // Build curated tools for sub-agent
+                                    // Build sub-agent tools — 全工具池（对齐主Agent），按 agent 过滤
                                     val skillDirs = assistant.enabledSkills
                                         .mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
                                     val allTools = buildList {
@@ -811,13 +841,61 @@ class ChatService(
                                         if (assistant.localTools.contains(LocalToolOption.FileTools)) {
                                             addAll(createFileTools(skillDirs))
                                         }
+                                        addAll(localTools.getTools(assistant.localTools))
+                                        if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
+                                            addAll(createShellTools())
+                                        }
+                                        if (assistant.localTools.contains(LocalToolOption.GitHubTools)) {
+                                            add(createGitHubTool(settingsStore, assistant.enableCiTimeout, assistant.enableAutoFixCi))
+                                        }
+                                        if (assistant.localTools.contains(LocalToolOption.ConvertFile)) {
+                                            add(createConvertFileTool(context))
+                                        }
+                                        if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) {
+                                            add(createDatabaseQueryTool(database))
+                                        }
+                                        if (assistant.localTools.contains(LocalToolOption.Calculator)) {
+                                            add(createCalculatorTool())
+                                        }
+                                        if (assistant.enabledSkills.isNotEmpty()) {
+                                            addAll(createSkillTools(
+                                                enabledSkills = assistant.enabledSkills,
+                                                allSkills = skillManager.listSkills(),
+                                                skillManager = skillManager,
+                                            ))
+                                        }
+                                        mcpManager.getAllAvailableTools().forEach { (serverId, tool) ->
+                                            add(Tool(
+                                                name = "mcp__" + tool.name,
+                                                description = tool.description ?: "",
+                                                parameters = { tool.inputSchema },
+                                                needsApproval = tool.needsApproval,
+                                                execute = { mcpManager.callTool(serverId, tool.name, it.jsonObject) },
+                                            ))
+                                        }
+                                        if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
+                                        if (assistant.localTools.contains(LocalToolOption.TaskTools)) addAll(createTaskTools())
+                                        if (assistant.localTools.contains(LocalToolOption.ToolSearch)) { ToolRegistry.registerBuiltin(); add(createToolSearchTool()) }
+                                        if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
+                                        if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))
+                                        if (assistant.localTools.contains(LocalToolOption.TeammateTools)) addAll(createTeammateTools(teammateRunner))
+                                        if (assistant.localTools.contains(LocalToolOption.SendMessage)) {
+                                            add(createSendMessageTool())
+                                            add(createGetTeammateMessagesTool())
+                                        }
                                         addAll(localTools.getTools(listOf(LocalToolOption.TimeInfo)))
                                         add(createSleepTool())
                                     }
 
-                                    // Agent's tool whitelist/blacklist
+                                    // 过滤规则：
+                                    // 1. Agent 通用禁用（sub_agent防递归）
+                                    // 2. Agent 自身 disallowedTools
+                                    // 3. 后台模式 → 只允许 ASYNC_AGENT_ALLOWED_TOOLS
                                     val subTools = allTools.filter { tool ->
-                                        agentDef == null || isToolAllowed(agentDef, tool.name)
+                                        if (tool.name == "sub_agent") return@filter false
+                                        if (agentDef != null && !isToolAllowed(agentDef, tool.name)) return@filter false
+                                        if (runInBackground && !isToolAllowedForAsync(tool.name)) return@filter false
+                                        true
                                     }
 
                                     // Resolve system prompt
