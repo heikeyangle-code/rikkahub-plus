@@ -111,57 +111,61 @@ class GenerationHandler(
         else -> "🔧 $name → 正在处理..."
     }
 
+    // ── 预构建：tools + systemPrompt（循环不变，移到外面）──
+    val toolsInternal = buildList {
+        Log.i(TAG, "generateInternal: build tools($assistant)")
+        if (assistant?.enableMemory == true) {
+            val memoryAssistantId = if (assistant.useGlobalMemory) {
+                MemoryRepository.GLOBAL_MEMORY_ID
+            } else {
+                assistant.id.toString()
+            }
+            buildMemoryTools(
+                json = json,
+                onCreation = { content ->
+                    memoryRepo.addMemory(memoryAssistantId, content)
+                },
+                onUpdate = { id, content ->
+                    memoryRepo.updateContent(id, content)
+                },
+                onDelete = { id ->
+                    memoryRepo.deleteMemory(id)
+                }
+            ).let(this::addAll)
+        }
+        addAll(tools)
+    }
+    val statusTrackedTools = toolsInternal.map { tool ->
+        if (tool.name == "ask_user") tool else tool.copy(
+            execute = { args ->
+                processingStatus.value = describeTool(tool.name)
+                if (tool.name.contains("github")) {
+                    me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = processingStatus
+                }
+                try {
+                    val result = tool.execute(args)
+                    if (tool.name.contains("github")) {
+                        me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
+                    }
+                    processingStatus.value = null
+                    result
+                } catch (e: Exception) {
+                    if (tool.name.contains("github")) {
+                        me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
+                    }
+                    processingStatus.value = null
+                    throw e
+                }
+            }
+        )
+    }
+    // ── 预构建：system prompt 全文（循环不变，移到外面）──
+    val prebuiltSystemPrompt = buildString {
+        append(buildCachedSystemPrompt(assistant, settings, messages, memories ?: emptyList(), conversationSystemPrompt, tools))
+    }
+
     for (stepIndex in 0 until maxSteps) {
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
-
-            val toolsInternal = buildList {
-                Log.i(TAG, "generateInternal: build tools($assistant)")
-                if (assistant?.enableMemory == true) {
-                    val memoryAssistantId = if (assistant.useGlobalMemory) {
-                        MemoryRepository.GLOBAL_MEMORY_ID
-                    } else {
-                        assistant.id.toString()
-                    }
-                    buildMemoryTools(
-                        json = json,
-                        onCreation = { content ->
-                            memoryRepo.addMemory(memoryAssistantId, content)
-                        },
-                        onUpdate = { id, content ->
-                            memoryRepo.updateContent(id, content)
-                        },
-                        onDelete = { id ->
-                            memoryRepo.deleteMemory(id)
-                        }
-                    ).let(this::addAll)
-                }
-                addAll(tools)
-            }
-            // Wrap tools with status tracking
-            val statusTrackedTools = toolsInternal.map { tool ->
-                if (tool.name == "ask_user") tool else tool.copy(
-                    execute = { args ->
-                        processingStatus.value = describeTool(tool.name)
-                        if (tool.name.contains("github")) {
-                            me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = processingStatus
-                        }
-                        try {
-                            val result = tool.execute(args)
-                            if (tool.name.contains("github")) {
-                                me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
-                            }
-                            processingStatus.value = null
-                            result
-                        } catch (e: Exception) {
-                            if (tool.name.contains("github")) {
-                                me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
-                            }
-                            processingStatus.value = null
-                            throw e
-                        }
-                    }
-                )
-            }
 
             // Check if we have tool calls ready to continue after user interaction.
             val pendingTools = messages.lastOrNull()?.getTools()?.filter {
@@ -207,6 +211,7 @@ class GenerationHandler(
                     conversationSystemPrompt = conversationSystemPrompt,
                     conversationModeInjectionIds = conversationModeInjectionIds,
                     conversationLorebookIds = conversationLorebookIds,
+                    prebuiltSystemPrompt = prebuiltSystemPrompt,
                 )
                 messages = messages.visualTransforms(
                     transformers = outputTransformers,
@@ -381,10 +386,12 @@ class GenerationHandler(
         conversationSystemPrompt: String? = null,
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
+        prebuiltSystemPrompt: String = "",
     ) {
         val internalMessages = buildList {
-            // ── s10: 使用 SystemPromptAssembler 替代硬编码 ──
-            val assemblerContext = me.rerere.rikkahub.data.ai.prompts.PromptContext(
+            val fullSystem = if (prebuiltSystemPrompt.isNotBlank()) prebuiltSystemPrompt else buildString {
+                // ── s10: 使用 SystemPromptAssembler 替代硬编码 ──
+                val assemblerContext = me.rerere.rikkahub.data.ai.prompts.PromptContext(
                 identitySection = buildString {
                     val effectiveSystemPrompt =
                         if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
@@ -420,15 +427,15 @@ class GenerationHandler(
             )
             val system = me.rerere.rikkahub.data.ai.prompts.SystemPromptAssembler.assemble(assemblerContext)
 
-            // ── 工具prompt（保持原有逻辑，追加在 assembler 结果之后）──
-            val fullSystem = buildString {
-                append(system)
-                tools.forEach { tool ->
-                    appendLine()
-                    append(tool.systemPrompt(model, messages))
-                }
+            // ── 工具prompt（追加在 assembler 结果之后）──
+            append(system)
+            tools.forEach { tool ->
+                appendLine()
+                append(tool.systemPrompt(model, messages))
             }
-            if (fullSystem.isNotBlank()) add(UIMessage.system(prompt = fullSystem))
+            }
+            val systemMsg = fullSystem.ifBlank { null }
+            if (systemMsg != null) add(UIMessage.system(prompt = systemMsg))
             addAll(messages.limitContext(assistant.contextMessageSize))
         }.transforms(
             transformers = transformers,
@@ -727,6 +734,61 @@ private suspend fun executeToolCall(
             }
 
             tool.copy(output = result)
+        }
+    }
+
+    /**
+     * 缓存 system prompt（循环不变，避免每步重建 PromptContext + tool.systemPrompt）
+     */
+    private fun buildCachedSystemPrompt(
+        assistant: Assistant,
+        settings: Settings,
+        messages: List<UIMessage>,
+        memories: List<AssistantMemory>,
+        conversationSystemPrompt: String?,
+        tools: List<Tool>,
+    ): String {
+        val assemblerContext = me.rerere.rikkahub.data.ai.prompts.PromptContext(
+            identitySection = buildString {
+                val effectiveSystemPrompt =
+                    if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
+                        conversationSystemPrompt
+                    } else {
+                        if (assistant.tavernData != null) {
+                            val persona = settings.personas.find { it.id == settings.activePersonaId }
+                            assistant.assembleContext(
+                                userName = settings.displaySetting.userNickname.ifBlank { "User" },
+                                personaDesc = persona?.description ?: ""
+                            )
+                        } else {
+                            assistant.systemPrompt
+                        }
+                    }
+                append(effectiveSystemPrompt)
+            },
+            leadInInstructions = buildString {
+                appendLine("Guidelines:")
+                appendLine("- Prefer dedicated tools over shell commands for file operations")
+                appendLine("- When a tool fails, try an alternative approach before giving up")
+                appendLine("- If you need clarification, ask the user directly")
+            },
+            workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
+            memories = if (assistant.enableMemory) memories else emptyList(),
+            extraInstructions = buildString {
+                if (assistant.enableRecentChatsReference) {
+                    appendLine()
+                    append(buildRecentChatsPrompt(assistant, conversationRepo))
+                }
+            },
+            constraints = emptyList(),
+        )
+        val system = me.rerere.rikkahub.data.ai.prompts.SystemPromptAssembler.assemble(assemblerContext)
+        return buildString {
+            append(system)
+            tools.forEach { tool ->
+                appendLine()
+                append(tool.systemPrompt(model, messages))
+            }
         }
     }
 }
