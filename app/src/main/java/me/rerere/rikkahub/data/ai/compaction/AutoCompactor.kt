@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.compaction
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import java.io.File
 
 data class CompactionResult(
     val removedCount: Int,
@@ -27,7 +28,17 @@ class AutoCompactor {
         const val PRESERVE_RECENT_MESSAGES = 8
         const val TOOL_OUTPUT_MAX_CHARS = 5000
         const val SNIP_KEEP_OLDEST = 3
+        const val PERSIST_THRESHOLD_BYTES = 30_000
+        const val TOOL_RESULT_BUDGET_BYTES = 200_000
+        const val MICRO_COMPACT_KEEP_RECENT = 3
     }
+
+    // ── 持久化目录（可选）──
+    private var toolResultsDir: File? = null
+    private var transcriptDir: File? = null
+
+    fun setToolResultsDir(dir: File) { toolResultsDir = dir; dir.mkdirs() }
+    fun setTranscriptDir(dir: File) { transcriptDir = dir; dir.mkdirs() }
 
     /** 粗略 token 估算 */
     fun estimateTokens(messages: List<UIMessage>): Int {
@@ -72,6 +83,108 @@ class AutoCompactor {
     }
 
     data class SnipResult(val messages: List<UIMessage>, val removedCount: Int)
+
+    /**
+     * Persist large tool output to disk, return preview reference.
+     * 对标 s20 persist_large_output。
+     */
+    fun persistLargeOutput(toolUseId: String, output: String): String {
+        if (output.length <= PERSIST_THRESHOLD_BYTES) return output
+        val dir = toolResultsDir ?: return output.take(TOOL_OUTPUT_MAX_CHARS)
+        val file = File(dir, "${toolUseId}.txt")
+        try {
+            file.writeText(output)
+        } catch (_: Exception) {}
+        return "<persisted-output>\nFull output: ${file.absolutePath}\n" +
+               "Preview:\n${output.take(2000)}\n</persisted-output>"
+    }
+
+    /**
+     * Tool result budget: keep total tool output under maxBytes by persisting largest ones.
+     * 对标 s20 tool_result_budget。
+     */
+    fun toolResultBudget(
+        messages: List<UIMessage>,
+        maxBytes: Int = TOOL_RESULT_BUDGET_BYTES,
+    ): List<UIMessage> {
+        if (messages.isEmpty()) return messages
+        val last = messages.last()
+        val newParts = last.parts.map { part ->
+            if (part is UIMessagePart.Tool) {
+                val text = part.toText()
+                if (text.length <= maxBytes) return@map part
+                val persisted = persistLargeOutput(part.name, text)
+                UIMessagePart.Tool(
+                    id = part.id, name = part.name, input = part.input,
+                    output = listOf(UIMessagePart.Text(persisted)),
+                    isExecuted = part.isExecuted,
+                )
+            } else part
+        }
+        return messages.dropLast(1) + UIMessage(
+            role = last.role, parts = newParts, usage = last.usage,
+            createAt = last.createAt, model = last.model, annotations = last.annotations,
+        )
+    }
+
+    /**
+     * Micro compact: old tool results -> short marker.
+     * 对标 s20 micro_compact。
+     */
+    fun microCompact(messages: List<UIMessage>, keepRecent: Int = MICRO_COMPACT_KEEP_RECENT): List<UIMessage> {
+        var toolResultCount = 0
+        return messages.map { msg ->
+            val newParts = msg.parts.map { part ->
+                if (part is UIMessagePart.Tool) {
+                    toolResultCount++
+                    if (toolResultCount > messages.size - keepRecent && part.toText().length > 120) {
+                        UIMessagePart.Tool(
+                            id = part.id, name = part.name, input = part.input,
+                            output = listOf(UIMessagePart.Text("[Earlier tool result compacted. Re-run if needed.]")),
+                            isExecuted = part.isExecuted,
+                        )
+                    } else part
+                } else part
+            }
+            UIMessage(
+                role = msg.role, parts = newParts, usage = msg.usage,
+                createAt = msg.createAt, model = msg.model, annotations = msg.annotations,
+            )
+        }
+    }
+
+    /**
+     * Snip compact (head+tail variant): keep head N + tail N, snip middle.
+     * 对标 s20 snip_compact。
+     */
+    fun snipHeadTail(
+        messages: List<UIMessage>,
+        keepHead: Int = SNIP_KEEP_OLDEST,
+        maxMessages: Int = 50,
+    ): SnipResult {
+        if (messages.size <= maxMessages) return SnipResult(messages, 0)
+        val keepTail = maxMessages - keepHead
+        val head = messages.take(keepHead)
+        val tail = messages.takeLast(keepTail)
+        val snipped = messages.size - keepHead - keepTail
+        val marker = listOf(UIMessage.system(prompt = "[snipped $snipped messages]"))
+        return SnipResult(head + marker + tail, snipped)
+    }
+
+    /**
+     * Write transcript to disk.
+     * 对标 s20 write_transcript。
+     */
+    fun writeTranscript(messages: List<UIMessage>): File? {
+        val dir = transcriptDir ?: return null
+        val file = File(dir, "transcript_${System.currentTimeMillis()}.jsonl")
+        try {
+            file.writeText(messages.joinToString("\n") { msg ->
+                """{"role":"${msg.role.name}","parts":${msg.parts.size}}"""
+            })
+        } catch (_: Exception) { return null }
+        return file
+    }
 
     /**
      * L2: Tool output truncation — 截断过长的工具输出。
