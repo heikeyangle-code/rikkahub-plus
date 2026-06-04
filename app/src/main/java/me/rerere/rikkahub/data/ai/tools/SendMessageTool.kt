@@ -95,6 +95,24 @@ fun createSendMessageTool(): Tool = Tool(
                     }
                     MailMessageType.PLAN_APPROVAL_RESPONSE
                 }
+                "plan_approval_request" -> {
+                    MailMessageType.PLAN_APPROVAL_REQUEST
+                }
+                "progress_report" -> {
+                    MailMessageType.PROGRESS_REPORT
+                }
+                "error_report" -> {
+                    MailMessageType.ERROR_REPORT
+                }
+                "status_check" -> {
+                    MailMessageType.STATUS_CHECK
+                }
+                "status_response" -> {
+                    MailMessageType.STATUS_RESPONSE
+                }
+                "idle_notification" -> {
+                    MailMessageType.IDLE_NOTIFICATION
+                }
                 else -> MailMessageType.TEXT
             }
         } catch (_: Exception) {

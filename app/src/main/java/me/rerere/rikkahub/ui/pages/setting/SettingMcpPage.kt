@@ -328,6 +328,7 @@ private fun McpServerItem(
                             when (item) {
                                 is McpServerConfig.SseTransportServer -> Text("SSE")
                                 is McpServerConfig.StreamableHTTPServer -> Text("Streamable HTTP")
+                                is McpServerConfig.StdioTransportServer -> Text("Stdio")
                             }
                         }
                     }

@@ -158,6 +158,8 @@ class McpManager(
         is McpServerConfig.StreamableHTTPServer -> StreamableHttpClientTransport(
             url = config.url, client = client,
             requestBuilder = { headers.appendAll(StringValues.build { config.commonOptions.headers.forEach { append(it.first, it.second) } }) })
+        is McpServerConfig.StdioTransportServer -> me.rerere.rikkahub.data.ai.mcp.transport.StdioClientTransport(
+            command = config.command, args = config.args)
     }
 
     suspend fun addClient(config: McpServerConfig) = withContext(Dispatchers.IO) {

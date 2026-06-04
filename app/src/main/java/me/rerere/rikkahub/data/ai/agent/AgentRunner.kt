@@ -107,6 +107,13 @@ object AgentRunner {
             eventType = AgentEventType.STARTED,
             description = "Agent $agentType started: ${description.take(50)}",
         ))
+        me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
+            me.rerere.rikkahub.data.ai.listener.AgentEvent.SubagentStart(
+                agentId = agentCallId,
+                agentType = agentType,
+                description = description,
+            )
+        )
 
         return AgentContextStore.runWith(context) {
             if (runInBackground) {
@@ -122,6 +129,13 @@ object AgentRunner {
                         } else ""
 
                         lifecycle.complete(agentCallId, resultText)
+                        me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
+                            me.rerere.rikkahub.data.ai.listener.AgentEvent.SubagentStop(
+                                agentId = agentCallId,
+                                agentType = agentType,
+                                result = resultText.take(200),
+                            )
+                        )
                         enqueueAgentNotification(
                             agentId = agentCallId,
                             agentType = agentType,
@@ -182,6 +196,13 @@ object AgentRunner {
                     } else ""
 
                     lifecycle.complete(agentCallId, resultText)
+                    me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
+                        me.rerere.rikkahub.data.ai.listener.AgentEvent.SubagentStop(
+                            agentId = agentCallId,
+                            agentType = agentType,
+                            result = resultText.take(200),
+                        )
+                    )
                     AgentEventBus.emit(AgentExecutionEvent(
                         agentId = agentCallId, agentType = agentType,
                         eventType = AgentEventType.COMPLETED,

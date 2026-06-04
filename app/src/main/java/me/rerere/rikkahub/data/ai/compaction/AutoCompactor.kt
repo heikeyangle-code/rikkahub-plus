@@ -12,14 +12,13 @@ data class CompactionResult(
 )
 
 /**
- * 四层上下文压缩（s08 标准）。
+ * 四层上下文压缩（s08 标准 + s08+ 增强）。
  *
  * L1: snip_compact — 裁掉无关的旧对话（最便宜，无API调用）
- * L2: tool_output_truncation — 截断过长的工具输出（最便宜，无API调用）
+ * L2: micro_compact — 旧工具结果替换为占位符（最便宜，无API调用）
+ * L2b: tool_result_budget — 大结果持久化到磁盘 + preview
  * L3: context_trim — 裁剪旧消息，保留最近 N 条（免费，无API调用）
  * L4: emergency trim — API 拒绝 prompt_too_long 时的应急裁剪
- *
- * 核心设计：便宜的先跑，贵的后跑。
  */
 class AutoCompactor {
 
@@ -31,16 +30,15 @@ class AutoCompactor {
         const val PERSIST_THRESHOLD_BYTES = 30_000
         const val TOOL_RESULT_BUDGET_BYTES = 200_000
         const val MICRO_COMPACT_KEEP_RECENT = 3
+        const val MICRO_COMPACT_MAX_LENGTH = 120
     }
 
-    // ── 持久化目录（可选）──
     private var toolResultsDir: File? = null
     private var transcriptDir: File? = null
 
     fun setToolResultsDir(dir: File) { toolResultsDir = dir; dir.mkdirs() }
     fun setTranscriptDir(dir: File) { transcriptDir = dir; dir.mkdirs() }
 
-    /** 粗略 token 估算（中英文混合，每字~0.75 token，对标 DocumentChunker） */
     fun estimateTokens(messages: List<UIMessage>): Int {
         return messages.sumOf { msg ->
             msg.parts.sumOf { part ->
@@ -51,7 +49,11 @@ class AutoCompactor {
                     is UIMessagePart.Tool -> {
                         maxOf(1, (part.input.length * 0.75).toInt()) +
                         part.output.sumOf {
-                            when (it) { is UIMessagePart.Text -> maxOf(1, (it.text.length * 0.75).toInt()); is UIMessagePart.Image -> 170; else -> 0 }
+                            when (it) {
+                                is UIMessagePart.Text -> maxOf(1, (it.text.length * 0.75).toInt())
+                                is UIMessagePart.Image -> 170
+                                else -> 0
+                            }
                         }
                     }
                     else -> 0
@@ -62,7 +64,6 @@ class AutoCompactor {
 
     /**
      * L1: Snip compact — 裁掉中间无关的旧对话。
-     * 保留最旧的 N 条（上下文种子）+ 最新的 M 条（当前工作）。
      */
     fun snipCompact(
         messages: List<UIMessage>,
@@ -85,8 +86,50 @@ class AutoCompactor {
     data class SnipResult(val messages: List<UIMessage>, val removedCount: Int)
 
     /**
+     * L2: Micro compact — 将旧的工具结果替换为占位符。
+     * 对标 learn-claude-code s08 micro_compact。
+     */
+    fun microCompact(messages: List<UIMessage>): List<UIMessage> {
+        val toolResults = mutableListOf<Triple<Int, Int, UIMessagePart.Tool>>()
+        for ((mi, msg) in messages.withIndex()) {
+            for ((bi, part) in msg.parts.withIndex()) {
+                if (part is UIMessagePart.Tool) {
+                    toolResults.add(Triple(mi, bi, part))
+                }
+            }
+        }
+        if (toolResults.size <= MICRO_COMPACT_KEEP_RECENT) return messages
+
+        val toCompact = toolResults.dropLast(MICRO_COMPACT_KEEP_RECENT)
+        val result = messages.toMutableList()
+        for ((mi, bi, toolPart) in toCompact) {
+            val totalLen = toolPart.output.sumOf { out ->
+                when (out) { is UIMessagePart.Text -> out.text.length; else -> 0 }
+            }
+            if (totalLen > MICRO_COMPACT_MAX_LENGTH) {
+                val msg = result[mi]
+                val newParts = msg.parts.toMutableList()
+                newParts[bi] = UIMessagePart.Tool(
+                    toolCallId = toolPart.toolCallId,
+                    toolName = toolPart.toolName,
+                    input = toolPart.input,
+                    output = listOf(UIMessagePart.Text("[Earlier tool output compacted. Re-run if needed.]")),
+                    approvalState = toolPart.approvalState,
+                )
+                result[mi] = UIMessage(
+                    role = msg.role,
+                    parts = newParts,
+                    createdAt = msg.createdAt,
+                    modelId = msg.modelId,
+                    usage = msg.usage,
+                )
+            }
+        }
+        return result
+    }
+
+    /**
      * Persist large tool output to disk, return preview reference.
-     * 对标 s20 persist_large_output。
      */
     fun persistLargeOutput(toolUseId: String, output: String): String {
         if (output.length <= PERSIST_THRESHOLD_BYTES) return output
@@ -100,8 +143,35 @@ class AutoCompactor {
     }
 
     /**
+     * L2b: tool_result_budget — 过大结果持久化到磁盘。
+     */
+    fun toolResultBudget(messages: List<UIMessage>): List<UIMessage> {
+        return messages.map { msg ->
+            val newParts = msg.parts.map { part ->
+                if (part is UIMessagePart.Tool) {
+                    val totalLen = part.output.sumOf { out ->
+                        when (out) { is UIMessagePart.Text -> out.text.length; else -> 0 }
+                    }
+                    if (totalLen > TOOL_RESULT_BUDGET_BYTES) {
+                        val newOutput = part.output.map { out ->
+                            if (out is UIMessagePart.Text && out.text.length > PERSIST_THRESHOLD_BYTES) {
+                                UIMessagePart.Text(persistLargeOutput(part.toolCallId, out.text))
+                            } else out
+                        }
+                        UIMessagePart.Tool(
+                            toolCallId = part.toolCallId, toolName = part.toolName,
+                            input = part.input, output = newOutput, approvalState = part.approvalState,
+                        )
+                    } else part
+                } else part
+            }
+            UIMessage(role = msg.role, parts = newParts, createdAt = msg.createdAt,
+                      modelId = msg.modelId, usage = msg.usage)
+        }
+    }
+
+    /**
      * Write transcript to disk.
-     * 对标 s20 write_transcript。
      */
     fun writeTranscript(messages: List<UIMessage>): File? {
         val dir = transcriptDir ?: return null
@@ -116,8 +186,6 @@ class AutoCompactor {
 
     /**
      * L2: Tool output truncation — 截断过长的工具输出。
-     * 每个工具输出保留前 maxChars 字符。
-     * 跳过 file_read 等文件读取类工具——它们是用户想看的内容，不该被截。
      */
     fun truncateToolOutput(
         messages: List<UIMessage>,
@@ -159,7 +227,6 @@ class AutoCompactor {
 
     /**
      * L4: Emergency trim — API 拒绝 prompt_too_long 时的应急裁剪。
-     * 保留最新 N 条 + 压缩摘要标记。
      */
     fun emergencyTrim(
         messages: List<UIMessage>,
@@ -174,13 +241,10 @@ class AutoCompactor {
     }
 
     /**
-     * 完整压缩管线：智能选择压缩方式。
+     * 完整压缩管线。
      *
-     * 1. 先跑 L2 截断工具输出（免费、安全）
-     * 2. 还超阈值才跑 L3 LLM 摘要（原版行为，花一次 API）
-     * 3. API 报错时由外部调用 emergencyTrim
-     *
-     * 不跑 L1 裁旧对话——直接裁消息比摘要损失更多信息。
+     * 执行顺序: toolResultBudget(L2b) → snipCompact(L1) → microCompact(L2) → truncateToolOutput(L2)
+     * → if still over threshold: trim(L3) → if still over: emergencyTrim(L4)
      */
     fun maybeCompact(
         messages: List<UIMessage>,
@@ -190,31 +254,37 @@ class AutoCompactor {
         var current = messages
         var totalRemoved = 0
 
-        // Step 1: L2 — Truncate tool output (free, safe)
+        // Step 0: toolResultBudget — 大结果持久化
+        current = toolResultBudget(current)
+
+        // Step 1: L1 snipCompact — 裁中间
+        val snipResult = snipCompact(current, preserveRecent)
+        totalRemoved += snipResult.removedCount
+        current = snipResult.messages
+
+        // Step 2: L2 microCompact — 旧结果占位符
+        current = microCompact(current)
+
+        // Step 3: L2 truncateToolOutput — 截断工具输出
         current = truncateToolOutput(current)
 
         var estimated = estimateTokens(current)
-
-        // If under threshold after L2, no need for L3
         if (estimated <= threshold) {
             val summary = buildString {
                 appendLine("=== Context compacted ===")
                 appendLine("Tool outputs capped at ${TOOL_OUTPUT_MAX_CHARS} chars each")
                 appendLine("Estimated tokens: $estimated / $threshold")
+                if (totalRemoved > 0) appendLine("Messages removed: $totalRemoved")
             }
-            return CompactionResult(
-                removedCount = 0,
-                summary = summary,
-                compactedMessages = current,
-            )
+            return CompactionResult(totalRemoved, summary, current)
         }
 
-        // Step 2: L3 — Context trim (preserve recent messages, trim old ones)
+        // Step 4: L3 context trim
         if (current.size <= preserveRecent * 2) return null
 
         val toCompact = current.dropLast(preserveRecent)
         val toKeep = current.takeLast(preserveRecent)
-        totalRemoved = toCompact.size
+        val trimRemoved = toCompact.size
 
         val summary = buildString {
             appendLine("=== 会话自动压缩摘要 ===")
@@ -237,33 +307,18 @@ class AutoCompactor {
 
         val compacted = listOf(UIMessage.system(prompt = summary)) + toKeep
 
-        // 二次检查：L3 后如果还超阈值，走 L4 应急裁剪
         estimated = estimateTokens(compacted)
         if (estimated > threshold) {
             val trimmed = emergencyTrim(compacted, preserveRecent)
-            val trimmedSummary = buildString {
-                appendLine("=== 会话自动压缩摘要 ===")
-                appendLine("压缩前: ${toCompact.size} 条消息 + 应急裁剪")
-                appendLine("估计 tokens: $estimated / $threshold, 裁剪至 emergency 保留 ${preserveRecent} 条")
-                appendLine()
-                toCompact.forEachIndexed { i, msg ->
-                    val text = msg.toText().take(200)
-                    if (text.isNotBlank()) {
-                        appendLine("[${msg.role.name}] ${text}...")
-                    }
-                }
-                appendLine()
-                appendLine("=== 以上为自动压缩的历史记录 ===")
-            }
             return CompactionResult(
-                removedCount = totalRemoved + (compacted.size - trimmed.size),
-                summary = trimmedSummary,
+                removedCount = totalRemoved + trimRemoved + (compacted.size - trimmed.size),
+                summary = summary + "\n(emergency trim applied)",
                 compactedMessages = trimmed,
             )
         }
 
         return CompactionResult(
-            removedCount = totalRemoved,
+            removedCount = totalRemoved + trimRemoved,
             summary = summary,
             compactedMessages = compacted,
         )

@@ -5,14 +5,16 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 
 /**
- * 工具执行钩子接口，对标 Claude Code 的 PreToolUse / PostToolUse hooks。
- * 扩展：增加 UserPromptSubmit（用户输入注入）、Stop（会话停止摘要）。
+ * 工具执行钩子接口，对标 Claude Code 的 Hook 系统。
  *
- * 四个标准事件点：
+ * 7 个标准事件点：
  * - USER_PROMPT_SUBMIT: 用户输入后、LLM 调用前注入上下文
  * - PRE_TOOL_USE: 工具执行前权限检查/修改入参
  * - POST_TOOL_USE: 工具执行后日志/通知
  * - STOP: 会话停止时生成摘要/清理
+ * - SUBAGENT_START: 子 Agent 启动时注入上下文
+ * - SUBAGENT_STOP: 子 Agent 停止时收集结果
+ * - COMPACT: 压缩触发前后
  */
 interface ToolHook {
     val name: String
@@ -29,6 +31,9 @@ enum class HookEvent {
     PRE_TOOL_USE,
     POST_TOOL_USE,
     STOP,
+    SUBAGENT_START,
+    SUBAGENT_STOP,
+    COMPACT,
 }
 
 /**

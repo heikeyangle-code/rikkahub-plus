@@ -6,57 +6,40 @@ import kotlin.math.pow
 import kotlin.random.Random
 
 /**
- * s11: Error Recovery — 结构化错误恢复。
+ * s11: Error Recovery — 结构化错误恢复 + diminishing returns 检测。
  *
  * 对标 learn-claude-code s11_error_recovery：
  * - Path 1: max_tokens 截断 → 升级 8K→64K → 续写提示（最多3次）
  * - Path 2: prompt_too_long → reactive compact → retry（一次）
  * - Path 3: 429/529 → 指数退避+抖动 → fallback 模型切换
- * - withRetry wrapper for transient errors
- *
- * 用法：
- *   val recovery = RecoveryState()
- *   val result = withRetry("primary_model") { LLM调用 }
- *
- * 非流式路径直接使用 withRetry。
- * 流式路径在 GenerationHandler 外层 catch 后调用 handleStreamError。
+ * - Diminishing returns: 连续3次续写 <500 token → 停止
+ * - Streaming hold: 流式输出暂扣恢复
  */
 private const val TAG = "ErrorRecovery"
 
 data class RecoveryState(
-    /** 是否已升级 max_tokens（8K→64K） */
     var hasEscalated: Boolean = false,
-    /** 当前重试次数 */
     var recoveryCount: Int = 0,
-    /** 连续 529 过载次数 */
     var consecutive529: Int = 0,
-    /** 是否已尝试 reactive compact */
     var hasAttemptedReactiveCompact: Boolean = false,
-    /** 当前生效的模型 ID */
     var currentModel: String = "",
-    /** 是否已切换 fallback 模型 */
     var hasSwitchedModel: Boolean = false,
+    // s11+: diminishing returns — 连续3次续写 <500 token 则停止
+    var lowTokenContinuations: Int = 0,
+    var lastContinuationTokens: Int = 0,
 )
 
-/** max_tokens 默认值 */
 const val DEFAULT_MAX_TOKENS = 8192
-
-/** max_tokens 升级值 */
 const val ESCALATED_MAX_TOKENS = 64000
-
-/** 最大续写重试次数 */
 const val MAX_RECOVERY_RETRIES = 3
-
-/** 临时故障最大重试次数 */
 const val MAX_RETRIES = 10
-
-/** 退避基时（毫秒） */
 const val BASE_DELAY_MS = 500L
-
-/** 连续 529 触发 fallback 的阈值 */
 const val MAX_CONSECUTIVE_529 = 3
+/** 续写少于该 token 数视为 diminishing returns */
+const val DIMINISHING_RETURNS_THRESHOLD = 500
+/** 连续 N 次 diminishing returns 后停止 */
+const val DIMINISHING_RETURNS_LIMIT = 3
 
-/** 续写提示 */
 const val CONTINUATION_PROMPT = "Output token limit hit. Resume directly — no apology, no recap. Pick up mid-thought."
 
 /**
@@ -69,9 +52,6 @@ fun retryDelayMs(attempt: Int, retryAfterMs: Long? = null): Long {
     return base + jitter
 }
 
-/**
- * 判断是否是 429 Rate Limit 错误
- */
 fun isRateLimitError(e: Exception): Boolean {
     val msg = e.message?.lowercase() ?: ""
     return "ratelimit" in e::class.simpleName?.lowercase().orEmpty()
@@ -80,9 +60,6 @@ fun isRateLimitError(e: Exception): Boolean {
             || "too many requests" in msg
 }
 
-/**
- * 判断是否是 529 Overloaded 错误
- */
 fun isOverloadedError(e: Exception): Boolean {
     val msg = e.message?.lowercase() ?: ""
     return "overloaded" in e::class.simpleName?.lowercase().orEmpty()
@@ -91,9 +68,6 @@ fun isOverloadedError(e: Exception): Boolean {
             || "service unavailable" in msg
 }
 
-/**
- * 判断是否是 prompt_too_long / context_length_exceeded 错误
- */
 fun isPromptTooLongError(e: Exception): Boolean {
     val msg = e.message?.lowercase() ?: ""
     return ("prompt" in msg && "long" in msg)
@@ -102,9 +76,6 @@ fun isPromptTooLongError(e: Exception): Boolean {
             || "max_context_window" in msg
 }
 
-/**
- * 判断是否是 max_tokens 截断
- */
 fun isMaxTokensTruncation(stopReason: String?): Boolean {
     return stopReason == "max_tokens"
 }
@@ -123,7 +94,6 @@ suspend fun <T> withRetry(
             state.consecutive529 = 0
             return result
         } catch (e: Exception) {
-            // 429 Rate Limit → 指数退避
             if (isRateLimitError(e)) {
                 val delayMs = retryDelayMs(attempt)
                 Log.w(TAG, "[429 rate limit] retry ${attempt + 1}/$MAX_RETRIES, wait ${delayMs}ms")
@@ -131,7 +101,6 @@ suspend fun <T> withRetry(
                 continue
             }
 
-            // 529 Overloaded → 指数退避 + fallback 模型
             if (isOverloadedError(e)) {
                 state.consecutive529++
                 if (state.consecutive529 >= MAX_CONSECUTIVE_529) {
@@ -150,7 +119,6 @@ suspend fun <T> withRetry(
                 continue
             }
 
-            // 非 transient → throw 到外层 try/catch
             throw e
         }
     }
@@ -159,7 +127,6 @@ suspend fun <T> withRetry(
 
 /**
  * Reactive compact：紧急压缩上下文（保留最后 N 条消息 + 压缩标记）。
- * 对标 learn-claude-code s11 的 reactive_compact。
  */
 fun reactiveCompact(messages: List<*>): List<*> {
     Log.w(TAG, "[reactive compact] trimming to last ${MAX_RECOVERY_RETRIES + 2} messages")
@@ -176,13 +143,26 @@ fun reactiveCompact(messages: List<*>): List<*> {
 }
 
 /**
- * max_tokens 截断后的续写处理。
+ * max_tokens 截断后的续写处理 + diminishing returns 检测。
  *
- * @return 是否需要继续循环（true = 已处理，继续重试 LLM 调用）
+ * @return 是否需要继续循环
  */
 fun handleMaxTokensTruncation(
     state: RecoveryState,
+    lastOutputTokens: Int = 0,
 ): MaxTokensAction {
+    // Diminishing returns: 连续3次续写 <500 token 增量 → 停止
+    if (state.hasEscalated && lastOutputTokens > 0 && lastOutputTokens < DIMINISHING_RETURNS_THRESHOLD) {
+        state.lowTokenContinuations++
+        Log.w(TAG, "[diminishing returns] $lastOutputTokens tokens, ${state.lowTokenContinuations}/$DIMINISHING_RETURNS_LIMIT")
+        if (state.lowTokenContinuations >= DIMINISHING_RETURNS_LIMIT) {
+            Log.w(TAG, "[diminishing returns] limit reached, stopping")
+            return MaxTokensAction.Stop
+        }
+    } else if (lastOutputTokens > DIMINISHING_RETURNS_THRESHOLD) {
+        state.lowTokenContinuations = 0
+    }
+
     // 第一次截断：不保存截断输出，直接升级 max_tokens 重试
     if (!state.hasEscalated) {
         state.hasEscalated = true
@@ -192,19 +172,16 @@ fun handleMaxTokensTruncation(
     // 64K 仍然截断：保存截断输出 + 续写提示
     if (state.recoveryCount < MAX_RECOVERY_RETRIES) {
         state.recoveryCount++
-        Log.w(TAG, "[max_tokens] continuation ${state.recoveryCount}/$MAX_RECOVERY_RETRIES")
+        state.lastContinuationTokens = lastOutputTokens
+        Log.w(TAG, "[max_tokens] continuation ${state.recoveryCount}/$MAX_RECOVERY_RETRIES (last: ${lastOutputTokens}t)")
         return MaxTokensAction.Continue
     }
-    // 恢复次数耗尽
     Log.w(TAG, "[max_tokens] recovery limit reached")
     return MaxTokensAction.Stop
 }
 
 enum class MaxTokensAction {
-    /** 升级 max_tokens 并重试（不保存当前输出） */
     Escalate,
-    /** 保存截断输出 + 追加续写提示 */
     Continue,
-    /** 无法恢复，停止 */
     Stop,
 }

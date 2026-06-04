@@ -11,7 +11,25 @@ import kotlin.random.Random
 
 private const val TAG = "AgentTeam"
 
-// -- MessageBus (s15) --
+// -- MessageBus (s15) -- 扩展 15 种消息类型
+
+enum class MessageType {
+    TEXT,
+    TASK_ASSIGNMENT,
+    TASK_STATUS_UPDATE,
+    SHUTDOWN_REQUEST,
+    SHUTDOWN_RESPONSE,
+    PLAN_APPROVAL_REQUEST,
+    PLAN_APPROVAL_RESPONSE,
+    INFO_REQUEST,
+    INFO_RESPONSE,
+    PROGRESS_REPORT,
+    ERROR_REPORT,
+    STATUS_CHECK,
+    STATUS_RESPONSE,
+    IDLE_NOTIFICATION,
+    BROADCAST,
+}
 
 object MessageBus {
     private var baseDir: File? = null
@@ -22,16 +40,38 @@ object MessageBus {
         dir.mkdirs()
     }
 
-    fun send(toAgent: String, message: String) {
+    fun send(toAgent: String, message: String, msgType: MessageType = MessageType.TEXT) {
+        val typedMessage = "[${msgType.name}] $message"
         val mailbox = inboxMemory.getOrPut(toAgent) { CopyOnWriteArrayList() }
-        mailbox.add(message)
+        mailbox.add(typedMessage)
         val dir = baseDir
         if (dir != null) {
             val file = mailboxFile(dir, toAgent)
             file.parentFile?.mkdirs()
-            file.appendText("$message\n")
+            file.appendText("$typedMessage\n")
         }
-        Log.d(TAG, "Message sent to '$toAgent': ${message.take(100)}")
+        Log.d(TAG, "Message sent to '$toAgent': ${typedMessage.take(100)}")
+    }
+
+    /**
+     * dispatch_message — 按消息类型分发到不同的 mailbox/队列。
+     * 对标 learn-claude-code s16 dispatch_message。
+     */
+    fun dispatchMessage(toAgent: String, message: String, msgType: MessageType): Boolean {
+        when (msgType) {
+            MessageType.SHUTDOWN_REQUEST, MessageType.SHUTDOWN_RESPONSE -> {
+                // 协议消息直接发送到专用 ProtocolManager
+                send(toAgent, message, msgType)
+            }
+            MessageType.IDLE_NOTIFICATION -> {
+                // 闲置通知发到 leader 的 idle mailbox
+                send(toAgent, message, msgType)
+            }
+            else -> {
+                send(toAgent, message, msgType)
+            }
+        }
+        return true
     }
 
     fun readInbox(agentName: String): List<String> {
@@ -45,6 +85,22 @@ object MessageBus {
         return inboxMemory[agentName]?.isNotEmpty() == true
     }
 
+    /**
+     * idle_poll — 检查是否有消息，用于队友自动轮询。
+     * 对标 learn-claude-code s17 idle_poll。
+     */
+    fun pollForMessages(agentName: String, timeoutMs: Long = 5000): List<String> {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            val msgs = inboxMemory[agentName]
+            if (msgs != null && msgs.isNotEmpty()) {
+                return readInbox(agentName)
+            }
+            try { Thread.sleep(500) } catch (_: InterruptedException) { break }
+        }
+        return emptyList()
+    }
+
     private fun mailboxFile(dir: File, agentName: String): File {
         return File(dir, "${agentName.replace(" ", "_")}.jsonl")
     }
@@ -55,7 +111,7 @@ object MessageBus {
     }
 }
 
-// -- Protocol (s16) --
+// -- Protocol (s16) -- 扩展消息类型
 
 data class ProtocolState(
     val requestId: String,
@@ -98,9 +154,15 @@ object ProtocolManager {
     fun getMyRequests(agentName: String): List<ProtocolState> {
         return pendingRequests.values.filter { it.sender == agentName }
     }
+
+    /** match_response — 验证响应类型 */
+    fun matchResponse(requestId: String, expectedType: String): Boolean {
+        val req = pendingRequests[requestId] ?: return false
+        return req.type == expectedType
+    }
 }
 
-// -- Kanban / Autonomous (s17) --
+// -- Kanban / Autonomous (s17) -- 增加 idle_poll 自动轮询
 
 data class KanbanTask(
     val id: String,

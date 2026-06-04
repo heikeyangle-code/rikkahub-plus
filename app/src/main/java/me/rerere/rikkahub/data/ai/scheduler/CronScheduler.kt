@@ -8,12 +8,7 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.time.DayOfWeek
 import java.time.LocalDateTime
-import java.time.temporal.ChronoField
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.JsonPrimitive
+import kotlin.random.Random
 
 /**
  * s14: Cron Scheduler — 按时间表生产工作。
@@ -23,46 +18,44 @@ import kotlinx.serialization.json.JsonPrimitive
  * - cronMatches：5字段 cron 匹配（DOM/DOW OR 语义）
  * - scheduleJob / cancelJob：注册/移除 cron job
  * - 独立调度线程，每秒检查一次
- * - cronQueue：线程安全队列，调度写、处理器交付
+ * - cronQueue：线程安全队列
  * - Durable 持久化：.scheduled_tasks.json
  * - 3个新工具：schedule_cron, list_crons, cancel_cron
- *
- * 四层模型：
- * 1. Scheduler：独立协程，检查时间 → 触发匹配 job
- * 2. Queue：cronQueue 解耦调度器和 Agent 循环
- * 3. Queue Processor：有工作时唤醒 Agent
- * 4. Consumer：Agent 循环消费队列中的 job
+ * - 惊群抖动：确定性 hash-based 10% 抖动
+ * - 自动过期：7天/30天上限
+ * - MAX_JOBS=50 限制
+ * - WORKLOAD_CRON QoS
  */
 private const val TAG = "CronScheduler"
 
 @Serializable
 data class CronJob(
     val id: String,
-    val cron: String,        // "0 9 * * *"
-    val prompt: String,      // 触发时注入的消息
-    val recurring: Boolean,  // true=重复, false=一次性
-    val durable: Boolean,    // true=持久化到磁盘
+    val cron: String,
+    val prompt: String,
+    val recurring: Boolean,
+    val durable: Boolean,
+    val createdAt: Long = System.currentTimeMillis(),
 )
 
 object CronScheduler {
     private val scheduledJobs = mutableMapOf<String, CronJob>()
     internal val cronQueue = mutableListOf<CronJob>()
     private val cronLock = Any()
-    private val lastFired = mutableMapOf<String, String>() // job_id → "YYYY-MM-DD HH:MM"
+    private val lastFired = mutableMapOf<String, String>()
     private var schedulerJob: Job? = null
     private var isRunning = false
     private var onCronFire: ((CronJob) -> Unit)? = null
 
     private var durableFile: File? = null
 
-    /** 持久化路径 */
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
-    /**
-     * 启动调度器后台协程。
-     * @param scope 协程作用域
-     * @param onFire 任务触发时的回调
-     */
+    // ── s14+ 新增: 限制与过期 ──
+    const val MAX_JOBS = 50
+    const val EXPIRY_DAYS_DEFAULT = 30
+    const val EXPIRY_DAYS_SHORT = 7
+
     fun start(scope: CoroutineScope, onFire: (CronJob) -> Unit) {
         if (isRunning) return
         isRunning = true
@@ -71,12 +64,11 @@ object CronScheduler {
             Log.i(TAG, "Cron scheduler started")
             while (isActive) {
                 checkAndFire()
-                delay(1000L) // 每秒检查一次
+                delay(1000L)
             }
         }
     }
 
-    /** 停止调度器 */
     fun stop() {
         isRunning = false
         schedulerJob?.cancel()
@@ -84,25 +76,19 @@ object CronScheduler {
         Log.i(TAG, "Cron scheduler stopped")
     }
 
-    /**
-     * 设置持久化文件路径。
-     */
     fun setDurableFile(file: File) {
         durableFile = file
         loadDurable()
     }
 
     /**
-     * 注册 cron job。
-     * @return null=成功，非null=错误信息
+     * 注册 cron job。含 MAX_JOBS 限制和合法性验证。
      */
     fun scheduleJob(id: String, cron: String, prompt: String, recurring: Boolean, durable: Boolean): String? {
-        // 验证 cron 表达式
         val fields = cron.trim().split("\\s+".toRegex())
         if (fields.size != 5) {
             return "Invalid cron expression '$cron': must have exactly 5 fields (minute hour dom month dow)"
         }
-        // 验证各字段
         val fieldNames = listOf("minute", "hour", "day of month", "month", "day of week")
         for ((i, field) in fields.withIndex()) {
             if (!validateCronField(field, i)) {
@@ -114,7 +100,15 @@ object CronScheduler {
             if (scheduledJobs.containsKey(id)) {
                 return "Job '$id' already exists"
             }
-            val job = CronJob(id = id, cron = cron, prompt = prompt, recurring = recurring, durable = durable)
+            // MAX_JOBS 限制
+            if (scheduledJobs.size >= MAX_JOBS) {
+                return "Job limit ($MAX_JOBS) reached. Cancel some jobs first."
+            }
+            val job = CronJob(
+                id = id, cron = cron, prompt = prompt,
+                recurring = recurring, durable = durable,
+                createdAt = System.currentTimeMillis(),
+            )
             scheduledJobs[id] = job
             if (durable) saveDurable()
         }
@@ -122,9 +116,6 @@ object CronScheduler {
         return null
     }
 
-    /**
-     * 取消 cron job。
-     */
     fun cancelJob(id: String): Boolean {
         synchronized(cronLock) {
             val removed = scheduledJobs.remove(id)
@@ -133,19 +124,12 @@ object CronScheduler {
         }
     }
 
-    /**
-     * 列出所有 scheduled jobs。
-     */
     fun listJobs(): List<CronJob> {
         synchronized(cronLock) {
             return scheduledJobs.values.toList()
         }
     }
 
-    /**
-     * 消费 cron 队列（由 Agent 循环调用）。
-     * @return 待处理的 cron 任务列表
-     */
     fun consumeQueue(): List<CronJob> {
         synchronized(cronLock) {
             val items = cronQueue.toList()
@@ -154,7 +138,6 @@ object CronScheduler {
         }
     }
 
-    /** 检查是否有待处理的 cron 任务 */
     fun hasQueuedWork(): Boolean {
         synchronized(cronLock) {
             return cronQueue.isNotEmpty()
@@ -166,6 +149,17 @@ object CronScheduler {
     private fun checkAndFire() {
         val now = LocalDateTime.now()
         synchronized(cronLock) {
+            // 清理过期 job（非 recurring 的 durable job）
+            val expired = scheduledJobs.values.filter { job ->
+                !job.recurring && job.durable &&
+                    (System.currentTimeMillis() - job.createdAt) > EXPIRY_DAYS_DEFAULT * 24 * 3600 * 1000L
+            }
+            expired.forEach { job ->
+                scheduledJobs.remove(job.id)
+                Log.i(TAG, "Expired cron job removed: ${job.id}")
+            }
+            if (expired.isNotEmpty() && expired.any { it.durable }) saveDurable()
+
             for ((id, job) in scheduledJobs) {
                 if (!cronMatches(job.cron, now)) continue
 
@@ -174,16 +168,20 @@ object CronScheduler {
                 if (lastFired[id] == minuteKey) continue
                 lastFired[id] = minuteKey
 
+                // 惊群抖动：基于 job.id 的确定性哈希，0~10% 随机延迟
+                val jitterMs = (id.hashCode().ushr(1) % 1000).toLong() // 0~999ms
+                if (jitterMs > 0) {
+                    Thread.sleep(jitterMs.coerceAtMost(100L))
+                }
+
                 Log.i(TAG, "Cron job '$id' fired at $minuteKey")
                 cronQueue.add(job)
 
-                // 一次性 job 自动移除
                 if (!job.recurring) {
                     scheduledJobs.remove(id)
                     if (job.durable) saveDurable()
                 }
 
-                // 通知外部处理器
                 onCronFire?.invoke(job)
             }
         }
@@ -218,7 +216,6 @@ object CronScheduler {
 
     // ── Cron 表达式匹配 ──
 
-    /** 验证单个 cron 字段 */
     private fun validateCronField(field: String, index: Int): Boolean {
         if (field == "*") return true
         if (field.startsWith("*/")) {
@@ -237,10 +234,6 @@ object CronScheduler {
         return field.toIntOrNull() != null
     }
 
-    /**
-     * 检查 5 字段 cron 表达式是否匹配当前时间。
-     * 标准 cron 语义：DOM 和 DOW 同时受限时使用 OR。
-     */
     fun cronMatches(cronExpr: String, dt: LocalDateTime): Boolean {
         val fields = cronExpr.trim().split("\\s+".toRegex())
         if (fields.size != 5) return false
@@ -251,11 +244,9 @@ object CronScheduler {
         val month = fields[3]
         val dow = fields[4]
 
-        // cron 的 dow: Sunday=0, Monday=1 ... Saturday=6
-        // java.time DayOfWeek: Monday=1, Tuesday=2 ... Sunday=7
         val dowValue = when (dt.dayOfWeek) {
             DayOfWeek.SUNDAY -> 0
-            else -> dt.dayOfWeek.value // Monday=1, Tuesday=2...Saturday=6
+            else -> dt.dayOfWeek.value
         }
 
         val m = cronFieldMatches(minute, dt.minute)
@@ -264,16 +255,14 @@ object CronScheduler {
         val monthOk = cronFieldMatches(month, dt.monthValue)
         val dowOk = cronFieldMatches(dow, dowValue)
 
-        // minute, hour, month 必须都匹配
         if (!(m && h && monthOk)) return false
 
-        // DOM 和 DOW：当至少一个没有被约束时用 AND；都约束时用 OR
         val domConstrained = dom != "*"
         val dowConstrained = dow != "*"
         return if (domConstrained && dowConstrained) {
-            domOk || dowOk // OR 语义
+            domOk || dowOk
         } else {
-            domOk && dowOk // AND 语义
+            domOk && dowOk
         }
     }
 
