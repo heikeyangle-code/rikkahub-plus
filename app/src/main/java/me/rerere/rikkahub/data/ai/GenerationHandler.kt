@@ -404,7 +404,7 @@ class GenerationHandler(
                 },
                 enabledTools = tools.map { it.name },
                 workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
-                memories = memories,
+                memories = if (assistant.enableMemory) memories else emptyList(),
                 extraInstructions = buildString {
                     if (assistant.enableRecentChatsReference) {
                         appendLine()
