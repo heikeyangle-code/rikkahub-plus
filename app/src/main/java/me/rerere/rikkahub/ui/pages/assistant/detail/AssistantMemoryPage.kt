@@ -252,8 +252,7 @@ private fun AssistantMemoryContent(
                 headlineContent = { Text("自动提取记忆") },
                 supportingContent = {
                     Text(
-                        text = "每轮对话结束后自动用AI提取用户偏好和项目事实，" +
-                               "追加到记忆库。不影响AI手动使用 memory_create 写入记忆。",
+                        text = "每轮对话结束后自动用AI提取用户偏好和项目事实到记忆库。",
                     )
                 },
                 trailingContent = {
