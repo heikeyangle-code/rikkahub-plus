@@ -19,6 +19,8 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.agent.BackgroundTaskQueue
+import me.rerere.rikkahub.data.ai.agent.PlanManager
 import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.listener.AgentEvent
 import me.rerere.rikkahub.data.ai.listener.AgentEventBus
@@ -87,6 +89,7 @@ class AgentPipeline(
         var pipelineMessages = messages
         pipelineMessages = injectCronJobs(pipelineMessages)
         pipelineMessages = injectBackgroundNotifications(pipelineMessages)
+        pipelineMessages = injectTodoReminder(pipelineMessages)
         pipelineMessages = prepareContext(pipelineMessages, autoCompactor)
 
         val selectedMemories = selectRelevantMemories(memories ?: emptyList(), pipelineMessages)
@@ -133,7 +136,20 @@ class AgentPipeline(
             .also { Log.i(TAG, "[cron] injected ${cronJobs.size} job(s)") }
     }
 
-    private fun injectBackgroundNotifications(messages: List<UIMessage>): List<UIMessage> = messages
+    private fun injectBackgroundNotifications(messages: List<UIMessage>): List<UIMessage> {
+        val notifications = BackgroundTaskQueue.collectCompleted()
+        if (notifications.isEmpty()) return messages
+        return messages + notifications.map { UIMessage.system(it) }
+            .also { Log.i(TAG, "[background] injected ${notifications.size} notification(s)") }
+    }
+
+    private fun injectTodoReminder(messages: List<UIMessage>): List<UIMessage> {
+        return if (PlanManager.shouldNag()) {
+            messages + listOf(UIMessage.user(
+                "<reminder>Update your todo list with todo_write to track current progress.</reminder>"
+            )).also { PlanManager.resetNag(); Log.i(TAG, "[todo] injected reminder") }
+        } else messages
+    }
 
     private fun prepareContext(messages: List<UIMessage>, autoCompactor: AutoCompactor?): List<UIMessage> {
         val compactor = autoCompactor ?: return messages

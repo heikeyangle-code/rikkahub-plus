@@ -514,4 +514,111 @@ fun createTaskTools(): List<Tool> = buildList {
     ))
     // s14: cron 调度工具
     addAll(buildCronTools())
-}
+
+    // ── s17: task_claim / task_can_start ──
+    add(Tool(name = "task_can_start", description = "Check if a task's dependencies are satisfied, so it can be claimed and started. Returns status of all blockers.",
+        permissionMode = PermissionMode.READ_ONLY,
+        parameters = {
+            InputSchema.Obj(properties = buildJsonObject {
+                put("task_id", buildJsonObject { put("type", "string"); put("description", "Task ID to check") })
+            }, required = listOf("task_id"))
+        },
+        execute = { args ->
+            val id = args.jsonObject["task_id"]?.jsonPrimitive?.contentOrNull ?: error("task_id required")
+            val task = TaskManager.getTask(id) ?: error("Task $id not found")
+            val blockedBy = task.blockedBy.filter { depId ->
+                val dep = TaskManager.getTask(depId)
+                dep == null || dep.status != TaskStatus.COMPLETED
+            }
+            val missing = task.blockedBy.filter { TaskManager.getTask(it) == null }
+            val result = buildString {
+                if (blockedBy.isEmpty() && missing.isEmpty()) {
+                    appendLine("Task $id (${task.subject}) is ready to start — no blockers.")
+                } else {
+                    appendLine("Task $id (${task.subject}) cannot start:")
+                    if (blockedBy.isNotEmpty()) appendLine("  Blocked by incomplete tasks: ${blockedBy.joinToString(", ")}")
+                    if (missing.isNotEmpty()) appendLine("  Missing dependencies: ${missing.joinToString(", ")}")
+                }
+            }
+            listOf(UIMessagePart.Text(result))
+        },
+    ))
+
+    add(Tool(name = "task_claim", description = "Claim a task by marking it in_progress. Only works if all dependencies (blockedBy) are completed. Use task_can_start first to check readiness.\n\nAfter claiming, work on the task. When done, use task_update to mark completed — this will automatically unblock any tasks that depend on this one.",
+        parameters = {
+            InputSchema.Obj(properties = buildJsonObject {
+                put("task_id", buildJsonObject { put("type", "string"); put("description", "Task ID to claim") })
+                put("owner", buildJsonObject { put("type", "string"); put("description", "Agent name claiming this task (default: current agent)") })
+            }, required = listOf("task_id"))
+        },
+        execute = { args ->
+            val obj = args.jsonObject
+            val id = obj["task_id"]?.jsonPrimitive?.contentOrNull ?: error("task_id required")
+            val owner = obj["owner"]?.jsonPrimitive?.contentOrNull ?: "agent"
+            val task = TaskManager.getTask(id) ?: error("Task $id not found")
+
+            if (task.status == TaskStatus.IN_PROGRESS) {
+                return@Tool listOf(UIMessagePart.Text("Task $id is already in_progress (owner: ${task.owner ?: "unknown"})"))
+            }
+            if (task.status == TaskStatus.COMPLETED) {
+                return@Tool listOf(UIMessagePart.Text("Task $id is already completed"))
+            }
+
+            // Check blockedBy dependencies (s17: can_start logic)
+            val blockedBy = task.blockedBy.filter { depId ->
+                val dep = TaskManager.getTask(depId)
+                dep == null || dep.status != TaskStatus.COMPLETED
+            }
+            val missing = task.blockedBy.filter { TaskManager.getTask(it) == null }
+            if (blockedBy.isNotEmpty() || missing.isNotEmpty()) {
+                val msg = buildString {
+                    appendLine("Cannot claim $id — dependencies not satisfied:")
+                    if (blockedBy.isNotEmpty()) appendLine("  Blocked by: ${blockedBy.joinToString(", ")}")
+                    if (missing.isNotEmpty()) appendLine("  Missing: ${missing.joinToString(", ")}")
+                }
+                return@Tool listOf(UIMessagePart.Text(msg))
+            }
+
+            TaskManager.updateTask(id = id, status = TaskStatus.IN_PROGRESS, owner = owner)
+            listOf(UIMessagePart.Text("Claimed $id (${task.subject}) — in_progress"))
+        },
+    ))
+
+    add(Tool(name = "task_complete", description = "Mark a task as completed and automatically report which blocked tasks are now unblocked.",
+        parameters = {
+            InputSchema.Obj(properties = buildJsonObject {
+                put("task_id", buildJsonObject { put("type", "string"); put("description", "Task ID to complete") })
+                put("result", buildJsonObject { put("type", "string"); put("description", "Summary of what was done") })
+            }, required = listOf("task_id"))
+        },
+        execute = { args ->
+            val obj = args.jsonObject
+            val id = obj["task_id"]?.jsonPrimitive?.contentOrNull ?: error("task_id required")
+            val result = obj["result"]?.jsonPrimitive?.contentOrNull ?: ""
+            val task = TaskManager.getTask(id) ?: error("Task $id not found")
+            if (task.status != TaskStatus.IN_PROGRESS) {
+                return@Tool listOf(UIMessagePart.Text("Task $id is ${task.status.name.lowercase()}, cannot complete"))
+            }
+            TaskManager.updateTask(id = id, status = TaskStatus.COMPLETED)
+
+            // Find newly unblocked tasks (s17: auto-unblock notification)
+            val allTasks = TaskManager.listTasks()
+            val newlyUnblocked = allTasks.filter { t ->
+                t.status == TaskStatus.PENDING && t.blockedBy.isNotEmpty() &&
+                    t.blockedBy.all { depId ->
+                        val dep = TaskManager.getTask(depId)
+                        dep != null && dep.status == TaskStatus.COMPLETED
+                    }
+            }
+
+            val msg = buildString {
+                appendLine("Completed $id (${task.subject})")
+                if (result.isNotBlank()) appendLine("Result: $result")
+                if (newlyUnblocked.isNotEmpty()) {
+                    appendLine("Unblocked: ${newlyUnblocked.joinToString(", ") { "${it.id} (${it.subject})" }}")
+                }
+            }
+            listOf(UIMessagePart.Text(msg))
+        },
+    ))
+})

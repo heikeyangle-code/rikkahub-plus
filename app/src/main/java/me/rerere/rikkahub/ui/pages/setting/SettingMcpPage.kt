@@ -618,29 +618,30 @@ private fun McpCommonOptionsConfigure(
             }
         ) {
             when (config) {
-                is McpServerConfig.SseTransportServer, is McpServerConfig.StreamableHTTPServer -> {
-                    val urlConfig = config
+                is McpServerConfig.SseTransportServer -> {
                     OutlinedTextField(
-                        value = urlConfig.url,
+                        value = config.url,
                         onValueChange = { url ->
-                            update(
-                                when (config) {
-                                    is McpServerConfig.SseTransportServer -> config.copy(url = url)
-                                    is McpServerConfig.StreamableHTTPServer -> config.copy(url = url)
-                                    is McpServerConfig.StdioTransportServer -> config
-                                }
-                            )
+                            update(config.copy(url = url))
                         },
                         label = { Text(stringResource(R.string.setting_mcp_page_url_label)) },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
-                            Text(
-                                when (config) {
-                                    is McpServerConfig.SseTransportServer -> stringResource(R.string.setting_mcp_page_sse_url_placeholder)
-                                    is McpServerConfig.StreamableHTTPServer -> stringResource(R.string.setting_mcp_page_streamable_http_url_placeholder)
-                                    is McpServerConfig.StdioTransportServer -> ""
-                                }
-                            )
+                            Text(stringResource(R.string.setting_mcp_page_sse_url_placeholder))
+                        }
+                    )
+                }
+
+                is McpServerConfig.StreamableHTTPServer -> {
+                    OutlinedTextField(
+                        value = config.url,
+                        onValueChange = { url ->
+                            update(config.copy(url = url))
+                        },
+                        label = { Text(stringResource(R.string.setting_mcp_page_url_label)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(stringResource(R.string.setting_mcp_page_streamable_http_url_placeholder))
                         }
                     )
                 }

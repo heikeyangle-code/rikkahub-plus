@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.ai.mcp.transport
 
-import io.github.oshai.kotlinlogging.KLogger
-import io.github.oshai.kotlinlogging.KotlinLogging
+import android.util.Log
 import io.modelcontextprotocol.kotlin.sdk.shared.AbstractClientTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
@@ -29,7 +28,19 @@ class StdioClientTransport(
     private val args: List<String> = emptyList(),
 ) : AbstractClientTransport() {
 
-    override val logger: KLogger = KotlinLogging.logger {}
+    override val logger = object : io.github.oshai.kotlinlogging.KLogger {
+        override fun trace(msg: () -> Any?) { Log.v("StdioTransport", msg().toString()) }
+        override fun trace(t: Throwable?, msg: () -> Any?) { Log.v("StdioTransport", t, msg().toString()) }
+        override fun debug(msg: () -> Any?) { Log.d("StdioTransport", msg().toString()) }
+        override fun debug(t: Throwable?, msg: () -> Any?) { Log.d("StdioTransport", t, msg().toString()) }
+        override fun info(msg: () -> Any?) { Log.i("StdioTransport", msg().toString()) }
+        override fun info(t: Throwable?, msg: () -> Any?) { Log.i("StdioTransport", t, msg().toString()) }
+        override fun warn(msg: () -> Any?) { Log.w("StdioTransport", msg().toString()) }
+        override fun warn(t: Throwable?, msg: () -> Any?) { Log.w("StdioTransport", t, msg().toString()) }
+        override fun error(msg: () -> Any?) { Log.e("StdioTransport", msg().toString()) }
+        override fun error(t: Throwable?, msg: () -> Any?) { Log.e("StdioTransport", t, msg().toString()) }
+        override val name: String get() = "StdioTransport"
+    }
 
     private var process: Process? = null
     private var outputWriter: OutputStream? = null
