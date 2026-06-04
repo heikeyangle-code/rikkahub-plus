@@ -111,7 +111,7 @@ fun createConvertFileTool(context: Context): Tool = Tool(
         } else error("input, input_text, or combine required")
         if (toFormat == "jpeg") toFormat = "jpg"
 
-        val downloadDir = File("/storage/emulated/0/Download").also { it.mkdirs() }
+        val downloadDir = context.filesDir.also { it.mkdirs() }
 
         // ── Kombinier ──
         if (combine.isNotBlank()) {

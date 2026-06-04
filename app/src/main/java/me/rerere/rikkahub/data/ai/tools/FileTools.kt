@@ -10,9 +10,10 @@ import java.io.File
  * 文件操作工具 — file_read, file_write, file_list
  * AI 可直接读写 Android 文件系统中的文件。
  * skillDirs: 已启用的 skill 目录列表，用于解析相对路径（优先检索）
+ * workspaceDir: 相对路径的默认解析目录（缺省 Download，生产传 context.filesDir）
  */
-fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
-    val defaultDir = "/storage/emulated/0/Download"
+fun createFileTools(workspaceDir: String = "/storage/emulated/0/Download", skillDirs: List<String> = emptyList()): List<Tool> {
+    val defaultDir = workspaceDir
 
     fun resolveFile(path: String): File {
         val f = File(path)
@@ -371,7 +372,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
                         })
                         put("root", buildJsonObject {
                             put("type", "string")
-                            put("description", "Directory to search under (default: /storage/emulated/0/Download)")
+                            put("description", "Directory to search under (default: ${defaultDir})")
                         })
                         put("max_results", buildJsonObject {
                             put("type", "integer")
@@ -404,7 +405,7 @@ fun createFileTools(skillDirs: List<String> = emptyList()): List<Tool> {
                 val obj = args.jsonObject
                 val mode = obj["mode"]?.jsonPrimitive?.contentOrNull ?: "name"
                 val pattern = obj["pattern"]?.jsonPrimitive?.contentOrNull ?: error("pattern required")
-                val root = obj["root"]?.jsonPrimitive?.contentOrNull ?: "/storage/emulated/0/Download"
+                val root = obj["root"]?.jsonPrimitive?.contentOrNull ?: defaultDir
                 val maxResults = (obj["max_results"]?.jsonPrimitive?.intOrNull ?: 20).coerceIn(1, 100)
 
                 val rootDir = File(root)

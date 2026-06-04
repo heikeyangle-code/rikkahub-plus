@@ -142,7 +142,7 @@ fun createAssetTool(saveDir: String): Tool = Tool(
     execute = { args ->
         val obj = args.jsonObject
         val type = obj["type"]?.jsonPrimitive?.contentOrNull ?: error("type required")
-        val dir = File(saveDir).takeIf { it.exists() } ?: File("/storage/emulated/0/Download")
+        val dir = File(saveDir).also { it.mkdirs() }
         val ts = System.currentTimeMillis()
 
         val (filename, content) = when (type) {

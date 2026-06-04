@@ -7,6 +7,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.PermissionMode
 import me.rerere.ai.core.Tool
+import android.os.Environment
 import java.io.File
 
 /** Result of a permission check. */
@@ -155,6 +156,9 @@ class PolicyEngine(
  */
 class PathScopeChecker(private val baseDir: String? = null) {
     private val workspaceRoot: File? = baseDir?.let { File(it).absoluteFile }
+    private val externalRoots = listOfNotNull(
+        Environment.getExternalStorageDirectory().absoluteFile,
+    )
 
     fun isWithinWorkspace(path: String): Boolean {
         if (path.isBlank()) return true
@@ -162,6 +166,10 @@ class PathScopeChecker(private val baseDir: String? = null) {
         if (cleanPath.startsWith("$") || cleanPath.startsWith("~")) return true
         val target = File(cleanPath).absoluteFile
         if (!target.isAbsolute) return true // relative paths always OK
-        return workspaceRoot?.let { target.toPath().startsWith(it.toPath()) } ?: true
+        // Check workspace sandbox
+        val inWorkspace = workspaceRoot?.let { target.toPath().startsWith(it.toPath()) } ?: true
+        if (inWorkspace) return true
+        // Check external storage (user has MANAGE_EXTERNAL_STORAGE)
+        return externalRoots.any { root -> target.toPath().startsWith(root.toPath()) }
     }
 }

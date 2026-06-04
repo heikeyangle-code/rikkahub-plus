@@ -248,7 +248,7 @@ class ChatService(
                     addAll(createSearchTools(s))
                     add(createWebFetchTool())
                 }
-                addAll(me.rerere.rikkahub.data.ai.tools.createFileTools())
+                addAll(me.rerere.rikkahub.data.ai.tools.createFileTools(context.filesDir.absolutePath))
                 addAll(me.rerere.rikkahub.data.ai.tools.createShellTools())
                 addAll(localTools.getTools(listOf(me.rerere.rikkahub.data.ai.tools.LocalToolOption.TimeInfo)))
             })
@@ -739,9 +739,9 @@ class ChatService(
                 policyEngine = PolicyEngine(currentMode = me.rerere.rikkahub.data.ai.tools.PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath),
                 autoCompactor = autoCompactor,
                 tools = deduplicateTools(buildList {
-                    val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
+                val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
                     if (assistant.localTools.contains(LocalToolOption.FileTools)) {
-                        addAll(createFileTools(skillDirs))
+                        addAll(createFileTools(context.filesDir.absolutePath, skillDirs))
                     }
                     if (assistant.localTools.contains(LocalToolOption.AssetGenerator)) {
                         add(createAssetTool(context.filesDir.absolutePath))
@@ -922,7 +922,7 @@ class ChatService(
                                             add(createWebFetchTool())
                                         }
                                         if (assistant.localTools.contains(LocalToolOption.FileTools)) {
-                                            addAll(createFileTools(skillDirs))
+                                            addAll(createFileTools(context.filesDir.absolutePath, skillDirs))
                                         }
                                         if (assistant.localTools.contains(LocalToolOption.AssetGenerator)) {
                                             add(createAssetTool(context.filesDir.absolutePath))
@@ -1357,7 +1357,7 @@ class ChatService(
             policyEngine = PolicyEngine(currentMode = PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath),
             tools = deduplicateTools(buildList {
                 if (assistant.localTools.contains(LocalToolOption.FileTools)) {
-                    addAll(createFileTools(skillDirs))
+                    addAll(createFileTools(context.filesDir.absolutePath, skillDirs))
                 }
                 if (assistant.localTools.contains(LocalToolOption.AssetGenerator)) {
                     add(createAssetTool(context.filesDir.absolutePath))
