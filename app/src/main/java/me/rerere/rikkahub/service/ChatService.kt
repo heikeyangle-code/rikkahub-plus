@@ -1094,9 +1094,8 @@ class ChatService(
             }.collect { chunk ->
                 when (chunk) {
                     is GenerationChunk.Messages -> {
-                        val uiMessages = chunk.messages.filter { it.role != MessageRole.SYSTEM }
                         val updatedConversation = getConversationFlow(conversationId).value
-                            .updateCurrentMessages(uiMessages)
+                            .updateCurrentMessages(chunk.messages)
                         updateConversation(conversationId, updatedConversation)
 
                         // 前台时停止前台 Service（用户切回来了）
@@ -1106,12 +1105,12 @@ class ChatService(
 
                         // Fire-and-forget: 通知 AgentService 轮次完成（触发 AutoCompactor）
                         kotlinx.coroutines.coroutineScope {
-                            launch { ListenerEventBus.emit(AgentEvent.GenerationRoundComplete(conversationId, uiMessages)) }
+                            launch { ListenerEventBus.emit(AgentEvent.GenerationRoundComplete(conversationId, chunk.messages)) }
                         }
 
                         // 如果应用不在前台，发送 Live Update 通知
                         if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration && settings.displaySetting.enableLiveUpdateNotification) {
-                            sendLiveUpdateNotification(conversationId, uiMessages, senderName)
+                            sendLiveUpdateNotification(conversationId, chunk.messages, senderName)
                         }
                     }
                 }

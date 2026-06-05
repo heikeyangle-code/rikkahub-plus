@@ -253,7 +253,7 @@ class GenerationHandler(
                                     model = model,
                                     assistant = assistant,
                                     settings = settings
-                                )
+                                ).filter { it.role != MessageRole.SYSTEM }
                             )
                         )
                     },
@@ -288,7 +288,7 @@ class GenerationHandler(
                     finishedAt = Clock.System.now()
                         .toLocalDateTime(TimeZone.currentSystemDefault())
                 )
-                emit(GenerationChunk.Messages(messages))
+                emit(GenerationChunk.Messages(messages.filter { it.role != MessageRole.SYSTEM }))
 
                 val tools = messages.last().getTools().filter { !it.isExecuted }
                 if (tools.isEmpty()) {
@@ -420,7 +420,7 @@ class GenerationHandler(
                         model = model,
                         assistant = assistant,
                         settings = settings
-                    )
+                    ).filter { it.role != MessageRole.SYSTEM }
                 )
             )
         }

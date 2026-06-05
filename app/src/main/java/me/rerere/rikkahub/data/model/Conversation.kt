@@ -54,10 +54,9 @@ data class Conversation(
     }
 
     fun updateCurrentMessages(messages: List<UIMessage>): Conversation {
-        val filtered = messages.filter { it.role != MessageRole.SYSTEM }
         val newNodes = this.messageNodes.toMutableList()
 
-        filtered.forEachIndexed { index, message ->
+        messages.forEachIndexed { index, message ->
             val node = newNodes
                 .getOrElse(index) { message.toMessageNode() }
 
@@ -65,10 +64,12 @@ data class Conversation(
             var newMessageIndex = node.selectIndex
             if (newMessages.any { it.id == message.id }) {
                 newMessages[newMessages.indexOfFirst { it.id == message.id }] = message
-            } else {
+            } else if (message.role != MessageRole.SYSTEM) {
+                // 非 SYSTEM 消息追加到节点版本列表
                 newMessages.add(message)
                 newMessageIndex = newMessages.lastIndex
             }
+            // SYSTEM 消息不追加到节点版本列表，但 index 位置保留（对齐 messageNodes）
 
             val newNode = node.copy(
                 messages = newMessages,
