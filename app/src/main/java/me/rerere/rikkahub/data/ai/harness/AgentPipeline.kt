@@ -191,7 +191,7 @@ class AgentPipeline(
         return current
     }
 
-    private suspend fun selectRelevantMemories(
+    private fun selectRelevantMemories(
         allMemories: List<AssistantMemory>, recentMessages: List<UIMessage>,
         settings: Settings, model: Model,
     ): List<AssistantMemory> {
@@ -216,20 +216,24 @@ class AgentPipeline(
             appendLine("Select the indices of memories clearly relevant to the conversation.")
             appendLine("Return ONLY a JSON array of integers, e.g. [0, 3]. If none, return [].")
         }
-        val llmResponse = callLLM(settings, model, sidePrompt, 200)
+        val llmResponse = kotlinx.coroutines.runBlocking {
+            callLLM(settings, model, sidePrompt, 200)
+        }
         val llmIndices = llmResponse?.let { resp ->
             try {
                 val start = resp.indexOf('[')
                 val end = resp.lastIndexOf(']')
                 if (start >= 0 && end > start) {
                     json.parseToJsonElement(resp.substring(start, end + 1)).jsonArray
-                        .mapNotNull { it.jsonPrimitive.intOrNull }
-                        .filter { it in allMemories.indices }
+                        .mapNotNull { it.jsonPrimitive.content.toIntOrNull() }
+                        .toList()
                 } else null
             } catch (_: Exception) { null }
         }
         if (llmIndices != null && llmIndices.isNotEmpty()) {
-            return llmIndices.map { allMemories[it] }.take(5)
+            val selected = llmIndices.filter { it in allMemories.indices }
+                .map { allMemories[it] }.take(5)
+            return selected
         }
 
         // 路径二：关键词匹配降级
