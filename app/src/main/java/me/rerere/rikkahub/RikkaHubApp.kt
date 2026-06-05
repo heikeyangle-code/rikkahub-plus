@@ -213,7 +213,7 @@ class RikkaHubApp : Application() {
         notificationManager.createNotificationChannel(webServerChannel)
 
         val generationForegroundChannel = NotificationChannelCompat
-            .Builder(CHAT_GENERATION_FOREGROUND_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_DEFAULT)
+            .Builder(CHAT_GENERATION_FOREGROUND_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
             .setName(getString(R.string.notification_channel_generation_foreground))
             .setVibrationEnabled(false)
             .setShowBadge(false)
