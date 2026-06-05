@@ -1809,47 +1809,53 @@ class ChatService(
 
     // ---- 消息操作 ----
 
-    suspend fun editMessage(
+    fun editMessage(
         conversationId: Uuid,
         messageId: Uuid,
         parts: List<UIMessagePart>
     ) {
         if (parts.isEmptyInputMessage()) return
 
-        val currentConversation = getConversationFlow(conversationId).value
-        val settings = settingsStore.settingsFlow.first()
-        val assistant = settings.getAssistantById(currentConversation.assistantId)
-            ?: settings.getCurrentAssistant()
-        val processedParts = preprocessUserInputParts(parts, assistant)
-        var edited = false
+        val session = getOrCreateSession(conversationId)
+        session.getJob()?.cancel()
 
-        val updatedNodes = currentConversation.messageNodes.mapIndexed { index, node ->
-            if (!node.messages.any { it.id == messageId }) {
-                return@mapIndexed node
+        val job = appScope.launch {
+            val currentConversation = getConversationFlow(conversationId).value
+            val settings = settingsStore.settingsFlow.first()
+            val assistant = settings.getAssistantById(currentConversation.assistantId)
+                ?: settings.getCurrentAssistant()
+            val processedParts = preprocessUserInputParts(parts, assistant)
+            var edited = false
+
+            val updatedNodes = currentConversation.messageNodes.mapIndexed { index, node ->
+                if (!node.messages.any { it.id == messageId }) {
+                    return@mapIndexed node
+                }
+                edited = true
+
+                // 追加新版本（保留编辑历史）
+                node.copy(
+                    messages = node.messages + UIMessage(
+                        role = node.role,
+                        parts = processedParts,
+                    ),
+                    selectIndex = node.messages.size
+                )
             }
-            edited = true
 
-            // 追加新版本（保留编辑历史）
-            node.copy(
-                messages = node.messages + UIMessage(
-                    role = node.role,
-                    parts = processedParts,
-                ),
-                selectIndex = node.messages.size
-            )
+            if (!edited) return@launch
+
+            // 截断：保留到编辑位置，去掉之后的所有回复
+            val editIndex = updatedNodes.indexOfFirst { node ->
+                node.messages.any { it.id == messageId }
+            }
+            val truncated = updatedNodes.take(editIndex + 1)
+            saveConversation(conversationId, currentConversation.copy(messageNodes = truncated))
+
+            // 编辑后自动生成回复（替换旧的）
+            handleMessageComplete(conversationId)
         }
-
-        if (!edited) return
-
-        // 截断：保留到编辑位置，去掉之后的所有回复
-        val editIndex = updatedNodes.indexOfFirst { node ->
-            node.messages.any { it.id == messageId }
-        }
-        val truncated = updatedNodes.take(editIndex + 1)
-        saveConversation(conversationId, currentConversation.copy(messageNodes = truncated))
-
-        // 编辑后自动生成回复（替换旧的）
-        handleMessageComplete(conversationId)
+        session.setJob(job)
     }
 
     suspend fun forkConversationAtMessage(
