@@ -561,9 +561,7 @@ fun ChatInput(
             // Expanded content
             Box(
                 modifier = Modifier
-                    .then(
-                        if (!imeVisile) Modifier.animateContentSize() else Modifier
-                    )
+                    .animateContentSize()
                     .fillMaxWidth()
             ) {
                 BackHandler(
