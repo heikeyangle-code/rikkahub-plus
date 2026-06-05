@@ -1155,8 +1155,8 @@ class ChatService(
             }
 
             // Fire-and-forget: 通知 AgentService 生成完成
-            kotlinx.coroutines.coroutineScope {
-                launch { ListenerEventBus.emit(AgentEvent.GenerationCompleted(conversationId, finalConversation.currentMessages)) }
+            launch {
+                ListenerEventBus.emit(AgentEvent.GenerationCompleted(conversationId, finalConversation.currentMessages))
             }
         }
     }

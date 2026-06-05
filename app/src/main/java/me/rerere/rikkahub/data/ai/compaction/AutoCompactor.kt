@@ -117,6 +117,7 @@ class AutoCompactor {
                     approvalState = toolPart.approvalState,
                 )
                 result[mi] = UIMessage(
+                    id = msg.id,
                     role = msg.role,
                     parts = newParts,
                     createdAt = msg.createdAt,
@@ -165,8 +166,14 @@ class AutoCompactor {
                     } else part
                 } else part
             }
-            UIMessage(role = msg.role, parts = newParts, createdAt = msg.createdAt,
-                      modelId = msg.modelId, usage = msg.usage)
+            UIMessage(
+                id = msg.id,
+                role = msg.role,
+                parts = newParts,
+                createdAt = msg.createdAt,
+                modelId = msg.modelId,
+                usage = msg.usage,
+            )
         }
     }
 
@@ -216,6 +223,7 @@ class AutoCompactor {
                 } else part
             }
             UIMessage(
+                id = msg.id,
                 role = msg.role,
                 parts = newParts,
                 createdAt = msg.createdAt,

@@ -165,8 +165,6 @@ class AgentPipeline(
     private fun prepareContext(messages: List<UIMessage>, autoCompactor: AutoCompactor?): List<UIMessage> {
         val compactor = autoCompactor ?: return messages
         var current = compactor.toolResultBudget(messages)
-        val snipResult = compactor.snipCompact(current)
-        current = snipResult.messages
         current = compactor.microCompact(current)
         current = compactor.truncateToolOutput(current)
 
