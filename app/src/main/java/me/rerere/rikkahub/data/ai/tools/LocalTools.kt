@@ -111,10 +111,6 @@ sealed class LocalToolOption {
     data object WorkerTools : LocalToolOption()
 
     @Serializable
-    @SerialName("agents")
-    data object Agents : LocalToolOption()
-
-    @Serializable
     @SerialName("teammate_tools")
     data object TeammateTools : LocalToolOption()
 

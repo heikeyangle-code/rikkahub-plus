@@ -29,6 +29,8 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_SUGGESTION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.LEARNING_MODE_PROMPT
+import me.rerere.rikkahub.data.ai.tools.AgentDefinition
+import me.rerere.rikkahub.data.ai.tools.AgentSource
 import me.rerere.asr.ASRProviderSetting
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV2Migration
@@ -58,7 +60,7 @@ private const val TAG = "PreferencesStore"
 
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
-    corruptionHandler = { _ ->
+    corruptionHandler = androidx.datastore.preferences.core.ReplaceFileCorruptionHandler { _ ->
         Log.w(TAG, "Settings DataStore corrupted, resetting to defaults")
         emptyPreferences()
     },
@@ -164,7 +166,10 @@ class SettingsStore(
         val AUTHOR_NOTE_POSITION = stringPreferencesKey("author_note_position")
         val AUTHOR_NOTE_DEPTH = intPreferencesKey("author_note_depth")
         val AUTHOR_NOTE_FREQUENCY = stringPreferencesKey("author_note_frequency")
+        // 群聊
         val GROUP_CHATS = stringPreferencesKey("group_chats")
+        // Agent 定义
+        val AGENTS = stringPreferencesKey("agents")
     }
 
     private val dataStore = context.settingsStore
@@ -266,6 +271,7 @@ class SettingsStore(
                 authorNoteDepth = preferences[AUTHOR_NOTE_DEPTH] ?: 4,
                 authorNoteFrequency = preferences[AUTHOR_NOTE_FREQUENCY]?.toFloatOrNull() ?: 1.0f,
                 groupChats = preferences[GROUP_CHATS]?.let { JsonInstant.decodeFromString(it) } ?: emptyList(),
+                agents = preferences[AGENTS]?.let { JsonInstant.decodeFromString<List<AgentDefinition>>(it) } ?: emptyList(),
             )
         }
         .map {
@@ -437,6 +443,9 @@ class SettingsStore(
             preferences[AUTHOR_NOTE_DEPTH] = settings.authorNoteDepth
             preferences[AUTHOR_NOTE_FREQUENCY] = settings.authorNoteFrequency.toString()
             preferences[GROUP_CHATS] = JsonInstant.encodeToString(settings.groupChats)
+            preferences[AGENTS] = JsonInstant.encodeToString(
+                settings.agents.filter { it.source == AgentSource.USER && !it.isBuiltin }
+            )
         }
     }
 
@@ -568,6 +577,7 @@ data class Settings(
     val authorNoteRole: MessageRole = MessageRole.USER, // 注入角色
     val authorNoteInterval: Int = 0,                // 每N条注入一次（0=每次都注入）
     val groupChats: List<GroupChat> = emptyList(),   // 群聊列表
+    val agents: List<AgentDefinition> = emptyList(),  // 用户自定义 Agent
     val webServerEnabled: Boolean = false,
     val webServerPort: Int = 8080,
     val webServerJwtEnabled: Boolean = false,

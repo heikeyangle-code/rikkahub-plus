@@ -1,7 +1,11 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -21,7 +27,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +50,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.agent.AgentValidationResult
 import me.rerere.rikkahub.data.ai.agent.validateAgent
 import me.rerere.rikkahub.data.ai.tools.AgentColor
@@ -50,12 +60,15 @@ import me.rerere.rikkahub.data.ai.tools.AgentMemoryScope
 import me.rerere.rikkahub.data.ai.tools.AgentRegistry
 import me.rerere.rikkahub.data.ai.tools.AgentSource
 import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
+import me.rerere.rikkahub.data.ai.tools.ALL_KNOWN_TOOLS
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.context.LocalNavController
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AssistantAgentEditorPage(
     assistantId: String,
@@ -66,6 +79,8 @@ fun AssistantAgentEditorPage(
     val isEditing = existingAgent != null
     val isReadonly = existingAgent?.isBuiltin == true
     val navController = LocalNavController.current
+    val scope = rememberCoroutineScope()
+    val settingsStore: SettingsStore = koinInject()
 
     // 表单状态
     var agentType by remember { mutableStateOf(existingAgent?.agentType ?: "") }
@@ -87,8 +102,11 @@ fun AssistantAgentEditorPage(
     var effort by remember { mutableStateOf(existingAgent?.effort?.toString() ?: "") }
     var permissionMode by remember { mutableStateOf(existingAgent?.permissionMode ?: "") }
     var omitContext by remember { mutableStateOf(existingAgent?.omitProjectContext) }
-    var disallowedTools by remember {
-        mutableStateOf(existingAgent?.disallowedTools?.joinToString(", ") ?: "")
+    var disallowedToolsSet by remember {
+        mutableStateOf(existingAgent?.disallowedTools?.toSet() ?: emptySet())
+    }
+    var allowedToolsSet by remember {
+        mutableStateOf(existingAgent?.tools?.toSet()?.takeIf { "*" !in it } ?: emptySet())
     }
     var skills by remember { mutableStateOf(existingAgent?.skills?.joinToString(", ") ?: "") }
     var initialPrompt by remember { mutableStateOf(existingAgent?.initialPrompt ?: "") }
@@ -97,8 +115,8 @@ fun AssistantAgentEditorPage(
     // UI 状态
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var validationResult by remember { mutableStateOf<AgentValidationResult?>(null) }
-    var colorExpanded by remember { mutableStateOf(false) }
     var memoryExpanded by remember { mutableStateOf(false) }
+    var permissionExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -195,48 +213,41 @@ fun AssistantAgentEditorPage(
                         )
                     },
                 )
-                // 颜色
+                // 颜色 — 色块行
                 item(
                     headlineContent = { Text("颜色") },
                     supportingContent = { Text("聊天中的标识色") },
-                    trailingContent = {
+                    content = {
                         if (!isReadonly) {
-                            ExposedDropdownMenuBox(
-                                expanded = colorExpanded,
-                                onExpandedChange = { colorExpanded = it },
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.menuAnchor(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
+                                AgentColor.entries.forEach { c ->
+                                    val isSel = selectedColor == c
                                     Card(
-                                        modifier = Modifier.width(20.dp).height(20.dp),
-                                        shape = RoundedCornerShape(10.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color(selectedColor.hex)),
-                                    ) {}
-                                    Text(selectedColor.name.lowercase(), style = MaterialTheme.typography.bodyMedium)
-                                }
-                                ExposedDropdownMenu(
-                                    expanded = colorExpanded,
-                                    onDismissRequest = { colorExpanded = false },
-                                ) {
-                                    AgentColor.entries.forEach { c ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                    Card(modifier = Modifier.width(16.dp).height(16.dp), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = Color(c.hex))) {}
-                                                    Text(c.name.lowercase())
-                                                }
-                                            },
-                                            onClick = { selectedColor = c; colorExpanded = false },
-                                        )
+                                        onClick = { selectedColor = c },
+                                        modifier = Modifier.size(36.dp),
+                                        shape = CircleShape,
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = Color(c.hex)
+                                        ),
+                                        border = if (isSel) BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) else null,
+                                    ) {
+                                        if (isSel) {
+                                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                Text("✓",
+                                                    color = if (c == AgentColor.YELLOW) Color.Black else Color.White,
+                                                    fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            }
+                                        }
                                     }
                                 }
                             }
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Card(modifier = Modifier.width(12.dp).height(12.dp), shape = RoundedCornerShape(6.dp), colors = CardDefaults.cardColors(containerColor = Color(selectedColor.hex))) {}
+                                Card(modifier = Modifier.size(16.dp), shape = CircleShape,
+                                    colors = CardDefaults.cardColors(containerColor = Color(selectedColor.hex))) {}
                                 Text(selectedColor.name.lowercase())
                             }
                         }
@@ -308,8 +319,6 @@ fun AssistantAgentEditorPage(
                 )
             }
 
-            Spacer(Modifier.height(4.dp))
-
             // ── 系统提示词 ──
             CardGroup(
                 modifier = Modifier.padding(horizontal = 8.dp),
@@ -330,26 +339,123 @@ fun AssistantAgentEditorPage(
                 )
             }
 
-            Spacer(Modifier.height(4.dp))
-
             // ── 行为限制 ──
             CardGroup(
                 modifier = Modifier.padding(horizontal = 8.dp),
             ) {
+                // 禁用工具 — 勾选面板
                 item(
                     headlineContent = { Text("禁用工具") },
-                    supportingContent = { Text("逗号分隔，这些工具 agent 无法调用") },
+                    supportingContent = { Text("点击切换，禁用的工具 agent 无法调用") },
                     content = {
-                        OutlinedTextField(
-                            value = disallowedTools,
-                            onValueChange = { if (!isReadonly) disallowedTools = it },
-                            placeholder = { Text("sub_agent, execute_command") },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isReadonly,
-                            singleLine = true,
-                        )
+                        if (!isReadonly) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                ALL_KNOWN_TOOLS.forEach { toolName ->
+                                    val isDisabled = toolName in disallowedToolsSet
+                                    FilterChip(
+                                        selected = isDisabled,
+                                        onClick = {
+                                            disallowedToolsSet = if (isDisabled) {
+                                                disallowedToolsSet - toolName
+                                            } else {
+                                                disallowedToolsSet + toolName
+                                            }
+                                        },
+                                        label = { Text(toolName, style = MaterialTheme.typography.labelSmall) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
+                                            selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer,
+                                        ),
+                                    )
+                                }
+                            }
+                            // 额外的工具名输入（不在 chip 里的）
+                            val extraTools = disallowedToolsSet - ALL_KNOWN_TOOLS.toSet()
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = extraTools.joinToString(", "),
+                                onValueChange = { input ->
+                                    val parsed = input.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+                                    disallowedToolsSet = (disallowedToolsSet - ALL_KNOWN_TOOLS.toSet()) + parsed
+                                },
+                                placeholder = { Text("其他工具名（逗号分隔）") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.labelSmall,
+                            )
+                        } else {
+                            val list = existingAgent?.disallowedTools ?: emptyList()
+                            Text(
+                                if (list.isEmpty()) "无禁用工具" else list.joinToString(", "),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     },
                 )
+                // 允许工具 — 勾选面板（不选则默认全部允许）
+                item(
+                    headlineContent = { Text("允许工具（白名单）") },
+                    supportingContent = { Text("只允许选中的工具，未选全部禁用。不选 = 全部允许") },
+                    content = {
+                        if (!isReadonly) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                ALL_KNOWN_TOOLS.forEach { toolName ->
+                                    val isAllowed = toolName in allowedToolsSet
+                                    FilterChip(
+                                        selected = isAllowed,
+                                        onClick = {
+                                            allowedToolsSet = if (isAllowed) {
+                                                allowedToolsSet - toolName
+                                            } else {
+                                                allowedToolsSet + toolName
+                                            }
+                                        },
+                                        label = { Text(toolName, style = MaterialTheme.typography.labelSmall) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        ),
+                                    )
+                                }
+                            }
+                            if (allowedToolsSet.isEmpty()) {
+                                Spacer(Modifier.height(4.dp))
+                                Text("（未选择 = 全部允许）",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            // 额外的工具名输入（不在 chip 里的）
+                            val extraTools = allowedToolsSet - ALL_KNOWN_TOOLS.toSet()
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = extraTools.joinToString(", "),
+                                onValueChange = { input ->
+                                    val parsed = input.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+                                    allowedToolsSet = (allowedToolsSet - ALL_KNOWN_TOOLS.toSet()) + parsed
+                                },
+                                placeholder = { Text("其他工具名（逗号分隔）") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.labelSmall,
+                            )
+                        } else {
+                            val list = existingAgent?.tools ?: listOf("*")
+                            Text(
+                                if (list.contains("*")) "全部允许" else list.joinToString(", "),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    },
+                )
+                // 最大轮次
                 item(
                     headlineContent = { Text("最大轮次") },
                     supportingContent = { Text("超过此轮数自动停止，留空不限制") },
@@ -363,9 +469,10 @@ fun AssistantAgentEditorPage(
                         )
                     },
                 )
+                // 投入度
                 item(
                     headlineContent = { Text("投入度 (effort)") },
-                    supportingContent = { Text("AI 投入程度，数值越大越认真，留空默认") },
+                    supportingContent = { Text("AI 投入程度：1=低 2=中 3=高，留空默认") },
                     trailingContent = {
                         OutlinedTextField(
                             value = effort,
@@ -377,20 +484,42 @@ fun AssistantAgentEditorPage(
                         )
                     },
                 )
+                // 权限模式 — 下拉选择
                 item(
                     headlineContent = { Text("权限模式") },
-                    supportingContent = { Text("plan=需审批, acceptEdits=自动允许, bubble=冒泡到主agent") },
+                    supportingContent = { Text("控制 agent 执行时的审批流程") },
                     content = {
-                        OutlinedTextField(
-                            value = permissionMode,
-                            onValueChange = { if (!isReadonly) permissionMode = it },
-                            placeholder = { Text("plan / acceptEdits / bubble") },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isReadonly,
-                            singleLine = true,
-                        )
+                        ExposedDropdownMenuBox(
+                            expanded = permissionExpanded,
+                            onExpandedChange = { if (!isReadonly) permissionExpanded = it },
+                        ) {
+                            OutlinedTextField(
+                                value = when (permissionMode) {
+                                    "" -> "无（默认）"
+                                    "plan" -> "plan — 需审批"
+                                    "acceptEdits" -> "acceptEdits — 自动允许"
+                                    "bubble" -> "bubble — 冒泡到主 agent"
+                                    else -> permissionMode
+                                },
+                                onValueChange = {},
+                                readOnly = true,
+                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                enabled = !isReadonly,
+                                singleLine = true,
+                                trailingIcon = { if (!isReadonly) ExposedDropdownMenuDefaults.TrailingIcon(expanded = permissionExpanded) },
+                            )
+                            if (!isReadonly) {
+                                ExposedDropdownMenu(expanded = permissionExpanded, onDismissRequest = { permissionExpanded = false }) {
+                                    DropdownMenuItem(text = { Text("无（默认）") }, onClick = { permissionMode = ""; permissionExpanded = false })
+                                    DropdownMenuItem(text = { Text("plan — 需审批") }, onClick = { permissionMode = "plan"; permissionExpanded = false })
+                                    DropdownMenuItem(text = { Text("acceptEdits — 自动允许") }, onClick = { permissionMode = "acceptEdits"; permissionExpanded = false })
+                                    DropdownMenuItem(text = { Text("bubble — 冒泡到主 agent") }, onClick = { permissionMode = "bubble"; permissionExpanded = false })
+                                }
+                            }
+                        }
                     },
                 )
+                // 省略项目上下文
                 item(
                     headlineContent = { Text("省略项目上下文") },
                     supportingContent = { Text("只读角色可省 token，不用了解项目的构建/提交规范") },
@@ -404,12 +533,11 @@ fun AssistantAgentEditorPage(
                 )
             }
 
-            Spacer(Modifier.height(4.dp))
-
             // ── 高级选项 ──
             CardGroup(
                 modifier = Modifier.padding(horizontal = 8.dp),
             ) {
+                // 预加载技能
                 item(
                     headlineContent = { Text("预加载技能") },
                     supportingContent = { Text("逗号分隔，Agent 启动时自动加载的技能") },
@@ -424,6 +552,7 @@ fun AssistantAgentEditorPage(
                         )
                     },
                 )
+                // 初始提示词
                 item(
                     headlineContent = { Text("初始提示词") },
                     supportingContent = { Text("每次执行前附加到第一条用户消息") },
@@ -438,6 +567,7 @@ fun AssistantAgentEditorPage(
                         )
                     },
                 )
+                // 关键提醒
                 item(
                     headlineContent = { Text("关键提醒") },
                     supportingContent = { Text("每轮对话重注入的提醒文字，适合放核心约束") },
@@ -473,7 +603,8 @@ fun AssistantAgentEditorPage(
                             effort = effort.toIntOrNull(),
                             permissionMode = permissionMode.ifBlank { null },
                             omitProjectContext = omitContext == true,
-                            disallowedTools = disallowedTools.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                            disallowedTools = disallowedToolsSet.toList(),
+                            tools = if (allowedToolsSet.isEmpty()) listOf("*") else allowedToolsSet.toList(),
                             skills = skills.split(",").map { it.trim() }.filter { it.isNotBlank() },
                             initialPrompt = initialPrompt.ifBlank { null },
                             criticalReminder = criticalReminder.ifBlank { null },
@@ -483,6 +614,9 @@ fun AssistantAgentEditorPage(
                         val validation = validateAgent(agentDef)
                         if (validation.isValid) {
                             AgentRegistry.register(agentDef)
+                            scope.launch {
+                                settingsStore.update { s -> s.copy(agents = AgentRegistry.listBySource(AgentSource.USER)) }
+                            }
                             navController.popBackStack()
                         } else {
                             validationResult = validation
@@ -491,7 +625,7 @@ fun AssistantAgentEditorPage(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                     enabled = agentType.isNotBlank() && description.isNotBlank(),
                 ) {
-                    Text("保存")
+                    Text(if (isEditing) "保存修改" else "创建 Agent")
                 }
 
                 validationResult?.let { result ->
@@ -524,7 +658,14 @@ fun AssistantAgentEditorPage(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("删除 Agent") },
             text = { Text("确定删除 \"$editAgentType\"？此操作不可撤销。") },
-            confirmButton = { TextButton(onClick = { AgentRegistry.delete(editAgentType); showDeleteConfirm = false; navController.popBackStack() }) { Text("删除", color = MaterialTheme.colorScheme.error) } },
+            confirmButton = { TextButton(onClick = {
+                AgentRegistry.delete(editAgentType)
+                scope.launch {
+                    settingsStore.update { s -> s.copy(agents = AgentRegistry.listBySource(AgentSource.USER)) }
+                }
+                showDeleteConfirm = false
+                navController.popBackStack()
+            }) { Text("删除", color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("取消") } },
         )
     }

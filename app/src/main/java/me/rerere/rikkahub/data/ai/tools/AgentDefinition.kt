@@ -1,11 +1,15 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
 /**
  * Agent 记忆作用域，对齐 Claude Code 三层持久记忆。
  * - USER: 用户级，所有项目共享（~/.claude/agent-memory/）
  * - PROJECT: 项目级，共事可共享（.claude/agent-memory/）
  * - LOCAL: 本地，不回传版本控制（.claude/agent-memory-local/）
  */
+@Serializable
 enum class AgentMemoryScope {
     USER,
     PROJECT,
@@ -16,6 +20,7 @@ enum class AgentMemoryScope {
  * Agent 来源优先级（从高到低）：
  * POLICY > FLAG > PROJECT > USER > PLUGIN > BUILT_IN
  */
+@Serializable
 enum class AgentSource(val priority: Int) {
     BUILT_IN(0),
     PLUGIN(1),
@@ -28,6 +33,7 @@ enum class AgentSource(val priority: Int) {
 /**
  * Agent 颜色选项，对齐 Claude Code 8 色系统。
  */
+@Serializable
 enum class AgentColor(val hex: Long) {
     RED(0xFFEF4444),
     BLUE(0xFF3B82F6),
@@ -43,8 +49,11 @@ enum class AgentColor(val hex: Long) {
  * Agent MCP 服务器规格。
  * 可以是已有 MCP 的名称引用（string），或内联定义（name -> config）。
  */
+@Serializable
 sealed class AgentMcpServerSpec {
+    @Serializable @SerialName("reference")
     data class Reference(val name: String) : AgentMcpServerSpec()
+    @Serializable @SerialName("inline")
     data class Inline(val name: String, val config: Map<String, String>) : AgentMcpServerSpec()
 }
 
@@ -53,10 +62,14 @@ sealed class AgentMcpServerSpec {
  * - Static: 固定文本
  * - Dynamic: 运行时动态生成（内置 agent 用法）
  */
+@Serializable
 sealed class AgentSystemPrompt {
+    @Serializable @SerialName("static")
     data class Static(val text: String) : AgentSystemPrompt()
+    @Serializable @SerialName("dynamic")
     data class Dynamic(
-        val generator: suspend (agentType: String, agentDef: AgentDefinition) -> String
+        @kotlinx.serialization.Transient
+        val generator: suspend (agentType: String, agentDef: AgentDefinition) -> String = { _, _ -> "" }
     ) : AgentSystemPrompt() {
         override fun equals(other: Any?): Boolean = other is Dynamic
         override fun hashCode(): Int = javaClass.hashCode()
@@ -90,6 +103,7 @@ sealed class AgentSystemPrompt {
  * omitClaudeMd                   -> omitProjectContext
  * source                         -> source
  */
+@Serializable
 data class AgentDefinition(
     // === 基础（官方基础字段）===
     val agentType: String,
@@ -121,6 +135,7 @@ data class AgentDefinition(
     val skills: List<String> = emptyList(),
     val mcpServers: List<AgentMcpServerSpec> = emptyList(),
     val requiredMcpServers: List<String> = emptyList(),
+    @kotlinx.serialization.Transient
     val hooks: Map<String, Any>? = null,
 
     // === 元信息 ===
@@ -156,6 +171,22 @@ val ASYNC_AGENT_ALLOWED_TOOLS = setOf(
     "sleep",
     "todo_write", "todo_read", "todo_list",
     "task_get", "task_list", "task_create", "task_update",
+)
+
+/**
+ * 所有已知工具名列表。
+ * 用于 Agent 编辑器的工具黑白名单选择面板。
+ * 增加新工具时，同时把工具名加到此处即可自动出现在 UI 中。
+ */
+val ALL_KNOWN_TOOLS = listOf(
+    // 常用工具（本地工具以组开关，这里只列需单独控制的工具）
+    "sub_agent", "create_agent",
+    "file_read", "file_write", "file_edit", "file_search",
+    "execute_command", "execute_python", "eval_javascript",
+    "web_search", "web_fetch",
+    "github_tool", "memory_tool", "use_skill",
+    "calculator", "sleep", "ask_user", "todo_write",
+    "send_message",
 )
 
 fun isToolAllowed(agent: AgentDefinition, toolName: String): Boolean {

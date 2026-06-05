@@ -169,6 +169,10 @@ fun AssistantAgentPage(id: String) {
                     onClick = { navController.navigate(me.rerere.rikkahub.Screen.AssistantAgentEditor(id)) },
                     headlineContent = { Text("创建新 Agent") },
                     supportingContent = { Text("自定义角色、工具和提示词") },
+                    trailingContent = {
+                        Text("+", style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.primary)
+                    },
                 )
             }
 

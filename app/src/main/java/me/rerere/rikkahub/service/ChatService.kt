@@ -86,6 +86,7 @@ import me.rerere.rikkahub.data.ai.tools.createMcpResourceTools
 import me.rerere.rikkahub.data.ai.worker.createWorkerTools
 import me.rerere.rikkahub.data.ai.worker.WorkerManager
 import me.rerere.rikkahub.data.ai.tools.AgentRegistry
+import me.rerere.rikkahub.data.ai.tools.AgentLoader
 import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
 import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
 import me.rerere.rikkahub.data.ai.agent.AgentRunner
@@ -94,6 +95,9 @@ import me.rerere.rikkahub.data.ai.lane.LaneTracker
 import me.rerere.rikkahub.data.ai.tools.TaskManager
 import me.rerere.rikkahub.data.ai.tools.isToolAllowed
 import me.rerere.rikkahub.data.ai.tools.AgentColor
+import me.rerere.rikkahub.data.ai.tools.AgentDefinition
+import me.rerere.rikkahub.data.ai.tools.AgentMemoryScope
+import me.rerere.rikkahub.data.ai.tools.AgentSource
 import me.rerere.rikkahub.data.ai.agent.AgentExecutionEvent
 import me.rerere.rikkahub.data.ai.agent.AgentEventBus
 import me.rerere.rikkahub.data.ai.agent.TeammateRunner
@@ -356,6 +360,11 @@ class ChatService(
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
         AgentRegistry.registerBuiltin()
+        // 从 Settings 加载用户自定义 Agent（非阻塞，等数据就绪后注册）
+        appScope.launch {
+            val settings = settingsStore.settingsFlowRaw.first()
+            AgentLoader.reload(user = settings.agents)
+        }
         // 提前初始化 AgentService（启动事件监听协程）
         agentService
     }
@@ -1019,6 +1028,13 @@ class ChatService(
                                             appendLine(resolvedSysPrompt)
                                             appendLine()
                                         }
+                                        // Agent initialPrompt: 每次执行附加的首条消息
+                                        agentDef?.initialPrompt?.let {
+                                            if (it.isNotBlank()) {
+                                                appendLine(it)
+                                                appendLine()
+                                            }
+                                        }
                                         // Load agent memory via AgentMemoryManager
                                         val memoryPrompt = agentDef?.let { def ->
                                             kotlinx.coroutines.runBlocking {
@@ -1030,9 +1046,27 @@ class ChatService(
                                             appendLine()
                                         }
                                         appendLine("Goal: $goal")
-                                        if (toolContext.isNotBlank()) {
-                                            appendLine()
-                                            appendLine("Context: $toolContext")
+                                        // omitProjectContext: 跳过项目上下文
+                                        if (!(agentDef?.omitProjectContext == true)) {
+                                            if (toolContext.isNotBlank()) {
+                                                appendLine()
+                                                appendLine("Context: $toolContext")
+                                            }
+                                        }
+                                        // criticalReminder: 每轮注入的关键提醒（也通过 executeSubAgentLoop 每轮注入）
+                                        agentDef?.criticalReminder?.let {
+                                            if (it.isNotBlank()) {
+                                                appendLine()
+                                                appendLine("=== CRITICAL REMINDER ===")
+                                                appendLine(it)
+                                            }
+                                        }
+                                        // permissionMode: 权限模式提示
+                                        agentDef?.permissionMode?.let {
+                                            if (it.isNotBlank()) {
+                                                appendLine()
+                                                appendLine("Permission mode: $it")
+                                            }
                                         }
                                         appendLine()
                                         appendLine("You have access to tools. Use them when needed.")
@@ -1053,7 +1087,7 @@ class ChatService(
                                                     agentType = agentType,
                                                     description = goal.take(50),
                                                 ) {
-                                                    executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt, agentCallId)
+                                                    executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt, agentCallId, agentDef)
                                                 }
                                             }.onFailure { e ->
                                                 Log.w("SubAgent", "Background agent failed: ${e.message}")
@@ -1074,7 +1108,7 @@ class ChatService(
                                                 agentType = agentType,
                                                 description = goal.take(50),
                                             ) {
-                                                executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt, agentCallId)
+                                                executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt, agentCallId, agentDef)
                                             }
                                             laneTracker.completed()
                                             outputText
@@ -1087,6 +1121,158 @@ class ChatService(
                             )
                         )
                     }
+                    // create_agent: AI 自主创建 agent 并持久化
+                    add(
+                        Tool(
+                            name = "create_agent",
+                            description = "Create a new agent type and persist it. The agent will appear in the agent list immediately and survive app restart.",
+                            needsApproval = false,
+                            parameters = {
+                                InputSchema.Obj(
+                                    properties = buildJsonObject {
+                                        put("agent_type", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Unique identifier for the agent (e.g. code-reviewer). Use lowercase letters, numbers, and hyphens.")
+                                        })
+                                        put("name", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Display name for the agent.")
+                                        })
+                                        put("description", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Description of when to use this agent. Will be shown in the agent list.")
+                                        })
+                                        put("prompt", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "System prompt. Defines the agent's role, behavior, and output format.")
+                                        })
+                                        put("tools", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Comma-separated tool allowlist. Default: all tools. Example: file_read, file_search, web_search")
+                                        })
+                                        put("disallowed_tools", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Comma-separated tools to forbid. Example: file_write, execute_command")
+                                        })
+                                        put("color", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Agent color: red, blue, green, yellow, purple, orange, pink, cyan. Default: blue")
+                                        })
+                                        put("model", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Model override. Default: inherit from parent.")
+                                        })
+                                        put("background", buildJsonObject {
+                                            put("type", "boolean")
+                                            put("description", "Run in background. Default: false")
+                                        })
+                                        put("memory", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Memory scope: user, project, local. Default: none")
+                                        })
+                                        put("max_turns", buildJsonObject {
+                                            put("type", "integer")
+                                            put("description", "Maximum turns before stopping. Default: no limit")
+                                        })
+                                        put("skills", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Comma-separated skill names to preload.")
+                                        })
+                                        put("initial_prompt", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Text prepended to the first user message each run.")
+                                        })
+                                        put("critical_reminder", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Critical reminder injected every turn.")
+                                        })
+                                        put("effort", buildJsonObject {
+                                            put("type", "integer")
+                                            put("description", "AI effort level. Higher values = more thorough. Default: none")
+                                        })
+                                        put("permission_mode", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Permission mode: plan (needs approval), acceptEdits (auto allow), bubble (bubble to parent). Default: none")
+                                        })
+                                        put("omit_project_context", buildJsonObject {
+                                            put("type", "boolean")
+                                            put("description", "Skip project context (AGENTS.md, etc.). Default: false")
+                                        })
+                                    },
+                                    required = listOf("agent_type", "name", "description", "prompt"),
+                                )
+                            },
+                            execute = { args ->
+                                val obj = args.jsonObject
+                                val agentType = obj["agent_type"]?.jsonPrimitive?.content
+                                    ?: error("agent_type is required")
+                                val name = obj["name"]?.jsonPrimitive?.content
+                                    ?: error("name is required")
+                                val description = obj["description"]?.jsonPrimitive?.content
+                                    ?: error("description is required")
+                                val prompt = obj["prompt"]?.jsonPrimitive?.content
+                                    ?: error("prompt is required")
+
+                                val tools = obj["tools"]?.jsonPrimitive?.content?.let {
+                                    it.split(",").map { s -> s.trim() }.filter { s -> s.isNotBlank() }
+                                }
+                                val disallowedTools = obj["disallowed_tools"]?.jsonPrimitive?.content?.let {
+                                    it.split(",").map { s -> s.trim() }.filter { s -> s.isNotBlank() }
+                                }
+                                val color = obj["color"]?.jsonPrimitive?.content?.let {
+                                    try { AgentColor.valueOf(it.uppercase()) } catch (_: Exception) { null }
+                                } ?: AgentColor.BLUE
+                                val modelId = obj["model"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+                                val background = obj["background"]?.jsonPrimitive?.let {
+                                    it.content.toBooleanStrictOrNull()
+                                } ?: false
+                                val memory = obj["memory"]?.jsonPrimitive?.content?.let {
+                                    try { AgentMemoryScope.valueOf(it.uppercase()) } catch (_: Exception) { null }
+                                }
+                                val maxTurns = obj["max_turns"]?.jsonPrimitive?.content?.toIntOrNull()
+                                val skills = obj["skills"]?.jsonPrimitive?.content?.let {
+                                    it.split(",").map { s -> s.trim() }.filter { s -> s.isNotBlank() }
+                                }
+                                val initialPrompt = obj["initial_prompt"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+                                val criticalReminder = obj["critical_reminder"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+                                val effort = obj["effort"]?.jsonPrimitive?.content?.toIntOrNull()
+                                val permissionMode = obj["permission_mode"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+                                val omitProjectContext = obj["omit_project_context"]?.jsonPrimitive?.let {
+                                    it.content.toBooleanStrictOrNull()
+                                } ?: false
+
+                                val agentDef = AgentDefinition(
+                                    agentType = agentType,
+                                    name = name,
+                                    description = description,
+                                    systemPrompt = AgentSystemPrompt.Static(prompt),
+                                    tools = tools ?: listOf("*"),
+                                    disallowedTools = disallowedTools ?: emptyList(),
+                                    color = color,
+                                    modelId = modelId,
+                                    background = background,
+                                    memory = memory,
+                                    maxTurns = maxTurns,
+                                    effort = effort,
+                                    permissionMode = permissionMode,
+                                    omitProjectContext = omitProjectContext,
+                                    skills = skills ?: emptyList(),
+                                    initialPrompt = initialPrompt,
+                                    criticalReminder = criticalReminder,
+                                    source = AgentSource.USER,
+                                    isBuiltin = false,
+                                )
+
+                                AgentRegistry.register(agentDef)
+                                val savedAgents = AgentRegistry.listBySource(AgentSource.USER)
+                                kotlinx.coroutines.runBlocking {
+                                    settingsStore.update { s -> s.copy(agents = savedAgents) }
+                                }
+
+                                listOf(UIMessagePart.Text("Agent '$agentType' created successfully and persisted."))
+                            },
+                        )
+                    )
                 }),
             ).onCompletion {
                 // 取消 Live Update 通知 + 前台服务
@@ -2040,12 +2226,17 @@ class ChatService(
         assistant: Assistant,
         prompt: String,
         agentCallId: String = conversationId.toString(),
+        agentDef: me.rerere.rikkahub.data.ai.tools.AgentDefinition? = null,
     ): List<UIMessagePart> {
         val session = getOrCreateSession(conversationId)
         val messages = mutableListOf(UIMessage.user(prompt))
         var finalText = ""
-        var remainingSteps = assistant.subAgentMaxSteps
+        // maxTurns: 取 agentDef.maxTurns 与 assistant.subAgentMaxSteps 的较小值
+        val maxSteps = agentDef?.maxTurns?.coerceAtMost(assistant.subAgentMaxSteps) ?: assistant.subAgentMaxSteps
+        var remainingSteps = maxSteps
         val stepLog = StringBuilder()
+        // criticalReminder: 每轮注入
+        val reminder = agentDef?.criticalReminder?.takeIf { it.isNotBlank() }
 
         while (remainingSteps > 0) {
             remainingSteps--
@@ -2053,13 +2244,21 @@ class ChatService(
             try {
                 val stepNum = stepLog.count { it == '\n' } + 1
 
+                // effort → reasoningLevel 映射
+                val reasoningLevel = when (agentDef?.effort) {
+                    null, 0 -> me.rerere.ai.core.ReasoningLevel.OFF
+                    1 -> me.rerere.ai.core.ReasoningLevel.LOW
+                    2 -> me.rerere.ai.core.ReasoningLevel.MEDIUM
+                    else -> me.rerere.ai.core.ReasoningLevel.HIGH
+                }
+
                 val chunk = providerImpl.generateText(
                     providerSetting = providerSetting,
                     messages = messages,
                     params = me.rerere.ai.provider.TextGenerationParams(
                         model = subModel,
                         tools = subTools,
-                        reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                        reasoningLevel = reasoningLevel,
                     ),
                 )
 
@@ -2118,6 +2317,10 @@ class ChatService(
                         if (part is UIMessagePart.Tool) executedTools.find { it.toolCallId == part.toolCallId } ?: part else part
                     }
                 ))
+                // criticalReminder: 每轮注入
+                if (reminder != null) {
+                    messages.add(UIMessage.system(reminder))
+                }
             } catch (e: Exception) {
                 stepLog.appendLine("→ 错误: ${e.message?.take(100)}")
                 break

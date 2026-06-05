@@ -1,5 +1,10 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import me.rerere.rikkahub.data.ai.tools.AgentSource
 
 /**
@@ -174,6 +179,44 @@ object AgentLoader {
             source = AgentSource.USER,
             isBuiltin = false,
         )
+    }
+
+    /**
+     * 将 agent 列表序列化为可持久化的 JSON map 字符串。
+     * 格式：Map<agentType, Map<String, Any?>>
+     * 与 parseFromJson 双向兼容。
+     */
+    fun agentsToPersistableJson(agents: List<AgentDefinition>): String {
+        return buildJsonObject {
+            for (agent in agents) {
+                if (agent.source == AgentSource.USER && !agent.isBuiltin) {
+                    val promptText = when (val sp = agent.systemPrompt) {
+                        is AgentSystemPrompt.Static -> sp.text
+                        is AgentSystemPrompt.Dynamic -> ""
+                    }
+                    putJsonObject(agent.agentType) {
+                        put("description", kotlinx.serialization.json.JsonPrimitive(agent.description))
+                        put("prompt", kotlinx.serialization.json.JsonPrimitive(promptText))
+                        put("name", kotlinx.serialization.json.JsonPrimitive(agent.name))
+                        put("color", kotlinx.serialization.json.JsonPrimitive(agent.color.name.lowercase()))
+                        put("background", kotlinx.serialization.json.JsonPrimitive(agent.background))
+                        putJsonArray("tools") { agent.tools.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } }
+                        putJsonArray("disallowedTools") { agent.disallowedTools.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } }
+                        agent.modelId?.let { put("model", kotlinx.serialization.json.JsonPrimitive(it)) }
+                        agent.memory?.let { put("memory", kotlinx.serialization.json.JsonPrimitive(it.name.lowercase())) }
+                        agent.maxTurns?.let { put("maxTurns", kotlinx.serialization.json.JsonPrimitive(it)) }
+                        agent.effort?.let { put("effort", kotlinx.serialization.json.JsonPrimitive(it)) }
+                        agent.permissionMode?.let { put("permissionMode", kotlinx.serialization.json.JsonPrimitive(it)) }
+                        agent.initialPrompt?.let { put("initialPrompt", kotlinx.serialization.json.JsonPrimitive(it)) }
+                        agent.criticalReminder?.let { put("criticalReminder", kotlinx.serialization.json.JsonPrimitive(it)) }
+                        if (agent.omitProjectContext) put("omitProjectContext", kotlinx.serialization.json.JsonPrimitive(true))
+                        if (agent.skills.isNotEmpty()) {
+                            putJsonArray("skills") { agent.skills.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } }
+                        }
+                    }
+                }
+            }
+        }.toString()
     }
 
     /**

@@ -39,7 +39,6 @@ data class Assistant(
     val localTools: List<LocalToolOption> = listOf(
         LocalToolOption.TimeInfo,
         LocalToolOption.FileTools,
-        LocalToolOption.Agents,
         LocalToolOption.ShellTools,
         LocalToolOption.TaskTools,
         LocalToolOption.Calculator,
