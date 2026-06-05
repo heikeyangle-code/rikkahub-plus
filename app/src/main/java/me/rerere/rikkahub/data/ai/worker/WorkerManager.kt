@@ -28,7 +28,8 @@ class WorkerManager(
 
     fun createWorker(cwd: String, trustedRoots: List<String> = emptyList()): Worker {
         val id = "worker-${counter.incrementAndGet()}-${System.currentTimeMillis() % 10000}"
-        val worker = Worker(id = id, cwd = cwd, trustedRoots = trustedRoots)
+        // Android 无真实子进程，直接就绪
+        val worker = Worker(id = id, cwd = cwd, trustedRoots = trustedRoots, state = WorkerState.ReadyForPrompt)
         workers[id] = worker
         updateState()
         return worker
