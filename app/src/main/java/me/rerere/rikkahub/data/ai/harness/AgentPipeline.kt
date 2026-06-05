@@ -64,7 +64,10 @@ class AgentPipeline(
             "pytest", "make", "gradle", "mvn",
         )
         private val json = Json { ignoreUnknownKeys = true }
+        private const val EXTRACT_EVERY_N_TURNS = 5
     }
+
+    private val extractTurnCounter = java.util.concurrent.atomic.AtomicInteger(0)
 
     fun isSlowOperation(toolName: String, command: String): Boolean {
         if (toolName != "execute_command" && toolName != "bash") return false
@@ -151,6 +154,11 @@ class AgentPipeline(
                 if (memoryRepository != null && assistant.enableAutoMemoryExtract) {
                     val last = msgs.lastOrNull()
                     if (last != null && (last.role == MessageRole.ASSISTANT || last.role == MessageRole.USER)) {
+                        // 节流1：每 N 轮才提取一次
+                        val turn = extractTurnCounter.incrementAndGet()
+                        if (turn % EXTRACT_EVERY_N_TURNS != 0) return@onCompletion
+                        // 节流2：最后一轮有工具调用说明还在干活，纯对话才值得提取
+                        if (last.getTools().isNotEmpty()) return@onCompletion
                         val dialogue = buildDialogueText(msgs)
                         if (dialogue.length >= 200) {
                             extractMemoriesWithLLM(settings, model, assistantId, dialogue)
