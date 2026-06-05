@@ -56,9 +56,19 @@ data class Conversation(
     fun updateCurrentMessages(messages: List<UIMessage>): Conversation {
         val newNodes = this.messageNodes.toMutableList()
 
-        messages.forEachIndexed { index, message ->
-            val node = newNodes
-                .getOrElse(index) { message.toMessageNode() }
+        messages.forEach { message ->
+            // 按 message id 找 node（不依赖 index 位置）
+            val nodeIndex = newNodes.indexOfFirst { node ->
+                node.messages.any { it.id == message.id }
+            }
+            val node = if (nodeIndex >= 0) {
+                newNodes[nodeIndex]
+            } else {
+                // 新消息：追加新 node
+                val newNode = message.toMessageNode()
+                newNodes.add(newNode)
+                return@forEach
+            }
 
             val newMessages = node.messages.toMutableList()
             var newMessageIndex = node.selectIndex
@@ -69,17 +79,10 @@ data class Conversation(
                 newMessageIndex = newMessages.lastIndex
             }
 
-            val newNode = node.copy(
+            newNodes[nodeIndex] = node.copy(
                 messages = newMessages,
                 selectIndex = newMessageIndex
             )
-
-            // 更新newNodes
-            if (index > newNodes.lastIndex) {
-                newNodes.add(newNode)
-            } else {
-                newNodes[index] = newNode
-            }
         }
 
         return this.copy(
