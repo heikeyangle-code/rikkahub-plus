@@ -753,7 +753,7 @@ class ChatService(
                 },
                 outputTransformers = outputTransformers,
                 policyEngine = PolicyEngine(currentMode = me.rerere.rikkahub.data.ai.tools.PlanModeState.effectiveMode, baseDir = context.filesDir.absolutePath),
-                autoCompactor = autoCompactor,
+                autoCompactor = if (assistant.enableAutoCompact) autoCompactor else null,
                 tools = deduplicateTools(buildList {
                 val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
                     if (assistant.localTools.contains(LocalToolOption.FileTools)) {
