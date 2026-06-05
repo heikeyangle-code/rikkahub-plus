@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -68,8 +69,10 @@ import androidx.core.graphics.toColorInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.ui.components.table.DataTable
@@ -147,14 +150,25 @@ fun MarkdownNew(
             .collect { html = it }
     }
 
-    val document = remember(html) {
-        runCatching { Jsoup.parse(html) }.getOrElse { Jsoup.parse("") }
+    val document = remember { mutableStateOf(runCatching { Jsoup.parse(html) }.getOrElse { Jsoup.parse("") }) }
+    LaunchedEffect(Unit) {
+        snapshotFlow { html }
+            .drop(1)
+            .mapLatest { content ->
+                withContext(Dispatchers.Default) {
+                    runCatching { Jsoup.parse(content) }.getOrElse { Jsoup.parse("") }
+                }
+            }
+            .catch { it.printStackTrace() }
+            .collect { document.value = it }
     }
 
     ProvideTextStyle(style) {
         Column(modifier = modifier.padding(start = 4.dp)) {
-            document.body().childNodes().fastForEach { node ->
-                HtmlBodyNode(node = node, onClickCitation = onClickCitation)
+            document.value.body().childNodes().fastForEachIndexed { index, node ->
+                key(index) {
+                    HtmlBodyNode(node = node, onClickCitation = onClickCitation)
+                }
             }
         }
     }
