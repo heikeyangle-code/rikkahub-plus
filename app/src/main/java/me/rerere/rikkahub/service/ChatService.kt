@@ -2317,9 +2317,9 @@ class ChatService(
                         if (part is UIMessagePart.Tool) executedTools.find { it.toolCallId == part.toolCallId } ?: part else part
                     }
                 ))
-                // criticalReminder: 每轮注入
+                // criticalReminder: 每轮注入（用 USER 消息避免 API 限制）
                 if (reminder != null) {
-                    messages.add(UIMessage.system(reminder))
+                    messages.add(UIMessage.user(reminder))
                 }
             } catch (e: Exception) {
                 stepLog.appendLine("→ 错误: ${e.message?.take(100)}")
