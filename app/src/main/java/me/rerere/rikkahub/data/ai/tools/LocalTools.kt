@@ -148,47 +148,41 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
             },
             execute = {
                 val logs = arrayListOf<String>()
-                val jsContext = QuickJSContext.create()
-                jsContext.setConsole(object : QuickJSContext.Console {
-                    override fun log(info: String?) {
-                        logs.add("[LOG] $info")
-                    }
-
-                    override fun info(info: String?) {
-                        logs.add("[INFO] $info")
-                    }
-
-                    override fun warn(info: String?) {
-                        logs.add("[WARN] $info")
-                    }
-
-                    override fun error(info: String?) {
-                        logs.add("[ERROR] $info")
-                    }
-                })
                 val code = it.jsonObject["code"]?.jsonPrimitive?.contentOrNull
-                val resultStr: String = try {
-                    val future = java.util.concurrent.Executors.newSingleThreadExecutor().submit<String> {
-                        val jsResult = jsContext.evaluate(code)
-                        when (jsResult) {
-                            null -> "null"
-                            is QuickJSObject -> jsResult.stringify()
-                            else -> jsResult.toString()
+                val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+                try {
+                    val future = executor.submit<String> {
+                        val jsContext = QuickJSContext.create()
+                        try {
+                            jsContext.setConsole(object : QuickJSContext.Console {
+                                override fun log(info: String?) { logs.add("[LOG] $info") }
+                                override fun info(info: String?) { logs.add("[INFO] $info") }
+                                override fun warn(info: String?) { logs.add("[WARN] $info") }
+                                override fun error(info: String?) { logs.add("[ERROR] $info") }
+                            })
+                            val jsResult = jsContext.evaluate(code)
+                            when (jsResult) {
+                                null -> "null"
+                                is QuickJSObject -> jsResult.stringify()
+                                else -> jsResult.toString()
+                            }
+                        } finally {
+                            jsContext.destroy()
                         }
                     }
-                    future.get(15, java.util.concurrent.TimeUnit.SECONDS)
+                    val resultStr = future.get(15, java.util.concurrent.TimeUnit.SECONDS)
+                    val payload = buildJsonObject {
+                        if (logs.isNotEmpty()) {
+                            put("logs", JsonPrimitive(logs.joinToString("\n")))
+                        }
+                        put("result", JsonPrimitive(resultStr))
+                    }
+                    listOf(UIMessagePart.Text(payload.toString()))
                 } catch (e: java.util.concurrent.TimeoutException) {
                     error("JavaScript execution timed out after 15 seconds")
                 } finally {
-                    jsContext.destroy()
+                    executor.shutdownNow()
                 }
-                val payload = buildJsonObject {
-                    if (logs.isNotEmpty()) {
-                        put("logs", JsonPrimitive(logs.joinToString("\n")))
-                    }
-                    put("result", JsonPrimitive(resultStr))
-                }
-                listOf(UIMessagePart.Text(payload.toString()))
             }
         )
     }

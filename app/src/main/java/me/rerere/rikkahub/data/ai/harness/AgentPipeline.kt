@@ -65,6 +65,8 @@ class AgentPipeline(
         )
         private val json = Json { ignoreUnknownKeys = true }
         private const val EXTRACT_EVERY_N_TURNS = 5
+        private var lastSideQueryKey: String? = null
+        private var lastSideQueryResult: List<Int>? = null
     }
 
     private val extractTurnCounter = java.util.concurrent.atomic.AtomicInteger(0)
@@ -202,6 +204,13 @@ class AgentPipeline(
         if (recentText.isBlank()) return allMemories.take(3)
 
         // 路径一：LLM side-query 按语义选（主路径）
+        val sideQueryKey = recentText.take(200) + "|" + allMemories.size
+        if (sideQueryKey == lastSideQueryKey && lastSideQueryResult != null) {
+            val cached = lastSideQueryResult!!.filter { it in allMemories.indices }
+                .map { allMemories[it] }.take(5)
+            if (cached.isNotEmpty()) return cached
+        }
+
         val catalog = allMemories.withIndex().joinToString("\n") { (i, m) ->
             val preview = m.content.take(100).replace("\n", " ")
             "$i: $preview"
@@ -233,6 +242,8 @@ class AgentPipeline(
         if (llmIndices != null && llmIndices.isNotEmpty()) {
             val selected = llmIndices.filter { it in allMemories.indices }
                 .map { allMemories[it] }.take(5)
+            lastSideQueryKey = sideQueryKey
+            lastSideQueryResult = llmIndices
             return selected
         }
 
