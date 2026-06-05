@@ -363,6 +363,7 @@ fun AssistantAgentEditorPage(
                                     onClick = {
                                         isWhitelistMode = false
                                         disallowedToolsSet = emptySet()
+                                        allowedToolsSet = emptySet()
                                     },
                                     label = { Text("黑名单") },
                                 )
@@ -371,6 +372,7 @@ fun AssistantAgentEditorPage(
                                     onClick = {
                                         isWhitelistMode = true
                                         allowedToolsSet = emptySet()
+                                        disallowedToolsSet = emptySet()
                                     },
                                     label = { Text("白名单") },
                                 )
