@@ -1127,7 +1127,10 @@ class ChatService(
             Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
             val finalConversation = getConversationFlow(conversationId).value
-            saveConversation(conversationId, finalConversation)
+            // 异步保存，不阻塞 loading 状态更新
+            appScope.launch {
+                saveConversation(conversationId, finalConversation)
+            }
 
             launchWithConversationReference(conversationId) {
                 generateTitle(conversationId, finalConversation)
