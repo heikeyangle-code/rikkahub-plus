@@ -2,10 +2,9 @@ package me.rerere.rikkahub.data.ai.harness
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -139,24 +138,26 @@ class AgentPipeline(
             policyEngine = policyEngine, autoCompactor = autoCompactor,
         )
 
-        // emit 后提取记忆（只添加不删除）
-        return flow.map { chunk ->
-            if (chunk is GenerationChunk.Messages && memoryRepository != null && assistant.enableAutoMemoryExtract) {
-                try {
-                    val msgs = chunk.messages
+        // emit 后提取记忆（只添加不删除）—— 只在流式完成后提取一次
+        var lastMessages: List<UIMessage>? = null
+        return flow
+            .onEach { chunk ->
+                if (chunk is GenerationChunk.Messages) {
+                    lastMessages = chunk.messages
+                }
+            }
+            .onCompletion {
+                val msgs = lastMessages ?: return@onCompletion
+                if (memoryRepository != null && assistant.enableAutoMemoryExtract) {
                     val last = msgs.lastOrNull()
                     if (last != null && (last.role == MessageRole.ASSISTANT || last.role == MessageRole.USER)) {
                         val dialogue = buildDialogueText(msgs)
                         if (dialogue.length >= 200) {
-                            GlobalScope.launch(Dispatchers.IO) {
-                                extractMemoriesWithLLM(settings, model, assistantId, dialogue)
-                            }
+                            extractMemoriesWithLLM(settings, model, assistantId, dialogue)
                         }
                     }
-                } catch (_: Exception) { }
+                }
             }
-            chunk
-        }
     }
 
     // ═══════════════════ 管线步骤 ═══════════════════
