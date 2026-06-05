@@ -1106,12 +1106,12 @@ class ChatService(
 
                         // Fire-and-forget: 通知 AgentService 轮次完成（触发 AutoCompactor）
                         kotlinx.coroutines.coroutineScope {
-                            launch { ListenerEventBus.emit(AgentEvent.GenerationRoundComplete(conversationId, chunk.messages)) }
+                            launch { ListenerEventBus.emit(AgentEvent.GenerationRoundComplete(conversationId, uiMessages)) }
                         }
 
                         // 如果应用不在前台，发送 Live Update 通知
                         if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration && settings.displaySetting.enableLiveUpdateNotification) {
-                            sendLiveUpdateNotification(conversationId, chunk.messages, senderName)
+                            sendLiveUpdateNotification(conversationId, uiMessages, senderName)
                         }
                     }
                 }

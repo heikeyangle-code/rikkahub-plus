@@ -199,9 +199,7 @@ fun ChatMessage(
             enter = slideInVertically { it / 2 } + fadeIn(),
             exit = slideOutVertically { it / 2 } + fadeOut()
         ) {
-            Column(
-                modifier = Modifier.animateContentSize()
-            ) {
+            Column {
                 ChatMessageActionButtons(
                     message = message,
                     onRegenerate = onRegenerate,

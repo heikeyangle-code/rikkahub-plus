@@ -54,9 +54,10 @@ data class Conversation(
     }
 
     fun updateCurrentMessages(messages: List<UIMessage>): Conversation {
+        val filtered = messages.filter { it.role != MessageRole.SYSTEM }
         val newNodes = this.messageNodes.toMutableList()
 
-        messages.forEachIndexed { index, message ->
+        filtered.forEachIndexed { index, message ->
             val node = newNodes
                 .getOrElse(index) { message.toMessageNode() }
 
