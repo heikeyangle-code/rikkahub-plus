@@ -53,6 +53,15 @@ object AgentRunner {
         onCleanupAgentMcp?.invoke(agentDef)
     }
 
+    /** 取消所有后台运行的 agent */
+    fun killAll() {
+        lifecycleManagers.values.forEach { it.killAll() }
+        backgroundScopes.values.forEach { it.cancel("AgentRunner.killAll()") }
+        backgroundScopes.clear()
+        lifecycleManagers.clear()
+        AgentTaskTracker.clear()
+    }
+
     /**
      * 预加载 agent 定义的 skill。
      * 对齐官方 skillsToPreload 逻辑。
@@ -63,6 +72,7 @@ object AgentRunner {
     }
 
     private val backgroundScopes = ConcurrentHashMap<String, CoroutineScope>()
+    private val lifecycleManagers = ConcurrentHashMap<String, AgentLifecycleManager>()
 
     /**
      * 执行 agent，返回结果文本。
@@ -120,6 +130,8 @@ object AgentRunner {
                 // 后台模式：立即返回，在协程中执行
                 val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
                 backgroundScopes[agentCallId] = scope
+                lifecycleManagers[agentCallId] = lifecycle
+                lifecycle.get(agentCallId)?.scope = scope
 
                 scope.launch {
                     try {
@@ -166,6 +178,7 @@ object AgentRunner {
                         ))
                     } finally {
                         backgroundScopes.remove(agentCallId)
+                        lifecycleManagers.remove(agentCallId)
                     }
                 }
 

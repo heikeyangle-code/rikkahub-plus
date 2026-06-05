@@ -1996,6 +1996,7 @@ class ChatService(
         job.cancel()
         runCatching { kotlinx.coroutines.withTimeout(5000) { job.join() } }
         finishInterruptedPendingTools(conversationId)
+        me.rerere.rikkahub.data.ai.agent.AgentRunner.killAll()
     }
 
     /**
