@@ -64,12 +64,10 @@ data class Conversation(
             var newMessageIndex = node.selectIndex
             if (newMessages.any { it.id == message.id }) {
                 newMessages[newMessages.indexOfFirst { it.id == message.id }] = message
-            } else if (message.role != MessageRole.SYSTEM) {
-                // 非 SYSTEM 消息追加到节点版本列表
+            } else {
                 newMessages.add(message)
                 newMessageIndex = newMessages.lastIndex
             }
-            // SYSTEM 消息不追加到节点版本列表，但 index 位置保留（对齐 messageNodes）
 
             val newNode = node.copy(
                 messages = newMessages,

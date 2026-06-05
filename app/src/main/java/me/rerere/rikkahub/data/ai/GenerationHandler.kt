@@ -340,7 +340,7 @@ class GenerationHandler(
                         }
                     }
                     messages = messages.dropLast(1) + lastMessage.copy(parts = updatedParts)
-                    emit(GenerationChunk.Messages(messages))
+                    emit(GenerationChunk.Messages(messages.filter { it.role != MessageRole.SYSTEM }))
                 }
 
                 // 3. Guardrail: same tool called N+ times in one batch → break
