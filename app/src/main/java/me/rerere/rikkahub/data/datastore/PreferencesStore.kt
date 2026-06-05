@@ -58,6 +58,10 @@ private const val TAG = "PreferencesStore"
 
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
+    corruptionHandler = { _ ->
+        Log.w(TAG, "Settings DataStore corrupted, resetting to defaults")
+        emptyPreferences()
+    },
     produceMigrations = { context ->
         listOf(
             PreferenceStoreV1Migration(),
