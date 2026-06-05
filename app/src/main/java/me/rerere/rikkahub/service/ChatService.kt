@@ -1923,10 +1923,8 @@ class ChatService(
             conversationRepo.updateConversation(updatedConversation)
         }
 
-        // Fire-and-forget: AgentService 异步处理
-        kotlinx.coroutines.coroutineScope {
-            launch { ListenerEventBus.emit(AgentEvent.ConversationModified(conversationId, updatedConversation)) }
-        }
+        // Fire-and-forget: AgentService 异步处理（使用 tryEmit 不阻塞发送链路）
+        ListenerEventBus.tryEmit(AgentEvent.ConversationModified(conversationId, updatedConversation))
     }
 
     // ---- 翻译消息 ----
