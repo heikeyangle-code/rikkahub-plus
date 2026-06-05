@@ -103,7 +103,6 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 androidx-paging-runtime = { group = "androidx.paging", name = "paging-runtime", version.ref = "paging" }
 androidx-paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
-androidx-datastore-core = { group = "androidx.datastore", name = "datastore-core", version.ref = "datastore" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workmanager" }
 jetbrains-markdown = { module = "com.github.rikkahub:markdown", version.ref = "markdown" }

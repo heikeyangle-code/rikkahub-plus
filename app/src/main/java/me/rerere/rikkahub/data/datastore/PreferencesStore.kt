@@ -31,7 +31,6 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.LEARNING_MODE_PROMPT
 import me.rerere.rikkahub.data.ai.tools.AgentDefinition
 import me.rerere.rikkahub.data.ai.tools.AgentSource
-import androidx.datastore.core.ReplaceFileCorruptionHandler
 import me.rerere.asr.ASRProviderSetting
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV2Migration
@@ -61,10 +60,6 @@ private const val TAG = "PreferencesStore"
 
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
-    corruptionHandler = ReplaceFileCorruptionHandler { _ ->
-        Log.w(TAG, "Settings DataStore corrupted, resetting to defaults")
-        emptyPreferences()
-    },
     produceMigrations = { context ->
         listOf(
             PreferenceStoreV1Migration(),
