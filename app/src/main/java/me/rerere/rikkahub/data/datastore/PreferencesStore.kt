@@ -60,6 +60,12 @@ private const val TAG = "PreferencesStore"
 
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
+    corruptionHandler = object : androidx.datastore.core.handlers.ReplaceFileCorruptionHandler<androidx.datastore.preferences.core.Preferences> {
+        override fun invoke(corruptionException: androidx.datastore.core.CorruptionException): androidx.datastore.preferences.core.Preferences {
+            Log.w(TAG, "Settings DataStore corrupted, resetting to defaults")
+            return emptyPreferences()
+        }
+    },
     produceMigrations = { context ->
         listOf(
             PreferenceStoreV1Migration(),
