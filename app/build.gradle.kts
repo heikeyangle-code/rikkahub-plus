@@ -192,6 +192,7 @@ dependencies {
 
     // DataStore
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.datastore.core)
 
     // Image metadata extractor
     // https://github.com/drewnoakes/metadata-extractor
