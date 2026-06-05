@@ -171,7 +171,8 @@ class SettingsStore(
 
     val settingsFlowRaw = dataStore.data
         .catch { exception ->
-            if (exception is IOException) {
+            if (exception is IOException || exception is androidx.datastore.core.CorruptionException) {
+                Log.w(TAG, "DataStore corrupted, resetting: ${exception.message}")
                 emit(emptyPreferences())
             } else {
                 throw exception
