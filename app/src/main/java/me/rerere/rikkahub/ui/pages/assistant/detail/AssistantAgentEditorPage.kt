@@ -112,6 +112,11 @@ fun AssistantAgentEditorPage(
     var initialPrompt by remember { mutableStateOf(existingAgent?.initialPrompt ?: "") }
     var criticalReminder by remember { mutableStateOf(existingAgent?.criticalReminder ?: "") }
 
+    // 黑白名单模式状态
+    var isWhitelistMode by remember {
+        mutableStateOf(existingAgent?.tools?.let { "*" !in it && it.isNotEmpty() } == true)
+    }
+
     // UI 状态
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var validationResult by remember { mutableStateOf<AgentValidationResult?>(null) }
@@ -343,63 +348,54 @@ fun AssistantAgentEditorPage(
             CardGroup(
                 modifier = Modifier.padding(horizontal = 8.dp),
             ) {
-                // 禁用工具 — 勾选面板
+                // 工具权限模式切换
                 item(
-                    headlineContent = { Text("禁用工具") },
-                    supportingContent = { Text("点击切换，禁用的工具 agent 无法调用") },
+                    headlineContent = { Text("工具权限模式") },
+                    supportingContent = { Text("黑名单 = 禁用选中的工具，其余可用；白名单 = 只允许选中的工具") },
                     content = {
                         if (!isReadonly) {
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                ALL_KNOWN_TOOLS.forEach { toolName ->
-                                    val isDisabled = toolName in disallowedToolsSet
-                                    FilterChip(
-                                        selected = isDisabled,
-                                        onClick = {
-                                            disallowedToolsSet = if (isDisabled) {
-                                                disallowedToolsSet - toolName
-                                            } else {
-                                                disallowedToolsSet + toolName
-                                            }
-                                        },
-                                        label = { Text(toolName, style = MaterialTheme.typography.labelSmall) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer,
-                                        ),
-                                    )
-                                }
+                                FilterChip(
+                                    selected = !isWhitelistMode,
+                                    onClick = {
+                                        isWhitelistMode = false
+                                        disallowedToolsSet = emptySet()
+                                    },
+                                    label = { Text("黑名单") },
+                                )
+                                FilterChip(
+                                    selected = isWhitelistMode,
+                                    onClick = {
+                                        isWhitelistMode = true
+                                        allowedToolsSet = emptySet()
+                                    },
+                                    label = { Text("白名单") },
+                                )
                             }
-                            // 额外的工具名输入（不在 chip 里的）
-                            val extraTools = disallowedToolsSet - ALL_KNOWN_TOOLS.toSet()
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = extraTools.joinToString(", "),
-                                onValueChange = { input ->
-                                    val parsed = input.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
-                                    disallowedToolsSet = (disallowedToolsSet - ALL_KNOWN_TOOLS.toSet()) + parsed
-                                },
-                                placeholder = { Text("其他工具名（逗号分隔）") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                textStyle = MaterialTheme.typography.labelSmall,
-                            )
                         } else {
-                            val list = existingAgent?.disallowedTools ?: emptyList()
-                            Text(
-                                if (list.isEmpty()) "无禁用工具" else list.joinToString(", "),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                            val list = existingAgent
+                            if (list?.tools?.contains("*") == true || list?.tools.isNullOrEmpty()) {
+                                Text("黑名单模式（禁 ${existingAgent?.disallowedTools?.size ?: 0} 个）", style = MaterialTheme.typography.bodySmall)
+                            } else {
+                                Text("白名单模式（允 ${existingAgent?.tools?.size ?: 0} 个）", style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                     },
                 )
-                // 允许工具 — 勾选面板（不选则默认全部允许）
+                // 工具选择面板（按当前模式显示）
                 item(
-                    headlineContent = { Text("允许工具（白名单）") },
-                    supportingContent = { Text("只允许选中的工具，未选全部禁用。不选 = 全部允许") },
+                    headlineContent = {
+                        Text(if (isWhitelistMode) "允许工具" else "禁用工具")
+                    },
+                    supportingContent = {
+                        Text(
+                            if (isWhitelistMode) "只允许选中的工具调用，未选全部禁用"
+                            else "点击切换，被禁用的工具 agent 无法调用"
+                        )
+                    },
                     content = {
                         if (!isReadonly) {
                             FlowRow(
@@ -408,38 +404,53 @@ fun AssistantAgentEditorPage(
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 ALL_KNOWN_TOOLS.forEach { toolName ->
-                                    val isAllowed = toolName in allowedToolsSet
+                                    val isSelected = if (isWhitelistMode) toolName in allowedToolsSet
+                                                      else toolName in disallowedToolsSet
                                     FilterChip(
-                                        selected = isAllowed,
+                                        selected = isSelected,
                                         onClick = {
-                                            allowedToolsSet = if (isAllowed) {
-                                                allowedToolsSet - toolName
+                                            if (isWhitelistMode) {
+                                                allowedToolsSet = if (isSelected) allowedToolsSet - toolName
+                                                                  else allowedToolsSet + toolName
                                             } else {
-                                                allowedToolsSet + toolName
+                                                disallowedToolsSet = if (isSelected) disallowedToolsSet - toolName
+                                                                     else disallowedToolsSet + toolName
                                             }
                                         },
                                         label = { Text(toolName, style = MaterialTheme.typography.labelSmall) },
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            selectedContainerColor = if (isWhitelistMode)
+                                                MaterialTheme.colorScheme.primaryContainer
+                                            else
+                                                MaterialTheme.colorScheme.errorContainer,
+                                            selectedLabelColor = if (isWhitelistMode)
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            else
+                                                MaterialTheme.colorScheme.onErrorContainer,
                                         ),
                                     )
                                 }
                             }
-                            if (allowedToolsSet.isEmpty()) {
+                            if (isWhitelistMode && allowedToolsSet.isEmpty()) {
                                 Spacer(Modifier.height(4.dp))
-                                Text("（未选择 = 全部允许）",
+                                Text("（未选择 = 全部禁用）",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            // 额外的工具名输入（不在 chip 里的）
-                            val extraTools = allowedToolsSet - ALL_KNOWN_TOOLS.toSet()
+                            // 额外的工具名输入
+                            val currentSet = if (isWhitelistMode) allowedToolsSet else disallowedToolsSet
+                            val extraTools = currentSet - ALL_KNOWN_TOOLS.toSet()
                             Spacer(Modifier.height(8.dp))
                             OutlinedTextField(
                                 value = extraTools.joinToString(", "),
                                 onValueChange = { input ->
                                     val parsed = input.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
-                                    allowedToolsSet = (allowedToolsSet - ALL_KNOWN_TOOLS.toSet()) + parsed
+                                    val newSet = (currentSet - ALL_KNOWN_TOOLS.toSet()) + parsed
+                                    if (isWhitelistMode) {
+                                        allowedToolsSet = newSet
+                                    } else {
+                                        disallowedToolsSet = newSet
+                                    }
                                 },
                                 placeholder = { Text("其他工具名（逗号分隔）") },
                                 modifier = Modifier.fillMaxWidth(),
@@ -447,11 +458,15 @@ fun AssistantAgentEditorPage(
                                 textStyle = MaterialTheme.typography.labelSmall,
                             )
                         } else {
-                            val list = existingAgent?.tools ?: listOf("*")
-                            Text(
-                                if (list.contains("*")) "全部允许" else list.joinToString(", "),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                            val agent = existingAgent
+                            if (agent != null) {
+                                val isWhitelist = !agent.tools.contains("*") && agent.tools.isNotEmpty()
+                                val list = if (isWhitelist) agent.tools else agent.disallowedTools
+                                Text(
+                                    if (list.isEmpty()) "无限制" else list.joinToString(", "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
                         }
                     },
                 )
