@@ -64,6 +64,10 @@ import me.rerere.rikkahub.data.ai.tools.ALL_KNOWN_TOOLS
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.components.ai.ModelSelector
+import me.rerere.ai.provider.ModelType
+import me.rerere.rikkahub.data.datastore.findModelById
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -298,15 +302,20 @@ fun AssistantAgentEditorPage(
                 // 模型
                 item(
                     headlineContent = { Text("指定模型") },
-                    supportingContent = { Text("留空则继承父 agent 的模型") },
+                    supportingContent = { Text("留空则继承父 agent 的模型，点击清除可取消选择") },
                     content = {
-                        OutlinedTextField(
-                            value = modelId,
-                            onValueChange = { if (!isReadonly) modelId = it },
-                            placeholder = { Text("如 sonnet，或留空") },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isReadonly,
-                            singleLine = true,
+                        val settings = LocalSettings.current
+                        val currentModel = remember(modelId, settings.providers) {
+                            settings.providers.flatMap { it.models }.find { it.modelId == modelId }
+                        }
+                        ModelSelector(
+                            modelId = currentModel?.id,
+                            providers = settings.providers,
+                            type = ModelType.CHAT,
+                            allowClear = true,
+                            onSelect = { model ->
+                                modelId = model.modelId
+                            }
                         )
                     },
                 )
@@ -400,65 +409,65 @@ fun AssistantAgentEditorPage(
                     },
                     content = {
                         if (!isReadonly) {
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                ALL_KNOWN_TOOLS.forEach { toolName ->
-                                    val isSelected = if (isWhitelistMode) toolName in allowedToolsSet
-                                                      else toolName in disallowedToolsSet
-                                    FilterChip(
-                                        selected = isSelected,
-                                        onClick = {
-                                            if (isWhitelistMode) {
-                                                allowedToolsSet = if (isSelected) allowedToolsSet - toolName
-                                                                  else allowedToolsSet + toolName
-                                            } else {
-                                                disallowedToolsSet = if (isSelected) disallowedToolsSet - toolName
-                                                                     else disallowedToolsSet + toolName
-                                            }
-                                        },
-                                        label = { Text(toolName, style = MaterialTheme.typography.labelSmall) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = if (isWhitelistMode)
-                                                MaterialTheme.colorScheme.primaryContainer
-                                            else
-                                                MaterialTheme.colorScheme.errorContainer,
-                                            selectedLabelColor = if (isWhitelistMode)
-                                                MaterialTheme.colorScheme.onPrimaryContainer
-                                            else
-                                                MaterialTheme.colorScheme.onErrorContainer,
-                                        ),
-                                    )
-                                }
-                            }
-                            if (isWhitelistMode && allowedToolsSet.isEmpty()) {
-                                Spacer(Modifier.height(4.dp))
-                                Text("（未选择 = 全部禁用）",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            // 额外的工具名输入
-                            val currentSet = if (isWhitelistMode) allowedToolsSet else disallowedToolsSet
-                            val extraTools = currentSet - ALL_KNOWN_TOOLS.toSet()
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = extraTools.joinToString(", "),
-                                onValueChange = { input ->
-                                    val parsed = input.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
-                                    val newSet = (currentSet - ALL_KNOWN_TOOLS.toSet()) + parsed
-                                    if (isWhitelistMode) {
-                                        allowedToolsSet = newSet
-                                    } else {
-                                        disallowedToolsSet = newSet
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    ALL_KNOWN_TOOLS.forEach { toolName ->
+                                        val isSelected = if (isWhitelistMode) toolName in allowedToolsSet
+                                                          else toolName in disallowedToolsSet
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = {
+                                                if (isWhitelistMode) {
+                                                    allowedToolsSet = if (isSelected) allowedToolsSet - toolName
+                                                                      else allowedToolsSet + toolName
+                                                } else {
+                                                    disallowedToolsSet = if (isSelected) disallowedToolsSet - toolName
+                                                                         else disallowedToolsSet + toolName
+                                                }
+                                            },
+                                            label = { Text(toolName, style = MaterialTheme.typography.labelSmall) },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = if (isWhitelistMode)
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                else
+                                                    MaterialTheme.colorScheme.errorContainer,
+                                                selectedLabelColor = if (isWhitelistMode)
+                                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                                else
+                                                    MaterialTheme.colorScheme.onErrorContainer,
+                                            ),
+                                        )
                                     }
-                                },
-                                placeholder = { Text("其他工具名（逗号分隔）") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                textStyle = MaterialTheme.typography.labelSmall,
-                            )
+                                }
+                                if (isWhitelistMode && allowedToolsSet.isEmpty()) {
+                                    Text("（未选择 = 全部禁用）",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                // 额外的工具名输入
+                                val currentSet = if (isWhitelistMode) allowedToolsSet else disallowedToolsSet
+                                val extraTools = currentSet - ALL_KNOWN_TOOLS.toSet()
+                                OutlinedTextField(
+                                    value = extraTools.joinToString(", "),
+                                    onValueChange = { input ->
+                                        val parsed = input.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+                                        val newSet = (currentSet - ALL_KNOWN_TOOLS.toSet()) + parsed
+                                        if (isWhitelistMode) {
+                                            allowedToolsSet = newSet
+                                        } else {
+                                            disallowedToolsSet = newSet
+                                        }
+                                    },
+                                    placeholder = { Text("其他工具名（逗号分隔）") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.labelSmall,
+                                )
+                            }
                         } else {
                             val agent = existingAgent
                             if (agent != null) {
