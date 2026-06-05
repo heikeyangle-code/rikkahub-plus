@@ -55,32 +55,38 @@ data class Conversation(
 
     fun updateCurrentMessages(messages: List<UIMessage>): Conversation {
         val newNodes = this.messageNodes.toMutableList()
+        val usedNodeIds = mutableSetOf<Uuid>()
 
-        messages.forEachIndexed { index, message ->
-            val node = newNodes
-                .getOrElse(index) { message.toMessageNode() }
-
-            val newMessages = node.messages.toMutableList()
-            var newMessageIndex = node.selectIndex
-            if (newMessages.any { it.id == message.id }) {
-                newMessages[newMessages.indexOfFirst { it.id == message.id }] = message
-            } else if (message.role != MessageRole.SYSTEM) {
-                // 非 SYSTEM 消息追加到节点版本列表
-                newMessages.add(message)
-                newMessageIndex = newMessages.lastIndex
+        messages.forEach { message ->
+            // 按 ID 查找已有节点（不依赖索引）
+            val existingNode = newNodes.firstOrNull { node ->
+                node.messages.any { it.id == message.id }
             }
-            // SYSTEM 消息不追加到节点版本列表，但 index 位置保留（对齐 messageNodes）
 
-            val newNode = node.copy(
-                messages = newMessages,
-                selectIndex = newMessageIndex
-            )
-
-            // 更新newNodes
-            if (index > newNodes.lastIndex) {
-                newNodes.add(newNode)
-            } else {
-                newNodes[index] = newNode
+            if (existingNode != null) {
+                val idx = newNodes.indexOf(existingNode)
+                val newMessages = existingNode.messages.toMutableList()
+                val msgIdx = newMessages.indexOfFirst { it.id == message.id }
+                newMessages[msgIdx] = message
+                newNodes[idx] = existingNode.copy(
+                    messages = newMessages,
+                    selectIndex = existingNode.selectIndex
+                )
+                usedNodeIds.add(existingNode.id)
+            } else if (message.role != MessageRole.SYSTEM) {
+                // 新消息：追加到最后一条非 SYSTEM 消息的节点作为新版本
+                // 或创建新节点
+                val lastNode = newNodes.lastOrNull { it.id !in usedNodeIds }
+                if (lastNode != null && lastNode.role == message.role) {
+                    val idx = newNodes.indexOf(lastNode)
+                    val newMessages = lastNode.messages + message
+                    newNodes[idx] = lastNode.copy(
+                        messages = newMessages,
+                        selectIndex = newMessages.lastIndex
+                    )
+                } else {
+                    newNodes.add(message.toMessageNode())
+                }
             }
         }
 
