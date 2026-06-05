@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
@@ -706,10 +707,23 @@ class ChatService(
             // start generating
             val session = getOrCreateSession(conversationId)
 
-            // 生成一开始就启动前台 Service 保活，不等切后台
-            if (settings.displaySetting.enableNotificationOnMessageGeneration) {
+            // 如果不在前台，提前启动前台 Service（不等第一块数据）
+            if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
                 startGenerationForeground(senderName, conversationId.toString())
             }
+
+            // 监听前后台切换：一切后台立即启动 FG Service 保活
+            val fgJob: Job? = if (settings.displaySetting.enableNotificationOnMessageGeneration) {
+                appScope.launch {
+                    isForeground.drop(1).collect { foreground ->
+                        if (!foreground) {
+                            startGenerationForeground(senderName, conversationId.toString())
+                        } else {
+                            stopGenerationForeground()
+                        }
+                    }
+                }
+            } else null
 
             agentPipeline.run(
                 settings = settings,
@@ -1076,6 +1090,7 @@ class ChatService(
                 }),
             ).onCompletion {
                 // 取消 Live Update 通知 + 前台服务
+                fgJob?.cancel()
                 cancelLiveUpdateNotification(conversationId)
                 stopGenerationForeground()
 

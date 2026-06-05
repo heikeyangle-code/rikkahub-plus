@@ -165,10 +165,12 @@ fun MarkdownNew(
 
     ProvideTextStyle(style) {
         Column(modifier = modifier.padding(start = 4.dp)) {
-            document.value.body().childNodes().fastForEachIndexed { index, node ->
-                key(index) {
+            var childIndex = 0
+            document.value.body().childNodes().fastForEach { node ->
+                key(childIndex) {
                     HtmlBodyNode(node = node, onClickCitation = onClickCitation)
                 }
+                childIndex++
             }
         }
     }
