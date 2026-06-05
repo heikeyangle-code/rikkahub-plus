@@ -706,8 +706,8 @@ class ChatService(
             // start generating
             val session = getOrCreateSession(conversationId)
 
-            // 如果不在前台，提前启动前台 Service（不等第一块数据）
-            if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
+            // 生成一开始就启动前台 Service 保活，不等切后台
+            if (settings.displaySetting.enableNotificationOnMessageGeneration) {
                 startGenerationForeground(senderName, conversationId.toString())
             }
 
