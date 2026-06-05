@@ -60,7 +60,7 @@ private const val TAG = "PreferencesStore"
 
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
-    corruptionHandler = androidx.datastore.preferences.core.ReplaceFileCorruptionHandler { _ ->
+    corruptionHandler = { _: Throwable ->
         Log.w(TAG, "Settings DataStore corrupted, resetting to defaults")
         emptyPreferences()
     },
