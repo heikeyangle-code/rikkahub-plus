@@ -94,7 +94,9 @@ class AgentPipeline(
         var pipelineMessages = messages
         pipelineMessages = prepareContext(pipelineMessages, autoCompactor)
 
-        val selectedMemories = selectRelevantMemories(memories ?: emptyList(), pipelineMessages)
+        val selectedMemories = selectRelevantMemories(
+            memories ?: emptyList(), pipelineMessages, settings, model,
+        )
         val assistantId = if (assistant.useGlobalMemory) "__global__" else assistant.id.toString()
 
         // ── 收集注入数据（不污染 pipelineMessages）──
@@ -189,15 +191,49 @@ class AgentPipeline(
         return current
     }
 
-    private fun selectRelevantMemories(
+    private suspend fun selectRelevantMemories(
         allMemories: List<AssistantMemory>, recentMessages: List<UIMessage>,
+        settings: Settings, model: Model,
     ): List<AssistantMemory> {
         if (allMemories.size <= 5) return allMemories
         val recentText = recentMessages.takeLast(3)
             .flatMap { it.parts }.filterIsInstance<UIMessagePart.Text>()
-            .joinToString(" ") { it.text }.lowercase().take(500)
+            .joinToString(" ") { it.text }.take(500)
         if (recentText.isBlank()) return allMemories.take(3)
-        val keywords = recentText.split("\\s+".toRegex()).filter { it.length > 3 }.toSet()
+
+        // 路径一：LLM side-query 按语义选（主路径）
+        val catalog = allMemories.withIndex().joinToString("\n") { (i, m) ->
+            val preview = m.content.take(100).replace("\n", " ")
+            "$i: $preview"
+        }
+        val sidePrompt = buildString {
+            appendLine("Recent conversation:")
+            appendLine(recentText)
+            appendLine()
+            appendLine("Memory catalog (index: preview):")
+            appendLine(catalog)
+            appendLine()
+            appendLine("Select the indices of memories clearly relevant to the conversation.")
+            appendLine("Return ONLY a JSON array of integers, e.g. [0, 3]. If none, return [].")
+        }
+        val llmResponse = callLLM(settings, model, sidePrompt, 200)
+        val llmIndices = llmResponse?.let { resp ->
+            try {
+                val start = resp.indexOf('[')
+                val end = resp.lastIndexOf(']')
+                if (start >= 0 && end > start) {
+                    json.parseToJsonElement(resp.substring(start, end + 1)).jsonArray
+                        .mapNotNull { it.jsonPrimitive.intOrNull }
+                        .filter { it in allMemories.indices }
+                } else null
+            } catch (_: Exception) { null }
+        }
+        if (llmIndices != null && llmIndices.isNotEmpty()) {
+            return llmIndices.map { allMemories[it] }.take(5)
+        }
+
+        // 路径二：关键词匹配降级
+        val keywords = recentText.lowercase().split("\\s+".toRegex()).filter { it.length > 3 }.toSet()
         if (keywords.isEmpty()) return allMemories.take(3)
         val scored = allMemories.mapNotNull { m ->
             val s = keywords.count { m.content.lowercase().contains(it) }
