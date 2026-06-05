@@ -268,6 +268,28 @@ private fun AssistantMemoryContent(
                     )
                 }
             )
+            // 提取间隔
+            item(
+                headlineContent = { Text("提取间隔（轮数）") },
+                supportingContent = { Text("每 N 轮对话提取一次，默认 5") },
+                trailingContent = {
+                    OutlinedTextField(
+                        value = assistant.autoMemoryExtractInterval.toString(),
+                        onValueChange = { v ->
+                            v.toIntOrNull()?.let { n ->
+                                onUpdateAssistant(
+                                    assistant.copy(
+                                        autoMemoryExtractInterval = n.coerceIn(1, 100)
+                                    )
+                                )
+                            }
+                        },
+                        modifier = Modifier.width(80.dp),
+                        singleLine = true,
+                        enabled = assistant.enableAutoMemoryExtract,
+                    )
+                }
+            )
         }
 
         Box(

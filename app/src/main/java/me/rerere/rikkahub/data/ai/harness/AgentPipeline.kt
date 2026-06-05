@@ -160,7 +160,8 @@ class AgentPipeline(
                     if (last != null && (last.role == MessageRole.ASSISTANT || last.role == MessageRole.USER)) {
                         // 节流1：每 N 轮才提取一次
                         val turn = extractTurnCounter.incrementAndGet()
-                        if (turn % EXTRACT_EVERY_N_TURNS != 0) return@onCompletion
+                        val interval = assistant.autoMemoryExtractInterval.coerceAtLeast(1)
+                        if (turn % interval != 0) return@onCompletion
                         // 节流2：最后一轮有工具调用说明还在干活，纯对话才值得提取
                         if (last.getTools().isNotEmpty()) return@onCompletion
                         val dialogue = buildDialogueText(msgs)
