@@ -68,6 +68,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -156,13 +157,16 @@ fun ChatInput(
     val filesHazeStyle = HazeMaterials.thin()
 
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     fun sendMessage() {
+        focusManager.clearFocus(force = true)
         keyboardController?.hide()
         if (loading) onCancelClick() else onSendClick()
     }
 
     fun sendMessageWithoutAnswer() {
+        focusManager.clearFocus(force = true)
         keyboardController?.hide()
         if (loading) onCancelClick() else onLongSendClick()
     }
