@@ -4728,6 +4728,7 @@ _MATH_NAMESPACE = {
     "percentile": _percentile, "zscore": _zscore,
     "geometric_mean": _gmean, "harmonic_mean": _hmean,
     "rms": _rms, "skewness": _skewness, "kurtosis": _kurtosis,
+    "gmean": _gmean, "hmean": _hmean,
 
     # ── Signal ──
     "db": _db, "db_to_linear": _db_to_linear, "snr": _snr,
