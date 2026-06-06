@@ -795,7 +795,7 @@ class ChatService(
                         add(createDatabaseQueryTool(database))
                     }
                     if (assistant.localTools.contains(LocalToolOption.Calculator)) {
-                        add(createCalculatorTool())
+                        add(createCalculatorTool(context))
                     }
                     if (assistant.enabledSkills.isNotEmpty()) {
                         addAll(
@@ -972,7 +972,7 @@ class ChatService(
                                             add(createDatabaseQueryTool(database))
                                         }
                                         if (assistant.localTools.contains(LocalToolOption.Calculator)) {
-                                            add(createCalculatorTool())
+                                            add(createCalculatorTool(context))
                                         }
                                         if (assistant.enabledSkills.isNotEmpty()) {
                                             addAll(createSkillTools(
@@ -1613,7 +1613,7 @@ class ChatService(
                     )
                 }
                 if (assistant.mcpServers.isNotEmpty()) addAll(createMcpResourceTools(mcpManager))
-                if (assistant.localTools.contains(LocalToolOption.Calculator)) add(createCalculatorTool())
+                if (assistant.localTools.contains(LocalToolOption.Calculator)) add(createCalculatorTool(context))
                 if (assistant.localTools.contains(LocalToolOption.TaskTools)) addAll(createTaskTools())
                 if (assistant.localTools.contains(LocalToolOption.PlanMode)) addAll(createPlanModeTools())
                 if (assistant.localTools.contains(LocalToolOption.WorkerTools)) addAll(createWorkerTools(workerManager))

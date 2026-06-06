@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import android.content.Context
 import com.chaquo.python.Python
+import com.chaquo.python.android.AndroidPlatform
 import kotlinx.serialization.json.*
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -8,7 +10,7 @@ import me.rerere.ai.ui.UIMessagePart
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-fun createCalculatorTool(): Tool = Tool(
+fun createCalculatorTool(context: Context): Tool = Tool(
     name = "calculator",
     description = """
         World-class mathematical calculator. Use for ALL numerical, mathematical, statistical, 
@@ -124,6 +126,15 @@ fun createCalculatorTool(): Tool = Tool(
 
         val executor = Executors.newSingleThreadExecutor()
         try {
+            // Python must be started on main thread (Chaquopy requirement)
+            if (!Python.isStarted()) {
+                kotlinx.coroutines.runBlocking {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        Python.start(AndroidPlatform(context))
+                    }
+                }
+            }
+
             val future = executor.submit<String> {
                 try {
                     val py = Python.getInstance()
