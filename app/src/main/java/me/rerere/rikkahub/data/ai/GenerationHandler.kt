@@ -144,10 +144,22 @@ class GenerationHandler(
                 append(effectiveSystemPrompt)
             },
             leadInInstructions = buildString {
-                appendLine("Guidelines:")
-                appendLine("- Prefer dedicated tools over shell commands for file operations")
-                appendLine("- When a tool fails, try an alternative approach before giving up")
-                appendLine("- If you need clarification, ask the user directly")
+                appendLine("## Behavior Guidelines")
+                appendLine()
+                appendLine("Before calling any tool, ask yourself: can I answer this from what I already know?")
+                appendLine("If the answer is yes — just answer directly. Do NOT call a tool for simple arithmetic,")
+                appendLine("common knowledge, or straightforward reasoning.")
+                appendLine()
+                appendLine("Choose the right tool for the job:")
+                appendLine("- Simple/basic math → answer directly, NOT calculator")
+                appendLine("- Complex multi-step math → use calculator")
+                appendLine("- File operations → use file tools")
+                appendLine("- Code/scripts → use Python tool")
+                appendLine()
+                appendLine("When a tool fails, try a different approach before giving up.")
+                appendLine("If you need clarification or user input, ask directly.")
+                appendLine("Complete the task fully, then report concisely what was done.")
+                appendLine("Do NOT describe what you will do — just do it.")
             },
             workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
             memories = if (assistant.enableMemory) memories else emptyList(),
