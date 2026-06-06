@@ -39,6 +39,7 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
     result = {'stdout': '', 'files': [], 'error': None}
 
     try:
+        _IMG_FMTS = {'png','jpg','jpeg','webp','bmp','gif','tiff'}
         _text = lambda: _read_file(input_path, input_text)
         _out = lambda ext, fallback='output': _outpath(input_path, ext, output_dir, fallback)
 
@@ -218,8 +219,7 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
                 result['stdout'] = f'Saved: {out} (basic raster)'
 
         # ── Image format conversion (any ↔ any via Pillow) ──
-        _IMG_FMTS = {'png','jpg','jpeg','webp','bmp','gif','tiff'}
-        if from_format in _IMG_FMTS and to_format in _IMG_FMTS:
+        elif from_format in _IMG_FMTS and to_format in _IMG_FMTS and from_format != to_format:
             from PIL import Image
             img = Image.open(input_path)
             out = _out(to_format)
