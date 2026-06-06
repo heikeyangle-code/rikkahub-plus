@@ -798,7 +798,7 @@ def _newton(f_str, x0, tol=1e-10, max_iter=100):
 def _make_safe():
     return {k:v for k,v in _MATH_NAMESPACE.items() if not isinstance(v,str)}
 
-def _limit(f_str, x, approach, side="both"):
+def _limit(f_str, approach, side="both"):
     """Numerical limit. side='left','right','both'"""
     safe = _make_safe()
     def f(xv): return eval(f_str, {"__builtins__":{}}, {**safe, "x": xv})
