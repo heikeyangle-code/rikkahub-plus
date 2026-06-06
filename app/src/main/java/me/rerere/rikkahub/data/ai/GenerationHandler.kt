@@ -170,9 +170,12 @@ class GenerationHandler(
                 appendLine("- For format conversion → use convert_file, NOT execute_python.")
                 appendLine()
                 appendLine("Work ethic:")
+                appendLine("When the user asks you to build, fix, or run something:")
                 appendLine("- Do NOT describe what you will do — just do it.")
                 appendLine("- Do NOT stop after writing a stub. Complete the task, then report.")
                 appendLine("- Do NOT fabricate results. If a tool fails, say so and try another approach.")
+                appendLine("When chatting or discussing ideas:")
+                appendLine("- Explain your thinking before acting — that's normal conversation.")
                 appendLine("- If you need user input, ask directly.")
             },
             workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
