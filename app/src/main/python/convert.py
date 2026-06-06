@@ -67,25 +67,22 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
             result['files'].append(out)
             result['stdout'] = f'Saved: {out}'
 
-        # ── PDF extraction (pdfplumber → better than pypdf) ──
+        # ── PDF extraction (pypdf) ──
         elif from_format == 'pdf' and to_format in ('txt', 'md'):
-            import pdfplumber
-            with pdfplumber.open(input_path) as pdf:
-                pages = []
-                for page in pdf.pages:
-                    t = page.extract_text() or ''
-                    pages.append(t)
+            from pypdf import PdfReader
+            reader = PdfReader(input_path)
+            pages = [page.extract_text() or '' for page in reader.pages]
             output = '\n\n'.join(pages)
             if to_format == 'md':
                 output = '# Extracted from PDF\n\n' + output
             result['stdout'] = output
 
         elif from_format == 'pdf' and to_format == 'docx':
-            import pdfplumber
+            from pypdf import PdfReader
             from docx import Document
             doc = Document()
-            with pdfplumber.open(input_path) as pdf:
-                for page in pdf.pages:
+            reader = PdfReader(input_path)
+            for page in reader.pages:
                     text = page.extract_text() or ''
                     for line in text.split('\n'):
                         if line.strip():
@@ -312,8 +309,8 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
             paths = [p.strip() for p in input_text.split(',') if p.strip()]
             if not paths:
                 raise ValueError('Provide comma-separated PDF paths in input_text')
-            from PyPDF2 import PdfMerger
-            merger = PdfMerger()
+            from pypdf import PdfWriter
+            merger = PdfWriter()
             for p in paths:
                 merger.append(p)
             out = os.path.join(output_dir, 'merged.pdf')
