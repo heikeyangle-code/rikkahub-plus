@@ -37,78 +37,409 @@ PHYSICAL_CONSTANTS = {
     "bohr": 5.29177210903e-11, "hartree": 4.3597447222071e-18,
 }
 
-UNITS = {
-    "length": {
-        "m": 1.0, "meter": 1.0, "meters": 1.0, "km": 1000.0,
-        "kilometer": 1000.0, "cm": 0.01, "mm": 0.001, "um": 1e-6,
-        "nm": 1e-9, "mile": 1609.344, "mi": 1609.344, "yard": 0.9144,
-        "yd": 0.9144, "foot": 0.3048, "feet": 0.3048, "ft": 0.3048,
-        "inch": 0.0254, "in": 0.0254, "nautical_mile": 1852.0,
-        "angstrom": 1e-10, "light_year": 9.461e15, "ly": 9.461e15,
-        "au": 1.496e11, "parsec": 3.086e16, "pc": 3.086e16,
-        "li": 500.0, "chi": 0.333333, "cun": 0.0333333,
-    },
-    "mass": {
-        "kg": 1.0, "kilogram": 1.0, "g": 0.001, "gram": 0.001,
-        "mg": 1e-6, "ug": 1e-9, "t": 1000.0, "ton": 1000.0,
-        "lb": 0.453592, "lbs": 0.453592, "oz": 0.0283495,
-        "stone": 6.35029, "jin": 0.5, "liang": 0.05,
-        "carat": 0.0002, "ct": 0.0002,
-    },
-    "temperature": {"K": None, "C": None, "°C": None, "celsius": None,
-                     "F": None, "°F": None, "fahrenheit": None},
-    "time": {
-        "s": 1.0, "sec": 1.0, "second": 1.0, "ms": 0.001,
-        "us": 1e-6, "ns": 1e-9, "min": 60.0, "minute": 60.0,
-        "h": 3600.0, "hr": 3600.0, "hour": 3600.0,
-        "d": 86400.0, "day": 86400.0, "week": 604800.0,
-        "month": 2592000.0, "year": 31536000.0,
-    },
-    "speed": {
-        "m/s": 1.0, "mps": 1.0, "km/h": 0.277778, "kph": 0.277778,
-        "mph": 0.44704, "knot": 0.514444, "c": 299792458.0, "mach": 340.29,
-    },
-    "area": {
-        "m2": 1.0, "m²": 1.0, "km2": 1e6, "km²": 1e6,
-        "cm2": 1e-4, "cm²": 1e-4, "mm2": 1e-6, "mm²": 1e-6,
-        "ha": 10000.0, "acre": 4046.86, "sq_ft": 0.092903,
-        "sq_in": 0.00064516, "sq_mile": 2.59e6,
-        "mu": 666.667, "qing": 66666.7,
-    },
-    "volume": {
-        "L": 1.0, "l": 1.0, "liter": 1.0, "mL": 0.001, "ml": 0.001,
-        "m3": 1000.0, "m³": 1000.0, "cm3": 0.001, "cc": 0.001,
-        "gal": 3.78541, "qt": 0.946353, "pt": 0.473176,
-        "cup": 0.236588, "fl_oz": 0.0295735,
-        "tbsp": 0.0147868, "tsp": 0.00492892,
-    },
-    "data": {
-        "B": 1.0, "byte": 1.0, "KB": 1024.0, "MB": 1048576.0,
-        "GB": 1073741824.0, "TB": 1099511627776.0, "PB": 1125899906842624.0,
-        "Kb": 128.0, "Mb": 131072.0, "Gb": 134217728.0,
-    },
-    "energy": {
-        "J": 1.0, "joule": 1.0, "kJ": 1000.0, "cal": 4.184,
-        "kcal": 4184.0, "Wh": 3600.0, "kWh": 3600000.0,
-        "eV": 1.602e-19, "BTU": 1055.06, "erg": 1e-7,
-    },
-    "pressure": {
-        "Pa": 1.0, "kPa": 1000.0, "MPa": 1e6,
-        "bar": 100000.0, "atm": 101325.0, "psi": 6894.76,
-        "mmHg": 133.322, "torr": 133.322,
-    },
-    "force": {
-        "N": 1.0, "newton": 1.0, "kN": 1000.0,
-        "lbf": 4.44822, "kgf": 9.80665, "dyne": 1e-5,
-    },
-    "angle": {
-        "rad": 1.0, "radian": 1.0, "deg": math.pi/180, "degree": math.pi/180,
-        "'": math.pi/10800, "arcmin": math.pi/10800,
-        "\"": math.pi/648000, "arcsec": math.pi/648000,
-        "grad": math.pi/200, "turn": 2*math.pi,
-    },
-    "frequency": {"Hz": 1.0, "hz": 1.0, "kHz": 1000.0, "MHz": 1e6, "GHz": 1e9},
+# ════════════════════════════════════════════
+# UNIT SYSTEM (pint × sympy hybrid)
+# ════════════════════════════════════════════
+
+# 7 SI base dimensions: [mass, length, time, current, temperature, amount, luminous_intensity]
+_DIM = {"M": 0, "L": 1, "T": 2, "I": 3, "Θ": 4, "N": 5, "J": 6}
+_DIM_NAMES = ["mass", "length", "time", "current", "temperature", "amount", "luminous_intensity"]
+
+# SI prefixes (from sympy & pint)
+_PREFIXES = {
+    "Y": 1e24, "Z": 1e21, "E": 1e18, "P": 1e15, "T": 1e12, "G": 1e9,
+    "M": 1e6, "k": 1e3, "h": 1e2, "da": 1e1,
+    "d": 1e-1, "c": 1e-2, "m": 1e-3,
+    "u": 1e-6, "mu": 1e-6, "µ": 1e-6,
+    "n": 1e-9, "p": 1e-12, "f": 1e-15,
+    "a": 1e-18, "z": 1e-21, "y": 1e-24,
+    # Power-of-2 binary prefixes
+    "Ki": 2**10, "Mi": 2**20, "Gi": 2**30, "Ti": 2**40, "Pi": 2**50, "Ei": 2**60,
 }
+_PREFIX_NAMES = {
+    "yotta": 1e24, "zetta": 1e21, "exa": 1e18, "peta": 1e15, "tera": 1e12,
+    "giga": 1e9, "mega": 1e6, "kilo": 1e3, "hecto": 1e2, "deca": 1e1,
+    "deci": 1e-1, "centi": 1e-2, "milli": 1e-3,
+    "micro": 1e-6, "nano": 1e-9, "pico": 1e-12, "femto": 1e-15,
+    "atto": 1e-18, "zepto": 1e-21, "yocto": 1e-24,
+    "kibi": 2**10, "mebi": 2**20, "gibi": 2**30, "tebi": 2**40, "pebi": 2**50, "exbi": 2**60,
+}
+
+# Base and derived units: {name: (dim_vector, scale_to_si)}
+# dim_vector = 7-element list [mass, length, time, current, temperature, amount, luminous_intensity]
+_UNIT_DEFS = {
+    # SI base units
+    "kg":      ([1, 0, 0, 0, 0, 0, 0], 1.0),
+    "m":       ([0, 1, 0, 0, 0, 0, 0], 1.0),
+    "s":       ([0, 0, 1, 0, 0, 0, 0], 1.0),
+    "A":       ([0, 0, 0, 1, 0, 0, 0], 1.0),
+    "K":       ([0, 0, 0, 0, 1, 0, 0], 1.0),
+    "mol":     ([0, 0, 0, 0, 0, 1, 0], 1.0),
+    "cd":      ([0, 0, 0, 0, 0, 0, 1], 1.0),
+
+    # Derived SI units
+    "N":       ([1, 1, -2, 0, 0, 0, 0], 1.0),   # kg·m/s²
+    "J":       ([1, 2, -2, 0, 0, 0, 0], 1.0),   # N·m = kg·m²/s²
+    "Pa":      ([1, -1, -2, 0, 0, 0, 0], 1.0),  # N/m² = kg/(m·s²)
+    "W":       ([1, 2, -3, 0, 0, 0, 0], 1.0),   # J/s = kg·m²/s³
+    "V":       ([1, 2, -3, -1, 0, 0, 0], 1.0),  # W/A = kg·m²/(s³·A)
+    "C":       ([0, 0, 1, 1, 0, 0, 0], 1.0),   # A·s
+    "F":       ([ -1, -2, 4, 2, 0, 0, 0], 1.0), # C/V = s⁴·A²/(kg·m²)
+    "Ω":       ([1, 2, -3, -2, 0, 0, 0], 1.0),  # V/A = kg·m²/(s³·A²)
+    "ohm":     ([1, 2, -3, -2, 0, 0, 0], 1.0),
+    "S":       ([ -1, -2, 3, 2, 0, 0, 0], 1.0), # 1/Ω = s³·A²/(kg·m²)
+    "H":       ([1, 2, -2, -2, 0, 0, 0], 1.0),  # Wb/A = kg·m²/(s²·A²)
+    "T":       ([1, 0, -2, -1, 0, 0, 0], 1.0),  # Wb/m² = kg/(s²·A)
+    "Wb":      ([1, 2, -2, -1, 0, 0, 0], 1.0),  # V·s = kg·m²/(s²·A)
+    "lm":      ([0, 0, 0, 0, 0, 0, 1], 1.0),   # cd·sr
+    "lx":      ([0, -2, 0, 0, 0, 0, 1], 1.0),  # lm/m²
+    "Bq":      ([0, 0, -1, 0, 0, 0, 0], 1.0),  # 1/s
+    "Gy":      ([0, 2, -2, 0, 0, 0, 0], 1.0),  # J/kg = m²/s²
+    "Sv":      ([0, 2, -2, 0, 0, 0, 0], 1.0),  # J/kg
+    "kat":     ([0, 0, -1, 0, 0, 1, 0], 1.0),  # mol/s
+
+    # Non-SI units (different scale, same or different dimension)
+    "g":       ([1, 0, 0, 0, 0, 0, 0], 1e-3),  # 1g = 0.001 kg
+    "t":       ([1, 0, 0, 0, 0, 0, 0], 1000.0),  # tonne
+    "ton":     ([1, 0, 0, 0, 0, 0, 0], 1000.0),
+    "lb":      ([1, 0, 0, 0, 0, 0, 0], 0.453592),
+    "lbs":     ([1, 0, 0, 0, 0, 0, 0], 0.453592),
+    "oz":      ([1, 0, 0, 0, 0, 0, 0], 0.0283495),
+    "stone":   ([1, 0, 0, 0, 0, 0, 0], 6.35029),
+    "jin":     ([1, 0, 0, 0, 0, 0, 0], 0.5),
+    "liang":   ([1, 0, 0, 0, 0, 0, 0], 0.05),
+    "carat":   ([1, 0, 0, 0, 0, 0, 0], 2e-4),
+    "ct":      ([1, 0, 0, 0, 0, 0, 0], 2e-4),
+
+    "cm":      ([0, 1, 0, 0, 0, 0, 0], 1e-2),
+    "mm":      ([0, 1, 0, 0, 0, 0, 0], 1e-3),
+    "um":      ([0, 1, 0, 0, 0, 0, 0], 1e-6),
+    "nm":      ([0, 1, 0, 0, 0, 0, 0], 1e-9),
+    "km":      ([0, 1, 0, 0, 0, 0, 0], 1000.0),
+    "mile":    ([0, 1, 0, 0, 0, 0, 0], 1609.344),
+    "mi":      ([0, 1, 0, 0, 0, 0, 0], 1609.344),
+    "yard":    ([0, 1, 0, 0, 0, 0, 0], 0.9144),
+    "yd":      ([0, 1, 0, 0, 0, 0, 0], 0.9144),
+    "foot":    ([0, 1, 0, 0, 0, 0, 0], 0.3048),
+    "feet":    ([0, 1, 0, 0, 0, 0, 0], 0.3048),
+    "ft":      ([0, 1, 0, 0, 0, 0, 0], 0.3048),
+    "inch":    ([0, 1, 0, 0, 0, 0, 0], 0.0254),
+    "in":      ([0, 1, 0, 0, 0, 0, 0], 0.0254),
+    "nautical_mile": ([0, 1, 0, 0, 0, 0, 0], 1852.0),
+    "angstrom": ([0, 1, 0, 0, 0, 0, 0], 1e-10),
+    "light_year": ([0, 1, 0, 0, 0, 0, 0], 9.461e15),
+    "ly":      ([0, 1, 0, 0, 0, 0, 0], 9.461e15),
+    "au":      ([0, 1, 0, 0, 0, 0, 0], 1.496e11),
+    "parsec":  ([0, 1, 0, 0, 0, 0, 0], 3.086e16),
+    "pc":      ([0, 1, 0, 0, 0, 0, 0], 3.086e16),
+    "li":      ([0, 1, 0, 0, 0, 0, 0], 500.0),
+    "chi":     ([0, 1, 0, 0, 0, 0, 0], 0.333333),
+    "cun":     ([0, 1, 0, 0, 0, 0, 0], 0.0333333),
+
+    "min":     ([0, 0, 1, 0, 0, 0, 0], 60.0),
+    "minute":  ([0, 0, 1, 0, 0, 0, 0], 60.0),
+    "h":       ([0, 0, 1, 0, 0, 0, 0], 3600.0),
+    "hr":      ([0, 0, 1, 0, 0, 0, 0], 3600.0),
+    "hour":    ([0, 0, 1, 0, 0, 0, 0], 3600.0),
+    "d":       ([0, 0, 1, 0, 0, 0, 0], 86400.0),
+    "day":     ([0, 0, 1, 0, 0, 0, 0], 86400.0),
+    "week":    ([0, 0, 1, 0, 0, 0, 0], 604800.0),
+    "month":   ([0, 0, 1, 0, 0, 0, 0], 2592000.0),
+    "year":    ([0, 0, 1, 0, 0, 0, 0], 31536000.0),
+    "ms":      ([0, 0, 1, 0, 0, 0, 0], 1e-3),
+    "us":      ([0, 0, 1, 0, 0, 0, 0], 1e-6),
+    "ns":      ([0, 0, 1, 0, 0, 0, 0], 1e-9),
+
+    "ha":      ([0, 2, 0, 0, 0, 0, 0], 10000.0),
+    "acre":    ([0, 2, 0, 0, 0, 0, 0], 4046.86),
+    "sq_ft":   ([0, 2, 0, 0, 0, 0, 0], 0.092903),
+    "sq_in":   ([0, 2, 0, 0, 0, 0, 0], 6.4516e-4),
+    "sq_mile": ([0, 2, 0, 0, 0, 0, 0], 2.59e6),
+    "mu":      ([0, 2, 0, 0, 0, 0, 0], 666.667),
+    "qing":    ([0, 2, 0, 0, 0, 0, 0], 66666.7),
+
+    "L":       ([0, 3, 0, 0, 0, 0, 0], 1e-3),
+    "l":       ([0, 3, 0, 0, 0, 0, 0], 1e-3),
+    "liter":   ([0, 3, 0, 0, 0, 0, 0], 1e-3),
+    "mL":      ([0, 3, 0, 0, 0, 0, 0], 1e-6),
+    "ml":      ([0, 3, 0, 0, 0, 0, 0], 1e-6),
+    "gal":     ([0, 3, 0, 0, 0, 0, 0], 3.78541e-3),
+    "qt":      ([0, 3, 0, 0, 0, 0, 0], 9.46353e-4),
+    "pt":      ([0, 3, 0, 0, 0, 0, 0], 4.73176e-4),
+    "cup":     ([0, 3, 0, 0, 0, 0, 0], 2.36588e-4),
+    "fl_oz":   ([0, 3, 0, 0, 0, 0, 0], 2.95735e-5),
+    "tbsp":    ([0, 3, 0, 0, 0, 0, 0], 1.47868e-5),
+    "tsp":     ([0, 3, 0, 0, 0, 0, 0], 4.92892e-6),
+
+    "B":       ([0, 0, 0, 0, 0, 0, 0], 1.0),  # byte (dimensionless)
+    "byte":    ([0, 0, 0, 0, 0, 0, 0], 1.0),  # dimensionless!
+    "bit":     ([0, 0, 0, 0, 0, 0, 0], 0.125),
+    "KB":      ([0, 0, 0, 0, 0, 0, 0], 1024.0),
+    "MB":      ([0, 0, 0, 0, 0, 0, 0], 1048576.0),
+    "GB":      ([0, 0, 0, 0, 0, 0, 0], 1073741824.0),
+    "TB":      ([0, 0, 0, 0, 0, 0, 0], 1099511627776.0),
+    "PB":      ([0, 0, 0, 0, 0, 0, 0], 1125899906842624.0),
+    "Kb":      ([0, 0, 0, 0, 0, 0, 0], 128.0),
+    "Mb":      ([0, 0, 0, 0, 0, 0, 0], 131072.0),
+    "Gb":      ([0, 0, 0, 0, 0, 0, 0], 134217728.0),
+
+    "cal":     ([1, 2, -2, 0, 0, 0, 0], 4.184),
+    "kcal":    ([1, 2, -2, 0, 0, 0, 0], 4184.0),
+    "eV":      ([1, 2, -2, 0, 0, 0, 0], 1.602176634e-19),
+    "Wh":      ([1, 2, -2, 0, 0, 0, 0], 3600.0),
+    "kWh":     ([1, 2, -2, 0, 0, 0, 0], 3600000.0),
+    "BTU":     ([1, 2, -2, 0, 0, 0, 0], 1055.06),
+    "erg":     ([1, 2, -2, 0, 0, 0, 0], 1e-7),
+
+    "bar":     ([1, -1, -2, 0, 0, 0, 0], 100000.0),
+    "atm":     ([1, -1, -2, 0, 0, 0, 0], 101325.0),
+    "psi":     ([1, -1, -2, 0, 0, 0, 0], 6894.76),
+    "mmHg":    ([1, -1, -2, 0, 0, 0, 0], 133.322),
+    "torr":    ([1, -1, -2, 0, 0, 0, 0], 133.322),
+
+    "lbf":     ([1, 1, -2, 0, 0, 0, 0], 4.44822),
+    "kgf":     ([1, 1, -2, 0, 0, 0, 0], 9.80665),
+    "dyne":    ([1, 1, -2, 0, 0, 0, 0], 1e-5),
+    "kN":      ([1, 1, -2, 0, 0, 0, 0], 1000.0),
+
+    "rad":     ([0, 0, 0, 0, 0, 0, 0], 1.0),
+    "deg":     ([0, 0, 0, 0, 0, 0, 0], math.pi/180),
+    "'":       ([0, 0, 0, 0, 0, 0, 0], math.pi/10800),
+    "\"":      ([0, 0, 0, 0, 0, 0, 0], math.pi/648000),
+    "grad":    ([0, 0, 0, 0, 0, 0, 0], math.pi/200),
+
+    "Hz":      ([0, 0, -1, 0, 0, 0, 0], 1.0),
+    "mph":     ([0, 1, -1, 0, 0, 0, 0], 0.44704),
+    "knot":    ([0, 1, -1, 0, 0, 0, 0], 0.514444),
+    "mach":    ([0, 1, -1, 0, 0, 0, 0], 340.29),
+}
+# Alias system (from pint): common alternative names
+_ALIASES = {
+    "meter": "m", "meters": "m",
+    "kilogram": "kg", "kilograms": "kg",
+    "second": "s", "seconds": "s",
+    "ampere": "A", "amp": "A",
+    "kelvin": "K",
+    "mole": "mol",
+    "candela": "cd",
+    "newton": "N", "newtons": "N",
+    "joule": "J", "joules": "J",
+    "pascal": "Pa",
+    "watt": "W", "watts": "W",
+    "volt": "V", "volts": "V",
+    "coulomb": "C",
+    "farad": "F",
+    "siemens": "S",
+    "henry": "H",
+    "tesla": "T",
+    "weber": "Wb",
+    "lumen": "lm",
+    "lux": "lx",
+    "becquerel": "Bq",
+    "gray": "Gy",
+    "sievert": "Sv",
+    "katal": "kat",
+    "mps": "m/s",
+    "kph": "km/h",
+    "kmh": "km/h",
+    "mph": "mile/h",
+    "mps": "m/s",
+    "sec": "s",
+    "min": "min",
+    "hr": "h",
+    "inch": "in", "inches": "in",
+    "feet": "ft",
+}
+_ALIASES.update({k+"s": v for k,v in list(_ALIASES.items()) if not k.endswith("s") and v in _UNIT_DEFS})
+
+
+def _resolve_unit(name):
+    """Resolve a unit name (with prefix or alias) to (dim_vec, scale)."""
+    name = name.strip().replace("°", "")
+    # Direct lookup (case-insensitive: try as-is, then lowercase, then uppercase)
+    if name in _UNIT_DEFS:
+        return _UNIT_DEFS[name]
+    lc = name.lower()
+    if lc != name and lc in _UNIT_DEFS:
+        return _UNIT_DEFS[lc]
+    uc = name.upper()
+    if uc != name and uc in _UNIT_DEFS:
+        return _UNIT_DEFS[uc]
+    # Alias
+    if name in _ALIASES:
+        return _resolve_unit(_ALIASES[name])
+    # Try stripping prefix character by character
+    # e.g. "km" → k(1000) + m → ([0,1,...], 1000)
+    for plen in range(1, min(len(name), 3)+1):
+        prefix = name[:plen]
+        rest = name[plen:]
+        if prefix in _PREFIXES and rest in _UNIT_DEFS:
+            dim, scale = _UNIT_DEFS[rest]
+            return (dim, scale * _PREFIXES[prefix])
+        if prefix in _PREFIXES and rest in _ALIASES:
+            return _resolve_unit(prefix + _ALIASES[rest])
+    # Try full prefix name
+    for pname, pval in _PREFIX_NAMES.items():
+        if name.startswith(pname):
+            rest = name[len(pname):]
+            if rest in _UNIT_DEFS:
+                dim, scale = _UNIT_DEFS[rest]
+                return (dim, scale * pval)
+    raise ValueError(f"Unknown unit: {name}")
+
+
+def _parse_unit_expr(expr):
+    """Parse a compound unit expression like 'kg*m/s²' into (dim_vec, scale).
+    Uses pint-style tokenization."""
+    expr = expr.strip()
+    if not expr:
+        return ([0]*7, 1.0)
+
+    # Tokenize: split on *, /, ^, digits
+    # Handle "m/s²" → "m/s^2", "m·s" → "m*s"
+    expr = expr.replace("·", "*").replace("⋅", "*").replace("×", "*")
+    expr = expr.replace("²", "^2").replace("³", "^3").replace("^", "**")
+
+    # Simple tokenizer
+    tokens = []
+    i = 0
+    while i < len(expr):
+        if expr[i] in "*/()":
+            if expr[i] == "*" and i+1 < len(expr) and expr[i+1] == "*":
+                tokens.append("**")
+                i += 2
+            else:
+                tokens.append(expr[i])
+                i += 1
+        elif expr[i] == " ":
+            tokens.append("*")
+            i += 1
+        elif expr[i].isalpha() or expr[i] in "'\"°µ":
+            # Collect name
+            j = i
+            while j < len(expr) and (expr[j].isalnum() or expr[j] in "'\"°µ_"):
+                j += 1
+            tokens.append(expr[i:j])
+            i = j
+        elif expr[i].isdigit() or expr[i] == ".":
+            j = i
+            if i > 0 and expr[i-1] == "*" and tokens and tokens[-1] not in "*/()":
+                tokens.append("**")  # implicit exponent
+            while j < len(expr) and (expr[j].isdigit() or expr[j] == "."):
+                j += 1
+            tokens.append(expr[i:j])
+            i = j
+        else:
+            i += 1
+
+    # Parse tokens into dimension vector and scale.
+    # Process exponents by looking ahead: "kg/m**2" means (kg)/(m^2)
+    # Strategy: collect (unit, op) pairs, then apply exponents to nearest unit.
+    # First pass: build list of (unit_name, multiplier)
+    parts = []  # [(unit_name, +1 or -1)]
+    current_op = 1  # +1 for multiply, -1 for divide
+    i = 0
+    while i < len(tokens):
+        t = tokens[i]
+        if t == "*":
+            current_op = 1
+            i += 1
+        elif t == "/":
+            current_op = -1
+            i += 1
+        elif t == "**":
+            if i + 1 < len(tokens) and tokens[i+1].replace(".","").replace("-","").isdigit():
+                exp_val = float(tokens[i+1])
+                i += 2
+                # Apply exponent to the most recently added unit
+                if parts:
+                    u_dim, u_scale, old_mul, name = parts[-1]
+                    parts[-1] = (u_dim, u_scale, old_mul * exp_val, name)
+                continue
+            i += 1
+        elif t in ("(", ")"):
+            i += 1
+        else:
+            # Unit name - look ahead for **N
+            exp_val = 1
+            if i + 2 < len(tokens) and tokens[i+1] == "**":
+                try:
+                    exp_val = float(tokens[i+2])
+                    i += 3
+                except ValueError:
+                    i += 1
+            else:
+                i += 1
+            try:
+                u_dim, u_scale = _resolve_unit(t)
+                parts.append((u_dim, u_scale, current_op * exp_val, t))
+            except ValueError:
+                pass
+
+    # Second pass: combine dimensions
+    dim_vec = [0.0] * 7
+    scale = 1.0
+    for u_dim, u_scale, mul, name in parts:
+        abs_exp = abs(mul)
+        sign = 1 if mul > 0 else -1
+        for d in range(7):
+            dim_vec[d] += sign * u_dim[d] * abs_exp
+        scale *= u_scale ** mul
+
+    return (dim_vec, scale)
+
+
+def _dim_match(a, b):
+    """Check if two dimension vectors are equivalent."""
+    return all(abs(a[d] - b[d]) < 1e-10 for d in range(7))
+
+
+def _simplify_unit(dim_vec, scale):
+    """Find the best canonical unit name for a given dimension and scale.
+    (sympy's quantity_simplify-inspired)"""
+    # Perfect matches first
+    for name, (d, s) in _UNIT_DEFS.items():
+        if _dim_match(d, dim_vec) and abs(s - scale) < 1e-12:
+            return name
+    # Dimension matches with different scale
+    best_name = None
+    best_scale_diff = float('inf')
+    for name, (d, s) in _UNIT_DEFS.items():
+        if _dim_match(d, dim_vec):
+            diff = abs(math.log10(s / scale)) if s > 0 and scale > 0 else float('inf')
+            if diff < best_scale_diff:
+                best_scale_diff = diff
+                best_name = name
+    return best_name
+
+
+def _convert_unit(value, from_u, to_u):
+    """Convert value from one unit to another.
+    Uses dimensional analysis (from sympy) with compound parsing (from pint)."""
+    fl = from_u.strip().replace("°", "")
+    tl = to_u.strip().replace("°", "")
+
+    # Temperature (special case - not linear)
+    fll = fl.lower()
+    tll = tl.lower()
+    if fll in ("k", "kelvin", "c", "celsius", "f", "fahrenheit") and \
+       tll in ("k", "kelvin", "c", "celsius", "f", "fahrenheit"):
+        k = value + 273.15 if fll in ("c", "celsius") else \
+            (value-32)*5/9+273.15 if fll in ("f", "fahrenheit") else value
+        return k if tll in ("k", "kelvin") else k-273.15 if tll in ("c", "celsius") else (k-273.15)*9/5+32
+
+    # Parse compound units
+    from_dim, from_scale = _parse_unit_expr(from_u)
+    to_dim, to_scale = _parse_unit_expr(to_u)
+
+    # Dimensional check (from sympy)
+    if not _dim_match(from_dim, to_dim):
+        from_str = "·".join(f"{_DIM_NAMES[d]}^{from_dim[d]}" for d in range(7) if from_dim[d] != 0)
+        to_str = "·".join(f"{_DIM_NAMES[d]}^{to_dim[d]}" for d in range(7) if to_dim[d] != 0)
+        raise ValueError(f"Incompatible dimensions: {from_str} vs {to_str}")
+
+    # Convert: value * from_scale / to_scale
+    return value * from_scale / to_scale
 
 
 # ════════════════════════════════════════════
@@ -753,7 +1084,86 @@ def _snell(n1,n2,theta1=None,theta2=None):
 
 def _refr_idx(v): return 299792458.0/v
 
-# ── Physics: Quantum ──
+# ── Physics: Optics extras (from sympy) ──
+
+def _brewster(n1, n2):
+    """θ_B = arctan(n2/n1)"""
+    return math.degrees(math.atan(n2/n1))
+
+def _critical_angle(n1, n2):
+    """θ_c = arcsin(n2/n1). n1 must be > n2."""
+    if n1 <= n2: return float('nan')
+    return math.degrees(math.asin(n2/n1))
+
+def _fresnel_r_amplitude(theta, n1, n2):
+    """Fresnel amplitude reflection coefficients. theta in degrees."""
+    th = math.radians(theta)
+    st, ct = math.sin(th), math.cos(th)
+    r_s = (n1*ct - n2*math.sqrt(1-(n1/n2*st)**2)) / (n1*ct + n2*math.sqrt(1-(n1/n2*st)**2))
+    r_p = (n1*math.sqrt(1-(n1/n2*st)**2) - n2*ct) / (n1*math.sqrt(1-(n1/n2*st)**2) + n2*ct)
+    return {"R_s": abs(r_s)**2, "R_p": abs(r_p)**2, "r_s": r_s, "r_p": r_p}
+
+def _lens_makers(n, r1, r2, d=0):
+    """1/f = (n-1)(1/R1 - 1/R2 + (n-1)d/(n*R1*R2)). n = n_lens/n_medium."""
+    if d == 0:
+        return 1/((n-1)*(1/r1 - 1/r2))
+    return 1/((n-1)*(1/r1 - 1/r2 + (n-1)*d/(n*r1*r2)))
+
+def _mirror_formula(f=None, u=None, v=None):
+    """1/f = 1/u + 1/v. Give any 2."""
+    if u and v: return 1/(1/u + 1/v)
+    if f and u: return 1/(1/f - 1/u)
+    if f and v: return 1/(1/f - 1/v)
+    raise ValueError("Give 2 of f, u, v")
+
+def _hyperfocal(f, N, c):
+    """H = f²/(N*c) + f"""
+    return f*f/(N*c) + f
+
+def _waist2rayleigh(w0, lam, n=1):
+    """z_R = π*w0²*n/λ"""
+    return math.pi*w0*w0*n/lam
+
+def _rayleigh2waist(z_r, lam, n=1):
+    """w0 = sqrt(z_r*λ/(π*n))"""
+    return math.sqrt(z_r*lam/(math.pi*n))
+
+def _gaussian_conj(s_in, z_r_in, f):
+    """Gaussian beam transformation. Returns (s_out, z_r_out, mag)."""
+    if f == 0:
+        raise ValueError("f cannot be 0")
+    denom = (f-s_in)**2 + z_r_in**2
+    s_out = f + f*f*(s_in-f)/denom
+    z_r_out = f*f*z_r_in/denom
+    mag = math.sqrt((s_out/f - 1)**2 + (z_r_out/f)**2) * math.sqrt(0)  # simplified
+    mag = 1/math.sqrt((1-s_in/f)**2 + (z_r_in/f)**2) if f != 0 else 0
+    return {"s_out": s_out, "z_r_out": z_r_out, "magnification": mag}
+
+def _deviation(theta, n1=1, n2=1.5):
+    """Prism deviation angle. theta = incident angle."""
+    th = math.radians(theta)
+    r = math.asin(n1/n2*math.sin(th))
+    dev = math.degrees(th + r - math.asin(n1/n2*math.sin(r)))
+    return dev
+
+# ── Physics: Mechanics extras (from sympy) ──
+
+def _center_of_mass(*args):
+    """center_of_mass(m1, x1, m2, x2, ...). Returns center of mass position."""
+    if len(args) < 2 or len(args) % 2 != 0:
+        raise ValueError("Arguments: m1, x1, m2, x2, ...")
+    total_mass = sum(args[i] for i in range(0, len(args), 2))
+    if total_mass == 0: return 0
+    com = sum(args[i]*args[i+1] for i in range(0, len(args), 2)) / total_mass
+    return com
+
+def _inertia_point(mass, x=0, y=0, z=0):
+    """Moment of inertia of point mass about arbitrary axis. Returns Ixx, Iyy, Izz, Ixy, Iyz, Izx."""
+    r2 = x*x + y*y + z*z
+    return {
+        "Ixx": mass*(y*y + z*z), "Iyy": mass*(x*x + z*z), "Izz": mass*(x*x + y*y),
+        "Ixy": -mass*x*y, "Iyz": -mass*y*z, "Izx": -mass*z*x
+    }
 
 def _de_broglie(m=None,v=None,p=None):
     if p: return 6.62607015e-34/p
@@ -873,24 +1283,6 @@ def _pace(speed_kmh):
 
 def _run_pace(time_min,dist_km):
     return time_min/dist_km
-
-
-# ════════════════════════════════════════════
-# UNIT CONVERSION
-# ════════════════════════════════════════════
-
-def _convert_unit(value, from_u, to_u):
-    fl, tl = from_u.lower().strip(), to_u.lower().strip()
-    if fl in ("k","kelvin","c","°c","celsius","f","°f","fahrenheit") and \
-       tl in ("k","kelvin","c","°c","celsius","f","°f","fahrenheit"):
-        k = value + 273.15 if fl in ("c","°c","celsius") else \
-            (value-32)*5/9+273.15 if fl in ("f","°f","fahrenheit") else value
-        return k if tl in ("k","kelvin") else k-273.15 if tl in ("c","°c","celsius") else (k-273.15)*9/5+32
-    for cat,units in UNITS.items():
-        if cat=="temperature": continue
-        if fl in units and tl in units:
-            return value*units[fl]/units[tl]
-    raise ValueError(f"Cannot convert {from_u} to {to_u}")
 
 
 # ── Finance / Economics ──
@@ -1382,6 +1774,20 @@ _MATH_NAMESPACE = {
     # ── Physics: Optics ──
     "lens": _lens, "magnification": _magnification,
     "snell": _snell, "refractive_index": _refr_idx,
+    "brewster_angle": _brewster,
+    "critical_angle": _critical_angle,
+    "fresnel_coefficients": _fresnel_r_amplitude,
+    "lens_makers_formula": _lens_makers,
+    "mirror_formula": _mirror_formula,
+    "hyperfocal_distance": _hyperfocal,
+    "waist2rayleigh": _waist2rayleigh,
+    "rayleigh2waist": _rayleigh2waist,
+    "gaussian_conj": _gaussian_conj,
+    "prism_deviation": _deviation,
+
+    # ── Physics: Mechanics extras ──
+    "center_of_mass": _center_of_mass,
+    "inertia_point_mass": _inertia_point,
 
     # ── Physics: Quantum ──
     "de_broglie": _de_broglie, "compton_wavelength": _compton_wavelength,
