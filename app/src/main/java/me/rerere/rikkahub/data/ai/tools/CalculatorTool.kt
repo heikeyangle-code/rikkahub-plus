@@ -12,61 +12,86 @@ fun createCalculatorTool(): Tool = Tool(
     name = "calculator",
     description = """
         World-class mathematical calculator. Use for ALL numerical, mathematical, statistical, 
-        engineering, financial, and unit conversion computations.
+        engineering, financial, and physical computations.
         
-        CAPABILITIES:
+        ARITHMETIC: + - * / // % ** pow(x,y) sqrt(x) cbrt(x) abs(x) mod(a,b)
+        TRIG (radians): sin cos tan asin acos atan atan2 sinh cosh tanh asinh acosh atanh
+        TRIG (degrees): sind cosd tand asind acosd atand atan2d
+        LOG: log(x) log10(x) log2(x) ln(x) exp(x) log1p(x) expm1(x)
+        ROUNDING: floor ceil trunc round(x,n) frac(x) sign(x) clamp(x,lo,hi) lerp(a,b,t)
         
-        Arithmetic: + - * / // % ** pow(x,y) sqrt(x) cbrt(x) abs(x)
+        STATISTICS: mean median mode stdev variance pstdev pvariance
+          quartiles(data) iqr(data) covariance(xs,ys) weighted_mean(vals,weights)
+          percentile(data,p) zscore(x,data) geometric_mean harmonic_mean rms
         
-        Trigonometry: sin(x) cos(x) tan(x) asin(x) acos(x) atan(x) atan2(x,y)
-        Hyperbolic: sinh(x) cosh(x) tanh(x) asinh(x) acosh(x) atanh(x)
-        Degrees: sind(30)=0.5, cosd(60)=0.5, tand(45)=1, asind(0.5)=30
+        COMBINATORICS: perm(n,k) comb(n,k) factorial(n) gcd(a,b) lcm(a,b)
+          fib(n) catalan(n) binom(n,k)
         
-        Logarithm: log(x) log10(x) log2(x) ln(x)=log(x) exp(x)
+        NUMBER THEORY: is_prime(n) prime_factors(n) divisors(n) sigma(n)
+          euler_phi(n) digit_sum(n) collatz(n)
         
-        Rounding: floor(x) ceil(x) trunc(x) round(x, n) frac(x) sign(x)
-        clamp(x,lo,hi) lerp(a,b,t) map_range(x,a1,b1,a2,b2)
+        UNIT CONVERSION: convert(value,"from","to") or "5 meters to feet"
+          Length, Mass, Temp, Time, Speed, Area, Volume, Data, Energy, Pressure, Force, Angle
         
-        Statistics: mean(a,b,c,...) median(a,b,c,...) mode(a,b,c,...)
-        stdev(a,b,c,...) variance(a,b,c,...) pstdev pvariance
-        correlation(xs,ys) linear_regression(xs,ys)
+        BASE: bin(n) oct(n) hex(n) to_base(n,b) from_base("str",b)
+        ROMAN: roman(n) from_roman("XIV")
         
-        Combinatorics: perm(n,k) comb(n,k) factorial(n) binom(n,k)
-        gcd(a,b) lcm(a,b) fib(n) catalan(n)
+        MATRIX: mat([1,2],[3,4]) matrix_add(A,B) matrix_sub matrix_mul matrix_det
+          matrix_inv matrix_transpose matrix_scale matrix_norm matrix_identity(n) matrix_trace
         
-        Number theory: is_prime(n) prime_factors(n) divisors(n)
-        digit_sum(n) is_even(n) is_odd(n) euler_phi(n)
+        VECTORS: vec(x,y,z) dot(a,b) cross(a,b) vector_mag vector_norm
+          vector_angle(a,b) vector_proj(a,b) vector_dist(a,b)
         
-        Unit conversion: convert(value, "from_unit", "to_unit")
-        Or natural syntax: "5 meters to feet", "100 km/h to mph"
-        Supports: length, mass, temperature, time, speed, area, volume,
-        data (bytes), energy, pressure, force, and Chinese units
+        CALCULUS: derivative("sin(x)", x) integral("x**2", a, b)
         
-        Base conversion: bin(n) oct(n) hex(n) to_base(n,base) from_base("str",base)
-        Roman: roman(n) from_roman("XIV")
-        Sequences: range(start,stop) cumsum(xs) cumprod(xs) diff(xs)
+        FINANCIAL: fv(rate,nper,pmt,pv) pv(rate,nper,pmt,fv) pmt(rate,nper,pv,fv)
+          npv(rate,cashflows) irr(cashflows) loan_payment(principal,annual_rate,years)
+          compound_interest(principal,rate,periods)
         
-        Random: rand() randint(a,b) uniform(a,b) choice(list) sample(list,k)
+        GEOMETRY: circle_area(r) circle_circumference(r) triangle_area(a,b,c)
+          rectangle_area(w,h) sphere_volume(r) sphere_surface_area(r)
+          cylinder_volume(r,h) cylinder_surface_area(r,h) cone_volume(r,h)
+          cube_volume(s) rect_prism_volume(w,h,d) pyramid_volume(base,h)
         
-        Date/time: now() today() days_between(a,b) timestamp(dt)
+        ANGLE: dms_to_dd(d,m,s) dd_to_dms(dd)
         
-        Constants: pi=3.14159..., e=2.71828..., tau, phi=1.618..., c=299792458m/s,
-        g=9.80665, h_planck, k_boltzmann, N_A, avogadro
+        PHYSICS - KINEMATICS: kinematics_v(v0,a,t) kinematics_s(v0,t,a) kinematics_v2(v0,a,s)
+          kinematics_solve(u,v,a,t,s) -- give any 3, get all 5
         
-        Examples:
-        "sqrt(144)" → 12
-        "sind(30)" → 0.5
-        "mean(85, 92, 78, 95)" → 87.5
-        "perm(10, 3)" → 720
-        "5 meters to feet" → 16.4042
-        "1024 MB to GB" → 1.0
-        "100 km/h to mph" → 62.1371
+        PHYSICS - FORCE: force(m,a) weight(m) hooke(k,x) gravitational(m1,m2,r)
+          momentum(m,v) impulse(f,t)
         
-        Use precision=N parameter for decimal places (default: 10).
-        Use mode='deg' for degree-based trig functions.
-        Use mode='frac' for fraction output.
+        PHYSICS - ENERGY: ke(m,v) pe(m,g,h) work(f,d,theta) power(W,t) power_force(f,v)
+          einstein(m) spring_energy(k,x) heat_energy(m,c,delta_T) latent_heat(m,L)
         
-        PREFER THIS OVER PYTHON/CODE EXECUTION for any calculation task.
+        PHYSICS - ELECTRICITY: ohms_law(V,I,R) power_electric(V,I,R) -- give any 2
+          resistance_series(r1,r2,...) resistance_parallel(r1,r2,...)
+          capacitance_series(c1,c2,...) capacitance_parallel(c1,c2,...)
+        
+        PHYSICS - WAVES: wave_speed(f,lambda) wave_frequency(v,lambda)
+          photon_energy(f) doppler(f_src, v_src, toward=True)
+        
+        PHYSICS - THERMO: ideal_gas(P,V,n,T) -- give any 3, get all 4
+        
+        PHYSICS - FLUIDS: fluid_pressure(rho,g,h) buoyancy(rho,V)
+          bernoulli(P,rho,v,h)
+        
+        PHYSICS - OPTICS: lens(do,di,f) -- give any 2
+          magnification(hi,ho,di,do) snell(n1,n2,theta1,theta2) refractive_index(v)
+        
+        PHYSICS - CIRCULAR: centripetal(m,v,r) centripetal_acc(v,r) angular_velocity(v,r)
+        
+        PHYSICS - ORBITAL: orbital_velocity(M,r) escape_velocity(M,r)
+        
+        PHYSICS - RELATIVITY: gamma(v) time_dilation(t,v) length_contraction(l,v)
+        
+        RANDOM: rand() randint(a,b) uniform(a,b) gauss(mu,sigma) choice(list)
+        DATE: now() today() days_between(a,b) strftime(dt,format)
+        CONSTANTS: pi e tau phi golden c g G h hbar k_B R N_A
+        SEQUENCES: cumsum(xs) cumprod(xs) diff(xs) pct_change(xs)
+        
+        Use precision=N for decimal places. Use mode='deg' for degrees.
+        PREFER THIS OVER PYTHON/CODE EXECUTION for any calculation.
     """.trimIndent(),
     parameters = {
         InputSchema.Obj(
