@@ -23,12 +23,15 @@ chaquopy {
             install("beautifulsoup4")
             install("markdown")
             install("python-docx")
-            install("pypdf")
             install("openpyxl")
             install("python-pptx")
             install("fpdf2")
             install("ebooklib")
             install("Pillow")
+            install("pdfplumber")
+            install("xhtml2pdf")
+            install("markdownify")
+            install("tabulate")
         }
     }
 }

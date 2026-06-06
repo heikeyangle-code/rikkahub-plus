@@ -21,20 +21,23 @@ import java.io.File
 
 fun createConvertFileTool(context: Context): Tool = Tool(
     name = "convert_file",
-    description = "Convert files between supported formats.\\n\\n" +
-        "Supported conversions:\\n" +
-        "- txt <-> md <-> html (fast native)\\n" +
-        "- txt -> docx, md -> docx, html -> docx\\n" +
-        "- pdf -> txt, pdf -> md, pdf -> docx\\n" +
-        "- docx -> txt, docx -> md\\n" +
-        "- xlsx <-> csv, xlsx -> json, csv -> json, json -> csv, json -> xlsx\\n" +
-        "- pptx -> txt, pptx -> md\\n" +
-        "- png <-> jpg <-> webp (image format conversion)\\n" +
-        "- svg -> png, svg -> jpg\\n" +
-        "- txt -> pdf, md -> pdf, html -> pdf\\n" +
-        "- png -> pdf, jpg -> pdf, webp -> pdf (single/multi-page)\\n" +
-        "- epub -> txt, epub -> md\\n" +
-        "- zip -> extract\\n\\n" +
+    description = "Convert files between supported formats.\n\n" +
+        "Supported conversions:\n" +
+        "- txt <-> md <-> html (fast native)\n" +
+        "- txt -> docx, md -> docx, html -> docx\n" +
+        "- pdf -> txt, pdf -> md, pdf -> docx\n" +
+        "- docx -> txt, docx -> md\n" +
+        "- xlsx <-> csv, xlsx -> json, csv -> json, json -> csv, json -> xlsx\n" +
+        "- pptx -> txt, pptx -> md\n" +
+        "- png <-> jpg <-> webp <-> bmp <-> gif <-> tiff (image)\n" +
+        "- svg -> png, svg -> jpg\n" +
+        "- txt -> pdf, md -> pdf\n" +
+        "- html -> pdf (rich CSS rendering via xhtml2pdf)\n" +
+        "- html -> md (clean markdown via markdownify)\n" +
+        "- png/jpg/webp/bmp/gif -> pdf\n" +
+        "- epub -> txt, epub -> md\n" +
+        "- zip -> extract\n" +
+        "- pdf -> merge (multiple PDFs)\n" +
         "Specify source path and output format. The converted file is saved alongside the original.",
     parameters = {
         InputSchema.Obj(
@@ -120,7 +123,7 @@ fun createConvertFileTool(context: Context): Tool = Tool(
 
         val downloadDir = context.filesDir.also { it.mkdirs() }
 
-        // ── Kombinier ──
+        // ── Combine ──
         if (combine.isNotBlank()) {
             val paths = combine.split(",").map { it.trim() }
             if (toFormat == "md" || toFormat == "txt") {
@@ -150,8 +153,8 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                             "<h$level>${it.groupValues[2].replace("&", "&amp;").replace("<", "&lt;")}</h$level>"
                         }
                         .replace(Regex("(?m)^[-*]\\s+(.+)$")) { "<li>${it.groupValues[1]}</li>" }
-                        .split("\\n\\n".toRegex()).joinToString("") { "<p>$it</p>\\n" }
-                    "<!DOCTYPE html>\\n<html lang=\\\"zh\\\">\\n<head><meta charset=\\\"utf-8\\\">\\n<title>Converted</title></head>\\n<body>\\n$body\\n</body>\\n</html>"
+                        .split("\n\n").joinToString("") { "<p>$it</p>\n" }
+                    "<!DOCTYPE html>\n<html lang=\"zh\">\n<head><meta charset=\"utf-8\">\n<title>Converted</title></head>\n<body>\n$body\n</body>\n</html>"
                 }
                 "md" to "txt" -> text
                 "md" to "html" -> {
@@ -163,19 +166,16 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                         .replace(Regex("(?m)^(#{1,6})\\s+(.+)$")) {
                             "<h${it.groupValues[1].length}>${it.groupValues[2]}</h${it.groupValues[1].length}>"
                         }
-                        .replace(Regex("(?m)^\\*\\*(.+?)\\*\\*"), "<strong>\$1</strong>")
-                        .replace(Regex("(?m)^\\*(.+?)\\*"), "<em>\$1</em>")
+                        .replace(Regex("(?m)^\\*\\*(.+?)\\*\\*"), "<strong>$1</strong>")
+                        .replace(Regex("(?m)^\\*(.+?)\\*"), "<em>$1</em>")
                         .replace(Regex("(?m)^```(\\w*)\\s*$"), "<pre><code>")
                         .replace(Regex("(?m)^```$"), "</code></pre>")
-                        .replace(Regex("(?m)^[-*]\\s+(.+)$"), "<li>\$1</li>")
-                        .replace(Regex("(?m)^>\\s+(.+)$"), "<blockquote>\$1</blockquote>")
-                    html = html.split("\\n\\n".toRegex()).joinToString("") { "<p>$it</p>\\n" }
-                    "<!DOCTYPE html>\\n<html lang=\\\"zh\\\">\\n<head><meta charset=\\\"utf-8\\\">\\n<title>Converted Markdown</title></head>\\n<body>\\n$html\\n</body>\\n</html>"
+                        .replace(Regex("(?m)^[-*]\\s+(.+)$"), "<li>$1</li>")
+                        .replace(Regex("(?m)^>\\s+(.+)$"), "<blockquote>$1</blockquote>")
+                    html = html.split("\n\n").joinToString("") { "<p>$it</p>\n" }
+                    "<!DOCTYPE html>\n<html lang=\"zh\">\n<head><meta charset=\"utf-8\">\n<title>Converted Markdown</title></head>\n<body>\n$html\n</body>\n</html>"
                 }
-                "html" to "md" -> {
-                    text.replace(Regex("<[^>]+>"), "")
-                        .replace(Regex("\\n{3,}"), "\\n\\n")
-                }
+                "html" to "md" -> text.replace(Regex("<[^>]+>"), "").replace(Regex("\n{3,}"), "\n\n")
                 "html" to "txt" -> text.replace(Regex("<[^>]+>"), "").trim()
                 else -> text
             }
@@ -219,7 +219,7 @@ fun createConvertFileTool(context: Context): Tool = Tool(
         val py = Python.getInstance()
         val workdir = context.filesDir.absolutePath
 
-        // 如果是 input_text 模式，写到临时文件
+        // If input_text mode, write to temp file
         if (inputFile == null && inputText.isNotBlank()) {
             val tempFile = File(downloadDir, "convert_input.$fromFormat")
             tempFile.writeText(inputText)
@@ -229,7 +229,6 @@ fun createConvertFileTool(context: Context): Tool = Tool(
         val convertModule = try {
             py.getModule("convert")
         } catch (_: Exception) {
-            // Module not loaded, use executor
             null
         }
 
