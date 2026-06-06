@@ -213,7 +213,7 @@ class ChatService(
         WorkerManager(appScope) { workerId, prompt ->
             // Android 同进程 Worker：执行一次带工具的 LLM 调用
             val s = settingsStore.settingsFlow.value
-            val m = s.findModelById(s.chatModelId) ?: return@WorkerManager "No model"
+            val m = s.getCurrentChatModel() ?: return@WorkerManager "No model"
             val p = m.findProvider(s.providers) ?: return@WorkerManager "No provider"
             @Suppress("UNCHECKED_CAST")
             val impl = providerManager.getProviderByType(p)
