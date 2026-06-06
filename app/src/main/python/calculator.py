@@ -793,6 +793,121 @@ def _newton(f_str, x0, tol=1e-10, max_iter=100):
     return x
 
 
+# ── Calculus extras (from sympy) ──
+
+def _make_safe():
+    return {k:v for k,v in _MATH_NAMESPACE.items() if not isinstance(v,str)}
+
+def _limit(f_str, x, approach, side="both"):
+    """Numerical limit. side='left','right','both'"""
+    safe = _make_safe()
+    def f(xv): return eval(f_str, {"__builtins__":{}}, {**safe, "x": xv})
+    h = 1e-8
+    l = r = None
+    try:
+        if side in ("right", "both"):
+            r = f(approach + h)
+        if side in ("left", "both"):
+            l = f(approach - h)
+        if side == "left": return l
+        if side == "right": return r
+        if abs(r - l) < 1e-6: return (r + l) / 2
+        return {"left": l, "right": r, "diff": abs(r-l)}
+    except Exception as e:
+        return f"Error: {e}"
+
+def _taylor(f_str, x0, n=5):
+    """Taylor series coefficients around x0. Returns list of [c0, c1, ..., cn]"""
+    safe = _make_safe()
+    def f(xv): return eval(f_str, {"__builtins__":{}}, {**safe, "x": xv})
+    coeffs = []
+    fx = f
+    fact = 1
+    for i in range(n+1):
+        coeffs.append(fx(x0) / fact)
+        # Next derivative numerically
+        h = 1e-6
+        old_fx = fx
+        fx = lambda xv, of=old_fx, h=h: (of(xv+h) - of(xv-h)) / (2*h)
+        fact *= (i + 1)
+    return coeffs
+
+def _stationary(f_str, x, domain=None):
+    """Find stationary points (f'(x)=0) using numerical scanning."""
+    safe = _make_safe()
+    def f(xv): return eval(f_str, {"__builtins__":{}}, {**safe, "x": xv})
+    def df(xv): return (f(xv+1e-6)-f(xv-1e-6))/(2e-6)
+    lo, hi = domain or (-100, 100)
+    # Scan and use Newton refinement
+    points = []
+    xs = [lo + (hi-lo)*i/200 for i in range(201)]
+    for i in range(1, len(xs)-1):
+        if df(xs[i-1]) * df(xs[i+1]) < 0:
+            # Newton refine
+            x = xs[i]
+            for _ in range(20):
+                d = df(x)
+                if abs(d) < 1e-12: break
+                x -= d / ((f(x+1e-6)-f(x-1e-6))/(2e-6))
+            if abs(df(x)) < 1e-6:
+                x = round(x, 6)
+                if not any(abs(x-p) < 1e-4 for p in points):
+                    points.append(x)
+    return {"stationary_points": points, "values": [f(x) for x in points]}
+
+def _inflection(f_str, x, domain=None):
+    """Find inflection points (f''(x)=0)."""
+    safe = _make_safe()
+    def f(xv): return eval(f_str, {"__builtins__":{}}, {**safe, "x": xv})
+    def d2f(xv): return (f(xv+1e-6)-2*f(xv)+f(xv-1e-6))/(1e-12)
+    lo, hi = domain or (-100, 100)
+    points = []
+    xs = [lo + (hi-lo)*i/300 for i in range(301)]
+    for i in range(1, len(xs)-1):
+        if d2f(xs[i-1]) * d2f(xs[i+1]) < 0:
+            x = xs[i]
+            for _ in range(20):
+                cur = d2f(x)
+                if abs(cur) < 1e-8: break
+                x -= cur / ((f(x+1e-6)+f(x-1e-6)-2*f(x))*1e6)
+            if abs(d2f(x)) < 1e-4:
+                x = round(x, 6)
+                if not any(abs(x-p) < 1e-4 for p in points):
+                    points.append(x)
+    return {"inflection_points": points}
+
+def _solve_linear_system(*equations):
+    """Solve NxN linear system.
+    solve_linear_system([2,1,5], [1,-1,1]) → 2x+y=5, x-y=1 → {x:2, y:1}
+    solve_linear_system([[2,1,5],[1,-1,1]]) also works.
+    """
+    if len(equations) == 1 and isinstance(equations[0], list):
+        equations = equations[0]
+    n = len(equations)
+    # Build augmented matrix as floats
+    m = []
+    for eq in equations:
+        m.append([float(x) for x in eq])
+    # Gaussian elimination
+    for i in range(n):
+        # Find pivot
+        pivot = i
+        while pivot < n and abs(m[pivot][i]) < 1e-12:
+            pivot += 1
+        if pivot >= n:
+            return {"error": "No unique solution (singular matrix)"}
+        m[i], m[pivot] = m[pivot], m[i]
+        piv_val = m[i][i]
+        for j in range(i, n+1):
+            m[i][j] /= piv_val
+        for k in range(n):
+            if k != i:
+                factor = m[k][i]
+                for j in range(i, n+1):
+                    m[k][j] -= factor * m[i][j]
+    return {f"x{i}": m[i][n] for i in range(n)}
+
+
 # ── Financial ──
 
 def _fv(r, n, pmt, pv=0, when=0):
@@ -1687,6 +1802,11 @@ _MATH_NAMESPACE = {
     # ── Calculus ──
     "derivative": _derivative, "integral": _integral,
     "newton": _newton,
+    "limit": _limit,
+    "taylor": _taylor,
+    "stationary": _stationary,
+    "inflection": _inflection,
+    "solve_linear_system": _solve_linear_system,
 
     # ── Financial ──
     "fv": _fv, "pv": _pv, "pmt": _pmt,
