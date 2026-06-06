@@ -893,6 +893,227 @@ def _convert_unit(value, from_u, to_u):
     raise ValueError(f"Cannot convert {from_u} to {to_u}")
 
 
+# ── Finance / Economics ──
+
+def _cagr(bv, ev, y):
+    return (ev/bv)**(1/y)-1 if bv>0 else 0
+
+def _sharpe(r, rf, s):
+    return (r-rf)/s if s>0 else 0
+
+def _roi(g, c):
+    return (g-c)/c if c>0 else 0
+
+def _profit_margin(profit, revenue):
+    return profit/revenue if revenue>0 else 0
+
+def _markup(cost, margin):
+    return cost/(1-margin)-cost
+
+def _breakeven(fc, p, vc):
+    return fc/(p-vc) if p>vc else float('inf')
+
+def _apy(apr, n):
+    return (1+apr/n)**n-1
+
+def _depr_straight(cost, salvage, life):
+    return (cost-salvage)/life
+
+def _depr_declining(cost, salvage, life, years):
+    rate = 2/life
+    val = cost
+    for _ in range(years):
+        dep = val*rate
+        val -= dep
+    return max(val-salvage, 0)
+
+def _inflation_adj(val, rate, years):
+    return val/(1+rate)**years
+
+def _annuity(principal, rate, periods):
+    return principal*rate/(1-(1+rate)**-periods) if rate>0 else principal/periods
+
+def _perpetuity(principal, rate):
+    return principal*rate
+
+def _dividend_yield(dps, pps):
+    return dps/pps if pps>0 else 0
+
+def _pe_ratio(pps, eps):
+    return pps/eps if eps>0 else 0
+
+def _sma(data, w):
+    return [sum(data[i:i+w])/w for i in range(len(data)-w+1)]
+
+def _ema(data, w):
+    k = 2/(w+1)
+    r = [data[0]]
+    for v in data[1:]: r.append(v*k + r[-1]*(1-k))
+    return r
+
+def _payback(investment, cashflows):
+    cum=0
+    for i,cf in enumerate(cashflows):
+        cum+=cf
+        if cum>=investment: return i+1+(investment-(cum-cf))/cf
+    return float('inf')
+
+def _wacc(E, D, re, rd, tax=0):
+    V=E+D
+    return E/V*re + D/V*rd*(1-tax)
+
+# ── Statistics / Probability ──
+
+def _gamma_approx(x):
+    """Lanczos approximation for Γ(x)"""
+    g = 7
+    c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+         771.32342877765313, -176.61502916214059, 12.507343278686905,
+         -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7]
+    x -= 1
+    y = c[0]
+    for i in range(1, g+2): y += c[i]/(x+i)
+    t = x + g + 0.5
+    return math.sqrt(2*math.pi)*t**(x+0.5)*math.exp(-t)*y
+
+def _beta_func(a,b):
+    return _gamma_approx(a)*_gamma_approx(b)/_gamma_approx(a+b)
+
+def _erf(x):
+    """Error function approximation"""
+    t=1/(1+0.3275911*abs(x))
+    y=1-((((1.061405429*t-1.453152027)*t+1.421413741)*t-0.284496736)*t+0.254829592)*t*math.exp(-x*x)
+    return y if x>=0 else -y
+
+def _normal_pdf(x,m=0,s=1):
+    return math.exp(-(x-m)**2/(2*s*s))/(s*math.sqrt(2*math.pi))
+
+def _normal_cdf(x,m=0,s=1):
+    return 0.5*(1+_erf((x-m)/(s*math.sqrt(2))))
+
+def _binom_prob(n,k,p):
+    return math.comb(n,k)*p**k*(1-p)**(n-k)
+
+def _poisson_prob(k,lam):
+    return lam**k*math.exp(-lam)/math.factorial(k)
+
+def _conf_mean(data, conf=0.95):
+    n=len(data)
+    if n<2: return None
+    m=statistics.mean(data); se=statistics.stdev(data)/math.sqrt(n)
+    zs={0.9:1.645,0.95:1.96,0.99:2.576}
+    z=min((abs(k-conf),v) for k,v in zs.items())[1]
+    return {"mean":m,"ci_lower":m-z*se,"ci_upper":m+z*se,"se":se}
+ 
+ 
+# ── Astronomy
+
+def _schwarzschild(m):
+    return 2*6.67430e-11*m/299792458.0**2
+
+def _hubble_vel(d):
+    H0=67.4*1000/1e6  # km/s per parsec → m/s per m
+    return H0*d
+
+def _redshift(v):
+    return v/299792458.0
+
+def _redshift_to_dist(z):
+    H0=67.4  # km/s/Mpc
+    return z*299792458.0/(H0*1000)
+
+def _kepler_period(a, M):
+    G=6.67430e-11
+    return 2*math.pi*math.sqrt(a**3/(G*M))
+
+def _parallax_dist(p):
+    return 1/p if p>0 else float('inf')
+
+def _abs_mag(m_app, d_pc):
+    return m_app - 5*math.log10(d_pc/10)
+
+def _app_mag(M, d_pc):
+    return M + 5*math.log10(d_pc/10)
+
+def _dist_modulus(m, M):
+    return 10**((m-M)/5+1)
+
+def _solar_declination(day):
+    return 23.44*math.sin(math.radians(360/365*(day-81)))
+
+def _day_length(lat, day):
+    dec=_solar_declination(day)
+    cos_ha=-math.tan(math.radians(lat))*math.tan(math.radians(dec))
+    if cos_ha>1: return 0
+    if cos_ha<-1: return 24
+    ha=math.degrees(math.acos(cos_ha))
+    return ha*2/15
+
+
+# ── Everyday / Environmental ──
+
+def _wind_chill(T, W):
+    """T in °C, W in km/h"""
+    return 13.12+0.6215*T-11.37*W**0.16+0.3965*T*W**0.16
+
+def _heat_index(T, H):
+    """T in °C, H in %"""
+    c=(T*9/5+32)
+    hi=-42.379+2.04901523*c+10.14333127*H-0.22475541*c*H-6.83783e-3*c*c-5.481717e-2*H*H+1.22874e-3*c*c*H+8.5282e-4*c*H*H-1.99e-6*c*c*H*H
+    return (hi-32)*5/9
+
+def _dew_point(T, H):
+    """T in °C, H in %"""
+    a,b=17.27,237.7
+    gamma=a*T/(b+T)+math.log(H/100)
+    return b*gamma/(a-gamma)
+
+def _fuel_economy(dist, fuel):
+    return fuel/dist*100 if dist>0 else 0
+
+def _electricity_cost(w, h, rate):
+    return w*h/1000*rate
+
+def _savings_goal(target, monthly, rate):
+    if monthly<=0: return float('inf')
+    r=rate/12
+    if r==0: return math.ceil(target/monthly)
+    n=math.log(1+target*r/monthly)/math.log(1+r)
+    return math.ceil(n)
+
+def _investment_growth(principal, monthly, rate, years):
+    r=rate/12
+    n=years*12
+    fv=principal*(1+r)**n
+    if monthly>0:
+        fv+=monthly*((1+r)**n-1)/r
+    return fv
+
+def _bmi_category(bmi):
+    if bmi<18.5: return "underweight"
+    if bmi<25: return "normal"
+    if bmi<30: return "overweight"
+    if bmi<35: return "obese_class_1"
+    if bmi<40: return "obese_class_2"
+    return "obese_class_3"
+
+def _body_fat(bmi, age, male=True):
+    if male: return 1.20*bmi+0.23*age-16.2
+    return 1.20*bmi+0.23*age-5.4
+
+def _calories_burned(met, kg, min):
+    return met*3.5*kg/200*min
+
+def _tip_split(bill, pct, people):
+    total=bill*(1+pct/100)
+    return total/people, total
+
+def _time_diff(h1, h2):
+    diff=abs(h1-h2)
+    if diff<=1: return f"{int(diff*60)} min diff" if diff<1 else f"{int(diff)} hr diff"
+    return f"{int(diff)} hr {int((diff%1)*60)} min"
+
+
 # ════════════════════════════════════════════
 # MATH NAMESPACE
 # ════════════════════════════════════════════
@@ -1182,9 +1403,56 @@ _MATH_NAMESPACE = {
 
     # ── Everyday ──
     "bmi": _bmi, "bmr": _bmr, "tdee": _tdee,
-    "tip": _tip, "discount": _discount, "tax": _tax,
+    "bmi_category": _bmi_category, "body_fat": _body_fat,
+    "tip": _tip, "tip_split": _tip_split,
+    "discount": _discount, "tax": _tax,
     "age": _age, "heart_rate_zones": _hr_zones,
     "pace": _pace, "running_pace": _run_pace,
+    "calories_burned": _calories_burned,
+    "fuel_economy": _fuel_economy,
+    "electricity_cost": _electricity_cost,
+    "wind_chill": _wind_chill, "heat_index": _heat_index,
+    "dew_point": _dew_point, "timezone_diff": _time_diff,
+
+    # ── Finance / Economics ──
+    "cagr": _cagr, "sharpe_ratio": _sharpe,
+    "roi": _roi, "profit_margin": _profit_margin,
+    "markup": _markup, "break_even": _breakeven,
+    "apy": _apy,
+    "depreciation_straight": _depr_straight,
+    "depreciation_declining": _depr_declining,
+    "inflation_adjust": _inflation_adj,
+    "annuity": _annuity, "perpetuity": _perpetuity,
+    "dividend_yield": _dividend_yield,
+    "pe_ratio": _pe_ratio,
+    "sma": _sma, "ema": _ema,
+    "payback_period": _payback,
+    "wacc": _wacc,
+    "investment_growth": _investment_growth,
+    "savings_goal": _savings_goal,
+
+    # ── Statistics / Probability ──
+    "gamma_func": _gamma_approx,
+    "beta_func": _beta_func,
+    "erf": _erf,
+    "normal_pdf": _normal_pdf,
+    "normal_cdf": _normal_cdf,
+    "binomial_prob": _binom_prob,
+    "poisson_prob": _poisson_prob,
+    "confidence_mean": _conf_mean,
+
+    # ── Astronomy / Geography ──
+    "schwarzschild_radius": _schwarzschild,
+    "hubble_velocity": _hubble_vel,
+    "redshift": _redshift,
+    "redshift_to_distance": _redshift_to_dist,
+    "kepler_period": _kepler_period,
+    "parallax_distance": _parallax_dist,
+    "absolute_magnitude": _abs_mag,
+    "apparent_magnitude": _app_mag,
+    "distance_modulus": _dist_modulus,
+    "solar_declination": _solar_declination,
+    "day_length": _day_length,
 
     # ── Helpers ──
     "percentage": lambda v,p:v*p/100,
