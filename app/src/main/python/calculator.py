@@ -4388,6 +4388,149 @@ _PLANET_DATA["sun"] = {
 
 
 
+# ═══════════════════════════════════════════════════════════════
+# MISSING FUNCTIONS PATCH — 复数/特征向量/统计/金融反解
+# ═══════════════════════════════════════════════════════════════
+
+# ── Complex trig ──
+def _csin(z): return cmath.sin(complex(z))
+def _ccos(z): return cmath.cos(complex(z))
+def _ctan(z): return cmath.tan(complex(z))
+def _csec(z): return 1/cmath.cos(complex(z))
+def _ccsc(z): return 1/cmath.sin(complex(z))
+def _ccot(z): return 1/cmath.tan(complex(z))
+def _cexp(z): return cmath.exp(complex(z))
+def _clog(z):
+    try: return cmath.log(complex(z))
+    except ValueError: return float('-inf')  # log(0)
+def _csqrt(z): return cmath.sqrt(complex(z))
+def _cpow(z, w): return complex(z)**complex(w)
+
+# ── sinc ──
+def _sinc(x):
+    return 1.0 if abs(x) < 1e-15 else math.sin(x)/x
+
+# ── erfc ──
+def _erfc(x):
+    return 1 - _erf(x)
+
+# ── Matrix eigenvectors (power iteration with deflation) ──
+def _matrix_eigenvectors(A, max_iter=100):
+    """Return all eigenvalues and eigenvectors via power iteration + deflation.
+    Returns list of {eigenvalue, eigenvector} for an n×n matrix."""
+    n = len(A)
+    residual = [row[:] for row in A]
+    results = []
+    for _ in range(n):
+        v = [1.0]*n
+        for __ in range(max_iter):
+            w = [sum(residual[i][j]*v[j] for j in range(n)) for i in range(n)]
+            norm = math.sqrt(sum(x*x for x in w))
+            if norm < 1e-15:
+                break
+            v = [x/norm for x in w]
+        Av = [sum(residual[i][j]*v[j] for j in range(n)) for i in range(n)]
+        lam = sum(v[i]*Av[i] for i in range(n))
+        # Deflate
+        for i in range(n):
+            for j in range(n):
+                residual[i][j] -= lam*v[i]*v[j]
+        results.append({"eigenvalue": lam, "eigenvector": v})
+    return results
+
+# ── quantile (alias for percentile with fractional input) ──
+def _quantile(data, q):
+    """Quantile: q in [0,1]. Same as percentile(data, q*100)."""
+    return _percentile(data, q*100)
+
+# ── MAD (Median Absolute Deviation) ──
+def _mad(data):
+    """Median Absolute Deviation."""
+    if len(data) < 2: return None
+    med = statistics.median(data)
+    return statistics.median([abs(x-med) for x in data])
+
+# ── Spearman rank correlation ──
+def _spearman(xs, ys):
+    """Spearman's rank correlation coefficient."""
+    # Manual ranking
+    def _rank(vals):
+        n = len(vals)
+        r = [0]*n
+        sorted_idx = sorted(range(n), key=lambda i: vals[i])
+        i = 0
+        while i < n:
+            j = i
+            while j < n and abs(vals[sorted_idx[j]]-vals[sorted_idx[i]]) < 1e-12:
+                j += 1
+            avg = (i+j+1)/2
+            for k in range(i, j):
+                r[sorted_idx[k]] = avg
+            i = j
+        return r
+    n = len(xs)
+    if n < 3: return 0
+    rx = _rank(xs)
+    ry = _rank(ys)
+    # Pearson on ranks
+    mx = sum(rx)/n; my = sum(ry)/n
+    num = sum((rx[i]-mx)*(ry[i]-my) for i in range(n))
+    den = math.sqrt(sum((rx[i]-mx)**2 for i in range(n)) * sum((ry[i]-my)**2 for i in range(n)))
+    return num/den if den > 0 else 0
+
+# ── Kendall τ ──
+def _kendall_tau(xs, ys):
+    """Kendall rank correlation coefficient τ."""
+    n = len(xs)
+    if n < 2: return 0
+    conc, disc = 0, 0
+    for i in range(n):
+        for j in range(i+1, n):
+            dx = xs[j]-xs[i]; dy = ys[j]-ys[i]
+            if dx*dy > 0: conc += 1
+            elif dx*dy < 0: disc += 1
+    return (conc-disc)/(conc+disc+1e-15)
+
+# ── Implied volatility (BS inverse) ──
+def _implied_volatility(price, S, K, T, r, option_type="call", guess=0.2):
+    """Black-Scholes implied volatility via Newton's method.
+    price: observed option price, S: spot, K: strike, T: time(years),
+    r: rate, option_type: 'call' or 'put'."""
+    from math import log, sqrt, exp, erf, pi
+    def _bs_price(sig):
+        d1 = (log(S/K) + (r + 0.5*sig*sig)*T) / (sig*sqrt(T)+1e-15)
+        d2 = d1 - sig*sqrt(T)
+        def _N(x): return 0.5*(1+erf(x/sqrt(2)))
+        if option_type == "call":
+            return S*_N(d1) - K*exp(-r*T)*_N(d2)
+        return K*exp(-r*T)*_N(-d2) - S*_N(-d1)
+    def _vega(sig):
+        d1 = (log(S/K) + (r + 0.5*sig*sig)*T) / (sig*sqrt(T)+1e-15)
+        return S*sqrt(T)*exp(-d1*d1/2)/sqrt(2*pi)/100
+    sig = guess
+    for _ in range(50):
+        p = _bs_price(sig)
+        v = _vega(sig)
+        diff = p - price
+        if abs(diff) < 1e-8: break
+        if abs(v) < 1e-15:
+            sig *= 1.1
+            continue
+        sig -= diff/(v*100)
+        if sig <= 0: sig = guess*0.5
+    return sig
+
+# ── Log with arbitrary base ──
+def _log_base(x, base):
+    """Logarithm with arbitrary base: log_base(x, base) = ln(x)/ln(base)."""
+    return math.log(x, base)
+
+# ── Caret to pow (calculator convention) ──
+def _caret_to_pow(expr):
+    """Replace ^ with ** for power operator (calculator convention, not XOR)."""
+    return re.sub(r'(\w|\)|\d)\^(-?\w|-?\d|\()', r'\1**\2', expr)
+
+
 def _miller_rabin(n, k=10):
     if n < 2: return False
     if n in (2, 3): return True
@@ -5256,6 +5399,17 @@ _MATH_NAMESPACE = {
     "planet_magnitude": _planet_magnitude,
     "planets_visible_now": _planets_visible_all,
     "planets_visible_at": lambda d,lat,lon: _planets_visible_all(d,lat,lon),
+    # ── Added: Missing functions patch ──
+    "csin": _csin, "ccos": _ccos, "ctan": _ctan,
+    "csec": _csec, "ccsc": _ccsc, "ccot": _ccot,
+    "cexp": _cexp, "clog": _clog, "csqrt": _csqrt, "cpow": _cpow,
+    "sinc": _sinc, "erfc": _erfc,
+    "matrix_eigenvectors": _matrix_eigenvectors,
+    "quantile": _quantile, "mad": _mad,
+    "spearman": _spearman, "kendall_tau": _kendall_tau,
+    "implied_volatility": _implied_volatility,
+    "log_base": _log_base,
+    "fibonacci": lambda n:__fib(n),
 }
 
 _NAMESPACE_KEYS = set(_MATH_NAMESPACE.keys())
@@ -5285,6 +5439,8 @@ def calculate(expression, precision=10, mode="auto"):
         ns = dict(_MATH_NAMESPACE)
         # Base sanitization always runs first
         sanitized = expression.replace("true", "True").replace("false", "False")
+        # Override ^ operator (calculator convention: ^ means power)
+        sanitized = _caret_to_pow(sanitized)
 
         if mode == "deg":
             ns["sin"] = lambda x:math.sin(math.radians(x))
