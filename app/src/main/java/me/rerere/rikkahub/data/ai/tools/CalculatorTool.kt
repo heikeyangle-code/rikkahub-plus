@@ -13,24 +13,38 @@ import java.util.concurrent.TimeUnit
 fun createCalculatorTool(context: Context): Tool = Tool(
     name = "calculator",
     description = """
-        Mathematical calculator. Use only for complex/multi-step computations
-        that cannot be done mentally. For simple math, answer directly.
+        Mathematical calculator (800+ functions). Use only for complex/multi-step
+        computations. For simple math, answer directly.
 
-        Supported domains:
-          - Arithmetic, trig (rad/deg), log, rounding
-          - Statistics: mean, median, stdev, percentile, covariance
-          - Combinatorics: perm, comb, factorial, gcd/lcm, fib
-          - Number theory: is_prime, prime_factors, divisors
-          - Matrices & vectors: add, mul, det, inv, dot, cross, norm
-          - Calculus: derivative, integral (numeric)
-          - Financial: fv, pv, pmt, npv, irr, compound_interest
-          - Geometry: area, volume of common shapes
-          - Physics: kinematics, force, energy, electricity, waves, thermo, optics, relativity
-          - Unit conversion: convert(value, "from", "to") or "5 meters to feet"
-          - Base/roman numerals, dates, random numbers, sequences
+        Domains:
+          - Arithmetic, trig (rad/deg), log, rounding, complex
+          - Statistics: mean/median/stdev, ANOVA, MWU, Kruskal-Wallis,
+            chi-square, linear/logistic regression, PCA, K-means, CDF/PDF
+          - Combinatorics: perm, comb, catalan, stirling, bell, fib, lucas
+          - Number theory: is_prime, miller_rabin, factorize, gcd/lcm, crt,
+            discrete_log, legendre/jacobi, continued_fraction
+          - Algebra: quadratic/cubic/quartic roots, linear systems, poly ops
+          - Matrices: add, mul, det, inv, LU/QR/Cholesky, eigenvalues
+          - Calculus: derivative, integral, triple, RK4 ODE, gradient descent,
+            taylor, fourier, divergence, curl, cubic spline
+          - Financial: fv, pv, pmt, npv, irr, Black-Scholes, VaR, bond pricing
+          - Geometry: area/volume (all shapes + frustum/spherical cap/torus)
+          - Physics: kinematics, forces, energy, E&M, thermo, optics, relativity,
+            quantum, orbital, oscillations, fluids, solids
+          - Astronomy: stellar/coordinate/cosmology (redshift, distances, JD),
+            moon phase/age/rise/set/transit, planet positions(7 planets,
+            alt/az/magnitude/rise/set/visibility), sun_position, seasons
+          - Signal: FFT, autocorr, spectrogram, peak detect, filters
+          - Geography: haversine, bearing, UTM, latlon, slope/aspect, viewshed,
+            horizon/pressure, ring_area/perimeter, Chinese coords(WGS84/GCJ02/BD09),
+            Vincenty distance, antipode, great circle interpolation
+          - Unit conversion: 150+ units, currency (30 currencies), timezones
+          - Everyday: BMI, BMR, mortgage, loan, cooking, clothing sizes,
+            macronutrients, recipe scaling, sunrise/sunset, golden/blue hour,
+            shadow length, moon phase/age/rise/set/transit, dst_status, sun_position
 
         Use precision=N for decimal places (default 10).
-        Use mode='deg' for trig in degrees, 'rad' for radians, 'frac' for fractions.
+        Use mode='deg' for trig in degrees, 'frac' for fractions, 'exact' for high precision.
         PREFER THIS OVER PYTHON execute for any calculation.
     """.trimIndent(),
     parameters = {
