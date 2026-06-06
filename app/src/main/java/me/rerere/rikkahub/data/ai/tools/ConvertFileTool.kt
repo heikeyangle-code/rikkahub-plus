@@ -52,7 +52,8 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                     put("enum", buildJsonArray {
                         add("txt"); add("md"); add("docx"); add("html")
                         add("pdf"); add("xlsx"); add("csv"); add("json")
-                        add("pptx"); add("png"); add("jpg"); add("webp")
+                        add("pptx"); add("png"); add("jpg"); add("jpeg"); add("webp")
+                        add("bmp"); add("gif"); add("tiff")
                         add("svg"); add("epub"); add("zip")
                     })
                     put("description", "Source format (auto-detected from extension if omitted)")
@@ -62,7 +63,8 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                     put("enum", buildJsonArray {
                         add("txt"); add("md"); add("docx"); add("html")
                         add("xlsx"); add("csv"); add("json")
-                        add("png"); add("jpg"); add("webp"); add("pdf")
+                        add("png"); add("jpg"); add("jpeg"); add("webp")
+                        add("bmp"); add("gif"); add("tiff"); add("pdf")
                     })
                     put("description", "Target format")
                 })

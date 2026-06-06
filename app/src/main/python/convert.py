@@ -291,28 +291,20 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
             result['stdout'] = f'Saved: {out}'
 
         # ── Image → PDF ──
-        elif from_format in ('png', 'jpg', 'webp') and to_format == 'pdf':
-            try:
-                from PIL import Image
-            except ImportError:
-                raise ValueError(
-                    'Image → PDF conversion requires Pillow. '
-                    'Install Pillow and try again.'
-                )
-            # Single image or multiple
+        elif from_format in ('png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif', 'tiff') and to_format == 'pdf':
+            from PIL import Image
             paths = [input_path]
-            if paths:
-                images = []
-                for p in paths:
-                    img = Image.open(p).convert('RGB')
-                    images.append(img)
-                out = _outpath(input_path, 'pdf', output_dir, 'output')
-                if len(images) == 1:
-                    images[0].save(out, 'PDF')
-                else:
-                    images[0].save(out, 'PDF', save_all=True, append_images=images[1:])
-                result['files'].append(out)
-                result['stdout'] = f'Saved: {out}'
+            images = []
+            for p in paths:
+                img = Image.open(p).convert('RGB')
+                images.append(img)
+            out = _outpath(input_path, 'pdf', output_dir, 'output')
+            if len(images) == 1:
+                images[0].save(out, 'PDF')
+            else:
+                images[0].save(out, 'PDF', save_all=True, append_images=images[1:])
+            result['files'].append(out)
+            result['stdout'] = f'Saved: {out}'
 
         # ── Text/Document → PDF ──
         elif from_format in ('txt', 'md', 'html') and to_format == 'pdf':
@@ -402,13 +394,22 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
                             lines.append(text)
             result['stdout'] = '\n\n'.join(lines)
 
-        # ── Image format conversion ──
-        elif from_format in ('png', 'jpg', 'webp') and to_format in ('png', 'jpg', 'webp'):
+        # ── Image format conversion (extended: bmp/gif/tiff support via Pillow) ──
+        _IMG_FMTS = {'png','jpg','jpeg','webp','bmp','gif','tiff'}
+        if from_format in _IMG_FMTS and to_format in _IMG_FMTS:
             from PIL import Image
             img = Image.open(input_path)
             out = _outpath(input_path, to_format, output_dir)
-            fmt = {'png': 'PNG', 'jpg': 'JPEG', 'webp': 'WEBP'}[to_format]
+            fmt_map = {'png':'PNG','jpg':'JPEG','jpeg':'JPEG','webp':'WEBP',
+                       'bmp':'BMP','gif':'GIF','tiff':'TIFF'}
+            fmt = fmt_map.get(to_format, to_format.upper())
             quality = 90 if fmt in ('JPEG', 'WEBP') else None
+            if fmt == 'GIF':
+                img = img.convert('P', palette=Image.Palette.ADAPTIVE)
+            elif fmt == 'JPEG' and img.mode in ('RGBA','P'):
+                bg = Image.new('RGB', img.size, (255,255,255))
+                bg.paste(img, mask=img.split()[-1] if img.mode=='RGBA' else None)
+                img = bg
             img.save(out, fmt, quality=quality)
             result['files'].append(out)
             result['stdout'] = f'Saved: {out}'
