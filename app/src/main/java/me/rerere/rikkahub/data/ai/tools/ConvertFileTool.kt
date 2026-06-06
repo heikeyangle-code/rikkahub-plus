@@ -3,6 +3,8 @@ package me.rerere.rikkahub.data.ai.tools
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.pdf.PdfDocument
+import android.graphics.pdf.PdfDocument.PageInfo
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +20,7 @@ import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import org.koin.java.KoinJavaComponent
 import java.io.File
+import java.io.FileOutputStream
 
 fun createConvertFileTool(context: Context): Tool = Tool(
     name = "convert_file",
@@ -29,18 +32,16 @@ fun createConvertFileTool(context: Context): Tool = Tool(
         "- docx -> txt, docx -> md\n" +
         "- xlsx <-> csv, xlsx -> json, csv -> json, json -> csv, json -> xlsx\n" +
         "- pptx -> txt, pptx -> md\n" +
-        "- png <-> jpg <-> webp <-> bmp <-> gif <-> tiff (image)\n" +
-        "- svg -> png, svg -> jpg\n" +
+        "- png <-> jpg <-> webp <-> bmp <-> gif (image)\n" +
         "- txt -> pdf, md -> pdf\n" +
-        "- html -> pdf (rich CSS rendering via xhtml2pdf)\n" +
         "- html -> md (clean markdown via markdownify)\n" +
         "- png/jpg/webp/bmp/gif -> pdf\n" +
         "- epub -> txt, epub -> md\n" +
-        "- zip -> extract\\n" +
-        "- pdf -> merge, pdf -> split, pdf/docx -> images\\n" +
-        "- url -> md (fetch + convert)\\n" +
-        "- csv -> table (pretty ASCII table)\\n" +
-        "- gif -> frames (extract animation)\\n" +
+        "- zip -> extract\n" +
+        "- pdf -> merge, pdf -> split, pdf/docx -> images\n" +
+        "- url -> md (fetch + convert)\n" +
+        "- csv -> table (pretty ASCII table)\n" +
+        "- gif -> frames (extract animation)\n" +
         "Specify source path and output format. The converted file is saved alongside the original.",
     parameters = {
         InputSchema.Obj(
@@ -59,8 +60,8 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                         add("txt"); add("md"); add("docx"); add("html")
                         add("pdf"); add("xlsx"); add("csv"); add("json")
                         add("pptx"); add("png"); add("jpg"); add("jpeg"); add("webp")
-                        add("bmp"); add("gif"); add("tiff")
-                        add("svg"); add("epub"); add("zip"); add("url")
+                        add("bmp"); add("gif")
+                        add("epub"); add("zip"); add("url")
                     })
                     put("description", "Source format (auto-detected from extension if omitted)")
                 })
@@ -70,7 +71,7 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                         add("txt"); add("md"); add("docx"); add("html")
                         add("xlsx"); add("csv"); add("json")
                         add("png"); add("jpg"); add("jpeg"); add("webp")
-                        add("bmp"); add("gif"); add("tiff"); add("pdf")
+                        add("bmp"); add("gif"); add("pdf")
                         add("split"); add("images"); add("table"); add("frames")
                     })
                     put("description", "Target format")
@@ -189,9 +190,9 @@ fun createConvertFileTool(context: Context): Tool = Tool(
             return@Tool listOf(UIMessagePart.Text("OK: $toFormat (${outFile.absolutePath})"))
         }
 
-        // ── Image conversions (Kotlin Bitmap) ──
-        val imageFormats = setOf("png", "jpg", "webp")
-        if (fromFormat in imageFormats && toFormat in imageFormats) {
+        // ── Image conversions (Kotlin Bitmap + native formats) ──
+        val imageFormats = setOf("png", "jpg", "webp", "bmp", "gif")
+        if (fromFormat in imageFormats && toFormat in imageFormats && fromFormat != toFormat) {
             val imgFile = inputFile ?: error("Image file required")
             val bitmap = BitmapFactory.decodeFile(imgFile.absolutePath)
                 ?: error("Cannot decode image: $imgFile")
@@ -203,12 +204,46 @@ fun createConvertFileTool(context: Context): Tool = Tool(
             } else bitmap
             val outFile = if (outputPath.isNotBlank()) File(outputPath)
             else File(downloadDir, "${imgFile.nameWithoutExtension}.$toFormat")
-            val fmt = when (toFormat) { "jpg" -> Bitmap.CompressFormat.JPEG; "webp" -> Bitmap.CompressFormat.WEBP
-                else -> Bitmap.CompressFormat.PNG }
+            val fmt = when (toFormat) {
+                "jpg", "jpeg" -> Bitmap.CompressFormat.JPEG
+                "webp" -> Bitmap.CompressFormat.WEBP
+                else -> Bitmap.CompressFormat.PNG
+            }
             outFile.outputStream().use { scaled.compress(fmt, quality.coerceIn(1, 100), it) }
             if (scaled !== bitmap) scaled.recycle()
             bitmap.recycle()
             return@Tool listOf(UIMessagePart.Text("OK: ${imgFile.name} → ${outFile.absolutePath}"))
+        }
+
+        // ── Image → PDF (using Android PdfDocument API) ──
+        if (fromFormat in imageFormats && toFormat == "pdf") {
+            val imgFile = inputFile ?: error("Image file required")
+            val bitmap = BitmapFactory.decodeFile(imgFile.absolutePath)
+                ?: error("Cannot decode image: $imgFile")
+            val outFile = if (outputPath.isNotBlank()) File(outputPath)
+            else File(downloadDir, "${imgFile.nameWithoutExtension}.pdf")
+            val document = PdfDocument()
+            val pageInfo = PageInfo.Builder(bitmap.width, bitmap.height, 1).create()
+            val page = document.startPage(pageInfo)
+            page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+            document.finishPage(page)
+            FileOutputStream(outFile).use { document.writeTo(it) }
+            document.close()
+            bitmap.recycle()
+            return@Tool listOf(UIMessagePart.Text("OK: ${imgFile.name} → pdf (${outFile.absolutePath})"))
+        }
+
+        // ── GIF → frames (extract static frame) ──
+        if (fromFormat == "gif" && toFormat == "frames") {
+            val imgFile = inputFile ?: error("Image file required")
+            val baseName = imgFile.nameWithoutExtension
+            val bitmap = BitmapFactory.decodeFile(imgFile.absolutePath)
+                ?: return@Tool listOf(UIMessagePart.Text(
+                    "Cannot decode GIF: $imgFile. GIF frame extraction requires Pillow for multi-frame support."))
+            val outFile = File(downloadDir, "${baseName}_frame001.png")
+            FileOutputStream(outFile).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+            return@Tool listOf(UIMessagePart.Text("OK: extracted 1 frame from GIF (${outFile.absolutePath})"))
         }
 
         // ── OCR hint ──

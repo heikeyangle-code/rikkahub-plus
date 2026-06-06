@@ -28,8 +28,6 @@ chaquopy {
             install("python-pptx")
             install("fpdf2")
             install("ebooklib")
-            install("Pillow")
-            install("xhtml2pdf")
             install("markdownify")
             install("tabulate")
         }

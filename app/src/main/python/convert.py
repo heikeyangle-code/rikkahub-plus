@@ -1,27 +1,27 @@
 """
 File conversion engine for Rikkahub.
+No C extension dependencies — pure Python only.
 
 Supported conversions:
   txt <-> md <-> html (native)
   txt/md/html -> docx
-  pdf -> txt, pdf -> md, pdf -> docx (via pdfplumber)
+  pdf -> txt, pdf -> md, pdf -> docx (via pypdf)
   docx -> txt, docx -> md
   xlsx <-> csv, xlsx/json <-> csv/json/xlsx
   pptx -> txt, pptx -> md
   zip -> extract
-  svg -> png, svg -> jpg (via cairosvg, fallback: pillow)
-  png/jpg/webp/bmp/gif/tiff <-> any image (via Pillow)
-  txt/md/html -> pdf (via fpdf2)
-  html -> pdf (via xhtml2pdf, rich CSS rendering)
-  image -> pdf (single/multi-page via Pillow)
+  txt/md -> pdf (via fpdf2)
   epub -> txt, epub -> md
   html -> markdown (via markdownify)
   pdf -> merge (multiple PDFs into one)
   pdf -> split (one file per page)
-  pdf/docx -> images (extract embedded images)
+  pdf -> images (extract embedded images, raw bytes)
+  docx -> images (extract embedded images, raw bytes)
   url -> md (fetch webpage, convert to markdown)
   csv -> table (pretty ASCII table via tabulate)
-  gif -> frames (extract animation frames)
+
+Image conversions (bmp/gif <-> png/jpg/webp, image->pdf, gif->frames)
+are handled in Kotlin via Android native APIs.
 
 Returns: {'stdout': str, 'files': [str], 'error': str?}
 """
@@ -39,7 +39,6 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
     result = {'stdout': '', 'files': [], 'error': None}
 
     try:
-        _IMG_FMTS = {'png','jpg','jpeg','webp','bmp','gif','tiff'}
         _text = lambda: _read_file(input_path, input_text)
         _out = lambda ext, fallback='output': _outpath(input_path, ext, output_dir, fallback)
 
@@ -194,68 +193,6 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
             result['stdout'] = f'Extracted to {extract_dir} ({len(files)} files)'
             result['files'] = files
 
-        # ── SVG → PNG/JPG ──
-        elif from_format == 'svg' and to_format in ('png', 'jpg'):
-            try:
-                import cairosvg
-                svg_data = open(input_path, 'rb').read()
-                out = _out(to_format)
-                if to_format == 'png':
-                    cairosvg.svg2png(bytestring=svg_data, write_to=out)
-                else:
-                    from PIL import Image
-                    png_data = cairosvg.svg2png(bytestring=svg_data)
-                    Image.open(BytesIO(png_data)).convert('RGB').save(out, 'JPEG', quality=90)
-                result['files'].append(out)
-                result['stdout'] = f'Saved: {out}'
-            except ImportError:
-                from PIL import Image
-                import xml.etree.ElementTree as ET
-                # Fallback: render SVG viewbox manually (basic)
-                img = Image.new('RGBA', (800, 600), (255,255,255,255))
-                out = _out(to_format)
-                img.convert('RGB').save(out, 'JPEG' if to_format == 'jpg' else 'PNG')
-                result['files'].append(out)
-                result['stdout'] = f'Saved: {out} (basic raster)'
-
-        # ── Image format conversion (any ↔ any via Pillow) ──
-        elif from_format in _IMG_FMTS and to_format in _IMG_FMTS and from_format != to_format:
-            from PIL import Image
-            img = Image.open(input_path)
-            out = _out(to_format)
-            fmt_map = {'png':'PNG','jpg':'JPEG','jpeg':'JPEG','webp':'WEBP',
-                       'bmp':'BMP','gif':'GIF','tiff':'TIFF'}
-            fmt = fmt_map.get(to_format, to_format.upper())
-            quality = 90 if fmt in ('JPEG', 'WEBP') else None
-            if fmt == 'GIF':
-                img = img.convert('P', palette=Image.Palette.ADAPTIVE)
-            elif fmt == 'JPEG' and img.mode in ('RGBA','P'):
-                bg = Image.new('RGB', img.size, (255,255,255))
-                bg.paste(img, mask=img.split()[-1] if img.mode=='RGBA' else None)
-                img = bg
-            img.save(out, fmt, quality=quality)
-            result['files'].append(out)
-            result['stdout'] = f'Saved: {out}'
-
-        # ── Image → PDF (extended formats) ──
-        elif from_format in _IMG_FMTS and to_format == 'pdf':
-            from PIL import Image
-            img = Image.open(input_path).convert('RGB')
-            out = _out('pdf')
-            img.save(out, 'PDF')
-            result['files'].append(out)
-            result['stdout'] = f'Saved: {out}'
-
-        # ── Rich HTML → PDF (via xhtml2pdf, best quality) ──
-        elif from_format in ('html',) and to_format == 'pdf':
-            from xhtml2pdf import pisa
-            html = _text()
-            out = _out('pdf')
-            with open(out, 'wb') as f:
-                pisa.CreateDocument(BytesIO(html.encode('utf-8')), dest=f)
-            result['files'].append(out)
-            result['stdout'] = f'Saved: {out}'
-
         # ── Text → PDF (via fpdf2, lightweight) ──
         elif from_format in ('txt', 'md') and to_format == 'pdf':
             from fpdf import FPDF
@@ -308,9 +245,8 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
                     if text: lines.append(text)
             result['stdout'] = '\n\n'.join(lines)
 
-        # ── PDF merge (via pdfplumber/pdf merger) ──
+        # ── PDF merge ──
         elif from_format in ('pdf',) and to_format == 'merge' and input_text:
-            # input_text contains comma-separated paths
             paths = [p.strip() for p in input_text.split(',') if p.strip()]
             if not paths:
                 raise ValueError('Provide comma-separated PDF paths in input_text')
@@ -338,46 +274,38 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
                 result['files'].append(out)
             result['stdout'] = f'Split {len(reader.pages)} pages'
 
-        # ── PDF extract images ──
+        # ── PDF extract images (no Pillow needed — save raw bytes) ──
         elif from_format == 'pdf' and to_format == 'images':
             from pypdf import PdfReader
-            from PIL import Image
-            import io
             reader = PdfReader(input_path)
             base = os.path.basename(input_path).rsplit('.',1)[0]
             count = 0
             for page_num, page in enumerate(reader.pages, 1):
                 for img_idx, img in enumerate(page.images):
                     try:
-                        im = Image.open(io.BytesIO(img.data))
                         ext = img.name.rsplit('.',1)[-1] if '.' in img.name else 'png'
                         out = os.path.join(output_dir, f'{base}_p{page_num}_img{img_idx+1}.{ext}')
-                        im.save(out)
+                        with open(out, 'wb') as f:
+                            f.write(img.data)
                         result['files'].append(out)
                         count += 1
                     except Exception:
                         pass
             result['stdout'] = f'Extracted {count} images from {len(reader.pages)} pages'
 
-        # ── DOCX extract images ──
+        # ── DOCX extract images (no Pillow needed — save raw bytes from zip) ──
         elif from_format == 'docx' and to_format == 'images':
-            from docx import Document
-            from docx.opc.constants import RELATIONSHIP_TYPE as RT
-            from PIL import Image
-            import io
-            import zipfile
-            doc = Document(input_path)
             base = os.path.basename(input_path).rsplit('.',1)[0]
             count = 0
             with zipfile.ZipFile(input_path) as z:
                 for name in z.namelist():
                     if name.startswith('word/media/'):
-                        data = z.read(name)
-                        ext = name.rsplit('.',1)[-1]
                         try:
-                            im = Image.open(io.BytesIO(data))
+                            data = z.read(name)
+                            ext = name.rsplit('.',1)[-1]
                             out = os.path.join(output_dir, f'{base}_{os.path.basename(name)}')
-                            im.save(out)
+                            with open(out, 'wb') as f:
+                                f.write(data)
                             result['files'].append(out)
                             count += 1
                         except Exception:
@@ -410,19 +338,6 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
             else:
                 table = '(empty)'
             result['stdout'] = table
-
-        # ── GIF → frames ──
-        elif from_format == 'gif' and to_format == 'frames':
-            from PIL import Image
-            img = Image.open(input_path)
-            base = os.path.basename(input_path).rsplit('.',1)[0]
-            nframes = getattr(img, 'n_frames', 1)
-            for i in range(nframes):
-                img.seek(i)
-                out = os.path.join(output_dir, f'{base}_frame{i+1:03d}.png')
-                img.save(out, 'PNG')
-                result['files'].append(out)
-            result['stdout'] = f'Extracted {nframes} frames from GIF'
 
         else:
             raise ValueError(f'Conversion from {from_format} to {to_format} not supported')
