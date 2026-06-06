@@ -10,4 +10,4 @@
 local.properties
 .cursor
 .history
-.kotlin__pycache__/
+__pycache__/
