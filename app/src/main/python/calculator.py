@@ -31,8 +31,9 @@ PHYSICAL_CONSTANTS = {
     "sigma": 5.670374419e-8, "stefan_boltzmann": 5.670374419e-8,
     "atm": 101325.0, "c_water": 4184.0, "c_ice": 2090.0, "c_air": 1005.0,
     "rho_water": 1000.0, "rho_air": 1.225,
-    "R_earth": 6371000.0, "M_earth": 5.972e24, "M_sun": 1.989e30,
-    "AU": 1.496e11, "pc": 3.086e16, "ly": 9.461e15,
+    "R_earth": 6371000.0, "R_sun": 6.9634e8,
+    "M_earth": 5.9722e24, "M_sun": 1.98847e30,
+    "AU": 1.495978707e11, "pc": 3.08567758149e16, "ly": 9.4607304725808e15,
     "eV": 1.602176634e-19, "cal": 4.184, "torr": 133.322,
     "bohr": 5.29177210903e-11, "hartree": 4.3597447222071e-18,
 }
@@ -573,8 +574,8 @@ def _cubic_roots(a, b, c, d):
         roots.append(complex(re, im))
         roots.append(complex(re, -im))
     elif disc == 0:
-        u = (-q/2)**(1/3)
-        t1 = 2*u
+        u = _cbrt(-q/2)
+        t1 = 2*u if u != 0 else 0
         t2 = -u
         roots = [t1, t2, t2]
     else:
@@ -5397,7 +5398,7 @@ _MATH_NAMESPACE = {
     "planet_altaz": lambda n,d,l,la: (_planet_altaz(n,_julian_day(*[int(x) for x in d.split("-")])+(0 if " " not in d else int(d.split(" ")[1].split(":")[0])/24),l,la)),
     "planet_visible": lambda n,d,l,la: _planet_visible(n,_julian_day(*[int(x) for x in d.split("-")]),l,la),
     "planet_magnitude": _planet_magnitude,
-    "planets_visible_now": _planets_visible_all,
+    "planets_visible_now": lambda: _planets_visible_all(datetime.datetime.now().strftime("%Y-%m-%d"), 0, 0),
     "planets_visible_at": lambda d,lat,lon: _planets_visible_all(d,lat,lon),
     # ── Added: Missing functions patch ──
     "csin": _csin, "ccos": _ccos, "ctan": _ctan,
