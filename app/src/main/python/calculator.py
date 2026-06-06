@@ -2183,6 +2183,351 @@ def _pythagorean_triple(m, n, k=1):
     return k*(m*m-n*n), k*(2*m*n), k*(m*m+n*n)
 
 
+# ── Astronomy more ──
+
+def _field_of_view(afov_deg, mag):
+    """True FOV = Apparent FOV / Magnification"""
+    return afov_deg / mag
+
+def _magnification_telescope(f_obj, f_ep):
+    """M = f_obj / f_ep"""
+    return f_obj / f_ep
+
+def _angular_separation(ra1, dec1, ra2, dec2):
+    """Angular separation between two celestial objects (degrees).
+    ra/dec in degrees."""
+    d1, d2 = math.radians(dec1), math.radians(dec2)
+    dra = math.radians(ra1 - ra2)
+    return math.degrees(math.acos(
+        math.sin(d1)*math.sin(d2) + math.cos(d1)*math.cos(d2)*math.cos(dra)
+    ))
+
+def _solar_altitude(lat, dec, hour_angle):
+    """Solar altitude above horizon (degrees). lat/dec in deg, hour_angle in hours."""
+    h = math.radians(hour_angle * 15)
+    phi = math.radians(lat)
+    delta = math.radians(dec)
+    return math.degrees(math.asin(
+        math.sin(phi)*math.sin(delta) + math.cos(phi)*math.cos(delta)*math.cos(h)
+    ))
+
+def _moon_phase(jd):
+    """Approximate moon phase (0=new, 0.5=full, 1=new)."""
+    jn = jd - 2451550.1
+    phase = (jn / 29.53058867) % 1.0
+    return phase
+
+def _pixel_scale(pixel_um, focal_mm):
+    """arcsec/pixel = pixel_size(um) / focal_length(mm) * 206.265"""
+    return pixel_um / focal_mm * 206.265
+
+def _limiting_magnitude(D_mm):
+    """Limiting magnitude of a telescope: mLim ≈ 5*log10(D) + 2"""
+    return 5 * math.log10(D_mm) + 2
+
+def _precession(jd):
+    """Approximate precession in arcsec per year."""
+    years = (jd - 2451545.0) / 365.25
+    return 5028.796195 * years  # arcsec
+
+def _equation_of_time(day):
+    """Approximate equation of time in minutes (from day of year 1-365)."""
+    B = 2*math.pi*(day-1)/365
+    return 229.2*(0.000075+0.001868*math.cos(B)-0.032077*math.sin(B)
+                  -0.014615*math.cos(2*B)-0.04089*math.sin(2*B))
+
+def _solar_noon(longitude_deg, equation_of_time_min):
+    """Local solar noon time (24h). long in deg, EoT in min."""
+    return 12 - longitude_deg/15 + equation_of_time_min/60
+
+def _angular_resolution(lam_nm, D_mm):
+    """Dawes' limit: resolution(arcsec) = 116 / D(mm)
+    Rayleigh: 1.22 * lambda/D in radians, convert to arcsec.
+    Returns arcseconds."""
+    return 1.22 * lam_nm * 1e-9 / (D_mm * 1e-3) * 206265
+
+# ── Geography more ──
+
+def _bearing(lat1, lon1, lat2, lon2):
+    """Initial bearing (degrees) from point1 to point2."""
+    dlon = math.radians(lon2 - lon1)
+    y = math.sin(dlon) * math.cos(math.radians(lat2))
+    x = (math.cos(math.radians(lat1))*math.sin(math.radians(lat2))
+         - math.sin(math.radians(lat1))*math.cos(math.radians(lat2))*math.cos(dlon))
+    return (math.degrees(math.atan2(y, x)) + 360) % 360
+
+def _destination(lat, lon, bearing_deg, dist_km):
+    """Destination point given start, bearing (deg), distance (km)."""
+    R = 6371.0
+    d = dist_km / R
+    brg = math.radians(bearing_deg)
+    lat1 = math.radians(lat)
+    lon1 = math.radians(lon)
+    lat2 = math.asin(math.sin(lat1)*math.cos(d) + math.cos(lat1)*math.sin(d)*math.cos(brg))
+    lon2 = lon1 + math.atan2(math.sin(brg)*math.sin(d)*math.cos(lat1), math.cos(d)-math.sin(lat1)*math.sin(lat2))
+    return (math.degrees(lat2), math.degrees(lon2))
+
+def _sunrise_sunset(lat, lon, day, zenith=90.83):
+    """Approximate sunrise/sunset times (hours from local midnight).
+    zenith: 90.83° for civil twilight, 96° for nautical, 102° for astronomical, 90.5° for sunrise."""
+    B = 2*math.pi*(day-1)/365
+    eot = 229.2*(0.000075+0.001868*math.cos(B)-0.032077*math.sin(B)
+                  -0.014615*math.cos(2*B)-0.04089*math.sin(2*B))
+    decl = math.degrees(math.asin(0.39795*math.cos(0.2163108+2*math.atan(0.9671396*math.tan(0.00860*(day-186))))))
+    ha = math.degrees(math.acos((math.cos(math.radians(zenith))
+         - math.sin(math.radians(lat))*math.sin(math.radians(decl)))
+         / (math.cos(math.radians(lat))*math.cos(math.radians(decl)))))
+    sunrise = 12 - ha/15 - lon/15 + eot/60
+    sunset = 12 + ha/15 - lon/15 + eot/60
+    return {"sunrise": sunrise % 24, "sunset": sunset % 24, "day_length_hrs": 2*ha/15}
+
+def _great_circle_area(lat1, lon1, lat2, lon2):
+    """Area of spherical quadrilateral bounded by two latitudes and longitudes.
+    Approximate: A = πR²|sin(φ₁)-sin(φ₂)|·|Δλ|/180, R=6371km."""
+    R = 6371.0
+    area = math.pi * R * R * abs(math.sin(math.radians(lat1)) - math.sin(math.radians(lat2)))
+    area *= abs(lon1 - lon2) / 180
+    return area
+
+# ── Physics more ──
+
+def _reduced_mass(m1, m2):
+    return m1*m2/(m1+m2) if (m1+m2) > 0 else 0
+
+def _elastic_collision_v1(m1, v1, m2, v2):
+    """Velocity of m1 after 1D elastic collision."""
+    return ((m1-m2)*v1 + 2*m2*v2)/(m1+m2)
+
+def _elastic_collision_v2(m1, v1, m2, v2):
+    """Velocity of m2 after 1D elastic collision."""
+    return ((m2-m1)*v2 + 2*m1*v1)/(m1+m2)
+
+def _ac_impedance(R, L, C, f):
+    """Z = sqrt(R² + (ωL - 1/(ωC))²). f in Hz."""
+    w = 2*math.pi*f
+    return math.sqrt(R*R + (w*L - 1/(w*C))**2)
+
+def _ac_power_factor(R, Z):
+    return R/Z if Z > 0 else 0
+
+def _rms_voltage(V_peak):
+    return V_peak / math.sqrt(2)
+
+def _rms_current(I_peak):
+    return I_peak / math.sqrt(2)
+
+def _uncertainty_position(delta_p):
+    """Δx ≥ h̄/(2Δp)"""
+    return 1.054571817e-34 / (2 * delta_p)
+
+def _uncertainty_momentum(delta_x):
+    """Δp ≥ h̄/(2Δx)"""
+    return 1.054571817e-34 / (2 * delta_x)
+
+def _particle_in_box_energy(n, L, m):
+    """E = n²h²/(8mL²) in Joules. L in m, m in kg."""
+    h = 6.62607015e-34
+    return n*n*h*h/(8*m*L*L)
+
+def _blackbody_radiance(lam, T):
+    """Planck's law: spectral radiance (W·sr⁻¹·m⁻³). lam in m, T in K."""
+    h = 6.62607015e-34
+    c = 299792458.0
+    k = 1.380649e-23
+    return 2*h*c*c/(lam**5) / (math.exp(h*c/(lam*k*T)) - 1)
+
+def _rayleigh_scattering(lam, lam0, I0):
+    """I/I₀ ∝ 1/λ⁴"""
+    return I0 * (lam0/lam)**4
+
+def _thin_film_min_thickness(lam, n, m=0):
+    """Minimum thickness for destructive interference: t = (m+0.5)*λ/(2n)"""
+    return (m + 0.5) * lam / (2 * n)
+
+def _double_slit_fringe(d, lam, L):
+    """Fringe spacing on screen. d=slit separation, lam=wavelength, L=distance to screen."""
+    return lam * L / d
+
+def _single_slit_minima(a, lam, L, m=1):
+    """Position of first minimum. a=slit width."""
+    return m * lam * L / a
+
+def _grating_dispersion(d, lam, m=1):
+    """Diffraction angle. d=grating spacing, m=order."""
+    return math.degrees(math.asin(m*lam/d)) if m*lam/d <= 1 else float('nan')
+
+# ── Physics: Multi-body gravity ──
+
+def _gravitational_force(m1, x1, y1, z1, m2, x2, y2, z2):
+    """Gravitational force magnitude between two bodies at (x,y,z)."""
+    dx, dy, dz = x2-x1, y2-y1, z2-z1
+    r = math.sqrt(dx*dx + dy*dy + dz*dz)
+    if r == 0: return 0
+    G = 6.67430e-11
+    return G*m1*m2/(r*r)
+
+def _nbody_gravity(mass, x, y, z, target_mass_idx):
+    """Net gravitational force on body at index target_mass_idx from all others.
+    masses=[m1,m2,...], x=[x1,x2,...], etc. Returns (Fx, Fy, Fz, F_total)."""
+    G = 6.67430e-11
+    Fx = Fy = Fz = 0.0
+    n = len(mass)
+    for i in range(n):
+        if i == target_mass_idx: continue
+        dx = x[i] - x[target_mass_idx]
+        dy = y[i] - y[target_mass_idx]
+        dz = z[i] - z[target_mass_idx]
+        r = math.sqrt(dx*dx + dy*dy + dz*dz)
+        if r == 0: continue
+        F = G * mass[target_mass_idx] * mass[i] / (r*r)
+        Fx += F * dx/r
+        Fy += F * dy/r
+        Fz += F * dz/r
+    return {"Fx": Fx, "Fy": Fy, "Fz": Fz, "F_magnitude": math.sqrt(Fx*Fx+Fy*Fy+Fz*Fz)}
+
+# ── Physics: Statistical ──
+
+def _boltzmann_dist(E, T):
+    """P(E) ∝ exp(-E/(k_B*T))"""
+    k = 1.380649e-23
+    return math.exp(-E/(k*T))
+
+def _maxwell_boltzmann_speed(T, m):
+    """Most probable speed: v = sqrt(2kT/m)"""
+    k = 1.380649e-23
+    return math.sqrt(2*k*T/m)
+
+# ── Statistics more ──
+
+def _f_pdf(x, d1, d2):
+    """F-distribution PDF approximation for x>0."""
+    if x <= 0: return 0
+    num = math.sqrt((d1*x)**d1 * d2**d2 / (d1*x + d2)**(d1+d2))
+    den = x * _beta_func(d1/2, d2/2)
+    return num/den if den > 0 else 0
+
+def _t_cdf(t, df):
+    """t-distribution CDF approximation."""
+    x = df/(t*t+df)
+    return 1 - 0.5*_beta_func(df/2, 0.5)*x**(df/2)*_hyp2f1_approx(0.5, df/2, 1.5, 1-x)
+
+def _hyp2f1_approx(a, b, c, z, n=50):
+    """Gauss hypergeometric ₂F₁(a,b;c;z) series approximation."""
+    total = 0.0
+    term = 1.0
+    for k in range(n):
+        total += term
+        term *= (a+k)*(b+k)/((c+k)*(k+1))*z
+        if abs(term) < 1e-15: break
+    return total
+
+# ── Everyday ──
+
+def _equal_principal_loan(principal, rate, years):
+    """等额本金: returns list of monthly payments."""
+    n = years * 12
+    monthly_rate = rate / 12
+    monthly_principal = principal / n
+    payments = []
+    remaining = principal
+    for i in range(int(n)):
+        interest = remaining * monthly_rate
+        payment = monthly_principal + interest
+        payments.append(payment)
+        remaining -= monthly_principal
+    total_interest = sum(payments) - principal
+    return {"payments": payments[:12],  # first 12 months
+            "first_payment": payments[0], "last_payment": payments[-1],
+            "total_interest": total_interest, "total_paid": sum(payments)}
+
+def _mortgage_total_interest(principal, rate, years):
+    """Total interest paid over loan life (等额本息)."""
+    n = years * 12
+    r = rate / 12
+    pmt = principal * r * (1+r)**n / ((1+r)**n - 1) if r > 0 else principal/n
+    return pmt * n - principal
+
+def _password_entropy(length, charset_size=95):
+    """E = log₂(C^L) = L * log₂(C)"""
+    return length * math.log2(charset_size)
+
+def _cooking_convert(value, from_unit, to_unit):
+    """Cooking volume conversions: cup, tbsp, tsp, ml, fl_oz, L"""
+    conversions = {
+        "cup": 236.588, "cups": 236.588,
+        "tbsp": 14.7868, "tablespoon": 14.7868, "tablespoons": 14.7868,
+        "tsp": 4.92892, "teaspoon": 4.92892, "teaspoons": 4.92892,
+        "ml": 1.0, "milliliter": 1.0, "milliliters": 1.0,
+        "l": 1000.0, "liter": 1000.0, "liters": 1000.0, "litre": 1000.0,
+        "fl_oz": 29.5735, "fluid_ounce": 29.5735, "fluid_ounces": 29.5735,
+        "quart": 946.353, "quarts": 946.353,
+        "pint": 473.176, "pints": 473.176,
+        "gallon": 3785.41, "gallons": 3785.41,
+    }
+    fu = from_unit.lower()
+    tu = to_unit.lower()
+    if fu not in conversions or tu not in conversions:
+        raise ValueError(f"Unknown cooking unit. Use: cup, tbsp, tsp, ml, fl_oz, L, quart, pint, gallon")
+    return value * conversions[fu] / conversions[tu]
+
+def _add_days(date_str, days, fmt="%Y-%m-%d"):
+    """Add days to a date string. date_str in fmt format."""
+    dt = datetime.datetime.strptime(date_str, fmt)
+    return (dt + datetime.timedelta(days=int(days))).strftime(fmt)
+
+def _add_months(date_str, months, fmt="%Y-%m-%d"):
+    """Add months to a date string."""
+    dt = datetime.datetime.strptime(date_str, fmt)
+    m = dt.month - 1 + int(months)
+    y = dt.year + m // 12
+    m = m % 12 + 1
+    d = min(dt.day, [31,29 if y%4==0 and(y%100!=0 or y%400==0)else 28,
+                     31,30,31,30,31,31,30,31,30,31][m-1])
+    return datetime.datetime(y, m, d).strftime(fmt)
+
+def _bac(drinks_oz, weight_lb, hours, male=True):
+    """Blood Alcohol Content (Widmark formula).
+    drinks_oz = total oz of pure ethanol (1 drink ≈ 0.6 oz)."""
+    r = 0.68 if male else 0.55
+    return (drinks_oz * 5.14) / (weight_lb * r) - 0.015 * hours
+
+def _ideal_weight(height_cm, male=True):
+    """Devine formula for ideal body weight (kg)."""
+    base = 50 if male else 45.5
+    return base + 0.9 * (height_cm - 152)
+
+def _calorie_needs(kg, cm, age, male=True, activity=1.2):
+    """Mifflin-St Jeor: BMR * activity factor.
+    activity: 1.2(sedentary), 1.375(light), 1.55(moderate), 1.725(very active), 1.9(extra)"""
+    if male:
+        bmr = 10*kg + 6.25*cm - 5*age + 5
+    else:
+        bmr = 10*kg + 6.25*cm - 5*age - 161
+    return bmr * activity
+
+def _sleep_cycles(hours):
+    """Optimal sleep cycles (90min each). Returns recommended wake times."""
+    cycle_min = 90
+    cycles = hours * 60 / cycle_min
+    return {"cycles": round(cycles, 1), "recommended": f"{max(4.5, int(cycles)*1.5):.1f}h for {max(3, int(cycles))} cycles"}
+
+def _room_volume(length, width, height):
+    return length * width * height
+
+def _wall_area(length, width, height):
+    """Total wall area of a rectangular room."""
+    return 2 * height * (length + width)
+
+def _paint_needed(wall_area_m2, coverage_per_liter_m2=12):
+    """Liters of paint needed, assuming 2 coats."""
+    return wall_area_m2 * 2 / coverage_per_liter_m2
+
+def _tile_count(floor_area_m2, tile_w_cm, tile_h_cm, waste_pct=10):
+    """Number of tiles needed including waste."""
+    tile_area = (tile_w_cm/100) * (tile_h_cm/100)
+    return int(math.ceil(floor_area_m2 / tile_area * (1 + waste_pct/100)))
+
+
 # ════════════════════════════════════════════
 # MATH NAMESPACE
 # ════════════════════════════════════════════
@@ -2639,6 +2984,67 @@ _MATH_NAMESPACE = {
     "next_prime": _next_prime,
     "pythagorean_triple": _pythagorean_triple,
 
+    # ── Astronomy more ──
+    "field_of_view": _field_of_view,
+    "magnification_telescope": _magnification_telescope,
+    "angular_separation": _angular_separation,
+    "solar_altitude": _solar_altitude,
+    "moon_phase": _moon_phase,
+    "pixel_scale": _pixel_scale,
+    "limiting_magnitude": _limiting_magnitude,
+    "precession": _precession,
+    "equation_of_time": _equation_of_time,
+    "solar_noon": _solar_noon,
+    "angular_resolution": _angular_resolution,
+
+    # ── Geography more ──
+    "bearing": _bearing,
+    "destination": _destination,
+    "sunrise_sunset": _sunrise_sunset,
+    "great_circle_area": _great_circle_area,
+
+    # ── Physics more ──
+    "reduced_mass": _reduced_mass,
+    "elastic_collision_v1": _elastic_collision_v1,
+    "elastic_collision_v2": _elastic_collision_v2,
+    "ac_impedance": _ac_impedance,
+    "ac_power_factor": _ac_power_factor,
+    "rms_voltage": _rms_voltage,
+    "rms_current": _rms_current,
+    "uncertainty_position": _uncertainty_position,
+    "uncertainty_momentum": _uncertainty_momentum,
+    "particle_in_box_energy": _particle_in_box_energy,
+    "blackbody_radiance": _blackbody_radiance,
+    "rayleigh_scattering": _rayleigh_scattering,
+    "thin_film_min_thickness": _thin_film_min_thickness,
+    "double_slit_fringe": _double_slit_fringe,
+    "single_slit_minima": _single_slit_minima,
+    "grating_dispersion": _grating_dispersion,
+    "gravitational_force": _gravitational_force,
+    "nbody_gravity": _nbody_gravity,
+    "boltzmann_dist": _boltzmann_dist,
+    "maxwell_boltzmann_speed": _maxwell_boltzmann_speed,
+
+    # ── Statistics more ──
+    "f_pdf": _f_pdf,
+    "t_cdf": _t_cdf,
+
+    # ── Everyday ──
+    "equal_principal_loan": _equal_principal_loan,
+    "mortgage_total_interest": _mortgage_total_interest,
+    "password_entropy": _password_entropy,
+    "cooking_convert": _cooking_convert,
+    "add_days": _add_days,
+    "add_months": _add_months,
+    "bac": _bac,
+    "ideal_weight": _ideal_weight,
+    "calorie_needs": _calorie_needs,
+    "sleep_cycles": _sleep_cycles,
+    "room_volume": _room_volume,
+    "wall_area": _wall_area,
+    "paint_needed": _paint_needed,
+    "tile_count": _tile_count,
+
     # ── Helpers ──
     "percentage": lambda v,p:v*p/100,
     "percent_of": lambda v,t:v/t*100,
@@ -2675,7 +3081,9 @@ def calculate(expression, precision=10, mode="auto"):
             ns["cos"] = lambda x:math.cos(math.radians(x))
             ns["tan"] = lambda x:math.tan(math.radians(x))
 
-        result = eval(expression, {"__builtins__":{}}, ns)
+        # Allow JS-style true/false
+        sanitized = expression.replace("true", "True").replace("false", "False")
+        result = eval(sanitized, {"__builtins__":{}}, ns)
 
         if isinstance(result, bool):
             return json.dumps({"result":str(result),"type":"boolean"})
