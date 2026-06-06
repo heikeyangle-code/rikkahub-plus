@@ -17,6 +17,11 @@ Supported conversions:
   epub -> txt, epub -> md
   html -> markdown (via markdownify)
   pdf -> merge (multiple PDFs into one)
+  pdf -> split (one file per page)
+  pdf/docx -> images (extract embedded images)
+  url -> md (fetch webpage, convert to markdown)
+  csv -> table (pretty ASCII table via tabulate)
+  gif -> frames (extract animation frames)
 
 Returns: {'stdout': str, 'files': [str], 'error': str?}
 """
@@ -318,6 +323,106 @@ def convert(input_path, input_text, from_format, to_format, output_dir):
             merger.close()
             result['files'].append(out)
             result['stdout'] = f'Merged {len(paths)} PDFs into: {out}'
+
+        # ── PDF split ──
+        elif from_format == 'pdf' and to_format == 'split':
+            from pypdf import PdfReader, PdfWriter
+            reader = PdfReader(input_path)
+            base = os.path.basename(input_path).rsplit('.',1)[0]
+            for i, page in enumerate(reader.pages, 1):
+                w = PdfWriter()
+                w.add_page(page)
+                out = os.path.join(output_dir, f'{base}_p{i:03d}.pdf')
+                w.write(out)
+                w.close()
+                result['files'].append(out)
+            result['stdout'] = f'Split {len(reader.pages)} pages'
+
+        # ── PDF extract images ──
+        elif from_format == 'pdf' and to_format == 'images':
+            from pypdf import PdfReader
+            from PIL import Image
+            import io
+            reader = PdfReader(input_path)
+            base = os.path.basename(input_path).rsplit('.',1)[0]
+            count = 0
+            for page_num, page in enumerate(reader.pages, 1):
+                for img_idx, img in enumerate(page.images):
+                    try:
+                        im = Image.open(io.BytesIO(img.data))
+                        ext = img.name.rsplit('.',1)[-1] if '.' in img.name else 'png'
+                        out = os.path.join(output_dir, f'{base}_p{page_num}_img{img_idx+1}.{ext}')
+                        im.save(out)
+                        result['files'].append(out)
+                        count += 1
+                    except Exception:
+                        pass
+            result['stdout'] = f'Extracted {count} images from {len(reader.pages)} pages'
+
+        # ── DOCX extract images ──
+        elif from_format == 'docx' and to_format == 'images':
+            from docx import Document
+            from docx.opc.constants import RELATIONSHIP_TYPE as RT
+            from PIL import Image
+            import io
+            import zipfile
+            doc = Document(input_path)
+            base = os.path.basename(input_path).rsplit('.',1)[0]
+            count = 0
+            with zipfile.ZipFile(input_path) as z:
+                for name in z.namelist():
+                    if name.startswith('word/media/'):
+                        data = z.read(name)
+                        ext = name.rsplit('.',1)[-1]
+                        try:
+                            im = Image.open(io.BytesIO(data))
+                            out = os.path.join(output_dir, f'{base}_{os.path.basename(name)}')
+                            im.save(out)
+                            result['files'].append(out)
+                            count += 1
+                        except Exception:
+                            pass
+            result['stdout'] = f'Extracted {count} images from docx'
+
+        # ── URL → Markdown ──
+        elif from_format == 'url' and to_format == 'md':
+            import requests
+            from markdownify import markdownify as md
+            url = input_text.strip() if input_text else (input_path or '')
+            if not url:
+                raise ValueError('Provide URL in input_text')
+            resp = requests.get(url, timeout=30)
+            resp.raise_for_status()
+            md_text = md(resp.text, heading_style='ATX')
+            out = os.path.join(output_dir, 'webpage.md')
+            with open(out, 'w', encoding='utf-8') as f:
+                f.write(md_text)
+            result['files'].append(out)
+            result['stdout'] = f'Fetched {url} → markdown ({len(md_text)} chars)'
+
+        # ── CSV → table ──
+        elif from_format == 'csv' and to_format == 'table':
+            from tabulate import tabulate
+            with open(input_path, 'r', encoding='utf-8') as f:
+                rows = list(csv.reader(f))
+            if rows:
+                table = tabulate(rows[1:], headers=rows[0], tablefmt='pipe', numalign='left')
+            else:
+                table = '(empty)'
+            result['stdout'] = table
+
+        # ── GIF → frames ──
+        elif from_format == 'gif' and to_format == 'frames':
+            from PIL import Image
+            img = Image.open(input_path)
+            base = os.path.basename(input_path).rsplit('.',1)[0]
+            nframes = getattr(img, 'n_frames', 1)
+            for i in range(nframes):
+                img.seek(i)
+                out = os.path.join(output_dir, f'{base}_frame{i+1:03d}.png')
+                img.save(out, 'PNG')
+                result['files'].append(out)
+            result['stdout'] = f'Extracted {nframes} frames from GIF'
 
         else:
             raise ValueError(f'Conversion from {from_format} to {to_format} not supported')

@@ -36,8 +36,11 @@ fun createConvertFileTool(context: Context): Tool = Tool(
         "- html -> md (clean markdown via markdownify)\n" +
         "- png/jpg/webp/bmp/gif -> pdf\n" +
         "- epub -> txt, epub -> md\n" +
-        "- zip -> extract\n" +
-        "- pdf -> merge (multiple PDFs)\n" +
+        "- zip -> extract\\n" +
+        "- pdf -> merge, pdf -> split, pdf/docx -> images\\n" +
+        "- url -> md (fetch + convert)\\n" +
+        "- csv -> table (pretty ASCII table)\\n" +
+        "- gif -> frames (extract animation)\\n" +
         "Specify source path and output format. The converted file is saved alongside the original.",
     parameters = {
         InputSchema.Obj(
@@ -57,7 +60,7 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                         add("pdf"); add("xlsx"); add("csv"); add("json")
                         add("pptx"); add("png"); add("jpg"); add("jpeg"); add("webp")
                         add("bmp"); add("gif"); add("tiff")
-                        add("svg"); add("epub"); add("zip")
+                        add("svg"); add("epub"); add("zip"); add("url")
                     })
                     put("description", "Source format (auto-detected from extension if omitted)")
                 })
@@ -68,6 +71,7 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                         add("xlsx"); add("csv"); add("json")
                         add("png"); add("jpg"); add("jpeg"); add("webp")
                         add("bmp"); add("gif"); add("tiff"); add("pdf")
+                        add("split"); add("images"); add("table"); add("frames")
                     })
                     put("description", "Target format")
                 })
