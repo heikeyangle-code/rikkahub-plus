@@ -21,17 +21,20 @@ import java.io.File
 
 fun createConvertFileTool(context: Context): Tool = Tool(
     name = "convert_file",
-    description = "Convert files between supported formats.\n\n" +
-        "Supported conversions:\n" +
-        "- txt <-> md <-> docx <-> html\n" +
-        "- pdf -> txt, pdf -> md\n" +
-        "- xlsx <-> csv <-> json\n" +
-        "- pptx -> txt, pptx -> md\n" +
-        "- Various image format conversions\n\n" +
-        "When to Use:\n" +
-        "- User needs to change file format\n" +
-        "- Extracting text from PDFs or presentations\n" +
-        "- Converting data between spreadsheet formats\n\n" +
+    description = "Convert files between supported formats.\\n\\n" +
+        "Supported conversions:\\n" +
+        "- txt <-> md <-> html (fast native)\\n" +
+        "- txt -> docx, md -> docx, html -> docx\\n" +
+        "- pdf -> txt, pdf -> md, pdf -> docx\\n" +
+        "- docx -> txt, docx -> md\\n" +
+        "- xlsx <-> csv, xlsx -> json, csv -> json, json -> csv, json -> xlsx\\n" +
+        "- pptx -> txt, pptx -> md\\n" +
+        "- png <-> jpg <-> webp (image format conversion)\\n" +
+        "- svg -> png, svg -> jpg\\n" +
+        "- txt -> pdf, md -> pdf, html -> pdf\\n" +
+        "- png -> pdf, jpg -> pdf, webp -> pdf (single/multi-page)\\n" +
+        "- epub -> txt, epub -> md\\n" +
+        "- zip -> extract\\n\\n" +
         "Specify source path and output format. The converted file is saved alongside the original.",
     parameters = {
         InputSchema.Obj(
@@ -49,7 +52,8 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                     put("enum", buildJsonArray {
                         add("txt"); add("md"); add("docx"); add("html")
                         add("pdf"); add("xlsx"); add("csv"); add("json")
-                        add("pptx"); add("png"); add("jpg"); add("webp"); add("zip")
+                        add("pptx"); add("png"); add("jpg"); add("webp")
+                        add("svg"); add("epub"); add("zip")
                     })
                     put("description", "Source format (auto-detected from extension if omitted)")
                 })
@@ -57,7 +61,8 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                     put("type", "string")
                     put("enum", buildJsonArray {
                         add("txt"); add("md"); add("docx"); add("html")
-                        add("xlsx"); add("csv"); add("json"); add("png"); add("jpg"); add("webp")
+                        add("xlsx"); add("csv"); add("json")
+                        add("png"); add("jpg"); add("webp"); add("pdf")
                     })
                     put("description", "Target format")
                 })

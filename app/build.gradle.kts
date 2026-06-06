@@ -26,6 +26,9 @@ chaquopy {
             install("pypdf")
             install("openpyxl")
             install("python-pptx")
+            install("fpdf2")
+            install("ebooklib")
+            install("Pillow")
         }
     }
 }
