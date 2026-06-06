@@ -25,9 +25,8 @@ fun ImeLazyListAutoScroller(
             ime.getBottom(localDensity)
         }.collect { keyboardHeight ->
             if (keyboardHeight > 0) {
-                if (imeHeigh < keyboardHeight) {
-                    lazyListState.scrollBy((keyboardHeight - imeHeigh).toFloat())
-                } else {
+                if (keyboardHeight > imeHeigh) {
+                    // 键盘弹出：向下滚动，保持输入框可见
                     lazyListState.scrollBy((keyboardHeight - imeHeigh).toFloat())
                 }
                 imeHeigh = keyboardHeight
