@@ -30,10 +30,14 @@ fun createCalculatorTool(context: Context): Tool = Tool(
           - Financial: fv, pv, pmt, npv, irr, Black-Scholes, VaR, bond pricing
           - Geometry: area/volume (all shapes + frustum/spherical cap/torus)
           - Physics: kinematics, forces, energy, E&M, thermo, optics, relativity,
-            quantum, orbital, oscillations, fluids, solids
+            quantum, orbital, oscillations, fluids, solids, GR/SR(23 functions:
+            gamma/Lorentz/E=mc², time dilation, length contraction, Doppler(angle),
+            Compton, rocket, twin paradox, redshift, light deflection 1.75",
+            perihelion precession 43"/cy, gravitational time dilation, Einstein radius)
           - Astronomy: stellar/coordinate/cosmology (redshift, distances, JD),
             moon phase/age/rise/set/transit, planet positions(7 planets,
-            alt/az/magnitude/rise/set/visibility), sun_position, seasons
+            alt/az/magnitude/rise/set/visibility), sun_position, seasons,
+            golden/blue hour(handles polar day/night/continuous)
           - Signal: FFT, autocorr, spectrogram, peak detect, filters
           - Geography: haversine, bearing, UTM, latlon, slope/aspect, viewshed,
             horizon/pressure, ring_area/perimeter, Chinese coords(WGS84/GCJ02/BD09),
