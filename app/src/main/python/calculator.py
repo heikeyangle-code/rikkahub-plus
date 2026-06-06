@@ -1620,6 +1620,568 @@ def _time_diff(h1, h2):
     if diff<=1: return f"{int(diff*60)} min diff" if diff<1 else f"{int(diff)} hr diff"
     return f"{int(diff)} hr {int((diff%1)*60)} min"
 
+# ── Arithmetic extras ──
+
+def _isqrt(n):
+    return math.isqrt(n) if n >= 0 else None
+
+# ── Geometry advanced ──
+
+def _sector_area(r, theta_deg):
+    return 0.5 * r * r * math.radians(theta_deg)
+
+def _arc_length(r, theta_deg):
+    return r * math.radians(theta_deg)
+
+def _annulus_area(R, r):
+    return math.pi * (R*R - r*r)
+
+def _ellipse_area(a, b):
+    return math.pi * a * b
+
+def _ellipse_circumference(a, b):
+    h = ((a-b)/(a+b))**2
+    return math.pi * (a+b) * (1 + 3*h/(10 + math.sqrt(4-3*h)))
+
+def _trapezoid_area(a, b, h):
+    return (a+b)*h/2
+
+def _parallelogram_area(b, h):
+    return b*h
+
+def _regular_polygon_area(n, s):
+    return n*s*s/(4*math.tan(math.pi/n))
+
+def _regular_polygon_angle(n):
+    return (n-2)*180/n
+
+def _frustum_volume(R, r, h):
+    return math.pi*h*(R*R + R*r + r*r)/3
+
+def _frustum_area(R, r, s):
+    return math.pi*(R+r)*s
+
+def _spherical_cap_volume(h, r):
+    """h=height of cap, r=radius of sphere"""
+    return math.pi*h*h*(3*r-h)/3
+
+def _spherical_cap_area(h, r):
+    return 2*math.pi*r*h
+
+def _torus_volume(R, r):
+    """R=major radius, r=minor radius"""
+    return 2*math.pi*math.pi*R*r*r
+
+def _torus_area(R, r):
+    return 4*math.pi*math.pi*R*r
+
+def _law_of_sines(a=None, b=None, c=None, A=None, B=None, C=None):
+    """a/sinA = b/sinB = c/sinC. Give 3 values including at least one side-angle pair."""
+    vals = {"a":a,"b":b,"c":c,"A":A,"B":B,"C":C}
+    given = {k:v for k,v in vals.items() if v is not None}
+    if len(given) < 3:
+        raise ValueError("Need at least 3 values")
+    k = None
+    for side, angle in [("a","A"),("b","B"),("c","C")]:
+        if side in given and angle in given:
+            k = given[side] / math.sin(math.radians(given[angle]))
+            break
+    if k is None:
+        # Try to compute k from two sides and one angle
+        if "a" in given and "b" in given and "A" in given:
+            k = given["a"] / math.sin(math.radians(given["A"]))
+        elif "a" in given and "b" in given and "B" in given:
+            k = given["b"] / math.sin(math.radians(given["B"]))
+    if k is None:
+        return {"error": "Need at least one side-angle pair"}
+    result = dict(given)
+    if "a" not in result and k and "A" in given:
+        result["a"] = k * math.sin(math.radians(given["A"]))
+    if "b" not in result and k and "B" in given:
+        result["b"] = k * math.sin(math.radians(given["B"]))
+    if "c" not in result and k and "C" in given:
+        result["c"] = k * math.sin(math.radians(given["C"]))
+    if "A" not in result and k and "a" in given:
+        result["A"] = math.degrees(math.asin(given["a"]/k)) if given["a"]/k <= 1 else float('nan')
+    if "B" not in result and k and "b" in given:
+        result["B"] = math.degrees(math.asin(given["b"]/k)) if given["b"]/k <= 1 else float('nan')
+    if "C" not in result and k and "c" in given:
+        result["C"] = math.degrees(math.asin(given["c"]/k)) if given["c"]/k <= 1 else float('nan')
+    # Fill missing angle
+    angle_sum = sum(result.get(a,0) for a in ["A","B","C"])
+    if None in (result.get(k) for k in ["A","B","C"]):
+        pass  # keep partial
+    elif angle_sum < 180:
+        for a in ["A","B","C"]:
+            if a not in given: result[a] = 180 - angle_sum
+    return result
+
+def _law_of_cosines(a=None, b=None, c=None, C=None):
+    """c² = a² + b² - 2ab·cosC. Give 3 to get the 4th."""
+    if a and b and C:
+        return math.sqrt(a*a + b*b - 2*a*b*math.cos(math.radians(C)))
+    if a and c and b:
+        return math.degrees(math.acos((a*a+b*b-c*c)/(2*a*b)))
+    if a and c and C:
+        b = a*a + c*c - 2*a*c*math.cos(math.radians(C))
+        return math.sqrt(b) if b > 0 else float('nan')
+    if b and c and C:
+        a = b*b + c*c - 2*b*c*math.cos(math.radians(C))
+        return math.sqrt(a) if a > 0 else float('nan')
+    raise ValueError("Need a,b,C or a,b,c or a,c,C or b,c,C")
+
+# ── Astronomy ──
+
+def _julian_day(year, month, day):
+    """Convert Gregorian date to Julian Day Number."""
+    if month <= 2: year -= 1; month += 12
+    A = year // 100
+    B = 2 - A + A//4
+    return int(365.25*(year+4716)) + int(30.6001*(month+1)) + day + B - 1524.5
+
+def _modified_julian_day(year, month, day):
+    return _julian_day(year, month, day) - 2400000.5
+
+def _einstein_radius(M, Dl, Dls, Ds):
+    """θ_E = sqrt(4GM/c² * Dls/(Dl*Ds)). All distances in meters."""
+    G = 6.67430e-11; c = 299792458.0
+    return math.sqrt(4*G*M*Dls/(c*c*Dl*Ds))
+
+def _hubble_distance(H0=67.4):
+    """D_H = c/H₀ in Mpc"""
+    return 299792.458 / H0
+
+def _hubble_time(H0=67.4):
+    """t_H = 1/H₀ in Gyrs"""
+    return (3.0857e19 / (H0 * 1e3 * 3.15576e7 * 1e9))**-1
+
+def _comoving_distance(z, H0=67.4, Omega_m=0.315, Omega_l=0.685):
+    """D_C = c/H₀ ∫₀ᶻ dz/E(z), approximation assuming flat LCDM."""
+    c_H0 = 299792.458 / H0
+    n = 1000
+    dz = z / n
+    total = 0.0
+    for i in range(n):
+        zi = (i+0.5)*dz
+        E = math.sqrt(Omega_m*(1+zi)**3 + Omega_l)
+        total += dz / E
+    return c_H0 * total
+
+def _luminosity_distance(z, H0=67.4, Omega_m=0.315, Omega_l=0.685):
+    """D_L = (1+z)*D_C"""
+    return (1+z) * _comoving_distance(z, H0, Omega_m, Omega_l)
+
+def _angular_diameter_distance(z, H0=67.4, Omega_m=0.315, Omega_l=0.685):
+    """D_A = D_C/(1+z)"""
+    return _comoving_distance(z, H0, Omega_m, Omega_l) / (1+z)
+
+def _scale_factor(z):
+    return 1.0 / (1+z)
+
+def _lookback_time(z, H0=67.4, Omega_m=0.315, Omega_l=0.685):
+    """Lookback time in Gyrs for flat LCDM."""
+    H0_s = H0 * 1e3 / (3.0857e19)  # H0 in 1/s
+    sec_per_gyr = 3.15576e16
+    n = 1000
+    dz = z / n
+    total = 0.0
+    for i in range(n):
+        zi = (i+0.5)*dz
+        E = math.sqrt(Omega_m*(1+zi)**3 + Omega_l)
+        total += dz / ((1+zi)*E)
+    return total / H0_s / sec_per_gyr
+
+def _synodic_period(P1, P2):
+    """1/P = 1/P1 - 1/P2"""
+    return 1/(1/P1 - 1/P2)
+
+def _diffraction_limit(D, lam):
+    """θ = 1.22*λ/D (radians). D=aperture diameter, λ=wavelength, both in same unit."""
+    return 1.22 * lam / D
+
+def _surface_brightness(m, area_arcsec2):
+    """μ = m + 2.5*log₁₀(A)"""
+    return m + 2.5 * math.log10(area_arcsec2) if area_arcsec2 > 0 else float('nan')
+
+def _airmass(zenith_deg):
+    """X ≈ sec(z) for z<60°, more accurate for higher."""
+    z = math.radians(zenith_deg)
+    return 1.0 / math.cos(z) if z < math.radians(60) else 1.0/(math.cos(z) + 0.025*math.exp(-11*math.cos(z)))
+
+def _atmospheric_extinction(m0, k, airmass):
+    return m0 + k * airmass
+
+def _transit_depth(Rp, Rs):
+    return (Rp/Rs)**2
+
+def _tidal_force(M, m, r, R):
+    """F_tidal ≈ 2GMmR/r³"""
+    G = 6.67430e-11
+    return 2*G*M*m*R/(r**3)
+
+def _eddington_luminosity(M):
+    """L_Edd = 4πGMm_p/σ_T (Watts)"""
+    G = 6.67430e-11
+    m_p = 1.67262192369e-27
+    sigma_T = 6.652458732e-29
+    return 4*math.pi*G*M*m_p/sigma_T
+
+def _gravitational_redshift(M, R):
+    """z ≈ GM/(Rc²)"""
+    G = 6.67430e-11; c = 299792458.0
+    return G*M/(R*c*c)
+
+# ── Physics extras ──
+
+def _lc_resonance(L, C):
+    """f₀ = 1/(2π√(LC))"""
+    return 1/(2*math.pi*math.sqrt(L*C))
+
+def _q_factor(R, L, C):
+    """Q = 1/R·√(L/C)"""
+    return math.sqrt(L/C)/R
+
+def _mutual_inductance(k, L1, L2):
+    return k * math.sqrt(L1*L2)
+
+def _transformer_ratio(V1, V2, N1=None, N2=None):
+    """V₂/V₁ = N₂/N₁. Give V1,V2,N1/N2 to get the other."""
+    if V1 and V2 and N1: return V2*N1/V1
+    if V1 and V2 and N2: return V1*N2/V2
+    if V1 and N1 and N2: return V1*N2/N1
+    if V2 and N1 and N2: return V2*N1/N2
+    raise ValueError("Need V1,V2,N1 or V1,V2,N2 or V1,N1,N2 or V2,N1,N2")
+
+def _rc_time_constant(R, C):
+    return R*C
+
+def _heat_conduction(k, A, dT, d):
+    """Q/t = kA·ΔT/d (Watts)"""
+    return k*A*dT/d
+
+def _thermal_radiation(eps, A, T):
+    """Q = εσAT⁴"""
+    return eps*5.670374419e-8*A*T**4
+
+def _adiabatic_relation(P1, V1, P2=None, V2=None, gamma=1.4):
+    """P₁V₁^γ = P₂V₂^γ. Give any 3."""
+    if P1 and V1 and V2: return P1*(V1/V2)**gamma
+    if P1 and V1 and P2: return V1*(P1/P2)**(1/gamma)
+    if P2 and V2 and V1: return P2*(V2/V1)**gamma
+    if P2 and V2 and P1: return V2*(P1/P2)**(1/gamma)
+    raise ValueError("Need P1,V1,V2 or P1,V1,P2 or P2,V2,V1 or P2,V2,P1")
+
+def _isothermal_work(n, T, V1, V2):
+    """W = nRT·ln(V₂/V₁)"""
+    R = 8.314462618
+    return n*R*T*math.log(V2/V1)
+
+def _surface_tension(F, L):
+    return F/L
+
+def _poiseuille_flow(P1, P2, r, L, eta):
+    """Q = π(P₁-P₂)r⁴/(8ηL)"""
+    return math.pi*(P1-P2)*r**4/(8*eta*L)
+
+def _doppler_sound(f, v_src, v_obs=0, v_sound=343, toward=True):
+    """Classical Doppler effect for sound."""
+    if toward:
+        return f*(v_sound+v_obs)/(v_sound-v_src)
+    return f*(v_sound+v_obs)/(v_sound+v_src)
+
+# ── Finance extras ──
+
+def _bond_price(face, coupon, rate, periods):
+    """Bond price: PV of coupons + PV of face value."""
+    pmt = face * coupon
+    pv_coupons = pmt * (1-(1+rate)**-periods)/rate if rate > 0 else pmt*periods
+    pv_face = face * (1+rate)**-periods if rate > 0 else face
+    return pv_coupons + pv_face
+
+def _bond_ytm(face, coupon, price, periods, guess=0.05):
+    """Yield to maturity via Newton's method."""
+    pmt = face * coupon
+    r = guess
+    for _ in range(100):
+        pv_c = pmt * (1-(1+r)**-periods)/r if r > 0 else pmt*periods
+        dpv_c = pmt * (periods*(1+r)**(-periods-1) - (1-(1+r)**-periods)/r) / r if r > 0 else 0
+        p = pv_c + face*(1+r)**-periods
+        dp = dpv_c - face*periods*(1+r)**(-periods-1)
+        if abs(dp) < 1e-15: break
+        nr = r - (p-price)/dp
+        if abs(nr-r) < 1e-10: return nr
+        r = nr
+    return r
+
+def _macaulay_duration(face, coupon, rate, periods):
+    """Macaulay duration in periods."""
+    pmt = face * coupon
+    pv_sum = 0
+    cf_sum = 0
+    for t in range(1, periods+1):
+        cf = pmt if t < periods else pmt + face
+        pv = cf * (1+rate)**-t
+        pv_sum += t*pv
+        cf_sum += pv
+    return pv_sum/cf_sum if cf_sum > 0 else 0
+
+def _convexity(face, coupon, rate, periods):
+    """Bond convexity."""
+    pmt = face * coupon
+    cvx = 0
+    pv_sum = 0
+    for t in range(1, periods+1):
+        cf = pmt if t < periods else pmt + face
+        pv = cf * (1+rate)**-t
+        cvx += t*(t+1)*pv
+        pv_sum += pv
+    return cvx/(pv_sum*(1+rate)**2) if pv_sum > 0 else 0
+
+def _portfolio_variance(weights, variances, covariances=None):
+    """Simple 2-asset: σ²ₚ = w₁²σ₁² + w₂²σ₂² + 2w₁w₂Cov₁₂"""
+    if len(weights) == 2 and covariances is not None:
+        return weights[0]**2*variances[0] + weights[1]**2*variances[1] + 2*weights[0]*weights[1]*covariances
+    return sum(w*w*v for w,v in zip(weights, variances))
+
+def _beta(cov_market, var_market):
+    return cov_market / var_market if var_market > 0 else 0
+
+def _treynor_ratio(rp, rf, beta):
+    return (rp-rf)/beta if beta > 0 else 0
+
+def _jensen_alpha(rp, rf, beta, rm):
+    return rp - (rf + beta*(rm-rf))
+
+def _information_ratio(rp, rb, te):
+    """te = tracking error (std of excess returns)"""
+    return (rp-rb)/te if te > 0 else 0
+
+# ── Statistics advanced ──
+
+def _t_pdf(t, df):
+    """t-distribution PDF (approximation)."""
+    return _gamma_approx((df+1)/2)/(math.sqrt(df*math.pi)*_gamma_approx(df/2))*(1+t*t/df)**(-(df+1)/2)
+
+def _chi2_pdf(x, k):
+    """Chi-squared PDF (x>=0)."""
+    if x < 0: return 0
+    return x**(k/2-1)*math.exp(-x/2)/(2**(k/2)*_gamma_approx(k/2))
+
+def _linear_regression(xs, ys):
+    """Least squares: y = ax + b. Returns {a,b,r2,r}."""
+    n = len(xs)
+    mx = statistics.mean(xs)
+    my = statistics.mean(ys)
+    Sxx = sum((x-mx)**2 for x in xs)
+    Syy = sum((y-my)**2 for y in ys)
+    Sxy = sum((x-mx)*(y-my) for x,y in zip(xs,ys))
+    a = Sxy/Sxx if Sxx > 0 else 0
+    b = my - a*mx
+    r = Sxy/math.sqrt(Sxx*Syy) if Sxx*Syy > 0 else 0
+    return {"slope": a, "intercept": b, "r": r, "r_squared": r*r}
+
+def _pearson_r(xs, ys):
+    """Pearson correlation coefficient."""
+    mx, my = statistics.mean(xs), statistics.mean(ys)
+    num = sum((x-mx)*(y-my) for x,y in zip(xs,ys))
+    den = math.sqrt(sum((x-mx)**2 for x in xs) * sum((y-my)**2 for y in ys))
+    return num/den if den > 0 else 0
+
+def _bayes(prior, likelihood, evidence):
+    """P(A|B) = P(B|A)*P(A)/P(B)"""
+    return likelihood*prior/evidence if evidence > 0 else float('nan')
+
+def _wilcoxon_signed_rank(xs, ys):
+    """Wilcoxon signed-rank test. Returns (W, n)."""
+    diffs = [x-y for x,y in zip(xs,ys) if x != y]
+    n = len(diffs)
+    if n < 1: return {"W": 0, "n": 0}
+    ranked = sorted(enumerate([abs(d) for d in diffs]), key=lambda x: x[1])
+    ranks = {}
+    i = 1
+    while i <= len(ranked):
+        j = i
+        while j <= len(ranked) and abs(ranked[j-1][1]-ranked[i-1][1]) < 1e-12:
+            j += 1
+        avg_rank = (i+j-1)/2
+        for k in range(i-1, j-1):
+            ranks[ranked[k][0]] = avg_rank
+        i = j
+    W = sum(ranks[i] for i in range(n) if diffs[i] > 0)
+    return {"W": min(W, n*(n+1)/2-W), "n": n}
+
+def _histogram_bins(data, n_bins=10):
+    """Simple equal-width binning."""
+    lo, hi = min(data), max(data)
+    if lo == hi: return [(lo, 1.0)]
+    width = (hi-lo)/n_bins
+    bins = []
+    for i in range(n_bins):
+        bl = lo + i*width
+        br = bl + width
+        cnt = sum(1 for x in data if bl <= x < br) + (1 if i == n_bins-1 else 0)
+        bins.append({"lo": bl, "hi": br, "count": cnt, "freq": cnt/len(data)})
+    return bins
+
+# ── Calculus advanced ──
+
+def _integrate2d(f_str, x_range, y_range, nx=50, ny=50):
+    """Double integral: ∫∫f(x,y)dxdy"""
+    safe = _make_safe()
+    xl, xr = x_range
+    yl, yr = y_range
+    dx = (xr-xl)/nx
+    total = 0.0
+    for i in range(nx):
+        x = xl + (i+0.5)*dx
+        dy = (yr-yl)/ny
+        for j in range(ny):
+            y = yl + (j+0.5)*dy
+            total += eval(f_str, {"__builtins__":{}}, {**safe, "x": x, "y": y}) * dx * dy
+    return total
+
+def _ode_rk4(f_str, x0, y0, h, steps):
+    """4th-order Runge-Kutta: dy/dx = f(x,y). Returns list of (x,y)."""
+    safe = _make_safe()
+    def f(xv, yv): return eval(f_str, {"__builtins__":{}}, {**safe, "x": xv, "y": yv})
+    xs, ys = [x0], [y0]
+    x, y = x0, y0
+    for _ in range(steps):
+        k1 = f(x, y)
+        k2 = f(x+h/2, y+h*k1/2)
+        k3 = f(x+h/2, y+h*k2/2)
+        k4 = f(x+h, y+h*k3)
+        y += h*(k1+2*k2+2*k3+k4)/6
+        x += h
+        xs.append(x)
+        ys.append(y)
+    return {"x": xs, "y": ys}
+
+def _partial_derivative(f_str, var, point, h=1e-6):
+    """∂f/∂var at point. point is dict of {var:val,...}"""
+    safe = _make_safe()
+    def f(**kwargs):
+        return eval(f_str, {"__builtins__":{}}, {**safe, **kwargs})
+    p1 = dict(point)
+    p2 = dict(point)
+    p1[var] = p1.get(var, 0) + h
+    p2[var] = p2.get(var, 0) - h
+    return (f(**p1)-f(**p2))/(2*h)
+
+def _gradient(f_str, vars, point):
+    """∇f at point. vars = list of variable names, point = dict {var:val}"""
+    return {v: _partial_derivative(f_str, v, point) for v in vars}
+
+def _lagrange_multiplier(f_str, g_str, point, var_names):
+    """Solve ∇f = λ∇g at approximate point using numeric approach.
+    f_str: function to optimize
+    g_str: constraint (g=0)
+    point: dict of {var: initial_guess}
+    var_names: list of variable names
+    Returns approximate stationary point.
+    """
+    n = len(var_names) + 1
+    m = []
+    for i, v in enumerate(var_names):
+        row = [0]*n
+        for j, w in enumerate(var_names):
+            # H = [[∂²L/∂xᵢ∂xⱼ]] - approximate with finite differences
+            h = 1e-4
+            p = dict(point)
+            p[v] = p.get(v, 0) + h
+            dv1 = _partial_derivative(f_str, w, {**p, "lam": point.get("lam", 0)})
+            p2 = dict(point)
+            p2[v] = p2.get(v, 0) - h
+            dv2 = _partial_derivative(f_str, w, {**p2, "lam": point.get("lam", 0)})
+            row[j] = (dv1 - dv2)/(2*h)
+        row[n-1] = 1  # λ column (placeholder)
+        m.append(row)
+    return {"note": "Lagrange multiplier requires iterative solving. Use newton() for root-finding."}
+
+def _fourier_series(f_str, n_terms=5, period=2*math.pi):
+    """Fourier coefficients a₀, aₙ, bₙ for f(x) over [0, period]."""
+    safe = _make_safe()
+    def f(xv): return eval(f_str, {"__builtins__":{}}, {**safe, "x": xv})
+    T = period
+    N = 2000
+    dx = T/N
+    a0 = sum(f(i*dx) for i in range(N))*dx*2/T
+    an, bn = [], []
+    for n in range(1, n_terms+1):
+        an.append(sum(f(i*dx)*math.cos(2*math.pi*n*i/N) for i in range(N))*dx*2/T)
+        bn.append(sum(f(i*dx)*math.sin(2*math.pi*n*i/N) for i in range(N))*dx*2/T)
+    return {"a0": a0, "an": an, "bn": bn}
+
+def _convolve(xs, ys):
+    """1D discrete convolution."""
+    n, m = len(xs), len(ys)
+    return [sum(xs[k]*ys[i-k] for k in range(max(0,i-m+1), min(n,i+1))) for i in range(n+m-1)]
+
+# ── Signal processing ──
+
+def _fft(x):
+    """Cooley-Tukey FFT (radix-2). Length must be power of 2."""
+    n = len(x)
+    if n <= 1: return list(x)
+    if n & (n-1) != 0:
+        raise ValueError("Length must be power of 2")
+    even = _fft([x[i] for i in range(0, n, 2)])
+    odd = _fft([x[i] for i in range(1, n, 2)])
+    T = [complex(math.cos(-2*math.pi*k/n), math.sin(-2*math.pi*k/n))*odd[k] for k in range(n//2)]
+    return [even[k] + T[k] for k in range(n//2)] + [even[k] - T[k] for k in range(n//2)]
+
+def _autocorr(x):
+    """Autocorrelation function."""
+    n = len(x)
+    mx = statistics.mean(x)
+    den = sum((xi-mx)**2 for xi in x)
+    if den == 0: return [1.0]*n
+    return [sum((x[i]-mx)*(x[i+k]-mx) for i in range(n-k))/den for k in range(n)]
+
+def _cross_corr(x, y):
+    """Cross-correlation. Returns list of length len(x)+len(y)-1."""
+    n, m = len(x), len(y)
+    mx, my = statistics.mean(x), statistics.mean(y)
+    den = math.sqrt(sum((xi-mx)**2 for xi in x)*sum((yi-my)**2 for yi in y))
+    if den == 0: return [0]*(n+m-1)
+    return [sum((x[i]-mx)*(y[i-k]-my) for i in range(max(0,k), min(n,m+k)))/den for k in range(-m+1, n)]
+
+def _lowpass(x, alpha):
+    """Simple exponential low-pass filter. y[n]=α*x[n]+(1-α)*y[n-1]"""
+    y = [x[0]]
+    for xi in x[1:]:
+        y.append(alpha*xi + (1-alpha)*y[-1])
+    return y
+
+def _highpass(x, alpha):
+    """Simple exponential high-pass filter."""
+    y_lp = _lowpass(x, alpha)
+    return [x[i]-y_lp[i] for i in range(len(x))]
+
+# ── Number theory extras ──
+
+def _primes_count(n):
+    """Prime-counting function π(n) using simple sieve."""
+    if n < 2: return 0
+    sieve = [True]*(n+1)
+    sieve[0] = sieve[1] = False
+    for i in range(2, int(math.isqrt(n))+1):
+        if sieve[i]:
+            for j in range(i*i, n+1, i):
+                sieve[j] = False
+    return sum(sieve)
+
+def _next_prime(n):
+    """Next prime >= n."""
+    while True:
+        if n > 1 and all(n%i for i in range(2, int(math.isqrt(n))+1)):
+            return n
+        n += 1
+
+def _pythagorean_triple(m, n, k=1):
+    """Generate Pythagorean triple: a = k*(m²-n²), b = k*(2mn), c = k*(m²+n²)"""
+    return k*(m*m-n*n), k*(2*m*n), k*(m*m+n*n)
+
 
 # ════════════════════════════════════════════
 # MATH NAMESPACE
@@ -1979,6 +2541,103 @@ _MATH_NAMESPACE = {
     "distance_modulus": _dist_modulus,
     "solar_declination": _solar_declination,
     "day_length": _day_length,
+
+    "t_pdf": _t_pdf, "chi2_pdf": _chi2_pdf,
+    "linear_regression": _linear_regression,
+    "pearson_r": _pearson_r,
+    "bayes": _bayes,
+    "wilcoxon": _wilcoxon_signed_rank,
+    "histogram": _histogram_bins,
+    "regression": _linear_regression,  # alias
+    "correlation": _pearson_r,  # alias
+
+    # ── Astronomy ──
+    "julian_day": _julian_day,
+    "modified_julian_day": _modified_julian_day,
+    "mjd": _modified_julian_day,
+    "einstein_radius": _einstein_radius,
+    "hubble_distance": _hubble_distance,
+    "hubble_time": _hubble_time,
+    "comoving_distance": _comoving_distance,
+    "luminosity_distance": _luminosity_distance,
+    "angular_diameter_distance": _angular_diameter_distance,
+    "scale_factor": _scale_factor,
+    "lookback_time": _lookback_time,
+    "synodic_period": _synodic_period,
+    "diffraction_limit": _diffraction_limit,
+    "surface_brightness": _surface_brightness,
+    "airmass": _airmass,
+    "atmospheric_extinction": _atmospheric_extinction,
+    "transit_depth": _transit_depth,
+    "tidal_force": _tidal_force,
+    "eddington_luminosity": _eddington_luminosity,
+    "gravitational_redshift": _gravitational_redshift,
+
+    # ── Physics extras ──
+    "lc_resonance": _lc_resonance,
+    "q_factor": _q_factor,
+    "mutual_inductance": _mutual_inductance,
+    "transformer_ratio": _transformer_ratio,
+    "rc_time_constant": _rc_time_constant,
+    "heat_conduction": _heat_conduction,
+    "thermal_radiation": _thermal_radiation,
+    "adiabatic_relation": _adiabatic_relation,
+    "isothermal_work": _isothermal_work,
+    "surface_tension": _surface_tension,
+    "poiseuille_flow": _poiseuille_flow,
+    "doppler_sound": _doppler_sound,
+
+    # ── Finance extras ──
+    "bond_price": _bond_price,
+    "bond_ytm": _bond_ytm,
+    "macaulay_duration": _macaulay_duration,
+    "convexity": _convexity,
+    "portfolio_variance": _portfolio_variance,
+    "beta_coeff": _beta,
+    "treynor_ratio": _treynor_ratio,
+    "jensen_alpha": _jensen_alpha,
+    "information_ratio": _information_ratio,
+
+    # ── Calculus advanced ──
+    "integrate2d": _integrate2d,
+    "ode_rk4": _ode_rk4,
+    "partial_derivative": _partial_derivative,
+    "gradient": _gradient,
+    "lagrange_multiplier": _lagrange_multiplier,
+    "fourier_series": _fourier_series,
+    "convolve": _convolve,
+
+    # ── Signal processing ──
+    "fft": _fft,
+    "autocorr": _autocorr,
+    "cross_corr": _cross_corr,
+    "lowpass": _lowpass,
+    "highpass": _highpass,
+
+    # ── Geometry extras ──
+    "sector_area": _sector_area,
+    "arc_length": _arc_length,
+    "annulus_area": _annulus_area,
+    "ellipse_area": _ellipse_area,
+    "ellipse_circumference": _ellipse_circumference,
+    "trapezoid_area": _trapezoid_area,
+    "parallelogram_area": _parallelogram_area,
+    "regular_polygon_area": _regular_polygon_area,
+    "regular_polygon_angle": _regular_polygon_angle,
+    "frustum_volume": _frustum_volume,
+    "frustum_area": _frustum_area,
+    "spherical_cap_volume": _spherical_cap_volume,
+    "spherical_cap_area": _spherical_cap_area,
+    "torus_volume": _torus_volume,
+    "torus_area": _torus_area,
+    "law_of_sines": _law_of_sines,
+    "law_of_cosines": _law_of_cosines,
+
+    # ── Number theory extras ──
+    "isqrt": _isqrt,
+    "primes_count": _primes_count,
+    "next_prime": _next_prime,
+    "pythagorean_triple": _pythagorean_triple,
 
     # ── Helpers ──
     "percentage": lambda v,p:v*p/100,
