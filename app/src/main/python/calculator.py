@@ -5426,6 +5426,98 @@ def _simple_eval(expr):
 # ════════════════════════════════════════════
 # MAIN CALCULATE FUNCTION
 # ════════════════════════════════════════════
+# AI-friendly function name resolution
+# ════════════════════════════════════════════
+
+_ALIAS_MAP = {
+    # Statistics — exact synonyms only
+    "avg": "mean", "average": "mean",
+    "sd": "stdev", "std": "stdev",
+    "var": "variance", "popvar": "variance",
+    "cov": "covariance",
+    "geomean": "gmean",
+    "wmean": "weighted_mean", "wavg": "weighted_mean",
+    # Linear algebra / matrices
+    "inverse": "matrix_inv", "invert": "matrix_inv",
+    "determinant": "matrix_det", "det": "matrix_det",
+    "eigenvalue": "matrix_eigenvalues", "eigenvector": "matrix_eigenvectors",
+    "matmul": "matrix_mul", "matrix_multiply": "matrix_mul",
+    # Number theory
+    "hcf": "gcd", "isprime": "is_prime", "prime": "is_prime",
+    "ncr": "nCr", "npr": "nPr",
+    "combinations": "comb", "permutations": "perm",
+    # Misc — exact synonyms
+    "conjugate": "conj",
+    "square_root": "sqrt", "cube_root": "cbrt",
+    "random": "rand",
+    "to_deg": "degrees", "to_rad": "radians",
+    "deg2rad": "radians", "rad2deg": "degrees",
+    "lg": "log10",
+    "modulo": "mod", "remainder": "remainder",
+}
+
+def _resolve_name(name):
+    """Try to find the best match for a function name."""
+    name_lower = name.lower()
+    # 1. Direct alias
+    if name_lower in _ALIAS_MAP:
+        return _ALIAS_MAP[name_lower]
+    # 2. Case-insensitive exact match
+    for k in _MATH_NAMESPACE:
+        if k.lower() == name_lower:
+            return k
+    # 3. Remove underscores, try
+    stripped = name_lower.replace("_", "")
+    for k in _MATH_NAMESPACE:
+        if k.lower().replace("_", "") == stripped:
+            return k
+    return None
+
+def _fuzzy_eval(expr, ns):
+    """Try eval; if NameError, resolve unknown names and retry."""
+    try:
+        return eval(expr, {"__builtins__": {}}, ns)
+    except NameError as e:
+        import re as _re
+        m = _re.search(r"name '(\w+)' is not defined", str(e))
+        if not m:
+            raise
+        bad_name = m.group(1)
+        resolved = _resolve_name(bad_name)
+        if resolved is None:
+            raise NameError(f"Unknown function '{bad_name}'. Try one of: " +
+                           ", ".join(sorted(_MATH_NAMESPACE.keys())[:10]) + ", ...")
+        # Replace in expression
+        new_expr = expr.replace(bad_name, resolved)
+        return _fuzzy_eval(new_expr, ns)
+
+def _get_func_signature(expr):
+    """Extract function name from expression and return its correct signature."""
+    import re as _re
+    m = _re.match(r"\s*(\w+)\s*\(", expr)
+    if not m:
+        return None
+    fname = m.group(1)
+    func = _MATH_NAMESPACE.get(fname)
+    if func is None:
+        # Try resolved name
+        resolved = _resolve_name(fname)
+        if resolved:
+            fname = resolved
+            func = _MATH_NAMESPACE.get(resolved)
+    if func is None:
+        return None
+    try:
+        import inspect
+        sig = inspect.signature(func)
+        params = list(sig.parameters.keys())
+        if params:
+            return f"{fname}({', '.join(params)})"
+    except (ValueError, TypeError):
+        pass
+    return None
+
+# ════════════════════════════════════════════
 
 def calculate(expression, precision=10, mode="auto"):
     try:
@@ -5485,7 +5577,7 @@ def calculate(expression, precision=10, mode="auto"):
             sanitized = re.sub(r'(\d+\.?\d*)', lambda m: f'Decimal("{m.group(1)}")' if '.' in m.group(1) or m.group(1).isdigit() else m.group(1), sanitized)
 
         # Allow JS-style true/false
-        result = eval(sanitized, {"__builtins__":{}}, ns)
+        result = _fuzzy_eval(sanitized, ns)
 
         if isinstance(result, bool):
             return json.dumps({"result":str(result),"type":"boolean"})
@@ -5510,7 +5602,9 @@ def calculate(expression, precision=10, mode="auto"):
             return json.dumps({"result":str(result),"type":"duration","total_seconds":result.total_seconds()})
         return json.dumps({"result":str(result),"type":type(result).__name__})
     except Exception as e:
-        return json.dumps({"result":None,"type":"error","error":f"Error: {str(e)}"})
+        sig = _get_func_signature(expression)
+        hint = f" — correct: {sig}" if sig else ""
+        return json.dumps({"result":None,"type":"error","error":f"Error: {str(e)}{hint}"})
 
 def _fmt(v, p):
     if p <= 0: return str(round(v, p) if p == 0 else round(v))
