@@ -49,6 +49,17 @@ fun createCalculatorTool(context: Context): Tool = Tool(
 
         Use precision=N for decimal places (default 10).
         Use mode='deg' for trig in degrees, 'frac' for fractions, 'exact' for high precision.
+
+        Examples:
+          mean([1,2,3,4,5])                       → list argument
+          bmi(70, 1.75)                            → positional args (SI units)
+          planet_position("mars","2026-06-21")     → string date argument
+          black_scholes(100,100,1,0.05,0.2,'call') → many positional args
+          sin(90) mode=deg                         → trig in degrees
+          5 meters to feet                         → unit conversion
+          {"a":mean([1,2]),"b":stdev([1,2])}       → dict returns multiple values
+          a=mean([1,2,3]); a*2                     → multi-step (use ; to chain)
+
         PREFER THIS OVER PYTHON execute for any calculation.
     """.trimIndent(),
     parameters = {
