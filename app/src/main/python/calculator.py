@@ -5577,7 +5577,15 @@ def calculate(expression, precision=10, mode="auto"):
             sanitized = re.sub(r'(\d+\.?\d*)', lambda m: f'Decimal("{m.group(1)}")' if '.' in m.group(1) or m.group(1).isdigit() else m.group(1), sanitized)
 
         # Allow JS-style true/false
-        result = _fuzzy_eval(sanitized, ns)
+        # Multi-statement support: split on ;, exec all but last, return last
+        parts = [p.strip() for p in sanitized.split(";")]
+        if len(parts) > 1:
+            for stmt in parts[:-1]:
+                if stmt:
+                    exec(stmt, {"__builtins__": {}}, ns)
+            result = _fuzzy_eval(parts[-1], ns) if parts[-1] else None
+        else:
+            result = _fuzzy_eval(sanitized, ns)
 
         if isinstance(result, bool):
             return json.dumps({"result":str(result),"type":"boolean"})
