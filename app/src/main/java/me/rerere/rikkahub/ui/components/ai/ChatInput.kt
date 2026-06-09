@@ -70,7 +70,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -156,18 +155,15 @@ fun ChatInput(
     val inputHazeStyle = HazeMaterials.thin(containerColor = hazeTintColor)
     val filesHazeStyle = HazeMaterials.thin()
 
-    val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
     fun sendMessage() {
         focusManager.clearFocus(force = true)
-        keyboardController?.hide()
         if (loading) onCancelClick() else onSendClick()
     }
 
     fun sendMessageWithoutAnswer() {
         focusManager.clearFocus(force = true)
-        keyboardController?.hide()
         if (loading) onCancelClick() else onLongSendClick()
     }
 
