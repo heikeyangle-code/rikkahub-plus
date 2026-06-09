@@ -158,6 +158,7 @@ class GenerationHandler(
                 appendLine("- Copy/move/delete → use file_copy / file_move / file_delete.")
                 appendLine("- Edit files → there is no dedicated edit tool, shell sed is acceptable.")
                 appendLine("- Reserve execute_command for: git, builds, installs, and operations without a dedicated tool.")
+                appendLine("- Do NOT list or search the filesystem proactively. Only access files when the task explicitly requires it.")
                 appendLine()
                 appendLine("Calculator:")
                 appendLine("- Simple math (2+2, percentages, mental-arithmetic) → answer directly. Do NOT call calculator.")
