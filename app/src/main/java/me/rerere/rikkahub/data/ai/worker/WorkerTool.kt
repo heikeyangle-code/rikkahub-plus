@@ -14,21 +14,17 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
-                    put("name", buildJsonObject {
-                        put("type", "string"); put("description", "Optional name for the worker (e.g. \"analyzer\", \"builder\")")
-                    })
                     put("cwd", buildJsonObject {
-                        put("type", "string"); put("description", "Working directory (optional)")
+                        put("type", "string"); put("description", "Working directory")
                     })
                 },
-                required = emptyList(),
+                required = listOf("cwd"),
             )
         },
         execute = { args ->
             val obj = args.jsonObject
-            val name = obj["name"]?.jsonPrimitive?.contentOrNull ?: ""
             val cwd = obj["cwd"]?.jsonPrimitive?.contentOrNull ?: ""
-            val worker = workerManager.createWorker(name, cwd)
+            val worker = workerManager.createWorker("", cwd)
             listOf(UIMessagePart.Text(buildJsonObject {
                 put("worker_id", worker.id)
                 put("name", worker.name.ifBlank { worker.id })
