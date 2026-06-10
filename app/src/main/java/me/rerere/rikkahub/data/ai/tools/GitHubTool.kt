@@ -334,6 +334,18 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     put("type", "string")
                     put("description", "Gist ID (for update_gist/delete_gist)")
                 })
+                put("confirm", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Set to \"yes\" to confirm destructive actions: delete_repo, delete_branch, pr_merge, merge_branch, revert_commit. Without \"yes\", returns a preview of what would happen.")
+                })
+                put("dry_run", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Set to true to preview changes without executing: commit, workflow_dispatch. Shows what would change.")
+                })
+                put("inputs", buildJsonObject {
+                    put("type", "string")
+                    put("description", "JSON object of workflow inputs. Only for: workflow_dispatch. Example: {\"ref\":\"feature/xxx\",\"param\":\"value\"}")
+                })
             },
             required = listOf("action"),
         )
@@ -441,6 +453,32 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
         val fullRepo = if (owner.isNotBlank() && repo.isNotBlank()) "$owner/$repo" else ""
         val branch = obj["branch"]?.jsonPrimitive?.contentOrNull ?: resolveDefaultBranch(fullRepo)
         val limit = obj["limit"]?.jsonPrimitive?.intOrNull ?: 10
+
+        // ── Safety helpers ──
+        val confirm = obj["confirm"]?.jsonPrimitive?.contentOrNull
+        val dryRun = obj["dry_run"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+
+        /** 检查分支是否受保护。受保护分支必须 confirm 才能操作 */
+        fun checkProtectedBranch(branchName: String, action: String) {
+            if (fullRepo.isBlank()) return
+            if (confirm == "yes") return // 用户已确认，跳过
+            try {
+                val resp = parseJSON(gh("https://api.github.com/repos/$fullRepo/branches/$branchName"))
+                val isProtected = resp["protected"]?.jsonPrimitive?.booleanOrNull ?: false
+                if (isProtected) {
+                    error("分支 '$branchName' 受保护，禁止直接 $action。请设置 confirm=\"yes\" 后重试")
+                }
+            } catch (e: Exception) {
+                if (e.message?.startsWith("分支") == true) throw e
+                // 网络错误不阻塞操作
+            }
+        }
+
+        /** confirm 检查：未确认时返回预览信息 */
+        fun requireConfirm(actionName: String, detail: String): String {
+            if (confirm == "yes") return "" // 确认了，继续执行
+            error("⚠️ 操作已暂停：$actionName\n详情：$detail\n\n如果确认要执行，请设置 confirm=\"yes\" 参数后重试。")
+        }
 
         // ── JSON formatters ──
         fun sj(o: JsonObject?, key: String) = (o?.get(key) as? JsonPrimitive)?.contentOrNull ?: ""
@@ -818,6 +856,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             }
             "delete_repo" -> {
                 if (fullRepo.isBlank()) error("owner and repo required")
+                requireConfirm("删除仓库 $fullRepo", "这将永久删除整个仓库及其所有数据。此操作不可撤销！")
                 gh("DELETE", "https://api.github.com/repos/$fullRepo")
                 "仓库 $fullRepo 已删除"
             }
@@ -1080,6 +1119,11 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val num = obj["number"]?.jsonPrimitive?.intOrNull ?: error("number required")
                 val method = obj["merge_method"]?.jsonPrimitive?.contentOrNull ?: "merge"
                 if (fullRepo.isBlank()) error("owner and repo required")
+                // 先查出 base branch，检查是否受保护
+                val prData = try { parseJSON(gh("https://api.github.com/repos/$fullRepo/pulls/$num")) } catch (_: Exception) { null }
+                val baseBranch = prData?.safeObj("base")?.get("ref")?.jsonPrimitive?.contentOrNull
+                if (baseBranch != null) checkProtectedBranch(baseBranch, "合并 PR #$num 到 $baseBranch")
+                requireConfirm("合并 PR #$num 到 $fullRepo", "方法: $method, 目标分支: ${baseBranch ?: "未知"}")
                 val payload = buildJsonObject { put("merge_method", method) }.toString()
                 val result = gh("PUT", "https://api.github.com/repos/$fullRepo/pulls/$num/merge", payload)
                 try {
@@ -1251,9 +1295,21 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "workflow_dispatch" -> {
                 val workflowId = obj["path"]?.jsonPrimitive?.contentOrNull ?: error("path (workflow filename) required")
                 if (fullRepo.isBlank()) error("owner and repo required")
-                gh("POST", "https://api.github.com/repos/$fullRepo/actions/workflows/$workflowId/dispatches",
-                    """{"ref":"$branch"}""")
-                "已触发工作流 $workflowId (branch: $branch)"
+                checkProtectedBranch(branch, "触发工作流 $workflowId")
+                if (dryRun) return@Tool listOf(UIMessagePart.Text("[预览] 将触发工作流 $workflowId\n  仓库: $fullRepo\n  分支: $branch\n  参数: ${obj["inputs"]?.jsonPrimitive?.contentOrNull ?: "无"}\n  设置 dry_run=false 以执行。"))
+                val inputsRaw = obj["inputs"]?.jsonPrimitive?.contentOrNull
+                val payload = if (inputsRaw != null) {
+                    try {
+                        val inputsObj = Json.parseToJsonElement(inputsRaw).jsonObject
+                        buildJsonObject { put("ref", branch); put("inputs", inputsObj) }.toString()
+                    } catch (_: Exception) {
+                        """{"ref":"$branch"}"""
+                    }
+                } else {
+                    """{"ref":"$branch"}"""
+                }
+                gh("POST", "https://api.github.com/repos/$fullRepo/actions/workflows/$workflowId/dispatches", payload)
+                "已触发工作流 $workflowId (branch: $branch${if (inputsRaw != null) ", with inputs" else ""})"
             }
             "create_repository_dispatch" -> {
                 val eventType = obj["event_type"]?.jsonPrimitive?.contentOrNull ?: error("event_type required")
@@ -1327,6 +1383,12 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     content = obj["content"]?.jsonPrimitive?.contentOrNull ?: error("content required (or use search+replace)")
                 }
                 if (fullRepo.isBlank()) error("owner and repo required")
+                checkProtectedBranch(branch, "提交到 $path")
+                // dry_run: 预览不提交
+                if (dryRun) {
+                    val preview = if (search != null && replace != null) "search/replace: '$search' → '$replace'" else "新内容 (${content.length} bytes)"
+                    return@Tool listOf(UIMessagePart.Text("[预览] 将提交到 $fullRepo/$path\n  分支: $branch\n  消息: $message\n  内容: $preview\n  设置 dry_run=false 以执行。"))
+                }
                 // Auto-fetch SHA if not provided (required for updating existing files)
                 if (fileSha == null) {
                     try {
@@ -1349,6 +1411,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                 val filesStr = obj["files"]?.jsonPrimitive?.contentOrNull ?: error("files required (JSON array)")
                 val message = obj["message"]?.jsonPrimitive?.contentOrNull ?: error("message required")
                 if (fullRepo.isBlank()) error("owner and repo required")
+                checkProtectedBranch(branch, "批量提交")
                 try {
                 val files = Json.parseToJsonElement(filesStr).jsonArray
                 // Create blobs
@@ -1462,6 +1525,7 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
             "delete_branch" -> {
                 val delBranch = obj["branch"]?.jsonPrimitive?.contentOrNull ?: error("branch required")
                 if (fullRepo.isBlank()) error("owner and repo required")
+                requireConfirm("删除分支 $delBranch", "将永久删除分支。如果分支有未合并的提交，数据将丢失！")
                 gh("DELETE", "https://api.github.com/repos/$fullRepo/git/refs/heads/$delBranch")
                 "分支 $delBranch 已删除"
             }
