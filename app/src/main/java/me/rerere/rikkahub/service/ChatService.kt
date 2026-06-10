@@ -245,7 +245,9 @@ class ChatService(
     private val teammateRunner: TeammateRunner by lazy {
         TeammateRunner(appScope) { agentName, prompt ->
             val s = settingsStore.settingsFlow.value
-            val m = s.findModelById(s.chatModelId) ?: return@TeammateRunner "No model"
+            val assistant = s.assistants.find { it.id == s.assistantId }
+            val modelId = assistant?.subAgentModelId ?: assistant?.chatModelId ?: s.chatModelId
+            val m = s.findModelById(modelId) ?: return@TeammateRunner "No model"
             val p = m.findProvider(s.providers) ?: return@TeammateRunner "No provider"
             @Suppress("UNCHECKED_CAST")
             val impl = providerManager.getProviderByType(p)
