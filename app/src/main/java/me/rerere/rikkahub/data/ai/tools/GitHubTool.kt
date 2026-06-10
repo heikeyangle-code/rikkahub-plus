@@ -86,14 +86,29 @@ private fun ghDescribe(url: String): String {
 fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, enableAutoFixCi: Boolean = false): Tool = Tool(
     name = "github_tool",
     description = "Interact with GitHub REST API: repos, issues, PRs, CI/CD, files, and more.\\n\\n" +
-        "- Destructive operations (delete repo, merge PR) require confirm=\"yes\"\\n" +
-        "- Use dry_run to preview changes before applying\\n" +
-        "- Commits >1MB auto-fallback to Git Data API\\n" +
-        "- Local git operations use execute_command instead\\n\\n" +
+        "When to use:\\n" +
+        "- Search code, repos, issues, users, or commits\\n" +
+        "- Manage repos: create, update, fork, delete, topics, labels, milestones\\n" +
+        "- Issues: list, create, update, comment, assign, label, lock\\n" +
+        "- PRs: list, view, create, update, review, merge, comment\\n" +
+        "- CI/CD: check status, view jobs/logs, download artifacts, cancel, rerun, dispatch workflows\\n" +
+        "- Files: read, list, commit, delete, compare local vs GitHub\\n" +
+        "- Git data: branches, commits, compare, revert, merge, status\\n" +
+        "- Releases, gists, webhooks, notifications, rate limit\\n\\n" +
+        "When NOT to use:\\n" +
+        "- Local git operations (use execute_command with git)\\n" +
+        "- Scraping GitHub pages (use web_fetch)\\n\\n" +
         "Args:\\n" +
         "- action: Operation to perform (see enum for full list)\\n" +
-        "- confirm: Set to \"yes\" for destructive actions\\n" +
-        "- dry_run: Preview without executing\\n" +
+        "- owner/repo: Repository identifiers\\n" +
+        "- q: Search query\\n" +
+        "- branch/base/head: Branch names\\n" +
+        "- number: Issue/PR number or run/artifact/CI ID\\n" +
+        "- path/content/message: File operations\\n" +
+        "- title/body/comment: Issue/PR/comment content\\n" +
+        "- search/replace: Surgical file edit (commit action)\\n" +
+        "- confirm: Set to \"yes\" for destructive actions (delete, merge)\\n" +
+        "- dry_run: Preview without executing (commit, workflow_dispatch)\\n" +
         "- inputs: JSON workflow inputs (workflow_dispatch)" +
         if (enableAutoFixCi) "\\nAuto-fix CI is enabled: when CI fails, read logs, fix code, and re-push." else "",
     parameters = {

@@ -13,11 +13,20 @@ import java.util.concurrent.TimeUnit
 fun createCalculatorTool(context: Context): Tool = Tool(
     name = "calculator",
     description = "" +
-        "Mathematical calculator (800+ functions) for complex computations.\n" +
+        "Mathematical calculator (800+ functions). Use only for complex/multi-step computations.\n" +
         "Answer simple math directly without calling this tool.\n\n" +
-        "- Physics, finance, statistics, matrices, calculus, number theory\n" +
-        "- Unit conversion, combinatorics, astronomy, geometry\n" +
-        "- Not for simple arithmetic — answer directly\n\n" +
+        "When to use:\n" +
+        "- Complex math: physics formulas, finance (NPV, IRR, Black-Scholes), statistics (ANOVA, PCA, regression)\n" +
+        "- Matrices: add, mul, det, inv, eigenvalues\n" +
+        "- Calculus: derivative, integral, ODE (RK4), gradient descent\n" +
+        "- Number theory: is_prime, factorize, gcd/lcm, CRT\n" +
+        "- Astronomy: stellar/coordinate/cosmology calculations\n" +
+        "- Physics: kinematics, relativity (Lorentz, time dilation), quantum, orbital mechanics\n" +
+        "- Geometry: area/volume for any shape\n" +
+        "- Unit conversion, combinatorics, financial calculations\n\n" +
+        "When NOT to use:\n" +
+        "- Simple arithmetic (2+2, percentages) — answer directly\n" +
+        "- Python execution for math (use calculator instead)\n\n" +
         "Args:\n" +
         "- expression: Math expression to evaluate. Supports multi-statement: a=1+2; a*3\n" +
         "- timeout_ms: Max execution time (default: 5000)",

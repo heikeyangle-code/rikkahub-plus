@@ -16,10 +16,12 @@ fun buildCronTools(): List<Tool> = listOf(
     Tool(
         name = "schedule_cron",
         description = "Schedule a periodic or one-shot cron job.\n\n" +
+                "When to use:\n" +
                 "- Set up recurring tasks: daily reports, monitoring, reminders\n" +
-                "- Schedule one-shot delayed actions\n" +
-                "- One-time tasks should be executed directly\n" +
-                "- Cron runs autonomously — no interactive input\n\n" +
+                "- Schedule one-shot delayed actions\n\n" +
+                "When NOT to use:\n" +
+                "- One-time immediate tasks (just execute directly)\n" +
+                "- Tasks needing interactive input (cron runs autonomously)\n\n" +
                 "Args:\n" +
                 "- id: Unique job identifier\n" +
                 "- cron: 5-field expression (minute hour dom month dow)\n" +
@@ -92,6 +94,7 @@ fun buildCronTools(): List<Tool> = listOf(
     Tool(
         name = "cancel_cron",
         description = "Cancel a scheduled cron job by its ID.\n\n" +
+                "When to use:\n" +
                 "- Stop a running cron job that is no longer needed\n\n" +
                 "Args:\n" +
                 "- id: Job ID to cancel",

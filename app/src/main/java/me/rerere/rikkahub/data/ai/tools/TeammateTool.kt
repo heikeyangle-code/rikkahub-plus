@@ -16,11 +16,13 @@ fun createTeammateTools(teammateRunner: TeammateRunner): List<Tool> = listOf(
         description = buildString {
             appendLine("Spawn, list, or kill teammate agents.")
             appendLine()
+            appendLine("When to use:")
             appendLine("- spawn: Create a teammate for autonomous background work")
             appendLine("- list: Check status of all active teammates")
             appendLine("- kill: Terminate a running teammate")
-            appendLine("- For simple sub-tasks, use sub_agent instead")
-            appendLine("- Each spawn generates a unique request_id for result correlation")
+            appendLine()
+            appendLine("When NOT to use:")
+            appendLine("- Simple sub-tasks (use sub_agent instead)")
             appendLine()
             appendLine("Args:")
             appendLine("- action: spawn | list | kill")
@@ -28,7 +30,9 @@ fun createTeammateTools(teammateRunner: TeammateRunner): List<Tool> = listOf(
             appendLine("- prompt: Task description (spawn)")
             appendLine("- model: Optional model override (spawn)")
             appendLine()
-
+            appendLine("After spawning, the teammate starts immediately. Check progress via list action.")
+            appendLine("Each spawn generates a unique request_id. When the teammate responds via get_teammate_messages,")
+            appendLine("the response includes the matching request_id so you can correlate results with requests.")
         },
         permissionMode = PermissionMode.DANGER_FULL_ACCESS,
         parameters = {

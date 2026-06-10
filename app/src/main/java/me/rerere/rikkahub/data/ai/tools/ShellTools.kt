@@ -80,19 +80,31 @@ fun createShellTools(shellTimeoutSec: Int = 120): List<Tool> {
             description = buildString {
                 appendLine("Execute shell commands on the Android device.")
                 appendLine()
+                appendLine("When to use:")
+                appendLine("- git operations")
+                appendLine("- Android diagnostics: logcat -d, pm, dumpsys, am")
+                appendLine("- zip/unzip for archives")
+                appendLine("- Running build scripts or tools")
+                appendLine("- Any operation without a dedicated tool")
                 appendLine()
-                appendLine("- git operations, Android diagnostics (logcat, pm, dumpsys, am)")
-                appendLine("- zip/unzip, build scripts, operations without a dedicated tool")
-                appendLine("- Interactive commands will hang — avoid them")
-                appendLine("- Working directory persists between commands; shell state does not")
-                appendLine("- Chain dependent commands with &&; make parallel calls for independent tasks")
+                appendLine("When NOT to use:")
+                appendLine("- File operations (use file tool: read/write/patch/list/search)")
+                appendLine("- Calculations (use calculator)")
+                appendLine("- Web fetching (use web_fetch)")
                 appendLine()
                 appendLine("Args:")
                 appendLine("- command: Shell command to execute (required)")
                 appendLine("- timeout: Max execution time in ms (default: ${shellTimeoutSec * 1000}, max: 600000)")
                 appendLine("- run_in_background: true for long-running commands (notified on completion)")
-            },
-
+                appendLine()
+                appendLine("Notes:")
+                appendLine("- Working directory persists between commands, shell state does not")
+                appendLine("- Interactive commands (requiring stdin) will hang — avoid them")
+                appendLine("- For many independent commands, make parallel tool calls")
+                appendLine("- Chain dependent commands with &&")
+                appendLine("- Default timeout: ${shellTimeoutSec}s")
+                appendLine("- Read-only agents cannot run destructive commands")
+            }.trimEnd(),
             needsApproval = false,
             parameters = {
                 InputSchema.Obj(
