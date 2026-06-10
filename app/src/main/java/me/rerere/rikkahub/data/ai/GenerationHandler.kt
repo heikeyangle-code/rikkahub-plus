@@ -170,7 +170,6 @@ class GenerationHandler(
                 appendLine("</work_ethic>")
             },
             workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
-            memories = if (assistant.enableMemory) memories else emptyList(),
             extraInstructions = buildString {
                 if (assistant.enableRecentChatsReference) {
                     appendLine()
@@ -493,7 +492,6 @@ class GenerationHandler(
                     appendLine("- If you need clarification, ask the user directly")
                 },
                 workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
-                memories = if (assistant.enableMemory) memories else emptyList(),
                 extraInstructions = buildString {
                     if (assistant.enableRecentChatsReference) {
                         appendLine()
@@ -513,6 +511,24 @@ class GenerationHandler(
             }
             val systemMsg = fullSystem.ifBlank { null }
             if (systemMsg != null) add(UIMessage.system(prompt = systemMsg))
+
+            // ── s10: 动态内容通过 <system-reminder> UserMessage 注入 ──
+            // 对标 Claude Code getUserContext(): CLAUDE.md + currentDate 作为 <system-reminder> 前置用户消息
+            // 这样做 system prompt 保持静态，最大化 LLM prefix caching
+            if (assistant.enableMemory && memories.isNotEmpty()) {
+                val reminder = buildString {
+                    appendLine("<system-reminder>")
+                    appendLine("<memory>")
+                    memories.forEach { memory ->
+                        appendLine("- ${memory.id}: ${memory.content.take(200)}")
+                    }
+                    appendLine("</memory>")
+                    appendLine("<current_date>${java.time.LocalDate.now()}</current_date>")
+                    appendLine("</system-reminder>")
+                }
+                add(UIMessage.user(prompt = reminder))
+            }
+
             addAll(messages.limitContext(assistant.contextMessageSize))
         }.transforms(
             transformers = transformers,
