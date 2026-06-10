@@ -907,6 +907,10 @@ class ChatService(
                                                 put("type", "boolean")
                                                 put("description", "Set to true to run this agent in the background. You will be notified when it completes.")
                                             })
+                                            put("timeout_seconds", buildJsonObject {
+                                                put("type", "integer")
+                                                put("description", "Max seconds before timeout (range: 30-600, default: 180). Does NOT apply to background agents.")
+                                            })
                                             put("name", buildJsonObject {
                                                 put("type", "string")
                                                 put("description", "Optional name for the agent for display.")
@@ -924,6 +928,7 @@ class ChatService(
                                     val modelOverride = obj["model"]?.jsonPrimitive?.contentOrNull
                                     val runInBackground = obj["run_in_background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
                                     val agentName = obj["name"]?.jsonPrimitive?.contentOrNull
+                                    val timeoutSec = obj["timeout_seconds"]?.jsonPrimitive?.intOrNull?.coerceIn(30, 600) ?: 180
 
                                     // Load agent definition
                                     val agentDef = AgentRegistry.get(agentType)
@@ -1137,7 +1142,7 @@ class ChatService(
                                                     agentType = agentType,
                                                     description = goal.take(50),
                                                 ) {
-                                                    executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, userPrompt, agentCallId, agentDef, systemPrompt)
+                                                    executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, userPrompt, agentCallId, agentDef, systemPrompt, timeoutSec.toLong())
                                                 }
                                             }.onFailure { e ->
                                                 Log.w("SubAgent", "Background agent failed: ${e.message}")
@@ -1158,7 +1163,7 @@ class ChatService(
                                                 agentType = agentType,
                                                 description = goal.take(50),
                                             ) {
-                                                executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, userPrompt, agentCallId, agentDef, systemPrompt)
+                                                executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, userPrompt, agentCallId, agentDef, systemPrompt, timeoutSec.toLong())
                                             }
                                             laneTracker.completed()
                                             outputText
@@ -2278,6 +2283,7 @@ class ChatService(
         agentCallId: String = conversationId.toString(),
         agentDef: me.rerere.rikkahub.data.ai.tools.AgentDefinition? = null,
         systemPrompt: String = "",
+        timeoutSeconds: Long = 180L,
     ): List<UIMessagePart> {
         val session = getOrCreateSession(conversationId)
         val messages = mutableListOf<UIMessage>()
@@ -2307,9 +2313,9 @@ class ChatService(
                     else -> me.rerere.ai.core.ReasoningLevel.HIGH
                 }
 
-                // 每步超时：LLM 调用超过 180 秒无响应则熔断
+                // 每步超时：LLM 调用超过指定秒数无响应则熔断（默认 180）
                 val chunk = try {
-                    kotlinx.coroutines.withTimeout(180_000L) {
+                    kotlinx.coroutines.withTimeout(timeoutSeconds * 1000L) {
                         providerImpl.generateText(
                             providerSetting = providerSetting,
                             messages = messages,

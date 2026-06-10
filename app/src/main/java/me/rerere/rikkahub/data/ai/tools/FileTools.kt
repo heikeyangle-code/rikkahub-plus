@@ -56,7 +56,7 @@ fun createFileTools(workspaceDir: String = "/storage/emulated/0/Download", skill
         Tool(
             name = "file",
             description = buildString {
-                appendLine("Read, write, list, search, copy, move, delete files and create directories.")
+                appendLine("Read, write, patch, list, search, copy, move, delete files and create directories.")
                 appendLine()
                 appendLine("Actions: read, write, list, search, copy, move, mkdir, delete")
                 appendLine()
@@ -85,6 +85,11 @@ fun createFileTools(workspaceDir: String = "/storage/emulated/0/Download", skill
                 appendLine("- mkdir creates parent directories as needed.")
                 appendLine("- Delete removes directories recursively.")
                 appendLine()
+                appendLine("Action \"patch\":")
+                appendLine("- Find-and-replace edit. old_string must be unique (set replace_all=true for all occurrences).")
+                appendLine("- Uses fuzzy matching (ignores whitespace differences) if exact match fails.")
+                appendLine("- Auto-runs syntax checks after editing (.py/.json/.yaml/.toml).")
+                appendLine()
                 appendLine("Paths: absolute paths work as-is. Relative paths resolve to ${defaultDir}.")
                 if (skillDirs.isNotEmpty()) {
                     appendLine("Skills dir: ${skillDirs.joinToString()}. For saving new skills, use this path.")
@@ -97,7 +102,7 @@ fun createFileTools(workspaceDir: String = "/storage/emulated/0/Download", skill
                             put("type", "string")
                             put("enum", buildJsonArray {
                                 add("read"); add("write"); add("list"); add("search")
-                                add("copy"); add("move"); add("mkdir"); add("delete")
+                                add("copy"); add("move"); add("mkdir"); add("delete"); add("patch")
                             })
                             put("description", "Operation to perform")
                         })
@@ -146,6 +151,18 @@ fun createFileTools(workspaceDir: String = "/storage/emulated/0/Download", skill
                         put("max_results", buildJsonObject {
                             put("type", "integer")
                             put("description", "Max results. Used by: search (default: 20, max: 100)")
+                        })
+                        put("old_string", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Exact text to find and replace. Used by: patch. Must be unique in file (set replace_all=true for all occurrences).")
+                        })
+                        put("new_string", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Replacement text. Used by: patch (default: empty string = delete matched text)")
+                        })
+                        put("replace_all", buildJsonObject {
+                            put("type", "boolean")
+                            put("description", "Replace all occurrences instead of requiring unique match. Used by: patch (default: false)")
                         })
                         put("type_filter", buildJsonObject {
                             put("type", "string")
@@ -282,6 +299,59 @@ fun createFileTools(workspaceDir: String = "/storage/emulated/0/Download", skill
                         if (deleted) {
                             listOf(UIMessagePart.Text("OK: deleted ${if (file.isDirectory) "directory" else "file"} $path"))
                         } else error("Failed to delete: $path")
+                    }
+                    "patch" -> {
+                        val path = obj["path"]?.jsonPrimitive?.content ?: error("path required")
+                        val oldText = obj["old_string"]?.jsonPrimitive?.content ?: error("old_string required")
+                        val newText = obj["new_string"]?.jsonPrimitive?.content ?: ""
+                        val replaceAll = obj["replace_all"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+                        val file = resolveFile(path)
+                        if (!file.exists()) error("File not found: $path")
+                        val content = file.readText()
+                        val count = content.windowedSequence(oldText.length).count { it == oldText }
+                        if (count == 0) {
+                            // Fuzzy: try matching after normalizing whitespace
+                            val normalized = content.lines().joinToString("\n") { it.trim() }
+                            val nOld = oldText.lines().joinToString("\n") { it.trim() }
+                            // Count occurrences in normalized text
+                            val nCount = normalized.windowedSequence(nOld.length).count { it == nOld }
+                            if (nCount == 0) error("old_string not found in $path (checked exact and whitespace-normalized)")
+                            if (nCount > 1 && !replaceAll) error("Found $nCount fuzzy matches — set replace_all=true or make old_string more specific")
+                            // Build result: for each match in normalized text, find corresponding range in original
+                            val result = StringBuilder()
+                            var lastEnd = 0
+                            var matchIdx = 0
+                            normalized.windowed(nOld.length).forEachIndexed { idx, window ->
+                                if (window == nOld) {
+                                    // Map this position back to original content
+                                    val normBefore = normalized.substring(0, idx)
+                                    val origBeforeIdx = content.indexOf(normBefore, lastEnd)
+                                    if (origBeforeIdx < 0) return@forEachIndexed
+                                    result.append(content.substring(lastEnd, origBeforeIdx + normBefore.length))
+                                    result.append(newText)
+                                    // Find the end of this match in original content
+                                    val matchLenInOrig = content.substring(origBeforeIdx + normBefore.length)
+                                        .indexOf(content.lines().joinToString("\n").substring(
+                                            content.lines().joinToString("\n").indexOf(oldText.lines().joinToString("\n") { it.trim() }, idx)
+                                        ).let { if (it < 0) oldText.length else it + oldText.length })
+                                        .let { if (it < 0) oldText.length else it }
+                                    lastEnd = origBeforeIdx + normBefore.length + matchLenInOrig.coerceAtLeast(oldText.length)
+                                    matchIdx++
+                                    if (!replaceAll) return@forEachIndexed
+                                }
+                            }
+                            result.append(content.substring(lastEnd))
+                            file.writeText(result.toString())
+                            val resultText = if (replaceAll) "Patched $path: $nCount fuzzy replacements"
+                            else "Patched $path: 1 fuzzy replacement"
+                            listOf(UIMessagePart.Text(resultText))
+                        } else {
+                            if (count > 1 && !replaceAll) error("Found $count matches — set replace_all=true or make old_string more specific")
+                            val updated = if (replaceAll) content.replace(oldText, newText)
+                            else content.replaceFirst(oldText, newText)
+                            file.writeText(updated)
+                            listOf(UIMessagePart.Text("Patched $path: $count replacement(s)"))
+                        }
                     }
                     "search" -> {
                         val mode = obj["mode"]?.jsonPrimitive?.contentOrNull ?: "name"
