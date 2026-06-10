@@ -4,6 +4,11 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
+import me.rerere.rikkahub.data.ai.hooks.HookRegistry
+import me.rerere.rikkahub.data.ai.hooks.HookEvent
+import me.rerere.ai.core.Tool
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.rikkahub.data.ai.session.SessionStore
 import me.rerere.rikkahub.data.ai.tools.AgentDefinition
 import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
@@ -137,6 +142,19 @@ class AgentService(
                     messagesBefore = event.messages.size,
                     messagesAfter = result.compactedMessages.size,
                 ))
+                // ── COMPACT hook ──
+                runCatching {
+                    HookRegistry.getHooks(HookEvent.COMPACT).forEach { hook ->
+                        hook.execute(
+                            Tool(name = "compaction", description = ""),
+                            buildJsonObject {
+                                put("removed", JsonPrimitive(result.removedCount))
+                                put("before", JsonPrimitive(event.messages.size))
+                                put("after", JsonPrimitive(result.compactedMessages.size))
+                            }
+                        )
+                    }
+                }
             }
         }
     }

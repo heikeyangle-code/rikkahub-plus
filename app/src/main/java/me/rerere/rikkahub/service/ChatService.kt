@@ -92,6 +92,7 @@ import me.rerere.rikkahub.data.ai.tools.AgentLoader
 import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
 import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
 import me.rerere.rikkahub.data.ai.agent.AgentRunner
+import me.rerere.rikkahub.data.ai.agent.AgentSummaryService
 import me.rerere.rikkahub.data.ai.agent.AgentMemoryManager
 import me.rerere.rikkahub.data.ai.agent.AgentNotification
 import me.rerere.rikkahub.data.ai.agent.AgentLifecycleManager
@@ -320,6 +321,13 @@ class ChatService(
         // s13: 后台 agent 完成通知
         me.rerere.rikkahub.data.ai.agent.addNotificationListener { notification ->
             Log.i(TAG, "[bg notification] ${notification.agentType} ${notification.status}: ${notification.summary?.take(80)}")
+        }
+
+        // ── AgentRunner 回调接线 ──
+        AgentRunner.onStartSummary = { agentId, initialProgress ->
+            AgentSummaryService.start(agentId, initialProgress, appScope) { summary ->
+                Log.i(TAG, "[agent summary] $agentId: $summary")
+            }
         }
     }
 

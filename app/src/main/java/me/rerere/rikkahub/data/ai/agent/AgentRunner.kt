@@ -50,6 +50,9 @@ object AgentRunner {
     /** Agent skill 预加载回调。由 ChatService 设置。 */
     var onPreloadSkills: ((agent: AgentDefinition, callback: (String) -> Unit) -> Unit)? = null
 
+    /** Agent 摘要服务启动回调。由 ChatService 设置。 */
+    var onStartSummary: ((agentId: String, initialProgress: AgentProgress) -> Unit)? = null
+
     /**
      * 初始化 Agent MCP 服务器。
      * 对齐 CC initializeAgentMcpServers()（第 97-193 行）。
@@ -225,6 +228,13 @@ object AgentRunner {
 
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         backgroundScopes[agentCallId] = scope
+
+        // ── 启动后台摘要 ──
+        onStartSummary?.invoke(agentCallId, AgentProgress(
+            agentType = agentType,
+            status = AgentLifecycleManager.AgentLifecycleStatus.RUNNING,
+            summary = description,
+        ))
 
         val deferred = scope.async {
             try {

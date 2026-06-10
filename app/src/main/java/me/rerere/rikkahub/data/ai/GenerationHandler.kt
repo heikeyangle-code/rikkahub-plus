@@ -327,6 +327,18 @@ class GenerationHandler(
 
                 val tools = messages.last().getTools().filter { !it.isExecuted }
                 if (tools.isEmpty()) {
+                    // ── STOP hook（无 tool call，本轮结束）──
+                    runCatching {
+                        HookRegistry.getHooks(HookEvent.STOP).forEach { hook ->
+                            hook.execute(
+                                me.rerere.ai.core.Tool(name = "generation_end", description = ""),
+                                kotlinx.serialization.json.buildJsonObject {
+                                    put("step", kotlinx.serialization.json.JsonPrimitive(stepIndex))
+                                    put("total_steps", kotlinx.serialization.json.JsonPrimitive(maxSteps))
+                                }
+                            )
+                        }
+                    }
                     // no tool calls, break
                     break
                 }
