@@ -22,12 +22,17 @@ fun createSearchTools(settings: Settings): Set<Tool> {
             Tool(
                 name = "search_web",
                                 description = "Search the web for up-to-date information.\n\n" +
-                                    "- Current events, recent data, or topics beyond knowledge cutoff\n" +
-                                    "- For reading a specific URL, use web_fetch instead\n" +
-                                    "- After using search results, include a \"Sources:\" section with citations\n" +
-                                    "\n" +
+                                    "When to use:\n" +
+                                    "- Current events, recent data, or information beyond your knowledge cutoff\n" +
+                                    "- Research topics requiring multiple sources\n\n" +
+                                    "When NOT to use:\n" +
+                                    "- Reading a specific URL (use web_fetch)\n" +
+                                    "- GitHub operations (use github_tool)\n\n" +
                                     "Args:\n" +
-                                    "- query: Search keywords. Generate focused queries, run multiple searches if needed." +
+                                    "- query: Search keywords. Generate focused queries, run multiple searches if needed.\n\n" +
+                                    "CRITICAL: After using search results, you MUST include a \"Sources:\" section.\n" +
+                                    "Format: [citation,domain](id) after each cited sentence.\n" +
+                                    "Today is ${LocalDate.now().toLocalString(true)}." +
                 parameters = {
                     val options = settings.searchServices.getOrElse(
                         index = settings.searchServiceSelected,
@@ -71,8 +76,11 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                 Tool(
                     name = "scrape_web",
                     description = "Scrape a URL for detailed page content.\n\n" +
-                        "- Read full content of a specific URL, not search results\n" +
-                        "- For discovery, use search_web first, then scrape specific results\n\n" +
+                        "When to use:\n" +
+                        "- Read full content of a specific URL (not search results)\n" +
+                        "- Extract text from web pages for analysis\n\n" +
+                        "When NOT to use:\n" +
+                        "- Web search (use search_web)\n\n" +
                         "Args:\n" +
                         "- url: URL to scrape",
                     parameters = {

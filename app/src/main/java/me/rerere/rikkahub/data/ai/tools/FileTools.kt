@@ -58,9 +58,17 @@ fun createFileTools(workspaceDir: String = "/storage/emulated/0/Download", skill
             description = buildString {
                 appendLine("File operations: read, write, patch, list, search, copy, move, mkdir, delete.")
                 appendLine()
-                appendLine("- Use patch action for surgical find-and-replace edits (old_string → new_string)")
-                appendLine("- Use search to find files by name glob or text/regex content search")
-                appendLine("- For file format conversion, use convert_file tool")
+                appendLine("When to use:")
+                appendLine("- Read file contents with optional offset/limit pagination")
+                appendLine("- Write or overwrite files with text content")
+                appendLine("- Patch files using surgical find-and-replace (old_string → new_string)")
+                appendLine("- List directory contents with file sizes")
+                appendLine("- Search files by name glob or text/regex content search")
+                appendLine("- Copy, move, create directories, or delete files/directories")
+                appendLine()
+                appendLine("When NOT to use:")
+                appendLine("- Shell commands (use execute_command)")
+                appendLine("- GitHub operations (use github_tool)")
                 appendLine()
                 appendLine("Args:")
                 appendLine("- action: read|write|patch|list|search|copy|move|mkdir|delete")
@@ -74,7 +82,16 @@ fun createFileTools(workspaceDir: String = "/storage/emulated/0/Download", skill
                 appendLine("- file_pattern/use_regex/context: Advanced search options")
                 appendLine()
                 appendLine("Absolute paths work as-is. Relative paths resolve to ${defaultDir}.")
+                if (skillDirs.isNotEmpty()) {
+                    appendLine("Skills dir: ${skillDirs.joinToString()}. For saving new skills, use this path.")
+                }
             },
+            parameters = {
+                InputSchema.Obj(
+                    properties = buildJsonObject {
+                        put("action", buildJsonObject {
+                            put("type", "string")
+                            put("enum", buildJsonArray {
                                 add("read"); add("write"); add("list"); add("search")
                                 add("copy"); add("move"); add("mkdir"); add("delete"); add("patch")
                             })

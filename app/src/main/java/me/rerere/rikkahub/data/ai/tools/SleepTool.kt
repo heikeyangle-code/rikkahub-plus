@@ -16,11 +16,15 @@ import me.rerere.ai.ui.UIMessagePart
 fun createSleepTool(): Tool = Tool(
     name = "sleep",
     description = "Pause execution for a specified duration.\n\n" +
-        "- Use to wait before the next tool call or rate-limit API requests\n" +
-        "- For waiting between independent commands, run them in parallel instead\n" +
-        "- Do not use for retrying failing commands (diagnose root cause)\n\n" +
+        "When to use:\n" +
+        "- Wait for an external process to complete before proceeding\n\n" +
+        "When NOT to use:\n" +
+        "- Waiting between independent commands (run them in parallel instead)\n" +
+        "- Retrying failing commands in a loop (diagnose root cause)\n\n" +
         "Args:\n" +
         "- duration_ms: Milliseconds to sleep (1000 = 1s, max 30000 = 30s)",
+    needsApproval = false,
+    parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("duration_ms", buildJsonObject {

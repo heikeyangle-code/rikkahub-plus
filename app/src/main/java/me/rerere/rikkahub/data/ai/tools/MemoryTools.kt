@@ -26,14 +26,21 @@ fun buildMemoryTools(
     Tool(
         name = "memory_tool",
         description = "Store and retrieve long-term memories across conversations.\n\n" +
-            "- Save user preferences, decisions, project conventions, important facts\n" +
-            "- Recall context before starting a new task\n" +
-            "- Do NOT use for transient task state (use todo tool)\n" +
-            "- Memories persist per agent across sessions\n\n" +
+            "When to use:\n" +
+            "- Save: User preferences, decisions, project conventions, important facts\n" +
+            "- Read: Recall context before starting a new task\n" +
+            "- List: See all stored keys\n" +
+            "- Delete: Remove specific outdated memories\n\n" +
+            "When NOT to use:\n" +
+            "- Transient task state (use todo_write instead)\n\n" +
             "Args:\n" +
             "- action: create | read | delete | list\n" +
             "- key: Memory identifier (create, read, delete)\n" +
-            "- content: Information to store (create)",
+            "- content: Information to store (create)\n" +
+            "Memories persist per agent across sessions.",
+        parameters = {
+            InputSchema.Obj(
+                properties = buildJsonObject {
                     put("action", buildJsonObject {
                         put("type", "string")
                         put(

@@ -14,17 +14,13 @@ import me.rerere.rikkahub.data.ai.scheduler.CronScheduler
  */
 fun buildCronTools(): List<Tool> = listOf(
     Tool(
+        name = "schedule_cron",
         description = "Schedule a periodic or one-shot cron job.\n\n" +
+                "When to use:\n" +
                 "- Set up recurring tasks: daily reports, monitoring, reminders\n" +
-                "- Schedule one-shot delayed actions\n" +
-                "- One-time immediate tasks should just be executed directly\n" +
-                "- Cron runs autonomously — no interactive input\n\n" +
-                "Args:\n" +
-                "- id: Unique job identifier\n" +
-                "- cron: 5-field expression (minute hour dom month dow)\n" +
-                "- prompt: Message to inject when job fires\n" +
-                "- recurring: True=repeat, False=one-shot (default: true)\n" +
-                "- durable: True=survives app restart (default: false)",
+                "- Schedule one-shot delayed actions\n\n" +
+                "When NOT to use:\n" +
+                "- One-time immediate tasks (just execute directly)\n" +
                 "- Tasks needing interactive input (cron runs autonomously)\n\n" +
                 "Args:\n" +
                 "- id: Unique job identifier\n" +
@@ -61,8 +57,16 @@ fun buildCronTools(): List<Tool> = listOf(
             val obj = args.jsonObject
             val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
             val cron = obj["cron"]?.jsonPrimitive?.contentOrNull ?: error("cron required")
-        description = "List all scheduled cron jobs with their status.\n\n" +
-                "Args: (none)",
+            val prompt = obj["prompt"]?.jsonPrimitive?.contentOrNull ?: error("prompt required")
+            val recurring = obj["recurring"]?.jsonPrimitive?.booleanOrNull ?: true
+            val durable = obj["durable"]?.jsonPrimitive?.booleanOrNull ?: false
+
+            val error = CronScheduler.scheduleJob(id, cron, prompt, recurring, durable)
+            if (error != null) {
+                listOf(UIMessagePart.Text("Error: $error"))
+            } else {
+                listOf(UIMessagePart.Text("Scheduled cron job '$id': $cron -> $prompt"))
+            }
         },
     ),
     Tool(
@@ -83,10 +87,18 @@ fun buildCronTools(): List<Tool> = listOf(
                     val persist = if (job.durable) " (persistent)" else ""
                     "  [${job.id}] $type$persist: ${job.cron} -> ${job.prompt.take(60)}"
                 }
+                listOf(UIMessagePart.Text("Scheduled cron jobs:\n$output"))
+            }
+        },
+    ),
+    Tool(
+        name = "cancel_cron",
         description = "Cancel a scheduled cron job by its ID.\n\n" +
+                "When to use:\n" +
                 "- Stop a running cron job that is no longer needed\n\n" +
                 "Args:\n" +
                 "- id: Job ID to cancel",
+        permissionMode = PermissionMode.READ_ONLY,
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("id", buildJsonObject {

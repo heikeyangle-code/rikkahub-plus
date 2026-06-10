@@ -27,16 +27,25 @@ fun createSendMessageTool(): Tool = Tool(
     description = buildString {
         appendLine("Send a message to another agent.")
         appendLine()
+        appendLine("When to use:")
         appendLine("- Communicate with teammate agents working in background")
         appendLine("- Assign tasks, share findings, or give instructions")
-        appendLine("- Broadcast to all teammates with to="*"")
-        appendLine("- Your plain text output is NOT visible to other agents")
-        appendLine("- Refer to teammates by name, never by UUID")
+        appendLine("- Broadcast to all teammates with to=\"*\"")
+        appendLine()
+        appendLine("When NOT to use:")
+        appendLine("- Reporting results to user (just respond directly)")
         appendLine()
         appendLine("Args:")
-        appendLine("- to: Target agent name, or "*" for broadcast")
+        appendLine("- to: Target agent name, or \"*\" for broadcast")
         appendLine("- message: Text content or structured JSON (for protocol messages)")
         appendLine("- summary: Optional short summary for display")
+        appendLine()
+        appendLine("Your plain text output is NOT visible to other agents — to communicate, you MUST call this tool.")
+        appendLine("Messages from teammates are delivered via get_teammate_messages tool.")
+        appendLine("Refer to teammates by name, never by UUID.")
+        appendLine("For structured protocol messages: use type=shutdown_request / plan_request")
+    },
+    permissionMode = PermissionMode.DANGER_FULL_ACCESS,
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

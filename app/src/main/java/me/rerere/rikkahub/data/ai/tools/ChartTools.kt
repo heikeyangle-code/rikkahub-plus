@@ -14,18 +14,21 @@ import java.io.File
  * 所有"生成视觉内容"类功能：图表/二维码/配色/ASCII艺术/横幅/时间线
  */
 fun createAssetTool(saveDir: String): Tool = Tool(
+    name = "create_asset",
     description = "Generate visual content saved as a file on the device.\n\n" +
+        "When to use:\n" +
         "- html_page: Full HTML page with CSS/JS — web design, slides, dashboards\n" +
         "- diagram: Flowchart/sequence diagram as Mermaid HTML\n" +
         "- chart: SVG bar/line/pie chart from numeric data\n" +
         "- qrcode: QR code from text/URL\n" +
         "- color_scheme: Color palette from base color\n" +
         "- code_screenshot: Carbon-style code screenshot\n" +
-        "- timeline: SVG timeline from chronological events\n" +
-        "- Not for editing existing files (use file tool)\n\n" +
+        "- timeline: SVG timeline from chronological events\n\n" +
+        "When NOT to use:\n" +
+        "- Editing existing files (use file tool)\n" +
+        "- Data processing (use data_process or convert_file)\n\n" +
         "Args:\n" +
         "- type: Asset type (required)\n" +
-        "- Other params vary by type; see per-param descriptions",
         "- Other params vary by type; see per-param descriptions",
     parameters = {
         InputSchema.Obj(
