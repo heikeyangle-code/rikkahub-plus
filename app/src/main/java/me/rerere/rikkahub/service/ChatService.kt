@@ -928,7 +928,7 @@ class ChatService(
                                     val modelOverride = obj["model"]?.jsonPrimitive?.contentOrNull
                                     val runInBackground = obj["run_in_background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
                                     val agentName = obj["name"]?.jsonPrimitive?.contentOrNull
-                                    val timeoutSec = obj["timeout_seconds"]?.jsonPrimitive?.intOrNull?.coerceIn(30, 600) ?: 180
+                                    val timeoutSec = obj["timeout_seconds"]?.jsonPrimitiveOrNull?.intOrNull?.coerceIn(30, 600) ?: 180
 
                                     // Load agent definition
                                     val agentDef = AgentRegistry.get(agentType)

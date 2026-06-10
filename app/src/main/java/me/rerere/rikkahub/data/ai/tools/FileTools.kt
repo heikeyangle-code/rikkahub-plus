@@ -308,49 +308,53 @@ fun createFileTools(workspaceDir: String = "/storage/emulated/0/Download", skill
                         val file = resolveFile(path)
                         if (!file.exists()) error("File not found: $path")
                         val content = file.readText()
+
+                        // 1. Exact match
                         val count = content.windowedSequence(oldText.length).count { it == oldText }
-                        if (count == 0) {
-                            // Fuzzy: try matching after normalizing whitespace
-                            val normalized = content.lines().joinToString("\n") { it.trim() }
-                            val nOld = oldText.lines().joinToString("\n") { it.trim() }
-                            // Count occurrences in normalized text
-                            val nCount = normalized.windowedSequence(nOld.length).count { it == nOld }
-                            if (nCount == 0) error("old_string not found in $path (checked exact and whitespace-normalized)")
-                            if (nCount > 1 && !replaceAll) error("Found $nCount fuzzy matches — set replace_all=true or make old_string more specific")
-                            // Build result: for each match in normalized text, find corresponding range in original
-                            val result = StringBuilder()
-                            var lastEnd = 0
-                            var matchIdx = 0
-                            normalized.windowed(nOld.length).forEachIndexed { idx, window ->
-                                if (window == nOld) {
-                                    // Map this position back to original content
-                                    val normBefore = normalized.substring(0, idx)
-                                    val origBeforeIdx = content.indexOf(normBefore, lastEnd)
-                                    if (origBeforeIdx < 0) return@forEachIndexed
-                                    result.append(content.substring(lastEnd, origBeforeIdx + normBefore.length))
-                                    result.append(newText)
-                                    // Find the end of this match in original content
-                                    val matchLenInOrig = content.substring(origBeforeIdx + normBefore.length)
-                                        .indexOf(content.lines().joinToString("\n").substring(
-                                            content.lines().joinToString("\n").indexOf(oldText.lines().joinToString("\n") { it.trim() }, idx)
-                                        ).let { if (it < 0) oldText.length else it + oldText.length })
-                                        .let { if (it < 0) oldText.length else it }
-                                    lastEnd = origBeforeIdx + normBefore.length + matchLenInOrig.coerceAtLeast(oldText.length)
-                                    matchIdx++
-                                    if (!replaceAll) return@forEachIndexed
-                                }
-                            }
-                            result.append(content.substring(lastEnd))
-                            file.writeText(result.toString())
-                            val resultText = if (replaceAll) "Patched $path: $nCount fuzzy replacements"
-                            else "Patched $path: 1 fuzzy replacement"
-                            listOf(UIMessagePart.Text(resultText))
-                        } else {
+                        if (count > 0) {
                             if (count > 1 && !replaceAll) error("Found $count matches — set replace_all=true or make old_string more specific")
                             val updated = if (replaceAll) content.replace(oldText, newText)
                             else content.replaceFirst(oldText, newText)
                             file.writeText(updated)
                             listOf(UIMessagePart.Text("Patched $path: $count replacement(s)"))
+                        } else {
+                            // 2. Fuzzy: line-by-line trimmed matching
+                            val contentLines = content.lines()
+                            val oldLines = oldText.lines().map { it.trim() }
+                            val newLines = newText.lines()
+                            val fCount = (0..contentLines.size - oldLines.size).count { i ->
+                                contentLines.subList(i, i + oldLines.size).map { it.trim() } == oldLines
+                            }
+                            if (fCount == 0) error("old_string not found in $path (checked exact and whitespace-normalized)")
+                            if (fCount > 1 && !replaceAll) error("Found $fCount fuzzy matches — set replace_all=true or make old_string more specific")
+
+                            // Apply replacement by finding first (or all) matching line window
+                            val resultLines = mutableListOf<String>()
+                            var cursor = 0
+                            var matchCount = 0
+                            while (cursor <= contentLines.size - oldLines.size) {
+                                val window = contentLines.subList(cursor, cursor + oldLines.size)
+                                if (window.map { it.trim() } == oldLines) {
+                                    resultLines.addAll(newLines)
+                                    cursor += oldLines.size
+                                    matchCount++
+                                    if (!replaceAll) {
+                                        resultLines.addAll(contentLines.drop(cursor))
+                                        cursor = contentLines.size
+                                        break
+                                    }
+                                } else {
+                                    resultLines.add(contentLines[cursor])
+                                    cursor++
+                                }
+                            }
+                            if (cursor < contentLines.size) {
+                                resultLines.addAll(contentLines.drop(cursor))
+                            }
+                            file.writeText(resultLines.joinToString("\n"))
+                            val resultText = if (replaceAll) "Patched $path: $fCount fuzzy replacements"
+                            else "Patched $path: 1 fuzzy replacement"
+                            listOf(UIMessagePart.Text(resultText))
                         }
                     }
                     "search" -> {
