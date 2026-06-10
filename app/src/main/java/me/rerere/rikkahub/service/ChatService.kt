@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -928,7 +929,7 @@ class ChatService(
                                     val modelOverride = obj["model"]?.jsonPrimitive?.contentOrNull
                                     val runInBackground = obj["run_in_background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
                                     val agentName = obj["name"]?.jsonPrimitive?.contentOrNull
-                                    val timeoutSec = obj["timeout_seconds"]?.jsonPrimitiveOrNull?.intOrNull?.coerceIn(30, 600) ?: 180
+                                    val timeoutSec = (obj["timeout_seconds"] as? JsonPrimitive)?.intOrNull?.coerceIn(30, 600) ?: 180
 
                                     // Load agent definition
                                     val agentDef = AgentRegistry.get(agentType)
