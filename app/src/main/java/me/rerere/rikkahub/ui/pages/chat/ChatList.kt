@@ -237,12 +237,10 @@ private fun ChatListNormal(
         }
     }
 
-    // contentPadding 量化：减少键盘动画期间 LazyColumn 重布局次数
+    // contentPadding 量化：键盘开时用原始值，关时直接归零，不跟随动画中间值
     val rawBottomPadding = innerPadding.calculateBottomPadding()
-    val quantizedBottomPadding = with(density) {
-        val px = rawBottomPadding.toPx()
-        (px.roundToInt() / 100 * 100).coerceAtLeast(0).toDp()
-    }
+    val isKeyboardActive = with(density) { rawBottomPadding.toPx() > 50f }
+    val quantizedBottomPadding = if (isKeyboardActive) rawBottomPadding else 0.dp
     val quantizedBottomPaddingPx = with(density) { quantizedBottomPadding.toPx() }
 
     fun List<LazyListItemInfo>.isAtBottom(): Boolean {
