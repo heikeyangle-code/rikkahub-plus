@@ -46,9 +46,6 @@ object AgentRunner {
     /** Agent skill 预加载回调。由 ChatService 设置。 */
     var onPreloadSkills: ((agent: AgentDefinition, callback: (String) -> Unit) -> Unit)? = null
 
-    /** Agent hooks 执行回调。由 ChatService 设置。 */
-    var onExecuteHooks: ((agent: AgentDefinition, event: String) -> Unit)? = null
-
     /**
      * 初始化 Agent MCP 服务器。
      * 对齐 CC initializeAgentMcpServers()（第 97-193 行）。
@@ -66,15 +63,6 @@ object AgentRunner {
     fun cleanupAgentMcp(agentDef: AgentDefinition?) {
         if (agentDef == null) return
         onCleanupAgentMcp?.invoke(agentDef)
-    }
-
-    /**
-     * 执行 Agent hooks。
-     * 对齐 CC registerFrontmatterHooks() + executeSubagentStartHooks()。
-     */
-    fun executeHooks(agentDef: AgentDefinition?, event: String = "subagent_start") {
-        if (agentDef == null) return
-        onExecuteHooks?.invoke(agentDef, event)
     }
 
     /** 取消所有后台运行的 agent */
@@ -164,9 +152,6 @@ object AgentRunner {
 
         // ── 对齐 CC step 1: 初始化 MCP ──
         initAgentMcp(agentDef)
-
-        // ── 对齐 CC step 2: 前置 hooks ──
-        executeHooks(agentDef)
 
         // ── 对齐 CC: 前台执行 ──
         if (!runInBackground) {
