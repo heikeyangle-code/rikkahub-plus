@@ -91,6 +91,10 @@ import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
 import me.rerere.rikkahub.data.ai.agent.AgentTaskTracker
 import me.rerere.rikkahub.data.ai.agent.AgentRunner
 import me.rerere.rikkahub.data.ai.agent.AgentMemoryManager
+import me.rerere.rikkahub.data.ai.agent.AgentNotification
+import me.rerere.rikkahub.data.ai.agent.AgentLifecycleManager
+import me.rerere.rikkahub.data.ai.agent.addNotificationListener
+import me.rerere.rikkahub.data.ai.agent.removeNotificationListener
 import me.rerere.rikkahub.data.ai.lane.LaneTracker
 import me.rerere.rikkahub.data.ai.tools.TaskManager
 import me.rerere.rikkahub.data.ai.tools.isToolAllowed
@@ -137,6 +141,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
+import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -1077,6 +1082,46 @@ class ChatService(
                                     }
 
                                     if (runInBackground) {
+                                        // 注册通知监听器：后台Agent完成时写入对话消息
+                                        val bgListener: (AgentNotification) -> Unit = { notification ->
+                                            if (notification.agentId == agentCallId) {
+                                                appScope.launch {
+                                                    try {
+                                                        val statusEmoji = when (notification.status) {
+                                                            AgentLifecycleManager.AgentLifecycleStatus.COMPLETED -> "✅"
+                                                            else -> "❌"
+                                                        }
+                                                        val bodyText = buildString {
+                                                            appendLine("$statusEmoji Agent `$agentType` 已完成")
+                                                            if (!notification.result.isNullOrBlank()) {
+                                                                appendLine()
+                                                                append(notification.result)
+                                                            }
+                                                            if (!notification.error.isNullOrBlank()) {
+                                                                appendLine()
+                                                                appendLine("错误: ${notification.error}")
+                                                            }
+                                                        }
+                                                        val conv = conversationRepo.getConversationById(conversationId) ?: return@launch
+                                                        val newNode = MessageNode(
+                                                            id = kotlin.uuid.Uuid.random(),
+                                                            messages = listOf(UIMessage.assistant(bodyText)),
+                                                            selectIndex = 0,
+                                                        )
+                                                        val updated = conv.copy(
+                                                            messageNodes = conv.messageNodes + newNode,
+                                                            updateAt = java.time.Instant.now(),
+                                                        )
+                                                        conversationRepo.updateConversation(updated)
+                                                    } catch (e: Exception) {
+                                                        Log.w("SubAgent", "Failed to save background agent result: ${e.message}")
+                                                    }
+                                                }
+                                                removeNotificationListener(bgListener)
+                                            }
+                                        }
+                                        addNotificationListener(bgListener)
+
                                         // 后台执行
                                         appScope.launch {
                                             runCatching {
@@ -2254,15 +2299,23 @@ class ChatService(
                     else -> me.rerere.ai.core.ReasoningLevel.HIGH
                 }
 
-                val chunk = providerImpl.generateText(
-                    providerSetting = providerSetting,
-                    messages = messages,
-                    params = me.rerere.ai.provider.TextGenerationParams(
-                        model = subModel,
-                        tools = subTools,
-                        reasoningLevel = reasoningLevel,
-                    ),
-                )
+                // 每步超时：LLM 调用超过 180 秒无响应则熔断
+                val chunk = try {
+                    kotlinx.coroutines.withTimeout(180_000L) {
+                        providerImpl.generateText(
+                            providerSetting = providerSetting,
+                            messages = messages,
+                            params = me.rerere.ai.provider.TextGenerationParams(
+                                model = subModel,
+                                tools = subTools,
+                                reasoningLevel = reasoningLevel,
+                            ),
+                        )
+                    }
+                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                    stepLog.appendLine("→ 超时: LLM 调用超过 180 秒无响应，已熔断")
+                    break
+                }
 
                 val assistantMsg = chunk.choices.firstOrNull()?.message ?: break
                 val assistantText = assistantMsg.toText()
