@@ -15,19 +15,21 @@ import java.io.File
  */
 fun createAssetTool(saveDir: String): Tool = Tool(
     name = "create_asset",
-    description = "Generate visual content and save as a file on the device.\n\n" +
-        "Supported types:\n" +
-        "- html_page: Full HTML page with CSS/JS. Best for web design, slides, dashboards\n" +
-        "- diagram: Flowchart/sequence diagram, rendered as Mermaid HTML page\n" +
+    description = "Generate visual content saved as a file on the device.\n\n" +
+        "When to use:\n" +
+        "- html_page: Full HTML page with CSS/JS — web design, slides, dashboards\n" +
+        "- diagram: Flowchart/sequence diagram as Mermaid HTML\n" +
         "- chart: SVG bar/line/pie chart from numeric data\n" +
-        "- qrcode: QR code from text/URL → .svg\n" +
-        "- color_scheme: Color palette from a base color using color theory → .svg\n" +
-        "- code_screenshot: Carbon-style code screenshot → .svg\n" +
+        "- qrcode: QR code from text/URL\n" +
+        "- color_scheme: Color palette from base color\n" +
+        "- code_screenshot: Carbon-style code screenshot\n" +
         "- timeline: SVG timeline from chronological events\n\n" +
-        "When to Use:\n" +
-        "- User requests a chart, diagram, QR code, or visualization\n" +
-        "- Creating UI mockups, slides, or dashboards\n" +
-        "- Generating visual assets for documentation",
+        "When NOT to use:\n" +
+        "- Editing existing files (use file tool)\n" +
+        "- Data processing (use data_process or convert_file)\n\n" +
+        "Args:\n" +
+        "- type: Asset type (required)\n" +
+        "- Other params vary by type; see per-param descriptions",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

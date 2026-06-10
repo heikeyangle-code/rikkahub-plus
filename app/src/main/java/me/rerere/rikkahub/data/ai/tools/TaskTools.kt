@@ -307,7 +307,7 @@ object PlanManager {
 
 fun createTaskTools(): List<Tool> = buildList {
     addAll(listOf(
-    Tool(name = "task_create", description = "Create a new task in the task list. Use for complex multi-step tasks (3+ steps).\n\nWhen to Use:\n- Complex multi-step tasks requiring 3+ steps\n- Non-trivial tasks requiring careful planning\n- User explicitly requests todo list\n- User provides multiple tasks\n- After receiving new instructions\n\nWhen NOT to Use:\n- Single straightforward task\n- Trivial tasks with no organizational benefit\n- Purely conversational requests\n\nTasks created with status pending. Use task_update to change status.",
+    Tool(name = "task_create", description = "Create a new task in the task list. Use for complex multi-step tasks (3+ steps).\n\nWhen to use:\n- Complex multi-step tasks requiring 3+ steps\n- Non-trivial tasks requiring careful planning\n- User explicitly requests todo list\n- User provides multiple tasks\n- After receiving new instructions\n\nWhen NOT to use:\n- Single straightforward task\n- Trivial tasks with no organizational benefit\n- Purely conversational requests\n\nTasks created with status pending. Use task_update to change status.",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("subject", buildJsonObject { put("type", "string"); put("description", "Task title") })

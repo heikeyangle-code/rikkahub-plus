@@ -25,24 +25,23 @@ import java.io.FileOutputStream
 fun createConvertFileTool(context: Context): Tool = Tool(
     name = "convert_file",
     description = "Convert files between supported formats.\n\n" +
-        "Supported conversions:\n" +
-        "- txt <-> md <-> html (fast native)\n" +
-        "- txt -> docx, md -> docx, html -> docx\n" +
-        "- pdf -> txt, pdf -> md, pdf -> docx\n" +
-        "- docx -> txt, docx -> md\n" +
-        "- xlsx <-> csv, xlsx -> json, csv -> json, json -> csv, json -> xlsx\n" +
-        "- pptx -> txt, pptx -> md\n" +
-        "- png <-> jpg <-> webp <-> bmp <-> gif (image)\n" +
-        "- txt -> pdf, md -> pdf\n" +
-        "- html -> md (clean markdown via markdownify)\n" +
-        "- png/jpg/webp/bmp/gif -> pdf\n" +
-        "- epub -> txt, epub -> md\n" +
-        "- zip -> extract\n" +
-        "- pdf -> merge, pdf -> split, pdf/docx -> images\n" +
-        "- url -> md (fetch + convert)\n" +
-        "- csv -> table (pretty ASCII table)\n" +
-        "- gif -> frames (extract animation)\n" +
-        "Specify source path and output format. The converted file is saved alongside the original.",
+        "When to use:\n" +
+        "- Convert text formats: txt, md, html, docx (bidirectional)\n" +
+        "- Extract text from PDF, DOCX, PPTX, EPUB\n" +
+        "- Convert spreadsheets: xlsx, csv, json (bidirectional)\n" +
+        "- Convert images: png, jpg, webp, bmp, gif (bidirectional)\n" +
+        "- Generate PDF from txt/md/images\n" +
+        "- Merge or split PDF files\n" +
+        "- Fetch URL and convert to markdown\n\n" +
+        "When NOT to use:\n" +
+        "- Reading file content (use file action=\"read\")\n" +
+        "- Editing files (use file action=\"patch\")\n\n" +
+        "Args:\n" +
+        "- input: Path to source file\n" +
+        "- input_text: Direct text input (mutually exclusive with input)\n" +
+        "- from_format: Source format (auto-detected if omitted)\n" +
+        "- to_format: Target format\n" +
+        "- output: Output path (auto-generated if omitted)",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

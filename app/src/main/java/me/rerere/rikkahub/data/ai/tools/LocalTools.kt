@@ -123,14 +123,15 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val javascriptTool by lazy {
         Tool(
             name = "eval_javascript",
-            description = """
-                Execute JavaScript code using QuickJS engine (ES2020).
-                The result is the value of the last expression in the code.
-                For calculations with decimals, use toFixed() to control precision.
-                Console output (log/info/warn/error) is captured and returned in 'logs' field.
-                No DOM or Node.js APIs available.
-                Example: '1 + 2' returns 3; 'const x = 5; x * 2' returns 10.
-            """.trimIndent().replace("\n", " "),
+            description = "Execute JavaScript code using QuickJS engine (ES2020).\n\n" +
+                "When to use:\n" +
+                "- Run JavaScript for calculations, text processing, or prototyping\n" +
+                "- Test JS snippets without a browser\n\n" +
+                "When NOT to use:\n" +
+                "- DOM manipulation or network requests (no browser APIs)\n" +
+                "- Heavy computations (15s timeout)\n\n" +
+                "Args:\n" +
+                "- code: JavaScript code to execute (last expression is the result)",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -186,10 +187,11 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val timeTool by lazy {
         Tool(
             name = "get_time_info",
-            description = """
-                Get the current local date and time info from the device.
-                Returns year/month/day, weekday, ISO date/time strings, timezone, and timestamp.
-            """.trimIndent().replace("\n", " "),
+            description = "Get the current local date and time info from the device.\n\n" +
+                "When to use:\n" +
+                "- Get current date/time with timezone and UTC offset\n" +
+                "- Need timestamp, weekday, or ISO date strings\n\n" +
+                "Args: (none)",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject { }
@@ -222,11 +224,15 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val clipboardTool by lazy {
         Tool(
             name = "clipboard_tool",
-            description = """
-                Read or write plain text from the device clipboard.
-                Use action: read or write. For write, provide text.
-                Do NOT write to the clipboard unless the user has explicitly requested it.
-            """.trimIndent().replace("\n", " "),
+            description = "Read or write plain text from the device clipboard.\n\n" +
+                "When to use:\n" +
+                "- Read clipboard content to use in a response\n" +
+                "- Write text to clipboard after user request\n\n" +
+                "When NOT to use:\n" +
+                "- Writing to clipboard without explicit user request\n\n" +
+                "Args:\n" +
+                "- action: read or write\n" +
+                "- text: Text to write (required for write action)",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -279,11 +285,12 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val ttsTool by lazy {
         Tool(
             name = "text_to_speech",
-            description = """
-                Speak text aloud to the user using the device's text-to-speech engine.
-                The tool returns immediately; audio plays in the background on the device.
-                Provide natural, readable text without markdown formatting.
-            """.trimIndent().replace("\n", " "),
+            description = "Speak text aloud using the device's text-to-speech engine.\n\n" +
+                "When to use:\n" +
+                "- Read text aloud to the user (stories, messages, notifications)\n" +
+                "- Audio plays on the device in background; tool returns immediately\n\n" +
+                "Args:\n" +
+                "- text: Text to speak (natural, readable, no markdown)",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -310,12 +317,15 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val askUserTool by lazy {
         Tool(
             name = "ask_user",
-            description = """
-                Ask the user one or more questions.
-                Each question can optionally provide a list of suggested options for the user to choose from.
-                The user may select an option or provide their own free-text answer for each question.
-                The answers will be returned as a JSON object mapping question IDs to the user's responses.
-            """.trimIndent().replace("\n", " "),
+            description = "Ask the user one or more questions.\n\n" +
+                "When to use:\n" +
+                "- Need clarification from the user on ambiguous requests\n" +
+                "- Presenting yes/no or multiple-choice options\n\n" +
+                "When NOT to use:\n" +
+                "- Confirming destructive operations (tool handles this automatically)\n" +
+                "- Asking questions the answer is already known\n\n" +
+                "Args:\n" +
+                "- questions: List of questions, each with id, text, and optional options",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -379,11 +389,12 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val presentFileTool by lazy {
         Tool(
             name = "present_file",
-            description = """
-                Show a file to the user by opening the system share sheet.
-                The file is copied to a temporary location and a share dialog is opened
-                so the user can save, send, or open the file with another app.
-            """.trimIndent().replace("\n", " "),
+            description = "Show a file to the user via the system share sheet.\n\n" +
+                "When to use:\n" +
+                "- Present a file for saving, sending, or opening with another app\n" +
+                "- Share screenshots, documents, or exported data\n\n" +
+                "Args:\n" +
+                "- path: Absolute path to the file to present",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
