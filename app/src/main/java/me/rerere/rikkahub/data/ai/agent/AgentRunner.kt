@@ -46,9 +46,6 @@ object AgentRunner {
     /** Agent skill 预加载回调。由 ChatService 设置。 */
     var onPreloadSkills: ((agent: AgentDefinition, callback: (String) -> Unit) -> Unit)? = null
 
-    /** Agent memory 加载回调 — 读取持久化记忆文件。由 ChatService 设置 */
-    var onLoadAgentMemory: ((scope: AgentMemoryScope, agentType: String) -> String?)? = null
-
     /** Agent hooks 执行回调。由 ChatService 设置。 */
     var onExecuteHooks: ((agent: AgentDefinition, event: String) -> Unit)? = null
 
@@ -90,20 +87,6 @@ object AgentRunner {
     }
 
     /**
-     * 加载 agent 持久化记忆。
-     * 对齐 CC agentMemory.ts → loadAgentMemoryPrompt()。
-     *
-     * CC 三层记忆（第 12 行）：
-     * - USER: ~/.claude/agent-memory/<agentType>/MEMORY.md
-     * - PROJECT: .claude/agent-memory/<agentType>/MEMORY.md
-     * - LOCAL: .claude/agent-memory-local/<agentType>/MEMORY.md
-     */
-    fun loadMemory(agentDef: AgentDefinition?): String? {
-        if (agentDef == null || agentDef.memory == null) return null
-        return onLoadAgentMemory?.invoke(agentDef.memory, agentDef.agentType)
-    }
-
-    /**
      * 解析 agent 的有效工具列表。
      * 对齐 CC resolveAgentTools()（agentToolUtils.ts 第 124-227 行）。
      *
@@ -122,31 +105,6 @@ object AgentRunner {
             isToolAllowed(agentDef, tool.name, isAsync)
         }
         return filtered.map { it.name }
-    }
-
-    /**
-     * 获取 agent 的 system prompt，包含可选的记忆注入。
-     * 对齐 CC getAgentSystemPrompt()（runAgent.ts 第 908 行）。
-     */
-    suspend fun buildAgentPrompt(agentDef: AgentDefinition): String {
-        val basePrompt = when (val sp = agentDef.systemPrompt) {
-            is AgentSystemPrompt.Static -> sp.text
-            is AgentSystemPrompt.Dynamic -> sp.generator(agentDef.agentType, agentDef)
-        }
-
-        // 对齐 CC: memory 注入（agentMemory.ts 第 12 行）
-        val memoryText = loadMemory(agentDef)
-        if (memoryText != null) {
-            return buildString {
-                appendLine(basePrompt)
-                appendLine()
-                appendLine("<memory>")
-                appendLine(memoryText)
-                appendLine("</memory>")
-            }
-        }
-
-        return basePrompt
     }
 
     /**
