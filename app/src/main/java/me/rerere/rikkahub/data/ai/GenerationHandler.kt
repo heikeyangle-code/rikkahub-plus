@@ -39,6 +39,8 @@ import me.rerere.rikkahub.data.ai.transformers.onGenerationFinish
 import me.rerere.rikkahub.data.ai.transformers.transforms
 import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.ai.tools.buildMemoryTools
+import me.rerere.rikkahub.data.ai.hooks.HookRegistry
+import me.rerere.rikkahub.data.ai.hooks.HookEvent
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -252,6 +254,20 @@ class GenerationHandler(
 
             // Skip generation if we have approved/denied tool calls to handle
             if (pendingTools.isEmpty()) {
+                // ── USER_PROMPT_SUBMIT hook ──
+                runCatching {
+                    HookRegistry.getHooks(HookEvent.USER_PROMPT_SUBMIT).forEach { hook ->
+                        hook.execute(
+                            me.rerere.ai.core.Tool(name = "user_input", description = ""),
+                            kotlinx.serialization.json.buildJsonObject {
+                                put("messages", kotlinx.serialization.json.JsonPrimitive(
+                                    messages.takeLast(2).joinToString("\n") { it.parts.joinToString("") { p -> (p as? me.rerere.ai.ui.UIMessagePart.Text)?.text ?: "" } }
+                                ))
+                            }
+                        )
+                    }
+                }
+
                 generateInternal(
                     assistant = assistant,
                     settings = settings,
@@ -808,7 +824,43 @@ private suspend fun executeToolCall(
                 )))
             }
 
+            // ── PRE_TOOL_USE hook ──
+            runCatching {
+                HookRegistry.getHooks(HookEvent.PRE_TOOL_USE).forEach { hook ->
+                    when (val hookResult = hook.execute(toolDef, args)) {
+                        is me.rerere.rikkahub.data.ai.hooks.HookResult.Block -> {
+                            return tool.copy(output = listOf(UIMessagePart.Text(
+                                json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Hook blocked: ${hookResult.reason}")) })
+                            )))
+                        }
+                        is me.rerere.rikkahub.data.ai.hooks.HookResult.ModifiedInput -> {
+                            // Re-parse modified args
+                            val parsed = json.parseToJsonElement(
+                                json.encodeToString(
+                                    kotlinx.serialization.json.JsonElement.serializer(), hookResult.newArgs
+                                )
+                            )
+                            // Execute with modified args
+                            val modifiedResult = toolDef.execute(parsed)
+                            // POST_TOOL_USE for modified execution
+                            runCatching {
+                                HookRegistry.getHooks(HookEvent.POST_TOOL_USE).forEach { h -> h.execute(toolDef, parsed, modifiedResult) }
+                            }
+                            return tool.copy(output = modifiedResult)
+                        }
+                        is me.rerere.rikkahub.data.ai.hooks.HookResult.Allow -> {}
+                    }
+                }
+            }
+
             val result = toolDef.execute(args)
+
+            // ── POST_TOOL_USE hook ──
+            runCatching {
+                HookRegistry.getHooks(HookEvent.POST_TOOL_USE).forEach { hook ->
+                    hook.execute(toolDef, args, result)
+                }
+            }
 
             // Post-tool notification (fire-and-forget)
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {

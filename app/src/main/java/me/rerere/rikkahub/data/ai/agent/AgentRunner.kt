@@ -11,6 +11,10 @@ import me.rerere.rikkahub.data.ai.tools.isToolAllowedForAsync
 import me.rerere.rikkahub.data.ai.tools.ALL_AGENT_DISALLOWED_TOOLS
 import me.rerere.rikkahub.data.ai.tools.CUSTOM_AGENT_DISALLOWED_TOOLS
 import me.rerere.rikkahub.data.ai.tools.ASYNC_AGENT_ALLOWED_TOOLS
+import me.rerere.rikkahub.data.ai.hooks.HookRegistry
+import me.rerere.rikkahub.data.ai.hooks.HookEvent
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CompletableDeferred
@@ -153,6 +157,17 @@ object AgentRunner {
         // ── 对齐 CC step 1: 初始化 MCP ──
         initAgentMcp(agentDef)
 
+        // ── SUBAGENT_START hook ──
+        if (agentDef != null) {
+            runCatching {
+                val tool = Tool(name = agentDef.agentType, description = agentDef.description)
+                val args = buildJsonObject { put("prompt", JsonPrimitive(prompt)) }
+                HookRegistry.getHooks(HookEvent.SUBAGENT_START).forEach { hook ->
+                    hook.execute(tool, args)
+                }
+            }
+        }
+
         // ── 对齐 CC: 前台执行 ──
         if (!runInBackground) {
             val lifecycleId = if (agentDef != null) {
@@ -164,7 +179,17 @@ object AgentRunner {
                 return result
             } finally {
                 if (lifecycleId != null) unregisterLifecycle(lifecycleId)
-                // ── 对齐 CC: 清理 MCP + hooks ──
+                // ── SUBAGENT_STOP hook ──
+                if (agentDef != null) {
+                    runCatching {
+                        val tool = Tool(name = agentDef.agentType, description = agentDef.description)
+                        val args = buildJsonObject { put("prompt", JsonPrimitive(prompt)) }
+                        HookRegistry.getHooks(HookEvent.SUBAGENT_STOP).forEach { hook ->
+                            hook.execute(tool, args)
+                        }
+                    }
+                }
+                // ── 对齐 CC: 清理 MCP ──
                 cleanupAgentMcp(agentDef)
             }
         }
