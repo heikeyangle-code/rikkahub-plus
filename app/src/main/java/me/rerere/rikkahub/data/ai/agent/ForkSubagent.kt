@@ -2,7 +2,7 @@ package me.rerere.rikkahub.data.ai.agent
 
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.ui.MessageRole
+import me.rerere.ai.core.MessageRole
 
 /**
  * Fork Subagent — 对齐官方 forkSubagent.ts（第 1-212 行）。

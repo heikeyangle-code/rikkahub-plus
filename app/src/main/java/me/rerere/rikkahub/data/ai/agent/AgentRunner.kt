@@ -260,26 +260,31 @@ object AgentRunner {
 
         val deferred = scope.async {
             try {
-                AgentExecutionEvent.post(AgentExecutionEvent.Started(
-                    id = agentCallId,
-                    type = agentType,
+                AgentEventBus.emit(AgentExecutionEvent(
+                    agentId = agentCallId,
+                    agentType = agentType,
+                    eventType = AgentEventType.STARTED,
                     description = description,
                 ))
 
                 val result = executeBlock()
 
-                AgentExecutionEvent.post(AgentExecutionEvent.Completed(
-                    id = agentCallId,
-                    type = agentType,
-                    result = result,
+                AgentEventBus.emit(AgentExecutionEvent(
+                    agentId = agentCallId,
+                    agentType = agentType,
+                    eventType = AgentEventType.COMPLETED,
+                    description = description,
+                    result = result.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text },
                 ))
 
                 // 对齐 CC: finalizeAgentTool()
                 result
             } catch (e: Exception) {
-                AgentExecutionEvent.post(AgentExecutionEvent.Failed(
-                    id = agentCallId,
-                    type = agentType,
+                AgentEventBus.emit(AgentExecutionEvent(
+                    agentId = agentCallId,
+                    agentType = agentType,
+                    eventType = AgentEventType.FAILED,
+                    description = description,
                     error = e.message ?: "Unknown error",
                 ))
                 throw e
@@ -304,19 +309,25 @@ object AgentRunner {
     }
 
     private fun registerLifecycle(agentDef: AgentDefinition, callId: String): String {
-        val manager = AgentLifecycleManager().apply {
-            start(agentDef, callId)
-        }
+        val manager = AgentLifecycleManager()
+        manager.register(
+            agentId = callId,
+            agentType = agentDef.agentType,
+            description = agentDef.description,
+            definition = agentDef,
+        )
         lifecycleManagers[callId] = manager
         return callId
     }
 
     private fun unregisterLifecycle(id: String) {
-        lifecycleManagers.remove(id)?.stop()
+        lifecycleManagers.remove(id)?.let { manager ->
+            manager.cleanup(id)
+        }
     }
 
     fun killAgent(agentCallId: String) {
-        lifecycleManagers[agentCallId]?.kill()
+        lifecycleManagers[agentCallId]?.kill(agentCallId)
         backgroundScopes[agentCallId]?.cancel("AgentRunner.killAgent($agentCallId)")
     }
 }
