@@ -56,6 +56,9 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
 
+/** 占位 Tool，用于 hook 事件传递，不执行任何逻辑 */
+private val NOOP_TOOL = Tool(name = "", description = "", execute = { emptyList<UIMessagePart>() })
+
 @Serializable
 sealed interface GenerationChunk {
     data class Messages(
@@ -258,7 +261,7 @@ class GenerationHandler(
                 runCatching {
                     HookRegistry.getHooks(HookEvent.USER_PROMPT_SUBMIT).forEach { hook ->
                         hook.execute(
-                            me.rerere.ai.core.Tool(name = "user_input", description = ""),
+                            NOOP_TOOL.copy(name = "user_input"),
                             kotlinx.serialization.json.buildJsonObject {
                                 put("messages", kotlinx.serialization.json.JsonPrimitive(
                                     messages.takeLast(2).joinToString("\n") { it.parts.joinToString("") { p -> (p as? me.rerere.ai.ui.UIMessagePart.Text)?.text ?: "" } }
@@ -331,7 +334,7 @@ class GenerationHandler(
                     runCatching {
                         HookRegistry.getHooks(HookEvent.STOP).forEach { hook ->
                             hook.execute(
-                                me.rerere.ai.core.Tool(name = "generation_end", description = ""),
+                                NOOP_TOOL.copy(name = "generation_end"),
                                 kotlinx.serialization.json.buildJsonObject {
                                     put("step", kotlinx.serialization.json.JsonPrimitive(stepIndex))
                                     put("total_steps", kotlinx.serialization.json.JsonPrimitive(maxSteps))

@@ -7,6 +7,7 @@ import me.rerere.rikkahub.data.ai.compaction.AutoCompactor
 import me.rerere.rikkahub.data.ai.hooks.HookRegistry
 import me.rerere.rikkahub.data.ai.hooks.HookEvent
 import me.rerere.ai.core.Tool
+import me.rerere.ai.ui.UIMessagePart
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.rikkahub.data.ai.session.SessionStore
@@ -30,6 +31,8 @@ private const val TAG = "AgentService"
  * - CompactTriggered：压缩审计
  * - Generation* / SessionStopped：会话管理
  */
+private val NOOP_TOOL = Tool(name = "", description = "", execute = { emptyList<UIMessagePart>() })
+
 class AgentService(
     private val appScope: CoroutineScope,
     private val autoCompactor: AutoCompactor? = null,
@@ -146,7 +149,7 @@ class AgentService(
                 runCatching {
                     HookRegistry.getHooks(HookEvent.COMPACT).forEach { hook ->
                         hook.execute(
-                            Tool(name = "compaction", description = ""),
+                            NOOP_TOOL.copy(name = "compaction"),
                             buildJsonObject {
                                 put("removed", JsonPrimitive(result.removedCount))
                                 put("before", JsonPrimitive(event.messages.size))

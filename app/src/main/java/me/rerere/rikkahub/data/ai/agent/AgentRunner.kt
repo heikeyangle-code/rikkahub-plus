@@ -163,9 +163,9 @@ object AgentRunner {
         // ── SUBAGENT_START hook ──
         if (agentDef != null) {
             runCatching {
-                val tool = Tool(name = agentDef.agentType, description = agentDef.description)
                 val args = buildJsonObject { put("prompt", JsonPrimitive(prompt)) }
                 HookRegistry.getHooks(HookEvent.SUBAGENT_START).forEach { hook ->
+                    hook.execute(NOOP_TOOL.copy(name = agentDef.agentType), args)
                     hook.execute(tool, args)
                 }
             }
@@ -185,10 +185,9 @@ object AgentRunner {
                 // ── SUBAGENT_STOP hook ──
                 if (agentDef != null) {
                     runCatching {
-                        val tool = Tool(name = agentDef.agentType, description = agentDef.description)
                         val args = buildJsonObject { put("prompt", JsonPrimitive(prompt)) }
                         HookRegistry.getHooks(HookEvent.SUBAGENT_STOP).forEach { hook ->
-                            hook.execute(tool, args)
+                            hook.execute(NOOP_TOOL.copy(name = agentDef.agentType), args)
                         }
                     }
                 }
@@ -232,7 +231,7 @@ object AgentRunner {
         // ── 启动后台摘要 ──
         onStartSummary?.invoke(agentCallId, AgentProgress(
             agentType = agentType,
-            status = AgentLifecycleManager.AgentLifecycleStatus.RUNNING,
+            status = AgentStatus.RUNNING,
             summary = description,
         ))
 
