@@ -25,28 +25,34 @@ object PlanModeState {
 
 fun createPlanModeTools(): List<Tool> = listOf(
     Tool(
-        name = "enter_plan_mode",
-        description = "Switch to planning mode (read-only). Create a step-by-step plan using task_create/todo_write. " +
-            "Do NOT execute state-modifying tools while in plan mode.",
+        name = "plan_mode",
+        description = "Switch between planning mode (read-only) and execution mode. Use action=enter to create a plan, action=exit to start executing.",
         permissionMode = PermissionMode.READ_ONLY,
-        parameters = { InputSchema.Obj(properties = buildJsonObject { }) },
-        execute = {
-            PlanModeState.enterPlan()
-            listOf(UIMessagePart.Text(
-                "[进入计划模式] 当前仅允许只读操作，不能修改文件或执行危险命令。"
-            ))
+        parameters = {
+            InputSchema.Obj(
+                properties = buildJsonObject {
+                    put("action", buildJsonObject {
+                        put("type", "string")
+                        put("enum", buildJsonArray { add("enter"); add("exit") })
+                        put("description", "enter=planning mode (read-only), exit=execution mode")
+                    })
+                },
+                required = listOf("action"),
+            )
         },
-    ),
-    Tool(
-        name = "exit_plan_mode",
-        description = "Exit planning mode and begin execution. Call after user approves the plan.",
-        permissionMode = PermissionMode.READ_ONLY,
-        parameters = { InputSchema.Obj(properties = buildJsonObject { }) },
-        execute = {
-            PlanModeState.exitPlan()
-            listOf(UIMessagePart.Text(
-                "[退出计划模式] 开始执行计划..."
-            ))
+        execute = { args ->
+            val action = args.jsonObject["action"]?.jsonPrimitive?.contentOrNull ?: error("action required")
+            when (action) {
+                "enter" -> {
+                    PlanModeState.enterPlan()
+                    listOf(UIMessagePart.Text("[进入计划模式] 当前仅允许只读操作，不能修改文件或执行危险命令。"))
+                }
+                "exit" -> {
+                    PlanModeState.exitPlan()
+                    listOf(UIMessagePart.Text("[退出计划模式] 开始执行计划..."))
+                }
+                else -> error("Unknown action: $action")
+            }
         },
     ),
 )

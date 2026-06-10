@@ -179,51 +179,7 @@ fun createGetTeammateMessagesTool(): Tool = Tool(
 )
 
 /**
- * 看板工具 — 未认领任务扫描+自动认领。
- * 对标 learn-claude-code s17 autonomous_agents 的 idle poll + scan_unclaimed。
+ * 看板工具已合并到 task_mgmt 工具中（action=unclaimed / claim）。
+ * 保留此函数返回空列表以避免修改调用方。
  */
-fun createKanbanTools(): List<Tool> = listOf(
-    Tool(
-        name = "list_unclaimed_tasks",
-        description = "List all unclaimed kanban tasks. Call this when idle to find work.",
-        permissionMode = PermissionMode.READ_ONLY,
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {})
-        },
-        execute = {
-            val tasks = me.rerere.rikkahub.data.ai.team.KanbanBoard.getUnclaimedTasks()
-            if (tasks.isEmpty()) {
-                listOf(UIMessagePart.Text("No unclaimed tasks."))
-            } else {
-                val output = tasks.joinToString("\n") { t: me.rerere.rikkahub.data.ai.team.KanbanTask ->
-                    val deps = if (t.blockedBy.isNotEmpty()) " [blockedBy: ${t.blockedBy.joinToString()}]" else ""
-                    "  ${t.id}: ${t.subject}$deps"
-                }
-                listOf(UIMessagePart.Text("Unclaimed tasks:\n$output"))
-            }
-        },
-    ),
-    Tool(
-        name = "claim_task",
-        description = "Claim a kanban task by ID. Sets status to in_progress and assigns owner.",
-        permissionMode = me.rerere.ai.core.PermissionMode.READ_ONLY,
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("task_id", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Task ID from list_unclaimed_tasks")
-                })
-            }, required = listOf("task_id"))
-        },
-        execute = { args ->
-            val taskId = args.jsonObject["task_id"]?.jsonPrimitive?.contentOrNull ?: error("task_id required")
-            val agentName = AgentContextStore.currentAgentName() ?: "main"
-            val error = me.rerere.rikkahub.data.ai.team.KanbanBoard.claimTask(taskId, agentName)
-            if (error != null) {
-                listOf(UIMessagePart.Text("Error: $error"))
-            } else {
-                listOf(UIMessagePart.Text("Claimed task $taskId"))
-            }
-        },
-    ),
-)
+fun createKanbanTools(): List<Tool> = emptyList()

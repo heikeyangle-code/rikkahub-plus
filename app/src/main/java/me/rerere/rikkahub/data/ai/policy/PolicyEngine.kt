@@ -62,7 +62,7 @@ class PolicyEngine(
             message = "潜在危险命令",
         ),
         PermissionRule(
-            tools = listOf("file_write", "write_file", "file_edit", "edit_file", "file_delete"),
+            tools = listOf("file", "file_write", "write_file", "file_edit", "edit_file", "file_delete"),
             check = { _, args ->
                 val path = args["path"]?.jsonPrimitive?.contentOrNull ?: ""
                 path.isNotBlank() && !pathChecker.isWithinWorkspace(path)
@@ -70,7 +70,7 @@ class PolicyEngine(
             message = "写入工作区之外",
         ),
         PermissionRule(
-            tools = listOf("file_write", "write_file"),
+            tools = listOf("file", "file_write", "write_file"),
             check = { _, args ->
                 val path = args["path"]?.jsonPrimitive?.contentOrNull ?: ""
                 path.isNotBlank() && File(path).let { it.isFile && it.length() > 50000 }
@@ -141,6 +141,16 @@ class PolicyEngine(
             "file_read", "file_write", "file_delete",
             "file_copy", "file_move", "present_file",
             "convert_file" -> obj["path"]?.jsonPrimitive?.contentOrNull
+            "file" -> {
+                val action = obj["action"]?.jsonPrimitive?.contentOrNull ?: return@extractPath null
+                when (action) {
+                    "read", "write", "mkdir", "delete" -> obj["path"]?.jsonPrimitive?.contentOrNull
+                    "copy", "move" -> obj["source"]?.jsonPrimitive?.contentOrNull
+                    "list" -> obj["dir"]?.jsonPrimitive?.contentOrNull ?: obj["path"]?.jsonPrimitive?.contentOrNull
+                    "search" -> obj["root"]?.jsonPrimitive?.contentOrNull
+                    else -> null
+                }
+            }
 
             "file_list", "file_mkdir", "file_search" -> obj["dir"]?.jsonPrimitive?.contentOrNull
                 ?: obj["path"]?.jsonPrimitive?.contentOrNull

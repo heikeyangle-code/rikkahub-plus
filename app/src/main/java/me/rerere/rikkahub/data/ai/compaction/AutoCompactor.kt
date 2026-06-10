@@ -198,7 +198,7 @@ class AutoCompactor {
         messages: List<UIMessage>,
         maxChars: Int = TOOL_OUTPUT_MAX_CHARS,
     ): List<UIMessage> {
-        val skipTools = setOf("file_read", "file_write", "present_file", "convert_file")
+        val skipTools = setOf("file", "present_file", "convert_file")
         return messages.map { msg ->
             val newParts = msg.parts.map { part ->
                 if (part is UIMessagePart.Tool && part.toolName !in skipTools) {

@@ -164,13 +164,13 @@ val ALL_AGENT_DISALLOWED_TOOLS = setOf(
  * 后台 agent 只能读/搜/写结果，不能递归调 Agent。
  */
 val ASYNC_AGENT_ALLOWED_TOOLS = setOf(
-    "file_search", "file_read", "file_list",
+    "file", "file_search", "file_read", "file_list",
     "web_search", "web_fetch",
     "execute_command", "execute_python",
     "file_edit", "file_write",
     "sleep",
-    "todo_write", "todo_read", "todo_list",
-    "task_get", "task_list", "task_create", "task_update",
+    "todo_write",
+    "task_get", "task_list", "task_create", "task_update", "task_mgmt",
 )
 
 /**
@@ -181,11 +181,11 @@ val ASYNC_AGENT_ALLOWED_TOOLS = setOf(
 val ALL_KNOWN_TOOLS = listOf(
     // 常用工具（本地工具以组开关，这里只列需单独控制的工具）
     "sub_agent", "create_agent",
-    "file_read", "file_write", "file_edit", "file_search",
+    "file", "file_read", "file_write", "file_edit", "file_search",
     "execute_command", "execute_python", "eval_javascript",
     "web_search", "web_fetch",
     "github_tool", "memory_tool", "use_skill",
-    "calculator", "sleep", "ask_user", "todo_write",
+    "calculator", "sleep", "ask_user", "todo_write", "task_mgmt",
     "send_message",
 )
 

@@ -118,7 +118,9 @@ private object ToolNames {
     const val TTS = "text_to_speech"
     const val ASK_USER = "ask_user"
     const val USE_SKILL = "use_skill"
+    const val FILE = "file"
     const val FILE_WRITE = "file_write"
+    const val FILE = "file"
     const val FILE_READ = "file_read"
     const val FILE_LIST = "file_list"
     const val FILE_COPY = "file_copy"
@@ -158,6 +160,7 @@ private fun getToolIcon(toolName: String, action: String?) = when (toolName) {
     ToolNames.TTS -> HugeIcons.VolumeHigh
     ToolNames.ASK_USER -> HugeIcons.BubbleChatQuestion
     ToolNames.USE_SKILL -> HugeIcons.MagicWand01
+    ToolNames.FILE -> HugeIcons.Folder01,
     ToolNames.FILE_WRITE -> HugeIcons.QuillWrite01
     ToolNames.FILE_READ -> HugeIcons.Download04
     ToolNames.FILE_LIST -> HugeIcons.Folder01

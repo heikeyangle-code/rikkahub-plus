@@ -357,64 +357,28 @@ fun createTaskTools(): List<Tool> = buildList {
             }))
         },
     ),
-    Tool(name = "task_update", description = "Update a task: change status, owner, or dependencies.\n\nUpdate status to in_progress BEFORE starting work.\nMark completed AFTER finishing.\nSet up dependencies with dependsOn.\nOnly ONE task should be in_progress at a time.",
+    Tool(name = "task_mgmt", description = "Manage tasks: update status, stop, view output, manage teams and todos, check dependencies, and create structured task packets.\n\nActions: update, stop, output, todo, team_create, team_delete, run_packet, dag, can_start, unclaimed, claim",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
-                put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
-                put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed"); add("failed"); add("cancelled") }) })
-                put("owner", buildJsonObject { put("type", "string"); put("description", "Assign to agent") })
-                put("description", buildJsonObject { put("type", "string"); put("description", "Updated description") })
-                put("active_form", buildJsonObject { put("type", "string"); put("description", "Progress text when in_progress") })
-                put("depends_on", buildJsonObject { put("type", "string"); put("description", "Comma-separated task IDs this blocks") })
-                put("blocked_by", buildJsonObject { put("type", "string"); put("description", "Comma-separated task IDs blocking this") })
-                put("metadata", buildJsonObject { put("type", "string"); put("description", "JSON key=value pairs, comma-separated") })
-            }, required = listOf("id"))
-        },
-        execute = { args ->
-            val obj = args.jsonObject; val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
-            val meta = obj["metadata"]?.jsonPrimitive?.contentOrNull
-                ?.split(",")?.mapNotNull { it.trim().split("=", limit=2).let { if (it.size == 2) it[0].trim() to it[1].trim() else null } }
-                ?.toMap()
-            val task = TaskManager.updateTask(id = id,
-                status = obj["status"]?.jsonPrimitive?.contentOrNull?.let { TaskStatus.valueOf(it.uppercase()) },
-                owner = obj["owner"]?.jsonPrimitive?.contentOrNull,
-                description = obj["description"]?.jsonPrimitive?.contentOrNull,
-                dependsOn = obj["depends_on"]?.jsonPrimitive?.contentOrNull?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() },
-                activeForm = obj["active_form"]?.jsonPrimitive?.contentOrNull,
-                metadata = meta,
-                addBlockedBy = obj["blocked_by"]?.jsonPrimitive?.contentOrNull?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() },
-            ) ?: error("Task $id not found")
-            listOf(UIMessagePart.Text("[${task.id}] updated: ${task.status.name.lowercase()}"))
-        },
-    ),
-    Tool(name = "task_stop", description = "Cancel/stop a running task. Use to abandon a task that is no longer needed.",
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
-            }, required = listOf("id"))
-        },
-        execute = { args ->
-            val id = args.jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
-            TaskManager.stopTask(id) ?: error("Task $id not found")
-            listOf(UIMessagePart.Text("Task $id stopped"))
-        },
-    ),
-    Tool(name = "task_output", description = "Get the result or output of a completed/failed task.", permissionMode = PermissionMode.READ_ONLY,
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("id", buildJsonObject { put("type", "string"); put("description", "Task ID") })
-            }, required = listOf("id"))
-        },
-        execute = { args ->
-            val id = args.jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
-            listOf(UIMessagePart.Text(TaskManager.taskOutput(id) ?: error("Task $id not found")))
-        },
-    ),
-    Tool(name = "todo_write", description = "Create and manage a lightweight todo list for the current session.\n\nUnlike task_create, todos are simpler and do not create Task objects.\n\nWhen to Use:\n- Quick checklist for simple multi-step tasks\n- Tracking progress in the current session\n- User provides a list of items to do\n\nWhen NOT to Use:\n- Single straightforward task\n- Use task_create for complex tasks with dependencies\n\nTask descriptions must have two forms:\n- content: Imperative form\n- activeForm: Present continuous form",
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
+                put("action", buildJsonObject {
+                    put("type", "string")
+                    put("enum", buildJsonArray {
+                        add("update"); add("stop"); add("output"); add("todo")
+                        add("team_create"); add("team_delete"); add("run_packet")
+                        add("dag"); add("can_start"); add("unclaimed"); add("claim")
+                    })
+                    put("description", "Operation: update=change task status/details, stop=cancel task, output=view result, todo=create lightweight todos, team_create/delete=manage teams, run_packet=structured task, dag=dependency graph, can_start=check deps, unclaimed=list unclaimed kanban tasks, claim=claim kanban task")
+                })
+                put("id", buildJsonObject { put("type", "string"); put("description", "Task ID (used by: update, stop, output, can_start, claim)") })
+                put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed"); add("failed"); add("cancelled") }); put("description", "New status (used by: update)") })
+                put("owner", buildJsonObject { put("type", "string"); put("description", "Assign to agent (used by: update)") })
+                put("description", buildJsonObject { put("type", "string"); put("description", "Updated description (used by: update)") })
+                put("active_form", buildJsonObject { put("type", "string"); put("description", "Progress text (used by: update)") })
+                put("depends_on", buildJsonObject { put("type", "string"); put("description", "Comma-separated task IDs this blocks (used by: update)") })
+                put("blocked_by", buildJsonObject { put("type", "string"); put("description", "Comma-separated task IDs blocking this (used by: update)") })
+                put("metadata", buildJsonObject { put("type", "string"); put("description", "JSON key=value pairs (used by: update)") })
                 put("todos", buildJsonObject {
-                    put("type", "array"); put("description", "Todo items")
+                    put("type", "array"); put("description", "Todo items (used by: todo)")
                     put("items", buildJsonObject {
                         put("type", "object"); put("properties", buildJsonObject {
                             put("subject", buildJsonObject { put("type", "string") })
@@ -422,127 +386,84 @@ fun createTaskTools(): List<Tool> = buildList {
                         }); put("required", buildJsonArray { add("subject") })
                     })
                 })
-            }, required = listOf("todos"))
-        },
-        execute = { args ->
-            val todos = args.jsonObject["todos"]?.jsonArray ?: error("todos required")
-            val results = todos.map { item ->
-                val obj = item.jsonObject; val s = obj["subject"]?.jsonPrimitive?.contentOrNull ?: ""
-                val st = obj["status"]?.jsonPrimitive?.contentOrNull ?: "pending"
-                TaskManager.createTodo(s, st)
-                "${when (st) { "completed" -> "✅"; "in_progress" -> "🔄"; else -> "⏳" }} $s"
-            }
-            // s05: nag reminder — AI 每次更新计划时重置计数器
-            PlanManager.resetNag()
-            listOf(UIMessagePart.Text(results.joinToString("\n")))
-        },
-    ),
-    Tool(name = "team_create", description = "Create a new team for coordinating multiple agents. The team name must be unique — creating a duplicate name overwrites the existing team.",
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("team_name", buildJsonObject { put("type", "string"); put("description", "Name for the new team") })
-                put("description", buildJsonObject { put("type", "string"); put("description", "Team purpose") })
-            }, required = listOf("team_name"))
-        },
-        execute = { args ->
-            val obj = args.jsonObject; val name = obj["team_name"]?.jsonPrimitive?.contentOrNull ?: error("team_name required")
-            val desc = obj["description"]?.jsonPrimitive?.contentOrNull ?: ""
-            TaskManager.createTeam(name, desc)
-            listOf(UIMessagePart.Text("Team '$name' created"))
-        },
-    ),
-    Tool(name = "team_delete", description = "Delete a team.",
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("team_name", buildJsonObject { put("type", "string"); put("description", "Team name") })
-            }, required = listOf("team_name"))
-        },
-        execute = { args ->
-            val name = args.jsonObject["team_name"]?.jsonPrimitive?.contentOrNull ?: error("team_name required")
-            TaskManager.deleteTeam(name); listOf(UIMessagePart.Text("Team '$name' deleted"))
-        },
-    ),
-
-    // ── NEW: run_task_packet ──
-    Tool(name = "run_task_packet", description = "Create a structured task with acceptance criteria, commit policy, and escalation rules.",
-        permissionMode = PermissionMode.DANGER_FULL_ACCESS,
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("objective", buildJsonObject { put("type", "string"); put("description", "What to accomplish") })
-                put("scope", buildJsonObject { put("type", "string"); put("description", "Module, file, or repo") })
-                put("acceptance_tests", buildJsonObject { put("type", "string"); put("description", "Comma-separated test commands") })
-                put("commit_policy", buildJsonObject { put("type", "string"); put("description", "single_commit | no_commit") })
-                put("escalation_policy", buildJsonObject { put("type", "string"); put("description", "On-failure notification target") })
-            }, required = listOf("objective"))
+                put("team_name", buildJsonObject { put("type", "string"); put("description", "Team name (used by: team_create, team_delete)") })
+                put("team_description", buildJsonObject { put("type", "string"); put("description", "Team purpose (used by: team_create)") })
+                put("objective", buildJsonObject { put("type", "string"); put("description", "What to accomplish (used by: run_packet)") })
+                put("scope", buildJsonObject { put("type", "string"); put("description", "Module, file, or repo (used by: run_packet)") })
+                put("acceptance_tests", buildJsonObject { put("type", "string"); put("description", "Comma-separated tests (used by: run_packet)") })
+                put("commit_policy", buildJsonObject { put("type", "string"); put("description", "single_commit | no_commit (used by: run_packet)") })
+                put("escalation_policy", buildJsonObject { put("type", "string"); put("description", "On-failure target (used by: run_packet)") })
+                put("task_id", buildJsonObject { put("type", "string"); put("description", "Kanban task ID (used by: claim)") })
+            }, required = listOf("action"))
         },
         execute = { args ->
             val obj = args.jsonObject
-            val objective = obj["objective"]?.jsonPrimitive?.contentOrNull ?: error("objective required")
-            val scope = obj["scope"]?.jsonPrimitive?.contentOrNull ?: ""
-            val tests = obj["acceptance_tests"]?.jsonPrimitive?.contentOrNull ?: ""
-            val commitPolicy = obj["commit_policy"]?.jsonPrimitive?.contentOrNull ?: "single_commit"
-            val task = TaskManager.createTask(subject = objective,
-                description = "Scope: $scope\nTests: $tests\nCommit: $commitPolicy")
-            listOf(UIMessagePart.Text(buildJsonObject {
-                put("task_id", task.id); put("status", "created")
-                put("objective", objective); put("acceptance_tests", tests)
-            }.toString()))
+            val action = obj["action"]?.jsonPrimitive?.contentOrNull ?: error("action required")
+            when (action) {
+                "update" -> {
+                    val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
+                    val meta = obj["metadata"]?.jsonPrimitive?.contentOrNull?.split(",")?.mapNotNull { it.trim().split("=", limit=2).let { if (it.size == 2) it[0].trim() to it[1].trim() else null } }?.toMap()
+                    val task = TaskManager.updateTask(id = id,
+                        status = obj["status"]?.jsonPrimitive?.contentOrNull?.let { TaskStatus.valueOf(it.uppercase()) },
+                        owner = obj["owner"]?.jsonPrimitive?.contentOrNull,
+                        description = obj["description"]?.jsonPrimitive?.contentOrNull,
+                        dependsOn = obj["depends_on"]?.jsonPrimitive?.contentOrNull?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() },
+                        activeForm = obj["active_form"]?.jsonPrimitive?.contentOrNull,
+                        metadata = meta,
+                        addBlockedBy = obj["blocked_by"]?.jsonPrimitive?.contentOrNull?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() },
+                    ) ?: error("Task $id not found")
+                    listOf(UIMessagePart.Text("[${task.id}] updated: ${task.status.name.lowercase()}"))
+                }
+                "stop" -> { val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: error("id required"); TaskManager.stopTask(id) ?: error("Task $id not found"); listOf(UIMessagePart.Text("Task $id stopped")) }
+                "output" -> { val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: error("id required"); listOf(UIMessagePart.Text(TaskManager.taskOutput(id) ?: error("Task $id not found"))) }
+                "todo" -> {
+                    val todos = obj["todos"]?.jsonArray ?: error("todos required")
+                    val results = todos.map { item -> val itemObj = item.jsonObject; val s = itemObj["subject"]?.jsonPrimitive?.contentOrNull ?: ""; val st = itemObj["status"]?.jsonPrimitive?.contentOrNull ?: "pending"; TaskManager.createTodo(s, st); "${when (st) { "completed" -> "✅"; "in_progress" -> "🔄"; else -> "⏳" }} $s" }
+                    PlanManager.resetNag(); listOf(UIMessagePart.Text(results.joinToString("\n")))
+                }
+                "team_create" -> { val name = obj["team_name"]?.jsonPrimitive?.contentOrNull ?: error("team_name required"); val desc = obj["team_description"]?.jsonPrimitive?.contentOrNull ?: ""; TaskManager.createTeam(name, desc); listOf(UIMessagePart.Text("Team '$name' created")) }
+                "team_delete" -> { val name = obj["team_name"]?.jsonPrimitive?.contentOrNull ?: error("team_name required"); TaskManager.deleteTeam(name); listOf(UIMessagePart.Text("Team '$name' deleted")) }
+                "run_packet" -> {
+                    val objective = obj["objective"]?.jsonPrimitive?.contentOrNull ?: error("objective required")
+                    val scope = obj["scope"]?.jsonPrimitive?.contentOrNull ?: ""; val tests = obj["acceptance_tests"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val task = TaskManager.createTask(subject = objective, description = "Scope: $scope\nTests: $tests\nCommit: single_commit")
+                    listOf(UIMessagePart.Text(buildJsonObject { put("task_id", task.id); put("status", "created"); put("objective", objective) }.toString()))
+                }
+                "dag" -> {
+                    val tasks = TaskManager.listTasks()
+                    val output = buildString { appendLine("Task Dependency Graph:"); tasks.filter { it.dependsOn.isNotEmpty() }.forEach { t -> appendLine("  ${t.id} [${t.status.name.lowercase()}]"); t.dependsOn.forEach { dep -> appendLine("    └─ depends on: $dep") } } }
+                    listOf(UIMessagePart.Text(output.ifBlank { "No dependencies defined." }))
+                }
+                "can_start" -> {
+                    val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: error("id required")
+                    val task = TaskManager.getTask(id) ?: error("Task $id not found")
+                    val blocked = task.blockedBy.filter { b -> TaskManager.getTask(b)?.status != TaskStatus.COMPLETED }
+                    if (blocked.isEmpty()) listOf(UIMessagePart.Text("Task $id is ready to start. All dependencies satisfied."))
+                    else listOf(UIMessagePart.Text("Task $id is blocked by:\n" + blocked.mapNotNull { b -> TaskManager.getTask(b)?.let { "${it.id}: ${it.subject} (${it.status.name.lowercase()})" } }.joinToString("\n")))
+                }
+                "unclaimed" -> {
+                    val tasks = me.rerere.rikkahub.data.ai.team.KanbanBoard.getUnclaimedTasks()
+                    if (tasks.isEmpty()) listOf(UIMessagePart.Text("No unclaimed tasks."))
+                    else listOf(UIMessagePart.Text("Unclaimed tasks:\n" + tasks.joinToString("\n") { t: me.rerere.rikkahub.data.ai.team.KanbanTask -> val deps = if (t.blockedBy.isNotEmpty()) " [blockedBy: ${t.blockedBy.joinToString()}]" else ""; "  ${t.id}: ${t.subject}$deps" }))
+                }
+                "claim" -> {
+                    val taskId = obj["task_id"]?.jsonPrimitive?.contentOrNull ?: error("task_id required")
+                    val agentName = me.rerere.rikkahub.data.ai.agent.AgentContextStore.currentAgentName() ?: "main"
+                    val error = me.rerere.rikkahub.data.ai.team.KanbanBoard.claimTask(taskId, agentName)
+                    if (error != null) listOf(UIMessagePart.Text("Error: $error")) else listOf(UIMessagePart.Text("Claimed task $taskId"))
+                }
+                else -> error("Unknown action: $action")
+            }
         },
     ),
-
-    // ── NEW: task_dag ──
-    Tool(name = "task_dag", description = "Show the task dependency graph. Displays blockers.",
-        permissionMode = PermissionMode.READ_ONLY,
-        execute = {
-            val tasks = TaskManager.listTasks()
-            val output = buildString {
-                appendLine("Task Dependency Graph:")
-                tasks.filter { it.dependsOn.isNotEmpty() }.forEach { t ->
-                    appendLine("  ${t.id} [${t.status.name}] -> depends: ${t.dependsOn.joinToString(", ")}")
-                }
-                val blocked = tasks.filter { t -> t.dependsOn.any { depId ->
-                    val dep = TaskManager.getTask(depId); dep != null && dep.status != TaskStatus.COMPLETED
-                }}
-                if (blocked.isNotEmpty()) {
-                    appendLine("\nBlocked tasks:")
-                    blocked.forEach { appendLine("  ${it.id}: ${it.subject}") }
-                }
-            }
-            listOf(UIMessagePart.Text(output.ifEmpty { "(no dependencies)" }))
-        },
+    ))
+    // s14: cron 调度工具
     ),
     ))
     // s14: cron 调度工具
     addAll(buildCronTools())
 
-    // ── s17: task_claim / task_can_start ──
-    add(Tool(name = "task_can_start", description = "Check if a task's dependencies are satisfied, so it can be claimed and started. Returns status of all blockers.",
-        permissionMode = PermissionMode.READ_ONLY,
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("task_id", buildJsonObject { put("type", "string"); put("description", "Task ID to check") })
-            }, required = listOf("task_id"))
-        },
-        execute = { args ->
-            val id = args.jsonObject["task_id"]?.jsonPrimitive?.contentOrNull ?: error("task_id required")
-            val task = TaskManager.getTask(id) ?: error("Task $id not found")
-            val blockedBy = task.blockedBy.filter { depId ->
-                val dep = TaskManager.getTask(depId)
-                dep == null || dep.status != TaskStatus.COMPLETED
-            }
-            val missing = task.blockedBy.filter { TaskManager.getTask(it) == null }
-            val result = buildString {
-                if (blockedBy.isEmpty() && missing.isEmpty()) {
-                    appendLine("Task $id (${task.subject}) is ready to start — no blockers.")
-                } else {
-                    appendLine("Task $id (${task.subject}) cannot start:")
-                    if (blockedBy.isNotEmpty()) appendLine("  Blocked by incomplete tasks: ${blockedBy.joinToString(", ")}")
-                    if (missing.isNotEmpty()) appendLine("  Missing dependencies: ${missing.joinToString(", ")}")
-                }
-            }
-            listOf(UIMessagePart.Text(result))
-        },
-    ))
+    // ── s17: task_claim / task_complete (HarNESS 标准工具) ──
 
     add(Tool(name = "task_claim", description = "Claim a task by marking it in_progress. Only works if all dependencies (blockedBy) are completed. Use task_can_start first to check readiness.\n\nAfter claiming, work on the task. When done, use task_update to mark completed — this will automatically unblock any tasks that depend on this one.",
         parameters = {

@@ -79,7 +79,7 @@ NOTE: You are meant to be a fast agent that returns output as quickly as possibl
 Complete the user's search request efficiently and report your findings clearly."""
         }),
         disallowedTools = listOf(
-            "sub_agent", "file_write",
+            "sub_agent", "file",
         ),
         color = AgentColor.YELLOW,
         omitProjectContext = true,
@@ -143,7 +143,7 @@ List 3-5 files most critical for implementing this plan:
 REMEMBER: You can ONLY explore and plan. You CANNOT and MUST NOT write, edit, or modify any files. You do NOT have access to file editing tools."""
         }),
         disallowedTools = listOf(
-            "sub_agent", "file_write",
+            "sub_agent", "file",
         ),
         color = AgentColor.GREEN,
         omitProjectContext = true,
@@ -221,7 +221,7 @@ VERDICT: PARTIAL
 """
         }),
         disallowedTools = listOf(
-            "sub_agent", "file_write",
+            "sub_agent", "file",
         ),
         color = AgentColor.RED,
         background = true,

@@ -8,158 +8,131 @@ import me.rerere.ai.ui.UIMessagePart
 
 fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
     Tool(
-        name = "worker_create",
-        description = "Create a background worker. Workers are persistent agents that can receive tasks and run asynchronously. Use worker_send to assign work, worker_get to check status. Workers notify you when done.",
+        name = "worker",
+        description = buildString {
+            appendLine("Create, manage, and communicate with background workers.")
+            appendLine()
+            appendLine("Actions: create, send, get, list, terminate, restart")
+            appendLine()
+            appendLine("- create: Create a new background worker with optional cwd.")
+            appendLine("- send: Send a task to a ready worker. Runs in background, notifies when done.")
+            appendLine("- get: Get worker status and result.")
+            appendLine("- list: List all workers.")
+            appendLine("- terminate: Terminate a running worker.")
+            appendLine("- restart: Reset a worker to ready state for new tasks.")
+        },
         permissionMode = PermissionMode.DANGER_FULL_ACCESS,
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
-                    put("cwd", buildJsonObject {
-                        put("type", "string"); put("description", "Working directory")
+                    put("action", buildJsonObject {
+                        put("type", "string")
+                        put("enum", buildJsonArray { add("create"); add("send"); add("get"); add("list"); add("terminate"); add("restart") })
+                        put("description", "Operation to perform")
                     })
-                },
-                required = listOf("cwd"),
-            )
-        },
-        execute = { args ->
-            val obj = args.jsonObject
-            val cwd = obj["cwd"]?.jsonPrimitive?.contentOrNull ?: ""
-            val worker = workerManager.createWorker("", cwd)
-            listOf(UIMessagePart.Text(buildJsonObject {
-                put("worker_id", worker.id)
-                put("name", worker.name.ifBlank { worker.id })
-                put("status", "ready")
-            }.toString()))
-        },
-    ),
-    Tool(
-        name = "worker_send_prompt",
-        description = "Send a task to a ready worker. The worker runs in background and notifies you when done.",
-        permissionMode = PermissionMode.DANGER_FULL_ACCESS,
-        parameters = {
-            InputSchema.Obj(
-                properties = buildJsonObject {
+                    put("name", buildJsonObject {
+                        put("type", "string"); put("description", "Human-readable name (used by: create)")
+                    })
+                    put("cwd", buildJsonObject {
+                        put("type", "string"); put("description", "Working directory (used by: create)")
+                    })
                     put("worker_id", buildJsonObject {
-                        put("type", "string"); put("description", "Worker ID")
+                        put("type", "string"); put("description", "Worker ID (used by: send, get, terminate, restart)")
                     })
                     put("prompt", buildJsonObject {
-                        put("type", "string"); put("description", "Task description")
+                        put("type", "string"); put("description", "Task description (used by: send)")
                     })
                 },
-                required = listOf("worker_id", "prompt"),
+                required = listOf("action"),
             )
         },
         execute = { args ->
             val obj = args.jsonObject
-            val wid = obj["worker_id"]?.jsonPrimitive?.contentOrNull ?: error("worker_id required")
-            val prompt = obj["prompt"]?.jsonPrimitive?.contentOrNull ?: error("prompt required")
-            val w = workerManager.sendPrompt(wid, prompt)
-            listOf(UIMessagePart.Text(buildJsonObject {
-                put("worker_id", wid)
-                put("name", w.name.ifBlank { wid })
-                put("status", "running")
-            }.toString()))
-        },
-    ),
-    Tool(
-        name = "worker_get",
-        description = "Get worker state and result. Returns current status and completed result if finished.",
-        permissionMode = PermissionMode.READ_ONLY,
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
-            }, required = listOf("worker_id"))
-        },
-        execute = { args ->
-            val wid = args.jsonObject["worker_id"]?.jsonPrimitive?.contentOrNull
-                ?: error("worker_id required")
-            val worker = workerManager.getWorker(wid) ?: error("Worker $wid not found")
-            listOf(UIMessagePart.Text(buildJsonObject {
-                put("worker_id", worker.id)
-                put("name", worker.name.ifBlank { worker.id })
-                put("status", when (worker.state) {
-                    is WorkerState.ReadyForPrompt -> "ready"
-                    is WorkerState.Running -> "running"
-                    is WorkerState.Finished -> "finished"
-                    is WorkerState.Failed -> "failed"
-                })
-                put("created_at", worker.createdAt)
-                worker.finishedAt?.let { put("finished_at", it) }
-                val result = when (val s = worker.state) {
-                    is WorkerState.Finished -> s.result
-                    is WorkerState.Failed -> "Error: ${s.error}"
-                    else -> null
+            val action = obj["action"]?.jsonPrimitive?.contentOrNull ?: error("action required")
+
+            when (action) {
+                "create" -> {
+                    val name = obj["name"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val cwd = obj["cwd"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val worker = workerManager.createWorker(name, cwd)
+                    listOf(UIMessagePart.Text(buildJsonObject {
+                        put("worker_id", worker.id)
+                        put("name", worker.name.ifBlank { worker.id })
+                        put("status", "ready")
+                    }.toString()))
                 }
-                if (result != null) put("result", result)
-            }.toString()))
-        },
-    ),
-    Tool(
-        name = "worker_list",
-        description = "List all workers and their current status.",
-        permissionMode = PermissionMode.READ_ONLY,
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {})
-        },
-        execute = {
-            val all = workerManager.listWorkers()
-            if (all.isEmpty()) {
-                listOf(UIMessagePart.Text("No workers."))
-            } else {
-                val json = buildJsonArray {
-                    all.forEach { w ->
-                        add(buildJsonObject {
-                            put("worker_id", w.id)
-                            put("name", w.name.ifBlank { w.id })
-                            put("status", when (w.state) {
-                                is WorkerState.ReadyForPrompt -> "ready"
-                                is WorkerState.Running -> "running"
-                                is WorkerState.Finished -> "finished"
-                                is WorkerState.Failed -> "failed"
-                            })
-                            put("created_at", w.createdAt)
-                            w.finishedAt?.let { put("finished_at", it) }
+                "send" -> {
+                    val wid = obj["worker_id"]?.jsonPrimitive?.contentOrNull ?: error("worker_id required")
+                    val prompt = obj["prompt"]?.jsonPrimitive?.contentOrNull ?: error("prompt required")
+                    val w = workerManager.sendPrompt(wid, prompt)
+                    listOf(UIMessagePart.Text(buildJsonObject {
+                        put("worker_id", wid)
+                        put("name", w.name.ifBlank { wid })
+                        put("status", "running")
+                    }.toString()))
+                }
+                "get" -> {
+                    val wid = obj["worker_id"]?.jsonPrimitive?.contentOrNull ?: error("worker_id required")
+                    val worker = workerManager.getWorker(wid) ?: error("Worker $wid not found")
+                    listOf(UIMessagePart.Text(buildJsonObject {
+                        put("worker_id", worker.id)
+                        put("name", worker.name.ifBlank { worker.id })
+                        put("status", when (worker.state) {
+                            is WorkerState.ReadyForPrompt -> "ready"
+                            is WorkerState.Running -> "running"
+                            is WorkerState.Finished -> "finished"
+                            is WorkerState.Failed -> "failed"
                         })
+                        put("created_at", worker.createdAt)
+                        worker.finishedAt?.let { put("finished_at", it) }
+                        val result = when (val s = worker.state) {
+                            is WorkerState.Finished -> s.result
+                            is WorkerState.Failed -> "Error: ${s.error}"
+                            else -> null
+                        }
+                        if (result != null) put("result", result)
+                    }.toString()))
+                }
+                "list" -> {
+                    val all = workerManager.listWorkers()
+                    if (all.isEmpty()) {
+                        listOf(UIMessagePart.Text("No workers."))
+                    } else {
+                        val json = buildJsonArray {
+                            all.forEach { w ->
+                                add(buildJsonObject {
+                                    put("worker_id", w.id)
+                                    put("name", w.name.ifBlank { w.id })
+                                    put("status", when (w.state) {
+                                        is WorkerState.ReadyForPrompt -> "ready"
+                                        is WorkerState.Running -> "running"
+                                        is WorkerState.Finished -> "finished"
+                                        is WorkerState.Failed -> "failed"
+                                    })
+                                    put("created_at", w.createdAt)
+                                    w.finishedAt?.let { put("finished_at", it) }
+                                })
+                            }
+                        }
+                        listOf(UIMessagePart.Text(json.toString()))
                     }
                 }
-                listOf(UIMessagePart.Text(json.toString()))
+                "terminate" -> {
+                    val wid = obj["worker_id"]?.jsonPrimitive?.contentOrNull ?: error("worker_id required")
+                    workerManager.terminate(wid)
+                    listOf(UIMessagePart.Text(buildJsonObject {
+                        put("worker_id", wid); put("status", "finished")
+                    }.toString()))
+                }
+                "restart" -> {
+                    val wid = obj["worker_id"]?.jsonPrimitive?.contentOrNull ?: error("worker_id required")
+                    workerManager.restart(wid)
+                    listOf(UIMessagePart.Text(buildJsonObject {
+                        put("worker_id", wid); put("status", "ready")
+                    }.toString()))
+                }
+                else -> error("Unknown action: $action")
             }
-        },
-    ),
-    Tool(
-        name = "worker_terminate",
-        description = "Terminate a running worker.",
-        permissionMode = PermissionMode.DANGER_FULL_ACCESS,
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
-            }, required = listOf("worker_id"))
-        },
-        execute = { args ->
-            val wid = args.jsonObject["worker_id"]?.jsonPrimitive?.contentOrNull
-                ?: error("worker_id required")
-            workerManager.terminate(wid)
-            listOf(UIMessagePart.Text(buildJsonObject {
-                put("worker_id", wid); put("status", "finished")
-            }.toString()))
-        },
-    ),
-    Tool(
-        name = "worker_restart",
-        description = "Restart a worker, resetting it to ready state for new tasks.",
-        permissionMode = PermissionMode.DANGER_FULL_ACCESS,
-        parameters = {
-            InputSchema.Obj(properties = buildJsonObject {
-                put("worker_id", buildJsonObject { put("type", "string"); put("description", "Worker ID") })
-            }, required = listOf("worker_id"))
-        },
-        execute = { args ->
-            val wid = args.jsonObject["worker_id"]?.jsonPrimitive?.contentOrNull
-                ?: error("worker_id required")
-            workerManager.restart(wid)
-            listOf(UIMessagePart.Text(buildJsonObject {
-                put("worker_id", wid); put("status", "ready")
-            }.toString()))
         },
     ),
 )
