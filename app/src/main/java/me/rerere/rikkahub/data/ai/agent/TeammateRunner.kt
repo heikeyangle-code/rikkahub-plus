@@ -45,6 +45,7 @@ class TeammateRunner(
         prompt: String,
         model: String? = null,
         planModeRequired: Boolean = false,
+        requestId: String? = null,
         executeBlock: suspend (agentName: String, prompt: String) -> String = promptHandler
             ?: { agentName, _ -> "Teammate $agentName started but no handler configured" },
     ): String {
@@ -62,6 +63,7 @@ class TeammateRunner(
             status = TeammateStatus.RUNNING,
             prompt = prompt,
             model = model,
+            requestId = requestId,
         )
         teammates[id] = state
         updateState()
@@ -80,6 +82,7 @@ class TeammateRunner(
                     from = name,
                     message = result,
                     summary = "Teammate $name completed",
+                    requestId = state.requestId,
                 )
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 teammates[id] = state.copy(status = TeammateStatus.FAILED, error = "Timeout")

@@ -162,15 +162,16 @@ fun createGetTeammateMessagesTool(): Tool = Tool(
             listOf(UIMessagePart.Text("No pending messages."))
         } else {
             val json = buildJsonArray {
-                messages.forEach { msg ->
-                    add(buildJsonObject {
-                        put("from", msg.from)
-                        put("text", msg.text)
-                        msg.summary?.let { put("summary", it) }
-                        put("type", msg.type.name.lowercase())
-                        put("timestamp", msg.timestamp)
-                    })
-                }
+            messages.forEach { msg ->
+            add(buildJsonObject {
+                put("from", msg.from)
+                put("text", msg.text)
+                msg.summary?.let { put("summary", it) }
+                put("type", msg.type.name.lowercase())
+                msg.requestId?.let { put("request_id", it) }
+                put("timestamp", msg.timestamp)
+            })
+            }
             }
             listOf(UIMessagePart.Text(json.toString()))
         }

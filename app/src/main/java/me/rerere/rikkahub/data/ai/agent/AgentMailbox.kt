@@ -11,12 +11,13 @@ object AgentMailbox {
     private val mailboxes = mutableMapOf<String, MutableList<AgentMailMessage>>()
 
     @Synchronized
-    fun send(to: String, from: String, message: String, summary: String? = null, type: MailMessageType = MailMessageType.TEXT) {
+    fun send(to: String, from: String, message: String, summary: String? = null, type: MailMessageType = MailMessageType.TEXT, requestId: String? = null) {
         val msg = AgentMailMessage(
             from = from,
             text = message,
             summary = summary,
             type = type,
+            requestId = requestId,
             timestamp = System.currentTimeMillis(),
         )
         mailboxes.getOrPut(to) { mutableListOf() }.add(msg)
@@ -44,9 +45,9 @@ object AgentMailbox {
 
     /** 广播：发给所有收件箱（除了自己） */
     @Synchronized
-    fun broadcast(from: String, message: String, summary: String? = null, type: MailMessageType = MailMessageType.TEXT) {
+    fun broadcast(from: String, message: String, summary: String? = null, type: MailMessageType = MailMessageType.TEXT, requestId: String? = null) {
         mailboxes.keys.filter { it != from }.forEach { to ->
-            send(to, from, message, summary, type)
+            send(to, from, message, summary, type, requestId)
         }
     }
 }
@@ -56,6 +57,7 @@ data class AgentMailMessage(
     val text: String,
     val summary: String? = null,
     val type: MailMessageType = MailMessageType.TEXT,
+    val requestId: String? = null,
     val timestamp: Long = System.currentTimeMillis(),
 )
 

@@ -24,6 +24,7 @@ data class TeammateState(
     val status: TeammateStatus = TeammateStatus.SPAWNING,
     val prompt: String = "",
     val model: String? = null,
+    val requestId: String? = null,
     val result: String? = null,
     val error: String? = null,
     val isIdle: Boolean = false,

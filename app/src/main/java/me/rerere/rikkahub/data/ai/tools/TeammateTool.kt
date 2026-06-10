@@ -66,10 +66,12 @@ fun createTeammateTools(teammateRunner: TeammateRunner): List<Tool> = listOf(
                 error("Maximum 3 concurrent teammates reached. Wait for one to finish or kill one first.")
             }
 
+            val requestId = java.util.UUID.randomUUID().toString().take(8)
             val agentId = teammateRunner.spawn(
                 name = name,
                 prompt = prompt,
                 model = model,
+                requestId = requestId,
             )
 
             listOf(UIMessagePart.Text(buildJsonObject {
@@ -78,6 +80,7 @@ fun createTeammateTools(teammateRunner: TeammateRunner): List<Tool> = listOf(
                 put("status", "running")
                 put("message", "Teammate '$name' started")
                 put("prompt", prompt.take(100))
+                put("request_id", requestId)
             }.toString()))
         },
     ),
@@ -105,6 +108,7 @@ fun createTeammateTools(teammateRunner: TeammateRunner): List<Tool> = listOf(
                             put("is_idle", state.isIdle)
                             state.error?.let { put("error", it) }
                             state.result?.let { put("result", it.take(200)) }
+                            state.requestId?.let { put("request_id", it) }
                             put("tool_use_count", state.toolUseCount)
                             put("token_count", state.tokenCount)
                         })
