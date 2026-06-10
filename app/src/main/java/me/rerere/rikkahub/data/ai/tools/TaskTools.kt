@@ -456,7 +456,7 @@ fun createTaskTools(): List<Tool> = buildList {
             }
         },
     ),
-    )
+    ))
     // s14: cron 调度工具
     addAll(buildCronTools())
 
