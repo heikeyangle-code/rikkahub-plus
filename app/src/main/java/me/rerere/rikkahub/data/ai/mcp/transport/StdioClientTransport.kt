@@ -11,8 +11,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStream
 import java.util.concurrent.TimeUnit
-import kotlin.concurrent.atomics.AtomicBoolean
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "StdioTransport"
 
@@ -25,7 +24,6 @@ private const val TAG = "StdioTransport"
  * - 启动等待改为超时检测，不硬等 500ms
  * - 健康监测：周期检查子进程存活
  */
-@OptIn(ExperimentalAtomicApi::class)
 class StdioClientTransport(
     private val command: String,
     private val args: List<String> = emptyList(),
@@ -93,7 +91,7 @@ class StdioClientTransport(
                     val reader = BufferedReader(InputStreamReader(process!!.inputStream, "UTF-8"))
                     var line: String?
                     while (reader.readLine().also { line = it } != null) {
-                        if (closed.value) break
+                        if (closed.get()) break
                         if (line!!.isNotBlank()) {
                             try {
                                 val message = McpJson.decodeFromString<JSONRPCMessage>(line!!)
@@ -106,13 +104,13 @@ class StdioClientTransport(
                         }
                     }
                     // 子进程 stdout 关闭 → 进程已退出
-                    if (!closed.value) {
+                    if (!closed.get()) {
                         val exitCode = process?.waitFor() ?: -1
                         Log.w(TAG, "Process exited with code=$exitCode")
                         _onError(RuntimeException("MCP server process exited (code=$exitCode)"))
                     }
                 } catch (e: Exception) {
-                    if (!closed.value) {
+                    if (!closed.get()) {
                         _onError(RuntimeException("Stdio read failed: ${e.message}"))
                     }
                 }
@@ -178,7 +176,7 @@ class StdioClientTransport(
     }
 
     override suspend fun close() {
-        closed.value = true
+        closed.set(true)
         withContext(Dispatchers.IO) {
             try {
                 outputWriter?.close()

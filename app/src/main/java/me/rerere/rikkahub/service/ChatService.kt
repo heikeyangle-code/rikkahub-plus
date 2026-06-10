@@ -1085,7 +1085,8 @@ class ChatService(
 
                                     if (runInBackground) {
                                         // 注册通知监听器：后台Agent完成时写入对话消息
-                                        val bgListener: (AgentNotification) -> Unit = { notification ->
+                                        lateinit var bgListener: (AgentNotification) -> Unit
+                                        bgListener = { notification ->
                                             if (notification.agentId == agentCallId) {
                                                 appScope.launch {
                                                     try {
