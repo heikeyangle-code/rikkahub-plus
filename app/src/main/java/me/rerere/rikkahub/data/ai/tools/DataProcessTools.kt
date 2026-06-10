@@ -11,7 +11,8 @@ import me.rerere.ai.ui.UIMessagePart
  */
 fun createDataProcessTool(): Tool = Tool(
     name = "data_process",
-    description = "Process and transform text data.\n\n" +
+    description = "Process and transform text data — JSON, Base64, tokens, and diffs.\n\n" +
+        "Use this tool for quick text transformations without writing a full script.\n\n" +
         "When to use:\n" +
         "- json_format: Pretty-print or compress JSON\n" +
         "- json_validate: Check if text is valid JSON\n" +

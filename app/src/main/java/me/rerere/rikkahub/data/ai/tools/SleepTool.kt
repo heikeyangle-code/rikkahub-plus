@@ -15,7 +15,8 @@ import me.rerere.ai.ui.UIMessagePart
  */
 fun createSleepTool(): Tool = Tool(
     name = "sleep",
-    description = "Pause execution for a specified duration.\n\n" +
+    description = "Pause execution for a specified duration to wait for an external process.\n\n" +
+        "Use this tool sparingly — prefer parallel execution or background tasks over blind waits.\n\n" +
         "When to use:\n" +
         "- Wait for an external process to complete before proceeding\n\n" +
         "When NOT to use:\n" +

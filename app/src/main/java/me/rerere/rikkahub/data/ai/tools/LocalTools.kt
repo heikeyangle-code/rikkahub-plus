@@ -124,6 +124,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         Tool(
             name = "eval_javascript",
             description = "Execute JavaScript code using QuickJS engine (ES2020).\n\n" +
+                "Use this tool to run JavaScript for calculations, text processing, or prototyping. 15s timeout, no DOM or network APIs.\n\n" +
                 "When to use:\n" +
                 "- Run JavaScript for calculations, text processing, or prototyping\n" +
                 "- Test JS snippets without a browser\n\n" +
@@ -187,10 +188,8 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val timeTool by lazy {
         Tool(
             name = "get_time_info",
-            description = "Get the current local date and time info from the device.\n\n" +
-                "When to use:\n" +
-                "- Get current date/time with timezone and UTC offset\n" +
-                "- Need timestamp, weekday, or ISO date strings\n\n" +
+            description = "Get the current local date and time from the device, including timezone and UTC offset.\n\n" +
+                "Use this tool when you need the current timestamp, weekday, or ISO date strings.\n\n" +
                 "Args: (none)",
             parameters = {
                 InputSchema.Obj(
@@ -225,6 +224,8 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         Tool(
             name = "clipboard_tool",
             description = "Read or write plain text from the device clipboard.\n\n" +
+                "Use this tool to read clipboard content for reference, or write text after the user requests it.\n" +
+                "Do NOT write to clipboard without explicit user request.\n\n" +
                 "When to use:\n" +
                 "- Read clipboard content to use in a response\n" +
                 "- Write text to clipboard after user request\n\n" +
@@ -286,6 +287,8 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         Tool(
             name = "text_to_speech",
             description = "Speak text aloud using the device's text-to-speech engine.\n\n" +
+                "Use this tool to read stories, messages, or notifications aloud.\n" +
+                "Audio plays on the device in background; tool returns immediately.\n\n" +
                 "When to use:\n" +
                 "- Read text aloud to the user (stories, messages, notifications)\n" +
                 "- Audio plays on the device in background; tool returns immediately\n\n" +
@@ -317,7 +320,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val askUserTool by lazy {
         Tool(
             name = "ask_user",
-            description = "Ask the user one or more questions.\n\n" +
+            description = "Ask the user one or more questions when you need clarification or a decision.\n\n" +
+                "Use this tool for ambiguous requests or when multiple valid approaches exist.\n" +
+                "Do NOT use for destructive op confirmation (tool system handles that automatically).\n\n" +
                 "When to use:\n" +
                 "- Need clarification from the user on ambiguous requests\n" +
                 "- Presenting yes/no or multiple-choice options\n\n" +
@@ -389,7 +394,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val presentFileTool by lazy {
         Tool(
             name = "present_file",
-            description = "Show a file to the user via the system share sheet.\n\n" +
+            description = "Show a file to the user via the system share sheet for saving, sending, or opening with another app.\n\n" +
+                "Use this tool to present screenshots, documents, or exported data.\n" +
+                "Opens the system share sheet so the user can choose how to handle the file.\n\n" +
                 "When to use:\n" +
                 "- Present a file for saving, sending, or opening with another app\n" +
                 "- Share screenshots, documents, or exported data\n\n" +

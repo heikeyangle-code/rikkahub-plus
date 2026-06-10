@@ -80,6 +80,8 @@ fun createShellTools(shellTimeoutSec: Int = 120): List<Tool> {
             description = buildString {
                 appendLine("Execute shell commands on the Android device.")
                 appendLine()
+                appendLine("Use this tool for git operations, Android diagnostics (logcat, pm, dumpsys, am), build scripts, and any operation without a dedicated tool.")
+                appendLine()
                 appendLine("When to use:")
                 appendLine("- git operations")
                 appendLine("- Android diagnostics: logcat -d, pm, dumpsys, am")

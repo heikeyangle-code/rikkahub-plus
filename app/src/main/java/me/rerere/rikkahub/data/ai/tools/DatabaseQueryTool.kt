@@ -9,7 +9,8 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 
 fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
     name = "database_query",
-    description = "Query the Rikkahub local database (SQLite, read-only).\n\n" +
+    description = "Query the Rikkahub local SQLite database (read-only access).\n\n" +
+        "Use this tool to inspect the app's internal data — configuration, conversations, messages, and settings.\n\n" +
         "When to use:\n" +
         "- list_tables: Show all database tables\n" +
         "- schema: View table column definitions\n" +

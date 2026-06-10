@@ -16,7 +16,7 @@ import java.io.File
 fun createAssetTool(saveDir: String): Tool = Tool(
     name = "create_asset",
     description = "Generate visual content saved as a file on the device.\n\n" +
-        "When to use:\n" +
+        "Use this tool when you need to create visual content:\n" +
         "- html_page: Full HTML page with CSS/JS — web design, slides, dashboards\n" +
         "- diagram: Flowchart/sequence diagram as Mermaid HTML\n" +
         "- chart: SVG bar/line/pie chart from numeric data\n" +

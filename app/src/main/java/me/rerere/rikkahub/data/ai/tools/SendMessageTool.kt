@@ -25,7 +25,10 @@ import me.rerere.rikkahub.data.ai.team.KanbanTask
 fun createSendMessageTool(): Tool = Tool(
     name = "send_message",
     description = buildString {
-        appendLine("Send a message to another agent.")
+        appendLine("Send a message to another agent (teammate) working in the background.")
+        appendLine()
+        appendLine("Use this tool to communicate with teammate agents — assign tasks, share findings, or give instructions.")
+        appendLine("Your plain text output is NOT visible to other agents; you MUST call this tool to communicate.")
         appendLine()
         appendLine("When to use:")
         appendLine("- Communicate with teammate agents working in background")
@@ -40,10 +43,10 @@ fun createSendMessageTool(): Tool = Tool(
         appendLine("- message: Text content or structured JSON (for protocol messages)")
         appendLine("- summary: Optional short summary for display")
         appendLine()
-        appendLine("Your plain text output is NOT visible to other agents — to communicate, you MUST call this tool.")
-        appendLine("Messages from teammates are delivered via get_teammate_messages tool.")
-        appendLine("Refer to teammates by name, never by UUID.")
-        appendLine("For structured protocol messages: use type=shutdown_request / plan_request")
+        appendLine("Notes:")
+        appendLine("- Messages from teammates are delivered via get_teammate_messages tool")
+        appendLine("- Refer to teammates by name, never by UUID")
+        appendLine("- For structured protocol messages: use type=shutdown_request / plan_request")
     },
     permissionMode = PermissionMode.DANGER_FULL_ACCESS,
     parameters = {

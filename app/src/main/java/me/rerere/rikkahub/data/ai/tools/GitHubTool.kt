@@ -86,6 +86,7 @@ private fun ghDescribe(url: String): String {
 fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, enableAutoFixCi: Boolean = false): Tool = Tool(
     name = "github_tool",
     description = "Interact with GitHub REST API: repos, issues, PRs, CI/CD, files, and more.\\n\\n" +
+        "Use this tool for all GitHub operations — from searching code to managing PRs and CI.\\n\\n" +
         "When to use:\\n" +
         "- Search code, repos, issues, users, or commits\\n" +
         "- Manage repos: create, update, fork, delete, topics, labels, milestones\\n" +

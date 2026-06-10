@@ -25,13 +25,13 @@ import java.io.FileOutputStream
 fun createConvertFileTool(context: Context): Tool = Tool(
     name = "convert_file",
     description = "Convert files between supported formats.\n\n" +
-        "When to use:\n" +
-        "- Convert text formats: txt, md, html, docx (bidirectional)\n" +
+        "Use this tool when you need to transform a file from one format to another.\n\n" +
+        "Supported conversions:\n" +
+        "- Text formats: txt, md, html, docx (bidirectional)\n" +
         "- Extract text from PDF, DOCX, PPTX, EPUB\n" +
-        "- Convert spreadsheets: xlsx, csv, json (bidirectional)\n" +
-        "- Convert images: png, jpg, webp, bmp, gif (bidirectional)\n" +
-        "- Generate PDF from txt/md/images\n" +
-        "- Merge or split PDF files\n" +
+        "- Spreadsheets: xlsx, csv, json (bidirectional)\n" +
+        "- Images: png, jpg, webp, bmp, gif (bidirectional)\n" +
+        "- Generate PDF from txt/md/images; merge or split PDF files\n" +
         "- Fetch URL and convert to markdown\n\n" +
         "When NOT to use:\n" +
         "- Reading file content (use file action=\"read\")\n" +

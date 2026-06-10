@@ -58,6 +58,8 @@ fun createFileTools(workspaceDir: String = "/storage/emulated/0/Download", skill
             description = buildString {
                 appendLine("File operations: read, write, patch, list, search, copy, move, mkdir, delete.")
                 appendLine()
+                appendLine("Use this tool for all file system operations — reading code, writing files, searching content, and managing directories.")
+                appendLine()
                 appendLine("When to use:")
                 appendLine("- Read file contents with optional offset/limit pagination")
                 appendLine("- Write or overwrite files with text content")

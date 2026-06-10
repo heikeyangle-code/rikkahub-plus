@@ -26,6 +26,7 @@ import java.io.File
 fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
     name = "execute_python",
     description = "Execute Python code for data processing, API calls, or file generation.\n\n" +
+        "Use this tool when you need programmatic logic — loops, conditionals, API integration — that goes beyond simple math.\n\n" +
         "When to use:\n" +
         "- Data processing and transformation (CSV, JSON)\n" +
         "- API calls to external services\n" +

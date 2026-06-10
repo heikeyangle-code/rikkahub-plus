@@ -24,7 +24,8 @@ fun createSkillTools(
     return listOf(
         Tool(
             name = "use_skill",
-            description = "Load a skill by name to access specialized knowledge and workflows.\n\n" +
+            description = "Load a skill by name to access specialized knowledge, commands, and workflows.\n\n" +
+                "Use this tool before starting a task that matches a skill's domain — it contains API endpoints, tool commands, and proven approaches.\n\n" +
                 "When to use:\n" +
                 "- A task matches a skill's description or triggers\n" +
                 "- You need domain-specific guidance\n" +

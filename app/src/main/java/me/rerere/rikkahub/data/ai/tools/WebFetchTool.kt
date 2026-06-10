@@ -20,7 +20,8 @@ import java.net.URL
  */
 fun createWebFetchTool(): Tool = Tool(
     name = "web_fetch",
-    description = "Fetch content from a URL and return as plain text.\n\n" +
+    description = "Fetch content from a URL and return it as plain text.\n\n" +
+        "Use this tool to read documentation, articles, API responses, or any web page content.\n\n" +
         "When to use:\n" +
         "- Read documentation, articles, or API responses from a URL\n" +
         "- Check web page content referenced in search results\n\n" +

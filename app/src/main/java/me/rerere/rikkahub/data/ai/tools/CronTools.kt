@@ -15,7 +15,8 @@ import me.rerere.rikkahub.data.ai.scheduler.CronScheduler
 fun buildCronTools(): List<Tool> = listOf(
     Tool(
         name = "schedule_cron",
-        description = "Schedule a periodic or one-shot cron job.\n\n" +
+        description = "Schedule periodic or one-shot cron jobs that run autonomously.\n\n" +
+                "Use this tool when you need tasks to run on a schedule without your involvement — daily reports, monitoring, reminders, or delayed one-shot actions.\n\n" +
                 "When to use:\n" +
                 "- Set up recurring tasks: daily reports, monitoring, reminders\n" +
                 "- Schedule one-shot delayed actions\n\n" +

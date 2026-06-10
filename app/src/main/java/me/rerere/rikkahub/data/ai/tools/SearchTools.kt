@@ -21,7 +21,8 @@ fun createSearchTools(settings: Settings): Set<Tool> {
         add(
             Tool(
                 name = "search_web",
-                                description = "Search the web for up-to-date information.\n\n" +
+                                description = "Search the web for up-to-date information from current events and online sources.\n\n" +
+                                    "Use this tool when you need information beyond your training data — recent news, live data, or research across multiple sources.\n\n" +
                                     "When to use:\n" +
                                     "- Current events, recent data, or information beyond your knowledge cutoff\n" +
                                     "- Research topics requiring multiple sources\n\n" +

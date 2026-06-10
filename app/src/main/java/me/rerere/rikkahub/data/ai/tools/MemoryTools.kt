@@ -25,7 +25,8 @@ fun buildMemoryTools(
 ): List<Tool> = listOf(
     Tool(
         name = "memory_tool",
-        description = "Store and retrieve long-term memories across conversations.\n\n" +
+        description = "Store and retrieve long-term memories that persist across conversations.\n\n" +
+            "Use this tool to remember user preferences, project conventions, and important facts between sessions.\n\n" +
             "When to use:\n" +
             "- Save: User preferences, decisions, project conventions, important facts\n" +
             "- Read: Recall context before starting a new task\n" +
