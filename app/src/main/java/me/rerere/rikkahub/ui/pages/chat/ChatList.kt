@@ -237,11 +237,18 @@ private fun ChatListNormal(
         }
     }
 
+    // contentPadding 量化：减少键盘动画期间 LazyColumn 重布局次数
+    val rawBottomPadding = innerPadding.calculateBottomPadding()
+    val quantizedBottomPadding = with(density) {
+        val px = rawBottomPadding.toPx()
+        (px.roundToInt() / 100 * 100).coerceAtLeast(0).toDp()
+    }
+    val quantizedBottomPaddingPx = with(density) { quantizedBottomPadding.toPx() }
+
     fun List<LazyListItemInfo>.isAtBottom(): Boolean {
         val lastItem = lastOrNull() ?: return false
-        val inputBarHeight = with(density) { innerPadding.calculateBottomPadding().toPx() }
         val lastPos = lastItem.offset + lastItem.size
-        val inputPos = (state.layoutInfo.viewportEndOffset - inputBarHeight.roundToInt())
+        val inputPos = (state.layoutInfo.viewportEndOffset - quantizedBottomPaddingPx.roundToInt())
         // println("lastPos = $lastPos, inputPos = $inputPos  | ${lastPos <= inputPos - 8}")
         return lastPos <= inputPos - 8
     }
@@ -303,13 +310,6 @@ private fun ChatListNormal(
                 delay(1500)
                 isRecentScroll = false
             }
-        }
-
-        // contentPadding 量化：减少键盘动画期间 LazyColumn 重布局次数
-        val rawBottomPadding = innerPadding.calculateBottomPadding()
-        val quantizedBottomPadding = with(density) {
-            val px = rawBottomPadding.toPx()
-            (px.roundToInt() / 100 * 100).coerceAtLeast(0).toDp()
         }
 
         ChatFontProvider(displaySetting = settings.displaySetting) {
