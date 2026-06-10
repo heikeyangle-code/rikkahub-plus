@@ -911,6 +911,10 @@ class ChatService(
                                                 put("type", "string")
                                                 put("description", "Optional name for the agent for display.")
                                             })
+                                            put("inherit_context", buildJsonObject {
+                                                put("type", "boolean")
+                                                put("description", "Set to false to give the agent a clean context with only the goal. Default: true (include system prompt, memory, and context).")
+                                            })
                                         },
                                         required = listOf("goal"),
                                     )
@@ -924,6 +928,7 @@ class ChatService(
                                     val modelOverride = obj["model"]?.jsonPrimitive?.contentOrNull
                                     val runInBackground = obj["run_in_background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
                                     val agentName = obj["name"]?.jsonPrimitive?.contentOrNull
+                                    val inheritContext = obj["inherit_context"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
 
                                     // Load agent definition
                                     val agentDef = AgentRegistry.get(agentType)
@@ -1031,30 +1036,36 @@ class ChatService(
 
                                     // Build prompt with agent system prompt and memory
                                     val prompt = buildString {
-                                        if (resolvedSysPrompt.isNotBlank()) {
-                                            appendLine(resolvedSysPrompt)
-                                            appendLine()
-                                        }
-                                        // Agent initialPrompt: 每次执行附加的首条消息
-                                        agentDef?.initialPrompt?.let {
-                                            if (it.isNotBlank()) {
-                                                appendLine(it)
+                                        if (inheritContext) {
+                                            if (resolvedSysPrompt.isNotBlank()) {
+                                                appendLine(resolvedSysPrompt)
+                                                appendLine()
+                                            }
+                                            // Agent initialPrompt: 每次执行附加的首条消息
+                                            agentDef?.initialPrompt?.let {
+                                                if (it.isNotBlank()) {
+                                                    appendLine(it)
+                                                    appendLine()
+                                                }
+                                            }
+                                            // Load agent memory via AgentMemoryManager
+                                            val memoryPrompt = agentDef?.let { def ->
+                                                kotlinx.coroutines.runBlocking {
+                                                    AgentMemoryManager(memoryRepository).loadMemoryPrompt(def)
+                                                }
+                                            } ?: ""
+                                            if (memoryPrompt.isNotBlank()) {
+                                                appendLine(memoryPrompt)
                                                 appendLine()
                                             }
                                         }
-                                        // Load agent memory via AgentMemoryManager
-                                        val memoryPrompt = agentDef?.let { def ->
-                                            kotlinx.coroutines.runBlocking {
-                                                AgentMemoryManager(memoryRepository).loadMemoryPrompt(def)
-                                            }
-                                        } ?: ""
-                                        if (memoryPrompt.isNotBlank()) {
-                                            appendLine(memoryPrompt)
-                                            appendLine()
-                                        }
                                         appendLine("Goal: $goal")
+                                        // inherit_context=false 时提示无上下文
+                                        if (!inheritContext) {
+                                            appendLine("Note: You have no prior context. Focus only on the goal above.")
+                                        }
                                         // omitProjectContext: 跳过项目上下文
-                                        if (!(agentDef?.omitProjectContext == true)) {
+                                        if (inheritContext && !(agentDef?.omitProjectContext == true)) {
                                             if (toolContext.isNotBlank()) {
                                                 appendLine()
                                                 appendLine("Context: $toolContext")
@@ -1070,7 +1081,7 @@ class ChatService(
                                         }
                                         // permissionMode: 权限模式提示
                                         agentDef?.permissionMode?.let {
-                                            if (it.isNotBlank()) {
+                                            if (inheritContext && it.isNotBlank()) {
                                                 appendLine()
                                                 appendLine("Permission mode: $it")
                                             }
