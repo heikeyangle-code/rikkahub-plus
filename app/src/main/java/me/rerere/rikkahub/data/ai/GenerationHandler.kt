@@ -95,7 +95,7 @@ class GenerationHandler(
         name.startsWith("github_") -> "🔧 GitHub → 正在操作..."
         name.startsWith("execute_python") -> "🔧 Python → 正在执行代码..."
         name.startsWith("execute_command") -> "🔧 Shell → 正在执行命令..."
-        name.startsWith("file_") -> "🔧 文件 → 正在操作..."
+        name == "file" -> "🔧 文件 → 正在操作..."
         name.startsWith("data_process") -> "🔧 数据 → 正在处理..."
         name.startsWith("database_") -> "🔧 数据库 → 正在查询..."
         name.startsWith("search_web") || name.startsWith("scrape_") -> "🔧 搜索 → 正在搜索..."
@@ -151,12 +151,12 @@ class GenerationHandler(
                 appendLine("- Need a file? → Use file tools. Do NOT use shell (cat/grep/ls) when a dedicated tool exists.")
                 appendLine()
                 appendLine("File operations:")
-                appendLine("- Read files → use file_read (supports line numbers, offset, image preview). Do NOT use cat/head.")
-                appendLine("- Search files → use file_search (by name or content). Do NOT use grep/find.")
-                appendLine("- List directories → use file_list. Do NOT use ls.")
-                appendLine("- Write files → use file_write. Do NOT use echo/heredoc.")
-                appendLine("- Copy/move/delete → use file_copy / file_move / file_delete.")
-                appendLine("- Edit files → there is no dedicated edit tool, shell sed is acceptable.")
+                appendLine("- Read files → use file action=\"read\" (supports line numbers, offset, image preview). Do NOT use cat/head.")
+                appendLine("- Search files → use file action=\"search\" (by name or content). Do NOT use grep/find.")
+                appendLine("- List directories → use file action=\"list\". Do NOT use ls.")
+                appendLine("- Write files → use file action=\"write\". Do NOT use echo/heredoc.")
+                appendLine("- Copy/move/delete → use file action=\"copy\"/\"move\"/\"delete\".")
+                appendLine("- Edit files → use file action=\"patch\" for surgical find-and-replace. Do NOT use sed.")
                 appendLine("- Reserve execute_command for: git, builds, installs, and operations without a dedicated tool.")
                 appendLine("- Do NOT list or search the filesystem proactively. Only access files when the task explicitly requires it.")
                 appendLine()
