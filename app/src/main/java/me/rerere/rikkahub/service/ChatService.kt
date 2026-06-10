@@ -861,7 +861,7 @@ class ChatService(
                                     appendLine()
                                     appendLine("When NOT to use sub_agent:")
                                     appendLine("- If you can do it directly with your own tools (read, search, write)")
-                                    appendLine("- If you need to read a specific file, use file_read instead")
+                                    appendLine("- If you need to read a specific file, use file action=\"read\" instead")
                                     appendLine("- The agent result is returned to you — you must relay it to the user")
                                     appendLine()
                                     appendLine("Usage notes:")
@@ -1205,11 +1205,11 @@ class ChatService(
                                         })
                                         put("tools", buildJsonObject {
                                             put("type", "string")
-                                            put("description", "Comma-separated tool allowlist. Default: all tools. Example: file_read, file_search, web_search")
+                                            put("description", "Comma-separated tool allowlist. Default: all tools. Example: file, web_search, github_tool")
                                         })
                                         put("disallowed_tools", buildJsonObject {
                                             put("type", "string")
-                                            put("description", "Comma-separated tools to forbid. Example: file_write, execute_command")
+                                            put("description", "Comma-separated tools to forbid. Example: file, github_tool")
                                         })
                                         put("color", buildJsonObject {
                                             put("type", "string")
