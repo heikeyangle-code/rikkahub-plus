@@ -33,7 +33,7 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                                     "- query: Search keywords. Generate focused queries, run multiple searches if needed.\n\n" +
                                     "CRITICAL: After using search results, you MUST include a \"Sources:\" section.\n" +
                                     "Format: [citation,domain](id) after each cited sentence.\n" +
-                                    "Today is ${LocalDate.now().toLocalString(true)}." +
+                                    "Today is ${LocalDate.now().toLocalString(true)}.",
                 parameters = {
                     val options = settings.searchServices.getOrElse(
                         index = settings.searchServiceSelected,
