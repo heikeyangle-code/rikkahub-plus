@@ -44,7 +44,7 @@ object SystemPromptAssembler {
 
         // Conditional: workspace
         if (context.workspaceDescription.isNotBlank()) {
-            sections.add(context.workspaceDescription)
+            sections.add("<workspace>\n${context.workspaceDescription}\n</workspace>")
         }
 
         // Conditional: memory
@@ -52,17 +52,17 @@ object SystemPromptAssembler {
             val memoryText = context.memories.joinToString("\n") { memory ->
                 "- ${memory.id}: ${memory.content.take(200)}"
             }
-            sections.add("Relevant knowledge:\n$memoryText")
+            sections.add("<memory>\n$memoryText\n</memory>")
         }
 
         // Conditional: active plan
         if (context.activePlanSummary.isNotBlank()) {
-            sections.add(context.activePlanSummary)
+            sections.add("<active_plan>\n${context.activePlanSummary}\n</active_plan>")
         }
 
         // Conditional: session state (对标 BriefTool 可见性控制)
         if (context.sessionState.isNotBlank()) {
-            sections.add(context.sessionState)
+            sections.add("<session_state>\n${context.sessionState}\n</session_state>")
         }
 
         // Conditional: extra instructions
@@ -96,7 +96,7 @@ object SystemPromptAssembler {
  */
 data class PromptContext(
     /** Agent 身份描述 */
-    val identitySection: String = "You are an AI agent running in Rikkahub on Android. Be concise and act directly — don't describe what you will do, just do it.",
+    val identitySection: String = "<identity>\nYou are an AI agent running in Rikkahub on Android.\nYou help the user with coding, research, and automation.\nAct immediately — do not describe what you will do.\nKeep responses in the same language as the user.\n</identity>",
 
     /** Lead-in 行为指引（对标 Claude Code behavior guidelines） */
     val leadInInstructions: String = "",
