@@ -191,6 +191,14 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     put("type", "string")
                     put("description", "File path in repo")
                 })
+                put("search", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Text to find. When set with 'replace', does surgical search/replace instead of full content overwrite. Use for small changes — only the matched text is replaced, rest of file stays intact. Preferred over full 'content' for large files.")
+                })
+                put("replace", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Replacement text. Used with 'search' to do surgical edits. Empty string = delete matched text.")
+                })
                 put("repo_path", buildJsonObject {
                     put("type", "string")
                     put("description", "File path in GitHub repo (for diff_local_with_github). Defaults to same as local path.")
