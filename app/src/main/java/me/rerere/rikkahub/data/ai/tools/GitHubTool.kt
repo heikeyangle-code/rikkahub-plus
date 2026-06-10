@@ -1402,10 +1402,36 @@ fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, ena
                     put("branch", branch)
                     if (fileSha != null) put("sha", fileSha)
                 }.toString()
-                val result = gh("PUT", "https://api.github.com/repos/$fullRepo/contents/${encode(path)}", payload)
-                val o = try { parseJSON(result) } catch (_: Exception) { null }
-                val sha = (o?.get("commit") as? JsonObject)?.get("sha")?.jsonPrimitive?.contentOrNull?.take(8) ?: ""
-                "已提交 $path: $sha"
+                val contentBytes = content.toByteArray()
+                if (contentBytes.size > 1_000_000) {
+                    // 超过 1MB，自动降级到 Git Data API
+                    val b64 = java.util.Base64.getEncoder().encodeToString(contentBytes)
+                    val blob = gh("POST", "https://api.github.com/repos/$fullRepo/git/blobs",
+                        """{"content":"$b64","encoding":"base64"}""")
+                    val blobSha = parseJSON(blob)["sha"]?.jsonPrimitive?.contentOrNull ?: error("blob creation failed")
+                    val refData = gh("https://api.github.com/repos/$fullRepo/git/ref/heads/$branch")
+                    val refCommitSha = parseJSON(refData).safeObj("object")?.get("sha")?.jsonPrimitive?.contentOrNull
+                        ?: error("Cannot get branch ref")
+                    val refCommitData = gh("https://api.github.com/repos/$fullRepo/git/commits/$refCommitSha")
+                    val baseTreeSha = parseJSON(refCommitData).safeObj("tree")?.get("sha")?.jsonPrimitive?.contentOrNull
+                        ?: error("Cannot get tree SHA")
+                    val treeItems = """{"path":"${encode(path)}","mode":"100644","type":"blob","sha":"$blobSha"}"""
+                    val newTree = gh("POST", "https://api.github.com/repos/$fullRepo/git/trees",
+                        """{"base_tree":"$baseTreeSha","tree":[$treeItems]}""")
+                    val newTreeSha = parseJSON(newTree)["sha"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val safeMsg = message.replace("\\", "\\\\").replace("\"", "\\\"")
+                    val newCommit = gh("POST", "https://api.github.com/repos/$fullRepo/git/commits",
+                        """{"message":"$safeMsg","tree":"$newTreeSha","parents":["$refCommitSha"]}""")
+                    val newCommitSha = parseJSON(newCommit)["sha"]?.jsonPrimitive?.contentOrNull ?: ""
+                    gh("PATCH", "https://api.github.com/repos/$fullRepo/git/refs/heads/$branch",
+                        """{"sha":"$newCommitSha","force":false}""")
+                    "已提交 $path (${contentBytes.size} bytes, Git Data API): ${newCommitSha.take(8)}"
+                } else {
+                    val result = gh("PUT", "https://api.github.com/repos/$fullRepo/contents/${encode(path)}", payload)
+                    val o = try { parseJSON(result) } catch (_: Exception) { null }
+                    val sha = (o?.get("commit") as? JsonObject)?.get("sha")?.jsonPrimitive?.contentOrNull?.take(8) ?: ""
+                    "已提交 $path: $sha"
+                }
             }
             "commit_files" -> {
                 val filesStr = obj["files"]?.jsonPrimitive?.contentOrNull ?: error("files required (JSON array)")
