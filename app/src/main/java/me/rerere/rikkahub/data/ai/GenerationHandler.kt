@@ -512,21 +512,12 @@ class GenerationHandler(
             val systemMsg = fullSystem.ifBlank { null }
             if (systemMsg != null) add(UIMessage.system(prompt = systemMsg))
 
-            // ── s10: 动态内容通过 <system-reminder> UserMessage 注入 ──
-            // 对标 Claude Code getUserContext(): CLAUDE.md + currentDate 作为 <system-reminder> 前置用户消息
-            // 这样做 system prompt 保持静态，最大化 LLM prefix caching
-            if (assistant.enableMemory && memories.isNotEmpty()) {
-                val reminder = buildString {
-                    appendLine("<system-reminder>")
-                    appendLine("<memory>")
-                    memories.forEach { memory ->
-                        appendLine("- ${memory.id}: ${memory.content.take(200)}")
-                    }
-                    appendLine("</memory>")
-                    appendLine("<current_date>${java.time.LocalDate.now()}</current_date>")
-                    appendLine("</system-reminder>")
-                }
-                add(UIMessage.user(prompt = reminder))
+            // ── s10: getUserContext — 用户上下文通过 <system-reminder> UserMessage 注入 ──
+            // 对标 Claude Code context.ts → prependUserContext()
+            // getUserContext 返回 { claudeMd, currentDate }，此处映射为 memories + currentDate
+            val userContext = buildUserContext(memories, assistant, settings)
+            if (userContext.isNotBlank()) {
+                add(UIMessage.user(prompt = userContext))
             }
 
             addAll(messages.limitContext(assistant.contextMessageSize))
@@ -864,4 +855,70 @@ private fun addToolResult(
                 )
             )
         }
+}
+
+/**
+ * ── s10: getUserContext ──
+ * 对标 Claude Code context.ts → getUserContext() → prependUserContext()
+ *
+ * CC 源码 (context.ts):
+ *   getUserContext = memoize(async (): Promise<{claudeMd, currentDate}> => {
+ *     const claudeMd = getClaudeMds(filterInjectedMemoryFiles(await getMemoryFiles()))
+ *     return { ...(claudeMd && { claudeMd }), currentDate: "Today's date is ..." }
+ *   })
+ *
+ * CC 源码 (api.ts → prependUserContext):
+ *   createUserMessage({
+ *     content: `<system-reminder>\nAs you answer the user's questions, you can use the following context:\n${
+ *       Object.entries(context).map(([key, value]) => `# ${key}\n${value}`).join('\n')
+ *     }\n\nIMPORTANT: this context may or may not be relevant...\n</system-reminder>\n`,
+ *     isMeta: true,
+ *   })
+ *
+ * 记忆：整轮对话缓存（memoize），仅当记忆列表变化时重建
+ */
+private var _lastUserContextKey: String? = null
+private var _lastUserContext: String? = null
+
+private fun buildUserContext(
+    memories: List<AssistantMemory>,
+    assistant: Assistant,
+    settings: Settings,
+): String {
+    val contextMap = linkedMapOf<String, String>()
+
+    // 对标 CC getUserContext: claudeMd (CLAUDE.md content)
+    if (assistant.enableMemory && memories.isNotEmpty()) {
+        val memoryText = memories.joinToString("\n") { memory ->
+            "- ${memory.content.take(200)}"
+        }
+        contextMap["memories"] = memoryText
+    }
+
+    // 对标 CC getUserContext: currentDate
+    contextMap["currentDate"] = "Today's date is ${java.time.LocalDate.now()}."
+
+    if (contextMap.isEmpty()) return ""
+
+    // Memoize: 当 contextMap 内容不变时复用
+    val key = contextMap.entries.joinToString("|") { "${it.key}=${it.value}" }
+    if (key == _lastUserContextKey && _lastUserContext != null) {
+        return _lastUserContext!!
+    }
+
+    val result = buildString {
+        appendLine("<system-reminder>")
+        appendLine("As you answer the user's questions, you can use the following context:")
+        contextMap.forEach { (key, value) ->
+            appendLine("# $key")
+            appendLine(value)
+        }
+        appendLine()
+        appendLine("IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.")
+        append("</system-reminder>")
+    }
+
+    _lastUserContextKey = key
+    _lastUserContext = result
+    return result
 }
