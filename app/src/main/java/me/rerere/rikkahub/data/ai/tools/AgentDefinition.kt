@@ -151,25 +151,49 @@ data class AgentDefinition(
  */
 /**
  * 所有 Agent 通用禁用工具。
- * 对齐 CC 的 ALL_AGENT_DISALLOWED_TOOLS。
- * 子 Agent 绝对不能拥有的工具（防递归/死锁）。
+ * 对齐 CC 的 ALL_AGENT_DISALLOWED_TOOLS（constants/tools.ts 第 38-48 行）。
+ * 子 Agent 绝对不能拥有的工具（防递归/死锁/跨 Agent 副作用）。
  */
 val ALL_AGENT_DISALLOWED_TOOLS = setOf(
     "sub_agent",
+    "ask_user",
+)
+
+/**
+ * 自定义 Agent（非 built-in）额外禁用工具。
+ * 对齐 CC 的 CUSTOM_AGENT_DISALLOWED_TOOLS（第 50-52 行）。
+ * 用户创建的 agent 限制更严格，防止滥用系统功能。
+ */
+val CUSTOM_AGENT_DISALLOWED_TOOLS = setOf(
+    "sub_agent",
+    "ask_user",
+    "create_agent",
 )
 
 /**
  * 后台 Agent 允许的工具集。
- * 对齐 CC 的 ASYNC_AGENT_ALLOWED_TOOLS。
- * 后台 agent 只能读/搜/写结果，不能递归调 Agent。
+ * 对齐 CC 的 ASYNC_AGENT_ALLOWED_TOOLS（第 57-73 行）。
+ * 后台 agent 只能读/搜/写结果，不能交互式操作。
  */
 val ASYNC_AGENT_ALLOWED_TOOLS = setOf(
-    "file",
+    "file", "search_files",
     "web_search", "web_fetch",
     "execute_command", "execute_python",
     "sleep",
     "todo_write",
     "task_get", "task_list", "task_create", "task_update", "task_mgmt",
+    "calculator",
+    "use_skill",
+    "memory_tool",
+)
+
+/**
+ * 内联 teammates（异步但有共享终端）额外允许的工具。
+ * 对齐 CC 的 IN_PROCESS_TEAMMATE_ALLOWED_TOOLS（第 79-90 行）。
+ */
+val IN_PROCESS_TEAMMATE_ALLOWED_TOOLS = setOf(
+    "task_create", "task_get", "task_list", "task_update",
+    "send_message",
 )
 
 /**
@@ -187,12 +211,35 @@ val ALL_KNOWN_TOOLS = listOf(
     "send_message",
 )
 
-fun isToolAllowed(agent: AgentDefinition, toolName: String): Boolean {
-    // 底层禁用：所有 agent 都不能递归调 sub_agent
+/**
+ * 五层工具过滤，对齐 CC 的 filterToolsForAgent()（agentToolUtils.ts 第 72-118 行）。
+ *
+ * 过滤层级（优先级从高到低）：
+ * 1. MCP 工具：始终放行（mcp__ 前缀）
+ * 2. 通用禁用：ALL_AGENT_DISALLOWED_TOOLS
+ * 3. 自定义 agent 额外禁用：CUSTOM_AGENT_DISALLOWED_TOOLS（仅在 isBuiltIn=false 时生效）
+ * 4. 后台模式白名单：ASYNC_AGENT_ALLOWED_TOOLS（仅在 isAsync=true 时生效）
+ * 5. Agent 自身黑白名单（tools/disallowedTools）
+ */
+fun isToolAllowed(
+    agent: AgentDefinition,
+    toolName: String,
+    isAsync: Boolean = false,
+): Boolean {
+    // 第 1 层：MCP 工具始终放行（CC 第 85-87 行）
+    if (toolName.startsWith("mcp__")) return true
+
+    // 第 2 层：通用禁用
     if (toolName in ALL_AGENT_DISALLOWED_TOOLS) return false
-    // agent 自身黑名单
+
+    // 第 3 层：自定义 agent 额外禁用
+    if (!agent.isBuiltin && toolName in CUSTOM_AGENT_DISALLOWED_TOOLS) return false
+
+    // 第 4 层：后台模式白名单
+    if (isAsync && toolName !in ASYNC_AGENT_ALLOWED_TOOLS) return false
+
+    // 第 5 层：Agent 自身黑白名单
     if (toolName in agent.disallowedTools) return false
-    // 白名单：* = 全部
     if (agent.tools.contains("*")) return true
     return toolName in agent.tools
 }

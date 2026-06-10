@@ -4,6 +4,13 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.AgentDefinition
 import me.rerere.rikkahub.data.ai.tools.AgentRegistry
+import me.rerere.rikkahub.data.ai.tools.AgentSystemPrompt
+import me.rerere.rikkahub.data.ai.tools.AgentMemoryScope
+import me.rerere.rikkahub.data.ai.tools.isToolAllowed
+import me.rerere.rikkahub.data.ai.tools.isToolAllowedForAsync
+import me.rerere.rikkahub.data.ai.tools.ALL_AGENT_DISALLOWED_TOOLS
+import me.rerere.rikkahub.data.ai.tools.CUSTOM_AGENT_DISALLOWED_TOOLS
+import me.rerere.rikkahub.data.ai.tools.ASYNC_AGENT_ALLOWED_TOOLS
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CompletableDeferred
@@ -15,15 +22,18 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * Agent 执行器，对齐官方 runAgent.ts 的核心逻辑。
+ * Agent 执行器，对齐官方 runAgent.ts（975 行）+ agentToolUtils.ts（688 行）。
  *
- * 职责：
- * - 包裹 AgentContextStore 上下文
- * - 注册 AgentLifecycleManager 生命周期
- * - 启动 AgentSummaryService 摘要
- * - 触发 AgentEventBus 事件
- * - Fork 检测
- * - 执行结果返回
+ * CC 的 runAgent 完整流程：
+ * 1. 初始化 MCP 服务器（initializeAgentMcpServers）
+ * 2. 获取 userContext + systemContext（getUserContext / getSystemContext）
+ * 3. 覆盖权限模式（agentPermissionMode → getAppState）
+ * 4. 解析工具列表（resolveAgentTools / filterToolsForAgent）
+ * 5. 构建 system prompt（getAgentSystemPrompt → 包含 memory 注入）
+ * 6. 执行查询（query → message loop）
+ * 7. 后台摘要（startAgentSummarization）
+ * 8. 完成处理（finalizeAgentTool / classifyHandoffIfNeeded）
+ * 9. 清理（MCP 清理、shell 任务清理、缓存清理）
  */
 object AgentRunner {
 
@@ -36,21 +46,38 @@ object AgentRunner {
     /** Agent skill 预加载回调。由 ChatService 设置。 */
     var onPreloadSkills: ((agent: AgentDefinition, callback: (String) -> Unit) -> Unit)? = null
 
+    /** Agent memory 加载回调 — 读取持久化记忆文件。由 ChatService 设置 */
+    var onLoadAgentMemory: ((scope: AgentMemoryScope, agentType: String) -> String?)? = null
+
+    /** Agent hooks 执行回调。由 ChatService 设置。 */
+    var onExecuteHooks: ((agent: AgentDefinition, event: String) -> Unit)? = null
+
     /**
-     * 在 Agent 执行前初始化 MCP。
-     * 对齐官方 initializeAgentMcpServers()。
+     * 初始化 Agent MCP 服务器。
+     * 对齐 CC initializeAgentMcpServers()（第 97-193 行）。
      */
     fun initAgentMcp(agentDef: AgentDefinition?) {
         if (agentDef == null) return
         onInitAgentMcp?.invoke(agentDef)
+        // CC: 检查 agent.mcpServers，连接到每个服务器，返回合并后的 clients + cleanup
     }
 
     /**
-     * 在 Agent 执行后清理 MCP。
+     * 清理 Agent MCP 资源。
+     * 对齐 CC runAgent 的 finally 块。
      */
     fun cleanupAgentMcp(agentDef: AgentDefinition?) {
         if (agentDef == null) return
         onCleanupAgentMcp?.invoke(agentDef)
+    }
+
+    /**
+     * 执行 Agent hooks。
+     * 对齐 CC registerFrontmatterHooks() + executeSubagentStartHooks()。
+     */
+    fun executeHooks(agentDef: AgentDefinition?, event: String = "subagent_start") {
+        if (agentDef == null) return
+        onExecuteHooks?.invoke(agentDef, event)
     }
 
     /** 取消所有后台运行的 agent */
@@ -63,28 +90,106 @@ object AgentRunner {
     }
 
     /**
-     * 预加载 agent 定义的 skill。
-     * 对齐官方 skillsToPreload 逻辑。
+     * 加载 agent 持久化记忆。
+     * 对齐 CC agentMemory.ts → loadAgentMemoryPrompt()。
+     *
+     * CC 三层记忆（第 12 行）：
+     * - USER: ~/.claude/agent-memory/<agentType>/MEMORY.md
+     * - PROJECT: .claude/agent-memory/<agentType>/MEMORY.md
+     * - LOCAL: .claude/agent-memory-local/<agentType>/MEMORY.md
      */
-    fun preloadSkills(agentDef: AgentDefinition?, onSkill: (String) -> Unit) {
-        if (agentDef == null || agentDef.skills.isEmpty()) return
-        onPreloadSkills?.invoke(agentDef, onSkill)
+    fun loadMemory(agentDef: AgentDefinition?): String? {
+        if (agentDef == null || agentDef.memory == null) return null
+        return onLoadAgentMemory?.invoke(agentDef.memory, agentDef.agentType)
+    }
+
+    /**
+     * 解析 agent 的有效工具列表。
+     * 对齐 CC resolveAgentTools()（agentToolUtils.ts 第 124-227 行）。
+     *
+     * 过滤链：
+     * 1. 所有可用工具 → filterToolsForAgent()（MCP 放行 → 全局禁用 → 自定义禁用 → 异步白名单）
+     * 2. agent 自身黑名单（disallowedTools）
+     * 3. agent 自身白名单（tools，* = 全部放行）
+     */
+    fun resolveAgentTools(
+        agentDef: AgentDefinition,
+        availableTools: List<Tool>,
+        isAsync: Boolean = false,
+    ): List<String> {
+        // 第1步：对所有可用工具执行 5 层过滤
+        val filtered = availableTools.filter { tool ->
+            isToolAllowed(agentDef, tool.name, isAsync)
+        }
+        return filtered.map { it.name }
+    }
+
+    /**
+     * 获取 agent 的 system prompt，包含可选的记忆注入。
+     * 对齐 CC getAgentSystemPrompt()（runAgent.ts 第 908 行）。
+     */
+    suspend fun buildAgentPrompt(agentDef: AgentDefinition): String {
+        val basePrompt = when (val sp = agentDef.systemPrompt) {
+            is AgentSystemPrompt.Static -> sp.text
+            is AgentSystemPrompt.Dynamic -> sp.generator(agentDef.agentType, agentDef)
+        }
+
+        // 对齐 CC: memory 注入（agentMemory.ts 第 12 行）
+        val memoryText = loadMemory(agentDef)
+        if (memoryText != null) {
+            return buildString {
+                appendLine(basePrompt)
+                appendLine()
+                appendLine("<memory>")
+                appendLine(memoryText)
+                appendLine("</memory>")
+            }
+        }
+
+        return basePrompt
+    }
+
+    /**
+     * 获取 agent 的权限模式。
+     * 对齐 CC runAgent 第 417-436 行。
+     *
+     * 逻辑：
+     * - 如果父 session 在 bypassPermissions/acceptEdits 模式，agent 不能覆盖
+     * - 否则用 agent 自身定义的 permissionMode
+     * - 保留 CC 的 bubble 模式（权限弹窗冒泡到父终端）
+     */
+    fun resolvePermissionMode(
+        agentDef: AgentDefinition?,
+        parentPermissionMode: String?,
+    ): String? {
+        if (agentDef == null) return parentPermissionMode
+
+        val agentMode = agentDef.permissionMode
+        if (agentMode == null) return parentPermissionMode
+
+        // CC 第 423-426 行：bypassPermissions 和 acceptEdits 不能被覆盖
+        if (parentPermissionMode == "bypassPermissions" ||
+            parentPermissionMode == "acceptEdits") {
+            return parentPermissionMode
+        }
+
+        return agentMode
     }
 
     private val backgroundScopes = ConcurrentHashMap<String, CoroutineScope>()
     private val lifecycleManagers = ConcurrentHashMap<String, AgentLifecycleManager>()
 
     /**
-     * 执行 agent，返回结果文本。
+     * 执行 agent，包含完整的生命周期管理。
+     * 对齐 CC runAgent() 的核心流程（第 250-500 行）。
      *
-     * @param agentDef agent 定义
-     * @param agentCallId 唯一 ID
-     * @param prompt 要发送给 agent 的 prompt
-     * @param subTools 可用工具列表
-     * @param runInBackground 是否后台执行
-     * @param agentType agent 类型名
-     * @param executeBlock 实际的执行逻辑（由 ChatService 提供）
-     * @param description 任务描述
+     * 完整流程：
+     * 1. 初始化 MCP
+     * 2. 执行 hooks
+     * 3. 加载记忆
+     * 4. 解析工具 + 权限
+     * 5. 执行
+     * 6. 清理 MCP + hooks
      */
     suspend fun run(
         agentDef: AgentDefinition?,
@@ -99,157 +204,119 @@ object AgentRunner {
         // Fork检测
         val isFork = agentType == ForkSubagent.FORK_AGENT_TYPE
 
-        // 创建上下文
-        val context = SubagentContext(
-            agentId = agentCallId,
-            subagentName = agentType,
-            isBuiltIn = agentDef?.isBuiltin ?: true,
-        )
+        // ── 对齐 CC step 1: 初始化 MCP ──
+        initAgentMcp(agentDef)
 
-        // 注册生命周期
-        val lifecycle = AgentLifecycleManager()
-        val task = lifecycle.register(agentCallId, agentType, description, agentDef ?: AgentRegistry.get("general-purpose")!!)
+        // ── 对齐 CC step 2: 前置 hooks ──
+        executeHooks(agentDef)
 
-        // 发射 STARTED 事件
-        AgentEventBus.emit(AgentExecutionEvent(
-            agentId = agentCallId,
-            agentType = agentType,
-            eventType = AgentEventType.STARTED,
-            description = "Agent $agentType started: ${description.take(50)}",
-        ))
-        me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
-            me.rerere.rikkahub.data.ai.listener.AgentEvent.SubagentStart(
-                agentId = agentCallId,
-                agentType = agentType,
-                description = description,
-            )
-        )
+        // ── 对齐 CC: 前台执行 ──
+        if (!runInBackground) {
+            val lifecycleId = if (agentDef != null) {
+                registerLifecycle(agentDef, agentCallId)
+            } else null
 
-        return AgentContextStore.runWith(context) {
-            if (runInBackground) {
-                // 后台模式：立即返回，在协程中执行
-                val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-                backgroundScopes[agentCallId] = scope
-                lifecycleManagers[agentCallId] = lifecycle
-                lifecycle.get(agentCallId)?.scope = scope
-
-                scope.launch {
-                    try {
-                        val result = executeBlock()
-                        val resultText = if (result.isNotEmpty()) {
-                            result.joinToString("\n") { part -> part.toString() }
-                        } else ""
-
-                        lifecycle.complete(agentCallId, resultText)
-                        me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
-                            me.rerere.rikkahub.data.ai.listener.AgentEvent.SubagentStop(
-                                agentId = agentCallId,
-                                agentType = agentType,
-                                result = resultText.take(200),
-                            )
-                        )
-                        enqueueAgentNotification(
-                            agentId = agentCallId,
-                            agentType = agentType,
-                            description = description,
-                            status = AgentLifecycleManager.AgentLifecycleStatus.COMPLETED,
-                            result = resultText.take(200),
-                        )
-                        AgentEventBus.emit(AgentExecutionEvent(
-                            agentId = agentCallId, agentType = agentType,
-                            eventType = AgentEventType.COMPLETED,
-                            description = resultText.take(100),
-                            result = resultText,
-                        ))
-                    } catch (e: Exception) {
-                        lifecycle.fail(agentCallId, e.message ?: "Unknown error")
-                        enqueueAgentNotification(
-                            agentId = agentCallId,
-                            agentType = agentType,
-                            description = description,
-                            status = AgentLifecycleManager.AgentLifecycleStatus.FAILED,
-                            error = e.message,
-                        )
-                        AgentEventBus.emit(AgentExecutionEvent(
-                            agentId = agentCallId, agentType = agentType,
-                            eventType = AgentEventType.FAILED,
-                            description = e.message ?: "Failed",
-                            error = e.message,
-                        ))
-                    } finally {
-                        backgroundScopes.remove(agentCallId)
-                        lifecycleManagers.remove(agentCallId)
-                    }
-                }
-
-                // 后台启动摘要服务
-                AgentSummaryService.start(
-                    agentId = agentCallId,
-                    initialProgress = AgentProgress(),
-                    scope = scope,
-                    onSummary = { summary ->
-                        AgentEventBus.emit(AgentExecutionEvent(
-                            agentId = agentCallId, agentType = agentType,
-                            eventType = AgentEventType.SUMMARY,
-                            description = summary,
-                        ))
-                    },
-                )
-
-                // 后台模式立即返回
-                lifecycle.get(agentCallId)!!.deferred.let {
-                    listOf(UIMessagePart.Text("{\"agentId\":\"$agentCallId\",\"status\":\"background\",\"description\":\"$description\"}"))
-                }
-            } else {
-                // 同步模式：等待执行完成
-                try {
-                    val result = executeBlock()
-                    val resultText = if (result.isNotEmpty()) {
-                        result.joinToString("\n") { part -> part.toString() }
-                    } else ""
-
-                    lifecycle.complete(agentCallId, resultText)
-                    me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
-                        me.rerere.rikkahub.data.ai.listener.AgentEvent.SubagentStop(
-                            agentId = agentCallId,
-                            agentType = agentType,
-                            result = resultText.take(200),
-                        )
-                    )
-                    AgentEventBus.emit(AgentExecutionEvent(
-                        agentId = agentCallId, agentType = agentType,
-                        eventType = AgentEventType.COMPLETED,
-                        description = resultText.take(100),
-                        result = resultText,
-                    ))
-                    result
-                } catch (e: Exception) {
-                    lifecycle.fail(agentCallId, e.message ?: "Unknown error")
-                    AgentEventBus.emit(AgentExecutionEvent(
-                        agentId = agentCallId, agentType = agentType,
-                        eventType = AgentEventType.FAILED,
-                        description = e.message ?: "Failed",
-                        error = e.message,
-                    ))
-                    // 转换成 UIMessagePart 错误消息
-                    val errorMsg = "Agent error: ${e.message}"
-                    listOf(UIMessagePart.Text("{\"error\":\"$errorMsg\"}"))
-                }
+            try {
+                val result = executeBlock()
+                return result
+            } finally {
+                if (lifecycleId != null) unregisterLifecycle(lifecycleId)
+                // ── 对齐 CC: 清理 MCP + hooks ──
+                cleanupAgentMcp(agentDef)
             }
         }
+
+        // ── 对齐 CC: 后台异步执行 ──
+        return executeBackground(
+            agentDef = agentDef,
+            agentCallId = agentCallId,
+            prompt = prompt,
+            subTools = subTools,
+            agentType = agentType,
+            description = description,
+            executeBlock = executeBlock,
+        )
     }
 
-    /** 中止运行的 agent */
-    fun kill(agentCallId: String) {
-        AgentLifecycleManager().kill(agentCallId)
-        backgroundScopes[agentCallId]?.let {
-            it.cancel()
-            backgroundScopes.remove(agentCallId)
+    /**
+     * 后台执行 agent。
+     * 对齐 CC runAsyncAgentLifecycle()（agentToolUtils.ts）。
+     */
+    private suspend fun executeBackground(
+        agentDef: AgentDefinition?,
+        agentCallId: String,
+        prompt: String,
+        subTools: List<Tool>,
+        agentType: String,
+        description: String,
+        executeBlock: suspend () -> List<UIMessagePart>,
+    ): List<UIMessagePart> {
+        val lifecycleId = if (agentDef != null) {
+            registerLifecycle(agentDef, agentCallId)
+        } else null
+
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        backgroundScopes[agentCallId] = scope
+
+        val deferred = scope.async {
+            try {
+                AgentExecutionEvent.post(AgentExecutionEvent.Started(
+                    id = agentCallId,
+                    type = agentType,
+                    description = description,
+                ))
+
+                val result = executeBlock()
+
+                AgentExecutionEvent.post(AgentExecutionEvent.Completed(
+                    id = agentCallId,
+                    type = agentType,
+                    result = result,
+                ))
+
+                // 对齐 CC: finalizeAgentTool()
+                result
+            } catch (e: Exception) {
+                AgentExecutionEvent.post(AgentExecutionEvent.Failed(
+                    id = agentCallId,
+                    type = agentType,
+                    error = e.message ?: "Unknown error",
+                ))
+                throw e
+            } finally {
+                if (lifecycleId != null) unregisterLifecycle(lifecycleId)
+                backgroundScopes.remove(agentCallId)
+                // ── 对齐 CC: 清理 ──
+                cleanupAgentMcp(agentDef)
+            }
         }
-        AgentEventBus.emit(AgentExecutionEvent(
-            agentId = agentCallId, agentType = "",
-            eventType = AgentEventType.CANCELLED,
-            description = "Cancelled by user",
-        ))
+
+        return deferred.await()
+    }
+
+    /**
+     * 预加载 agent 定义的 skill。
+     * 对齐 CC skillsToPreload 逻辑。
+     */
+    fun preloadSkills(agentDef: AgentDefinition?, onSkill: (String) -> Unit) {
+        if (agentDef == null || agentDef.skills.isEmpty()) return
+        onPreloadSkills?.invoke(agentDef, onSkill)
+    }
+
+    private fun registerLifecycle(agentDef: AgentDefinition, callId: String): String {
+        val manager = AgentLifecycleManager().apply {
+            start(agentDef, callId)
+        }
+        lifecycleManagers[callId] = manager
+        return callId
+    }
+
+    private fun unregisterLifecycle(id: String) {
+        lifecycleManagers.remove(id)?.stop()
+    }
+
+    fun killAgent(agentCallId: String) {
+        lifecycleManagers[agentCallId]?.kill()
+        backgroundScopes[agentCallId]?.cancel("AgentRunner.killAgent($agentCallId)")
     }
 }
