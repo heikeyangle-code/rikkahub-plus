@@ -85,23 +85,32 @@ private fun ghDescribe(url: String): String {
 
 fun createGitHubTool(settingsStore: SettingsStore, defaultTimeout: Int = 60, enableAutoFixCi: Boolean = false): Tool = Tool(
     name = "github_tool",
-    description = "Interact with GitHub REST API to manage repositories, issues, PRs, and CI/CD.\n\n" +
-        "When to Use:\n" +
-        "- User asks about GitHub repos, issues, PRs, or code\n" +
-        "- Need to search GitHub for code, repos, or users\n" +
-        "- Managing CI/CD: check workflow runs, view logs, cancel/rerun\n" +
-        "- Creating or reviewing pull requests\n" +
-        "- Reading or committing files to GitHub repos\n\n" +
-        "When NOT to Use:\n" +
-        "- For local git operations (use execute_command with git)\n" +
-        "- For web scraping GitHub pages (use WebFetch instead)\n\n" +
-        "Capabilities: search repos/code/users/issues, manage issues/PRs " +
-            "(create, comment, label, assign, review, merge, update), CI/CD (workflows, runs, jobs, logs, cancel, rerun, dispatch), " +
-            "repo info (stats, languages, contributors, releases, tags), files (read, list, commit, delete), " +
-            "git data (branches, commits, compare, revert, status), gists, user info, rate limit, create/fork repos. " +
-            "Requires a GitHub token configured in Settings." +
-            if (enableAutoFixCi) " Auto-fix CI is enabled: when CI fails, read logs, fix code, and re-push."
-            else "",
+    description = "Interact with GitHub REST API: repos, issues, PRs, CI/CD, files, and more.\\n\\n" +
+        "When to use:\\n" +
+        "- Search code, repos, issues, users, or commits\\n" +
+        "- Manage repos: create, update, fork, delete, topics, labels, milestones\\n" +
+        "- Issues: list, create, update, comment, assign, label, lock\\n" +
+        "- PRs: list, view, create, update, review, merge, comment\\n" +
+        "- CI/CD: check status, view jobs/logs, download artifacts, cancel, rerun, dispatch workflows\\n" +
+        "- Files: read, list, commit, delete, compare local vs GitHub\\n" +
+        "- Git data: branches, commits, compare, revert, merge, status\\n" +
+        "- Releases, gists, webhooks, notifications, rate limit\\n\\n" +
+        "When NOT to use:\\n" +
+        "- Local git operations (use execute_command with git)\\n" +
+        "- Scraping GitHub pages (use web_fetch)\\n\\n" +
+        "Args:\\n" +
+        "- action: Operation to perform (see enum for full list)\\n" +
+        "- owner/repo: Repository identifiers\\n" +
+        "- q: Search query\\n" +
+        "- branch/base/head: Branch names\\n" +
+        "- number: Issue/PR number or run/artifact/CI ID\\n" +
+        "- path/content/message: File operations\\n" +
+        "- title/body/comment: Issue/PR/comment content\\n" +
+        "- search/replace: Surgical file edit (commit action)\\n" +
+        "- confirm: Set to \"yes\" for destructive actions (delete, merge)\\n" +
+        "- dry_run: Preview without executing (commit, workflow_dispatch)\\n" +
+        "- inputs: JSON workflow inputs (workflow_dispatch)" +
+        if (enableAutoFixCi) "\\nAuto-fix CI is enabled: when CI fails, read logs, fix code, and re-push." else "",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

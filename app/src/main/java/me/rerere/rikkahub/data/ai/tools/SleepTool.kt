@@ -15,13 +15,14 @@ import me.rerere.ai.ui.UIMessagePart
  */
 fun createSleepTool(): Tool = Tool(
     name = "sleep",
-    description = "Sleep (pause) for a specified number of milliseconds.\n\n" +
-        "Usage:\n" +
-        "- Only use when you need to wait for an external process to complete\n" +
-        "- Keep durations short (1-5 seconds max) to avoid blocking the user\n" +
-        "- Do NOT sleep between commands that can run immediately\n" +
-        "- Do NOT retry failing commands in a sleep loop — diagnose root cause\n" +
-        "- If polling an external process, use a check command rather than sleeping first",
+    description = "Pause execution for a specified duration.\n\n" +
+        "When to use:\n" +
+        "- Wait for an external process to complete before proceeding\n\n" +
+        "When NOT to use:\n" +
+        "- Waiting between independent commands (run them in parallel instead)\n" +
+        "- Retrying failing commands in a loop (diagnose root cause)\n\n" +
+        "Args:\n" +
+        "- duration_ms: Milliseconds to sleep (1000 = 1s, max 30000 = 30s)",
     needsApproval = false,
     parameters = {
         InputSchema.Obj(

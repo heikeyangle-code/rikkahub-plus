@@ -25,7 +25,19 @@ import java.io.File
 
 fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
     name = "execute_python",
-    description = "Execute Python code to process data, call APIs, or generate files.\n\nUsage:\n  - Code runs in an isolated Python environment on the device\n  - Use get_app_info() to see app paths\n  - Use requests/httpx for API calls\n  - Use pandas for data analysis\n\nUse this for:\n  - Data processing and transformation\n  - API calls to external services\n  - File generation (CSV, JSON, images)\n  - Complex computations\n\nIMPORTANT: For simple math, use calculator instead. For shell commands, use execute_command.".trimIndent().replace("\n", " "),
+    description = "Execute Python code for data processing, API calls, or file generation.\n\n" +
+        "When to use:\n" +
+        "- Data processing and transformation (CSV, JSON)\n" +
+        "- API calls to external services\n" +
+        "- File generation (CSV, JSON, images)\n" +
+        "- Complex computations that calculator cannot handle\n\n" +
+        "When NOT to use:\n" +
+        "- Simple math (use calculator)\n" +
+        "- Shell commands (use execute_command)\n" +
+        "- File operations (use file tools)\n\n" +
+        "Args:\n" +
+        "- code: Python code to execute. Last expression value returned. Use print() for debugging.\n" +
+        "Code runs in an isolated Python environment on the device.",
     needsApproval = false,
     parameters = {
         InputSchema.Obj(

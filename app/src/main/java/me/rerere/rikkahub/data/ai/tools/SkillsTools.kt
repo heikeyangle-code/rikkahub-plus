@@ -25,17 +25,16 @@ fun createSkillTools(
         Tool(
             name = "use_skill",
             description = "Load a skill by name to access specialized knowledge and workflows.\n\n" +
-                "Skills provide pre-built expertise. Available skills are listed in <available_skills>.\n\n" +
-                "Usage:\n" +
-                "- Use this tool when you need specialized knowledge for a task\n" +
-                "- Do NOT use file action=\"list\" or file action=\"search\" to browse skill directories — use this tool instead\n" +
-                "- Example: use_skill(name=\"driving-test-master\")\n\n" +
-                "When to Use:\n" +
+                "When to use:\n" +
                 "- A task matches a skill's description or triggers\n" +
                 "- You need domain-specific guidance\n" +
                 "- The user mentions a topic with a relevant skill\n\n" +
-                "When NOT to Use:\n" +
-                "- For general coding tasks without a matching skill",
+                "When NOT to use:\n" +
+                "- General coding tasks without a matching skill\n" +
+                "- Browsing skill directories (use this tool with a specific name instead)\n\n" +
+                "Args:\n" +
+                "- name: Skill name to load (see <available_skills> for options)\n" +
+                "- Available skills are listed in <available_skills> above",
             systemPrompt = { _, _ ->
                 buildString {
                     appendLine("## Skills")

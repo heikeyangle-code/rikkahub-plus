@@ -21,19 +21,18 @@ fun createSearchTools(settings: Settings): Set<Tool> {
         add(
             Tool(
                 name = "search_web",
-                                description = "Search the web for up-to-date information and use the results to inform responses.\n\n" +
-                    "- Provides up-to-date information for current events and recent data\n" +
-                    "- Returns search result information with titles, URLs, and snippets\n" +
-                    "- Use this tool for accessing information beyond your knowledge cutoff\n" +
-                    "- Today is ${LocalDate.now().toLocalString(true)}.\n\n" +
-                    "CRITICAL REQUIREMENT - You MUST follow this:\n" +
-                    "  - After using search results, you MUST include a \"Sources:\" section\n" +
-                    "  - Format: [citation,domain](id) after each cited sentence\n" +
-                    "  - Example: The capital of France is Paris. [citation,example.com](abc123)\n" +
-                    "  - This is MANDATORY - never skip citing sources\n\n" +
-                    "Usage notes:\n" +
-                    "  - Generate focused keywords and run multiple searches if needed\n" +
-                    "  - Use the current date (provided above) for time-sensitive queries",
+                                description = "Search the web for up-to-date information.\n\n" +
+                                    "When to use:\n" +
+                                    "- Current events, recent data, or information beyond your knowledge cutoff\n" +
+                                    "- Research topics requiring multiple sources\n\n" +
+                                    "When NOT to use:\n" +
+                                    "- Reading a specific URL (use web_fetch)\n" +
+                                    "- GitHub operations (use github_tool)\n\n" +
+                                    "Args:\n" +
+                                    "- query: Search keywords. Generate focused queries, run multiple searches if needed.\n\n" +
+                                    "CRITICAL: After using search results, you MUST include a \"Sources:\" section.\n" +
+                                    "Format: [citation,domain](id) after each cited sentence.\n" +
+                                    "Today is ${LocalDate.now().toLocalString(true)}." +
                 parameters = {
                     val options = settings.searchServices.getOrElse(
                         index = settings.searchServiceSelected,

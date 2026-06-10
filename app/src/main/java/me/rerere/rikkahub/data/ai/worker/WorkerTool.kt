@@ -12,14 +12,20 @@ fun createWorkerTools(workerManager: WorkerManager): List<Tool> = listOf(
         description = buildString {
             appendLine("Create, manage, and communicate with background workers.")
             appendLine()
-            appendLine("Actions: create, send, get, list, terminate, restart")
+            appendLine("When to use:")
+            appendLine("- create: Start a new background worker process with optional working directory")
+            appendLine("- send: Assign a task to an idle worker (runs in background, notifies on completion)")
+            appendLine("- get: Check worker status and retrieve result")
+            appendLine("- list: Show all workers and their states")
+            appendLine("- terminate: Stop a running worker")
+            appendLine("- restart: Reset a worker to ready state")
             appendLine()
-            appendLine("- create: Create a new background worker with optional cwd.")
-            appendLine("- send: Send a task to a ready worker. Runs in background, notifies when done.")
-            appendLine("- get: Get worker status and result.")
-            appendLine("- list: List all workers.")
-            appendLine("- terminate: Terminate a running worker.")
-            appendLine("- restart: Reset a worker to ready state for new tasks.")
+            appendLine("Args:")
+            appendLine("- action: create | send | get | list | terminate | restart")
+            appendLine("- name: Human-readable name (create)")
+            appendLine("- cwd: Working directory (create)")
+            appendLine("- worker_id: Worker identifier (send, get, terminate, restart)")
+            appendLine("- prompt: Task description (send)")
         },
         permissionMode = PermissionMode.DANGER_FULL_ACCESS,
         parameters = {

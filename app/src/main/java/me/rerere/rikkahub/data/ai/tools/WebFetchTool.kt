@@ -20,21 +20,17 @@ import java.net.URL
  */
 fun createWebFetchTool(): Tool = Tool(
     name = "web_fetch",
-    description = "Fetches content from a specified URL and returns it as text.\n\n" +
-        "- Takes a URL as input\n" +
-        "- Fetches the URL content and converts HTML to plain text\n" +
-        "- Returns the page's text content\n" +
-        "- Use this tool when you need to retrieve and read web content\n\n" +
-        "Usage notes:\n" +
-        "  - The URL must be a fully-formed valid URL (including https://)\n" +
-        "  - HTTP URLs will be automatically upgraded to HTTPS\n" +
-        "  - This tool is read-only and does not modify any files\n" +
-        "  - Results are truncated to 100KB for large pages\n" +
-        "  - For GitHub URLs, prefer the github_tool instead\n\n" +
-        "When to Use:\n" +
-        "- Need to read content from a specific URL\n" +
-        "- Accessing documentation, articles, or API responses\n" +
-        "- Checking web page content that search results reference",
+    description = "Fetch content from a URL and return as plain text.\n\n" +
+        "When to use:\n" +
+        "- Read documentation, articles, or API responses from a URL\n" +
+        "- Check web page content referenced in search results\n\n" +
+        "When NOT to use:\n" +
+        "- GitHub operations (use github_tool)\n" +
+        "- Searching the web (use web_search first)\n\n" +
+        "Args:\n" +
+        "- url: Fully-formed URL including https:// (required)\n" +
+        "- HTTP URLs are auto-upgraded to HTTPS\n" +
+        "- Results truncated to 100KB for large pages",
     needsApproval = false,
     parameters = {
         InputSchema.Obj(

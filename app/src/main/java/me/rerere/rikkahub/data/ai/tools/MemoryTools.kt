@@ -25,7 +25,19 @@ fun buildMemoryTools(
 ): List<Tool> = listOf(
     Tool(
         name = "memory_tool",
-        description = "Store and retrieve long-term memories across conversations. Memories persist across sessions and help maintain context.\n\nUsage:\n  - action=\"create\": Store new information (key-value)\n  - action=\"read\": Retrieve stored information\n  - action=\"delete\": Remove specific memories\n  - action=\"list\": See all stored keys\n\nWhen to save:\n  - User preferences, goals, or personal details\n  - Project-specific conventions or decisions\n  - Important facts across multiple conversations\n\nWhen to read:\n  - Before starting a new task to recall context\n  - When user references past conversations\n\nMemories are persisted per agent. Use this to build a knowledge base over time.".trimIndent(),
+        description = "Store and retrieve long-term memories across conversations.\n\n" +
+            "When to use:\n" +
+            "- Save: User preferences, decisions, project conventions, important facts\n" +
+            "- Read: Recall context before starting a new task\n" +
+            "- List: See all stored keys\n" +
+            "- Delete: Remove specific outdated memories\n\n" +
+            "When NOT to use:\n" +
+            "- Transient task state (use todo_write instead)\n\n" +
+            "Args:\n" +
+            "- action: create | read | delete | list\n" +
+            "- key: Memory identifier (create, read, delete)\n" +
+            "- content: Information to store (create)\n" +
+            "Memories persist per agent across sessions.",
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
