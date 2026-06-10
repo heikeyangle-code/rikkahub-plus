@@ -124,12 +124,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         Tool(
             name = "eval_javascript",
             description = "Execute JavaScript code using QuickJS engine (ES2020).\n\n" +
-                "When to use:\n" +
                 "- Run JavaScript for calculations, text processing, or prototyping\n" +
-                "- Test JS snippets without a browser\n\n" +
-                "When NOT to use:\n" +
-                "- DOM manipulation or network requests (no browser APIs)\n" +
-                "- Heavy computations (15s timeout)\n\n" +
+                "- Test JS snippets without a browser\n" +
+                "- No DOM or network APIs available; 15s timeout\n\n" +
                 "Args:\n" +
                 "- code: JavaScript code to execute (last expression is the result)",
             parameters = {
@@ -188,9 +185,8 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         Tool(
             name = "get_time_info",
             description = "Get the current local date and time info from the device.\n\n" +
-                "When to use:\n" +
                 "- Get current date/time with timezone and UTC offset\n" +
-                "- Need timestamp, weekday, or ISO date strings\n\n" +
+                "- Returns timestamp, weekday, ISO date strings\n\n" +
                 "Args: (none)",
             parameters = {
                 InputSchema.Obj(
@@ -225,11 +221,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         Tool(
             name = "clipboard_tool",
             description = "Read or write plain text from the device clipboard.\n\n" +
-                "When to use:\n" +
                 "- Read clipboard content to use in a response\n" +
-                "- Write text to clipboard after user request\n\n" +
-                "When NOT to use:\n" +
-                "- Writing to clipboard without explicit user request\n\n" +
+                "- Write text to clipboard (only after user request)\n" +
+                "- Do NOT write to clipboard without explicit request\n\n" +
                 "Args:\n" +
                 "- action: read or write\n" +
                 "- text: Text to write (required for write action)",
@@ -286,9 +280,8 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         Tool(
             name = "text_to_speech",
             description = "Speak text aloud using the device's text-to-speech engine.\n\n" +
-                "When to use:\n" +
                 "- Read text aloud to the user (stories, messages, notifications)\n" +
-                "- Audio plays on the device in background; tool returns immediately\n\n" +
+                "- Audio plays on device in background; tool returns immediately\n\n" +
                 "Args:\n" +
                 "- text: Text to speak (natural, readable, no markdown)",
             parameters = {
@@ -318,12 +311,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         Tool(
             name = "ask_user",
             description = "Ask the user one or more questions.\n\n" +
-                "When to use:\n" +
-                "- Need clarification from the user on ambiguous requests\n" +
-                "- Presenting yes/no or multiple-choice options\n\n" +
-                "When NOT to use:\n" +
-                "- Confirming destructive operations (tool handles this automatically)\n" +
-                "- Asking questions the answer is already known\n\n" +
+                "- Get clarification from the user on ambiguous requests\n" +
+                "- Present yes/no or multiple-choice options\n" +
+                "- Not for confirming destructive ops (tool handles this automatically)\n\n" +
                 "Args:\n" +
                 "- questions: List of questions, each with id, text, and optional options",
             parameters = {
@@ -390,7 +380,6 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         Tool(
             name = "present_file",
             description = "Show a file to the user via the system share sheet.\n\n" +
-                "When to use:\n" +
                 "- Present a file for saving, sending, or opening with another app\n" +
                 "- Share screenshots, documents, or exported data\n\n" +
                 "Args:\n" +

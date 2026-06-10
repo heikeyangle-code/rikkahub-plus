@@ -21,16 +21,11 @@ import java.net.URL
 fun createWebFetchTool(): Tool = Tool(
     name = "web_fetch",
     description = "Fetch content from a URL and return as plain text.\n\n" +
-        "When to use:\n" +
         "- Read documentation, articles, or API responses from a URL\n" +
-        "- Check web page content referenced in search results\n\n" +
-        "When NOT to use:\n" +
-        "- GitHub operations (use github_tool)\n" +
-        "- Searching the web (use web_search first)\n\n" +
+        "- For searching, use search_web first\n" +
+        "- HTTP URLs auto-upgrade to HTTPS; results truncated to 100KB\n\n" +
         "Args:\n" +
-        "- url: Fully-formed URL including https:// (required)\n" +
-        "- HTTP URLs are auto-upgraded to HTTPS\n" +
-        "- Results truncated to 100KB for large pages",
+        "- url: Fully-formed URL including https:// (required)",
     needsApproval = false,
     parameters = {
         InputSchema.Obj(
