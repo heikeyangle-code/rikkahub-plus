@@ -62,7 +62,7 @@ class PolicyEngine(
             message = "潜在危险命令",
         ),
         PermissionRule(
-            tools = listOf("file", "file_write", "write_file", "file_edit", "edit_file", "file_delete"),
+            tools = listOf("file"),
             check = { _, args ->
                 val path = args["path"]?.jsonPrimitive?.contentOrNull ?: ""
                 path.isNotBlank() && !pathChecker.isWithinWorkspace(path)
@@ -70,7 +70,7 @@ class PolicyEngine(
             message = "写入工作区之外",
         ),
         PermissionRule(
-            tools = listOf("file", "file_write", "write_file"),
+            tools = listOf("file"),
             check = { _, args ->
                 val path = args["path"]?.jsonPrimitive?.contentOrNull ?: ""
                 path.isNotBlank() && File(path).let { it.isFile && it.length() > 50000 }
@@ -138,8 +138,7 @@ class PolicyEngine(
     private fun extractPath(toolName: String, args: JsonElement): String? {
         val obj = args.jsonObject
         return when (toolName) {
-            "file_read", "file_write", "file_delete",
-            "file_copy", "file_move", "present_file",
+            "present_file",
             "convert_file" -> obj["path"]?.jsonPrimitive?.contentOrNull
             "file" -> {
                 val action = obj["action"]?.jsonPrimitive?.contentOrNull ?: return@extractPath null
@@ -151,9 +150,6 @@ class PolicyEngine(
                     else -> null
                 }
             }
-
-            "file_list", "file_mkdir", "file_search" -> obj["dir"]?.jsonPrimitive?.contentOrNull
-                ?: obj["path"]?.jsonPrimitive?.contentOrNull
 
             "execute_command", "execute_python", "eval_javascript" -> null
             else -> null

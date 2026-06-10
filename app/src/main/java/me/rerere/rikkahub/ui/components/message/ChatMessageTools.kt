@@ -119,20 +119,26 @@ private object ToolNames {
     const val ASK_USER = "ask_user"
     const val USE_SKILL = "use_skill"
     const val FILE = "file"
-    const val FILE_WRITE = "file_write"
-    const val FILE = "file"
-    const val FILE_READ = "file_read"
-    const val FILE_LIST = "file_list"
-    const val FILE_COPY = "file_copy"
-    const val FILE_MOVE = "file_move"
-    const val FILE_MKDIR = "file_mkdir"
-    const val FILE_DELETE = "file_delete"
-    const val FILE_SEARCH = "file_search"
     const val EXECUTE_COMMAND = "execute_command"
     const val PRESENT_FILE = "present_file"
     const val CREATE_ASSET = "create_asset"
     const val EVAL_JS = "eval_javascript"
     const val SUB_AGENT = "sub_agent"
+    const val WORKER = "worker"
+    const val TASK_MGMT = "task_mgmt"
+    const val PLAN_MODE = "plan_mode"
+    const val MCP_RESOURCE = "mcp_resource"
+}
+
+private object FileActions {
+    const val READ = "read"
+    const val WRITE = "write"
+    const val LIST = "list"
+    const val SEARCH = "search"
+    const val COPY = "copy"
+    const val MOVE = "move"
+    const val MKDIR = "mkdir"
+    const val DELETE = "delete"
 }
 
 private object MemoryActions {
@@ -160,17 +166,18 @@ private fun getToolIcon(toolName: String, action: String?) = when (toolName) {
     ToolNames.TTS -> HugeIcons.VolumeHigh
     ToolNames.ASK_USER -> HugeIcons.BubbleChatQuestion
     ToolNames.USE_SKILL -> HugeIcons.MagicWand01
-    ToolNames.FILE -> HugeIcons.Folder01,
-    ToolNames.FILE_WRITE -> HugeIcons.QuillWrite01
-    ToolNames.FILE_READ -> HugeIcons.Download04
-    ToolNames.FILE_LIST -> HugeIcons.Folder01
-    ToolNames.FILE_COPY -> HugeIcons.Copy01
-    ToolNames.FILE_MOVE -> HugeIcons.ArrowRight01
-    ToolNames.FILE_MKDIR -> HugeIcons.Add01
+    ToolNames.FILE -> when (action) {
+        FileActions.READ -> HugeIcons.Download04
+        FileActions.WRITE -> HugeIcons.QuillWrite01
+        FileActions.LIST, FileActions.SEARCH -> HugeIcons.Folder01
+        FileActions.COPY -> HugeIcons.Copy01
+        FileActions.MOVE -> HugeIcons.ArrowRight01
+        FileActions.MKDIR -> HugeIcons.Add01
+        FileActions.DELETE -> HugeIcons.Delete02
+        else -> HugeIcons.Folder01
+    }
     ToolNames.EXECUTE_COMMAND -> HugeIcons.Zap
     ToolNames.PRESENT_FILE -> HugeIcons.Share03
-    ToolNames.FILE_DELETE -> HugeIcons.Delete02
-    ToolNames.FILE_SEARCH -> HugeIcons.AiSearch02
     ToolNames.CREATE_ASSET -> HugeIcons.AiMagic
     ToolNames.EVAL_JS -> HugeIcons.Code
     ToolNames.SUB_AGENT -> HugeIcons.Brain02
@@ -201,7 +208,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     val isPending = tool.approvalState is ToolApprovalState.Pending
     val isDenied = tool.approvalState is ToolApprovalState.Denied
     val arguments = tool.inputAsJson()
-    val memoryAction = arguments.getStringContent("action")
+    val fileAction = arguments.getStringContent("action")
     val content = if (tool.isExecuted) {
         runCatching {
             JsonInstant.parseToJsonElement(
@@ -214,7 +221,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     val images = tool.output.filterIsInstance<UIMessagePart.Image>()
 
     val title = when (tool.toolName) {
-        ToolNames.MEMORY -> when (memoryAction) {
+        ToolNames.MEMORY -> when (fileAction) {
             MemoryActions.CREATE -> stringResource(R.string.chat_message_tool_create_memory)
             MemoryActions.EDIT -> stringResource(R.string.chat_message_tool_edit_memory)
             MemoryActions.DELETE -> stringResource(R.string.chat_message_tool_delete_memory)
@@ -228,7 +235,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
 
         ToolNames.SCRAPE_WEB -> stringResource(R.string.chat_message_tool_scrape_web)
         ToolNames.GET_TIME_INFO -> stringResource(R.string.chat_message_tool_get_time)
-        ToolNames.CLIPBOARD -> when (memoryAction) {
+        ToolNames.CLIPBOARD -> when (fileAction) {
             ClipboardActions.READ -> stringResource(R.string.chat_message_tool_clipboard_read)
             ClipboardActions.WRITE -> stringResource(R.string.chat_message_tool_clipboard_write)
             else -> stringResource(R.string.chat_message_tool_call_generic, tool.toolName)
@@ -247,66 +254,69 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             if (path != null) "Skill: $skillName / $path" else "Skill: $skillName"
         }
 
-        ToolNames.FILE_WRITE -> {
+        ToolNames.FILE -> {
             val rawInput = tool.input
             val path = extractToolField(rawInput, "path")
                 ?: arguments.getStringContent("path") ?: ""
-            val contentBytes = rawInput.length
-            if (tool.isExecuted) {
-                "写入 $path (${formatToolSize(contentBytes.toLong())})"
-            } else if (path.isNotBlank()) {
-                "写入 $path (已接收 ${formatToolSize(contentBytes.toLong())}...)"
-            } else {
-                "写入文件中..."
+            when (fileAction) {
+                FileActions.WRITE -> {
+                    val contentBytes = rawInput.length
+                    if (tool.isExecuted) {
+                        "写入 $path (${formatToolSize(contentBytes.toLong())})"
+                    } else if (path.isNotBlank()) {
+                        "写入 $path (已接收 ${formatToolSize(contentBytes.toLong())}...)"
+                    } else {
+                        "写入文件中..."
+                    }
+                }
+                FileActions.READ -> {
+                    if (tool.isExecuted) {
+                        val outputSize = tool.output.filterIsInstance<UIMessagePart.Text>()
+                            .sumOf { it.text.length }
+                        "读取 $path (${formatToolSize(outputSize.toLong())})"
+                    } else {
+                        "读取 $path"
+                    }
+                }
+                FileActions.LIST -> {
+                    val dir = extractToolField(rawInput, "dir")
+                        ?: arguments.getStringContent("dir") ?: ""
+                    if (dir.isNotBlank()) "列出 $dir" else "列出 Download/"
+                }
+                FileActions.COPY -> {
+                    val src = extractToolField(rawInput, "source")
+                        ?: arguments.getStringContent("source") ?: ""
+                    val dst = extractToolField(rawInput, "destination")
+                        ?: arguments.getStringContent("destination") ?: ""
+                    if (src.isNotBlank() && dst.isNotBlank()) "复制 $src → $dst"
+                    else "复制文件..."
+                }
+                FileActions.MOVE -> {
+                    val src = extractToolField(rawInput, "source")
+                        ?: arguments.getStringContent("source") ?: ""
+                    val dst = extractToolField(rawInput, "destination")
+                        ?: arguments.getStringContent("destination") ?: ""
+                    if (src.isNotBlank() && dst.isNotBlank()) "移动 $src → $dst"
+                    else "移动文件..."
+                }
+                FileActions.MKDIR -> {
+                    val dir = extractToolField(rawInput, "path")
+                        ?: arguments.getStringContent("path") ?: ""
+                    if (dir.isNotBlank()) "新建目录 $dir"
+                    else "新建目录..."
+                }
+                FileActions.SEARCH -> {
+                    val query = arguments.getStringContent("pattern") ?: ""
+                    val searchPath = arguments.getStringContent("path") ?: ""
+                    if (query.isNotBlank()) "搜索 $searchPath 内: $query"
+                    else "搜索文件..."
+                }
+                FileActions.DELETE -> {
+                    if (path.isNotBlank()) "删除 $path"
+                    else "删除文件..."
+                }
+                else -> stringResource(R.string.chat_message_tool_call_generic, tool.toolName)
             }
-        }
-
-        ToolNames.FILE_READ -> {
-            val rawInput = tool.input
-            val path = extractToolField(rawInput, "path")
-                ?: arguments.getStringContent("path") ?: ""
-            if (tool.isExecuted) {
-                val outputSize = tool.output.filterIsInstance<UIMessagePart.Text>()
-                    .sumOf { it.text.length }
-                "读取 $path (${formatToolSize(outputSize.toLong())})"
-            } else {
-                "读取 $path"
-            }
-        }
-
-        ToolNames.FILE_LIST -> {
-            val rawInput = tool.input
-            val dir = extractToolField(rawInput, "dir")
-                ?: arguments.getStringContent("dir") ?: ""
-            if (dir.isNotBlank()) "列出 $dir" else "列出 Download/"
-        }
-
-        ToolNames.FILE_COPY -> {
-            val rawInput = tool.input
-            val src = extractToolField(rawInput, "source")
-                ?: arguments.getStringContent("source") ?: ""
-            val dst = extractToolField(rawInput, "destination")
-                ?: arguments.getStringContent("destination") ?: ""
-            if (src.isNotBlank() && dst.isNotBlank()) "复制 $src → $dst"
-            else "复制文件..."
-        }
-
-        ToolNames.FILE_MOVE -> {
-            val rawInput = tool.input
-            val src = extractToolField(rawInput, "source")
-                ?: arguments.getStringContent("source") ?: ""
-            val dst = extractToolField(rawInput, "destination")
-                ?: arguments.getStringContent("destination") ?: ""
-            if (src.isNotBlank() && dst.isNotBlank()) "移动 $src → $dst"
-            else "移动文件..."
-        }
-
-        ToolNames.FILE_MKDIR -> {
-            val rawInput = tool.input
-            val path = extractToolField(rawInput, "path")
-                ?: arguments.getStringContent("path") ?: ""
-            if (path.isNotBlank()) "新建目录 $path"
-            else "新建目录..."
         }
 
         ToolNames.EXECUTE_COMMAND -> {
@@ -345,7 +355,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
 
     // 判断是否有额外内容需要显示
     val hasExtraContent = when (tool.toolName) {
-        ToolNames.MEMORY -> memoryAction in listOf(MemoryActions.CREATE, MemoryActions.EDIT) &&
+        ToolNames.MEMORY -> fileAction in listOf(MemoryActions.CREATE, MemoryActions.EDIT) &&
             content.getStringContent("content") != null
 
         ToolNames.SEARCH_WEB -> content.getStringContent("answer") != null ||
@@ -353,30 +363,8 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
 
         ToolNames.SCRAPE_WEB -> arguments.getStringContent("url") != null
         ToolNames.TTS -> arguments.getStringContent("text") != null
-        ToolNames.FILE_WRITE -> {
-            val rawInput = tool.input
-            val hasPath = extractToolField(rawInput, "path") != null
-            hasPath || content != null
-        }
-        ToolNames.FILE_READ -> {
-            val rawInput = tool.input
-            val hasPath = extractToolField(rawInput, "path") != null
-            hasPath || content != null
-        }
-        ToolNames.FILE_LIST -> {
-            val rawInput = tool.input
-            val hasDir = extractToolField(rawInput, "dir") != null
-            hasDir || content != null
-        }
-        ToolNames.FILE_COPY, ToolNames.FILE_MOVE -> {
-            val rawInput = tool.input
-            val hasSrc = extractToolField(rawInput, "source") != null
-            hasSrc || content != null
-        }
-        ToolNames.FILE_MKDIR -> {
-            val rawInput = tool.input
-            val hasPath = extractToolField(rawInput, "path") != null
-            hasPath || content != null
+        ToolNames.FILE -> {
+            content != null
         }
         ToolNames.EXECUTE_COMMAND -> {
             val rawInput = tool.input
@@ -401,7 +389,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                 )
             } else {
                 Icon(
-                    imageVector = getToolIcon(tool.toolName, memoryAction),
+                    imageVector = getToolIcon(tool.toolName, fileAction),
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = LocalContentColor.current.copy(alpha = 0.7f)
@@ -457,7 +445,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (tool.toolName == ToolNames.MEMORY &&
-                        memoryAction in listOf(MemoryActions.CREATE, MemoryActions.EDIT)
+                        fileAction in listOf(MemoryActions.CREATE, MemoryActions.EDIT)
                     ) {
                         content.getStringContent("content")?.let { memoryContent ->
                             Text(
@@ -534,57 +522,63 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                             }
                         }
                     }
-                    if (tool.toolName == ToolNames.FILE_WRITE) {
-                        val rawInput = tool.input
-                        // During streaming: show partial content from raw input
-                        val contentPreview = if (!tool.isExecuted) {
-                            val contentStart = rawInput.indexOf("\"content\":\"")
-                            if (contentStart >= 0) {
-                                val after = rawInput.substring(contentStart + 11)
-                                // Take first few hundred chars, unescape basic stuff
-                                after.take(200).replace("\\\"", "\"").replace("\\n", "\n")
-                            } else null
-                        } else {
-                            // After execution: parse from result or arguments
-                            arguments.getStringContent("content")?.take(200)
-                        }
-                        contentPreview?.let { preview ->
-                            Text(
-                                text = preview + if (preview.length >= 200) "..." else "",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.shimmer(isLoading = loading && !tool.isExecuted),
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                    if (tool.toolName == ToolNames.FILE_READ && content != null) {
-                        val outputText = tool.output.filterIsInstance<UIMessagePart.Text>()
-                            .joinToString("") { it.text }
-                        if (outputText.isNotBlank()) {
-                            Text(
-                                text = outputText.take(200) +
-                                    if (outputText.length > 200) "..." else "",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                    if (tool.toolName == ToolNames.FILE_LIST && content != null) {
-                        val outputText = tool.output.filterIsInstance<UIMessagePart.Text>()
-                            .joinToString("") { it.text }
-                        val firstLines = outputText.lines().take(6).joinToString("\n")
-                        if (firstLines.isNotBlank()) {
-                            Text(
-                                text = firstLines,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                maxLines = 6,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                    if (tool.toolName == ToolNames.FILE) {
+                        when (fileAction) {
+                            FileActions.WRITE -> {
+                                val rawInput = tool.input
+                                val contentPreview = if (!tool.isExecuted) {
+                                    val contentStart = rawInput.indexOf("\"content\":\"")
+                                    if (contentStart >= 0) {
+                                        val after = rawInput.substring(contentStart + 11)
+                                        after.take(200).replace("\\\"", "\"").replace("\\n", "\n")
+                                    } else null
+                                } else {
+                                    arguments.getStringContent("content")?.take(200)
+                                }
+                                contentPreview?.let { preview ->
+                                    Text(
+                                        text = preview + if (preview.length >= 200) "..." else "",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.shimmer(isLoading = loading && !tool.isExecuted),
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                            FileActions.READ -> {
+                                if (content != null) {
+                                    val outputText = tool.output.filterIsInstance<UIMessagePart.Text>()
+                                        .joinToString("") { it.text }
+                                    if (outputText.isNotBlank()) {
+                                        Text(
+                                            text = outputText.take(200) +
+                                                if (outputText.length > 200) "..." else "",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            maxLines = 3,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                            }
+                            FileActions.LIST -> {
+                                if (content != null) {
+                                    val outputText = tool.output.filterIsInstance<UIMessagePart.Text>()
+                                        .joinToString("") { it.text }
+                                    val firstLines = outputText.lines().take(6).joinToString("\n")
+                                    if (firstLines.isNotBlank()) {
+                                        Text(
+                                            text = firstLines,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            maxLines = 6,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                            }
+                            else -> { /* no extra content for other file actions */ }
                         }
                     }
                     if (tool.toolName == ToolNames.EXECUTE_COMMAND && content != null) {

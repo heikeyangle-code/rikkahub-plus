@@ -28,7 +28,7 @@ fun createSkillTools(
                 "Skills provide pre-built expertise. Available skills are listed in <available_skills>.\n\n" +
                 "Usage:\n" +
                 "- Use this tool when you need specialized knowledge for a task\n" +
-                "- Do NOT use file_list or file_search to browse skill directories — use this tool instead\n" +
+                "- Do NOT use file action=\"list\" or file action=\"search\" to browse skill directories — use this tool instead\n" +
                 "- Example: use_skill(name=\"driving-test-master\")\n\n" +
                 "When to Use:\n" +
                 "- A task matches a skill's description or triggers\n" +
@@ -39,7 +39,7 @@ fun createSkillTools(
             systemPrompt = { _, _ ->
                 buildString {
                     appendLine("## Skills")
-                    appendLine("Skills provide specialized knowledge and workflows. Use `use_skill` to load a skill by name. Do NOT use file_list or file_search to browse skill directories.")
+                    appendLine("Skills provide specialized knowledge and workflows. Use `use_skill` to load a skill by name. Do NOT use file action=\"list\" or file action=\"search\" to browse skill directories.")
                     appendLine("<available_skills>")
                     byCategory.forEach { (cat, skills) ->
                         appendLine("  <!-- $cat -->")
