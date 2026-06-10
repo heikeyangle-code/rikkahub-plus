@@ -1034,8 +1034,8 @@ class ChatService(
                                         }
                                     } ?: ""
 
-                                    // Build prompt with agent system prompt and memory
-                                    val prompt = buildString {
+                                    // Build system prompt (role/reminders/instructions) and user prompt (goal/context) separately
+                                    val systemPrompt = buildString {
                                         if (inheritContext) {
                                             if (resolvedSysPrompt.isNotBlank()) {
                                                 appendLine(resolvedSysPrompt)
@@ -1048,6 +1048,29 @@ class ChatService(
                                                     appendLine()
                                                 }
                                             }
+                                        }
+                                        // criticalReminder: 每轮注入的关键提醒（也通过 executeSubAgentLoop 每轮注入）
+                                        agentDef?.criticalReminder?.let {
+                                            if (it.isNotBlank()) {
+                                                appendLine()
+                                                appendLine("=== CRITICAL REMINDER ===")
+                                                appendLine(it)
+                                            }
+                                        }
+                                        // permissionMode: 权限模式提示
+                                        agentDef?.permissionMode?.let {
+                                            if (inheritContext && it.isNotBlank()) {
+                                                appendLine()
+                                                appendLine("Permission mode: $it")
+                                            }
+                                        }
+                                        appendLine()
+                                        appendLine("You have access to tools. Use them when needed.")
+                                        appendLine("After using tools, continue working until the goal is complete.")
+                                        appendLine("When done, summarize what was accomplished.")
+                                    }
+                                    val userPrompt = buildString {
+                                        if (inheritContext) {
                                             // Load agent memory via AgentMemoryManager
                                             val memoryPrompt = agentDef?.let { def ->
                                                 kotlinx.coroutines.runBlocking {
@@ -1071,25 +1094,6 @@ class ChatService(
                                                 appendLine("Context: $toolContext")
                                             }
                                         }
-                                        // criticalReminder: 每轮注入的关键提醒（也通过 executeSubAgentLoop 每轮注入）
-                                        agentDef?.criticalReminder?.let {
-                                            if (it.isNotBlank()) {
-                                                appendLine()
-                                                appendLine("=== CRITICAL REMINDER ===")
-                                                appendLine(it)
-                                            }
-                                        }
-                                        // permissionMode: 权限模式提示
-                                        agentDef?.permissionMode?.let {
-                                            if (inheritContext && it.isNotBlank()) {
-                                                appendLine()
-                                                appendLine("Permission mode: $it")
-                                            }
-                                        }
-                                        appendLine()
-                                        appendLine("You have access to tools. Use them when needed.")
-                                        appendLine("After using tools, continue working until the goal is complete.")
-                                        appendLine("When done, summarize what was accomplished.")
                                     }
 
                                     if (runInBackground) {
@@ -1139,13 +1143,13 @@ class ChatService(
                                                 AgentRunner.run(
                                                     agentDef = agentDef,
                                                     agentCallId = agentCallId,
-                                                    prompt = prompt,
+                                                    prompt = userPrompt,
                                                     subTools = subTools,
                                                     runInBackground = true,
                                                     agentType = agentType,
                                                     description = goal.take(50),
                                                 ) {
-                                                    executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt, agentCallId, agentDef)
+                                                    executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, userPrompt, agentCallId, agentDef, systemPrompt)
                                                 }
                                             }.onFailure { e ->
                                                 Log.w("SubAgent", "Background agent failed: ${e.message}")
@@ -1160,13 +1164,13 @@ class ChatService(
                                             val outputText = AgentRunner.run(
                                                 agentDef = agentDef,
                                                 agentCallId = agentCallId,
-                                                prompt = prompt,
+                                                prompt = userPrompt,
                                                 subTools = subTools,
                                                 runInBackground = false,
                                                 agentType = agentType,
                                                 description = goal.take(50),
                                             ) {
-                                                executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, prompt, agentCallId, agentDef)
+                                                executeSubAgentLoop(conversationId, subModel, providerSetting, providerImpl, subTools, assistant, userPrompt, agentCallId, agentDef, systemPrompt)
                                             }
                                             laneTracker.completed()
                                             outputText
@@ -2285,9 +2289,14 @@ class ChatService(
         prompt: String,
         agentCallId: String = conversationId.toString(),
         agentDef: me.rerere.rikkahub.data.ai.tools.AgentDefinition? = null,
+        systemPrompt: String = "",
     ): List<UIMessagePart> {
         val session = getOrCreateSession(conversationId)
-        val messages = mutableListOf(UIMessage.user(prompt))
+        val messages = mutableListOf<UIMessage>()
+        if (systemPrompt.isNotBlank()) {
+            messages.add(UIMessage.system(systemPrompt))
+        }
+        messages.add(UIMessage.user(prompt))
         var finalText = ""
         // maxTurns: 取 agentDef.maxTurns 与 assistant.subAgentMaxSteps 的较小值
         val maxSteps = agentDef?.maxTurns?.coerceAtMost(assistant.subAgentMaxSteps) ?: assistant.subAgentMaxSteps
