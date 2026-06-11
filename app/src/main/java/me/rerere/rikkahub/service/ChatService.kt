@@ -241,20 +241,47 @@ class ChatService(
                 addAll(createTaskTools())
                 add(createSleepTool())
             }
-            val messages = listOf(
+            val maxSteps = 10
+            val messages = mutableListOf(
                 me.rerere.ai.ui.UIMessage.system("You are a helpful worker agent. Complete the task using tools as needed. Summarize what you did."),
                 me.rerere.ai.ui.UIMessage.user(prompt),
             )
-            val chunk = impl.generateText(
-                providerSetting = p,
-                messages = messages,
-                params = me.rerere.ai.provider.TextGenerationParams(
-                    model = m,
-                    tools = tools,
-                    reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
-                ),
-            )
-            chunk.choices.firstOrNull()?.message?.toText() ?: "No response"
+            for (step in 0 until maxSteps) {
+                val chunk = impl.generateText(
+                    providerSetting = p,
+                    messages = messages,
+                    params = me.rerere.ai.provider.TextGenerationParams(
+                        model = m,
+                        tools = tools,
+                        reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                    ),
+                )
+                val responseMsg = chunk.choices.firstOrNull()?.message ?: break
+                val pendingTools = responseMsg.getTools().filter { !it.isExecuted }
+                if (pendingTools.isEmpty()) {
+                    return@WorkerManager responseMsg.toText().ifBlank { "Task complete" }
+                }
+                val executedTools = pendingTools.map { toolCall ->
+                    val toolDef = tools.find { it.name == toolCall.toolName }
+                    if (toolDef == null) {
+                        toolCall.copy(output = listOf(me.rerere.ai.ui.UIMessagePart.Text("Error: tool ${toolCall.toolName} not found")))
+                    } else {
+                        try {
+                            val result = toolDef.execute(toolCall.inputAsJson())
+                            toolCall.copy(output = result)
+                        } catch (e: Exception) {
+                            toolCall.copy(output = listOf(me.rerere.ai.ui.UIMessagePart.Text("Error: ${e.message}")))
+                        }
+                    }
+                }
+                val updatedParts = responseMsg.parts.map { part ->
+                    if (part is me.rerere.ai.ui.UIMessagePart.Tool) {
+                        executedTools.find { it.toolCallId == part.toolCallId } ?: part
+                    } else part
+                }
+                messages.add(responseMsg.copy(parts = updatedParts))
+            }
+            "Worker reached max steps ($maxSteps)"
         }
     }
     private val teammateRunner: TeammateRunner by lazy {
@@ -276,20 +303,47 @@ class ChatService(
                 addAll(me.rerere.rikkahub.data.ai.tools.createShellTools())
                 addAll(localTools.getTools(listOf(me.rerere.rikkahub.data.ai.tools.LocalToolOption.TimeInfo)))
             })
-            val messages = listOf(
+            val teamMaxSteps = 10
+            val teamMessages = mutableListOf(
                 me.rerere.ai.ui.UIMessage.system("You are a teammate agent. Complete the assigned task and report the results concisely."),
                 me.rerere.ai.ui.UIMessage.user(prompt),
             )
-            val chunk = impl.generateText(
-                providerSetting = p,
-                messages = messages,
-                params = me.rerere.ai.provider.TextGenerationParams(
-                    model = m,
-                    tools = tools,
-                    reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
-                ),
-            )
-            chunk.choices.firstOrNull()?.message?.toText() ?: "No response"
+            for (step in 0 until teamMaxSteps) {
+                val chunk = impl.generateText(
+                    providerSetting = p,
+                    messages = teamMessages,
+                    params = me.rerere.ai.provider.TextGenerationParams(
+                        model = m,
+                        tools = tools,
+                        reasoningLevel = me.rerere.ai.core.ReasoningLevel.OFF,
+                    ),
+                )
+                val responseMsg = chunk.choices.firstOrNull()?.message ?: break
+                val pendingTools = responseMsg.getTools().filter { !it.isExecuted }
+                if (pendingTools.isEmpty()) {
+                    return@TeammateRunner responseMsg.toText().ifBlank { "Task complete" }
+                }
+                val executedTools = pendingTools.map { toolCall ->
+                    val toolDef = tools.find { it.name == toolCall.toolName }
+                    if (toolDef == null) {
+                        toolCall.copy(output = listOf(me.rerere.ai.ui.UIMessagePart.Text("Error: tool ${toolCall.toolName} not found")))
+                    } else {
+                        try {
+                            val result = toolDef.execute(toolCall.inputAsJson())
+                            toolCall.copy(output = result)
+                        } catch (e: Exception) {
+                            toolCall.copy(output = listOf(me.rerere.ai.ui.UIMessagePart.Text("Error: ${e.message}")))
+                        }
+                    }
+                }
+                val updatedParts = responseMsg.parts.map { part ->
+                    if (part is me.rerere.ai.ui.UIMessagePart.Tool) {
+                        executedTools.find { it.toolCallId == part.toolCallId } ?: part
+                    } else part
+                }
+                teamMessages.add(responseMsg.copy(parts = updatedParts))
+            }
+            "Teammate reached max steps ($teamMaxSteps)"
         }
     }
     private val autoCompactor: AutoCompactor by lazy {
