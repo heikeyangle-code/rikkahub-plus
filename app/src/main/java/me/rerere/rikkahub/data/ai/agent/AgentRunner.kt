@@ -50,6 +50,9 @@ object AgentRunner {
     /** Agent skill 预加载回调。由 ChatService 设置。 */
     var onPreloadSkills: ((agent: AgentDefinition, callback: (String) -> Unit) -> Unit)? = null
 
+    /** 占位 Tool，用于 hook 事件传递 */
+    private val NOOP_TOOL = Tool(name = "", description = "", execute = { emptyList<UIMessagePart>() })
+
     /** Agent 摘要服务启动回调。由 ChatService 设置。 */
     var onStartSummary: ((agentId: String, initialProgress: AgentProgress) -> Unit)? = null
 
