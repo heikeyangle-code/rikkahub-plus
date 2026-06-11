@@ -232,6 +232,13 @@ class ChatService(
                     add(createWebFetchTool())
                 }
                 addAll(localTools.getTools(listOf(me.rerere.rikkahub.data.ai.tools.LocalToolOption.TimeInfo)))
+                addAll(createFileTools(context.filesDir.absolutePath))
+                addAll(createShellTools())
+                add(createPythonTool(context, 120))
+                add(createCalculatorTool(context))
+                add(createDataProcessTool())
+                add(createGitHubTool(settingsStore, 120, false))
+                addAll(createTaskTools())
                 add(createSleepTool())
             }
             val messages = listOf(
