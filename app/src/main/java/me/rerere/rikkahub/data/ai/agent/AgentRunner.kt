@@ -24,6 +24,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.data.ai.listener.AgentEventBus
+import me.rerere.rikkahub.data.ai.listener.AgentEvent
 
 /**
  * Agent 执行器，对齐官方 runAgent.ts（975 行）+ agentToolUtils.ts（688 行）。
@@ -163,8 +165,15 @@ object AgentRunner {
         // ── 对齐 CC step 1: 初始化 MCP ──
         initAgentMcp(agentDef)
 
-        // ── SUBAGENT_START hook ──
+        // ── SUBAGENT_START event + hook ──
         if (agentDef != null) {
+            runCatching {
+                AgentEventBus.emit(AgentEvent.SubagentStart(
+                    agentId = agentCallId,
+                    agentType = agentDef.agentType,
+                    description = description,
+                ))
+            }
             runCatching {
                 val args = buildJsonObject { put("prompt", JsonPrimitive(prompt)) }
                 HookRegistry.getHooks(HookEvent.SUBAGENT_START).forEach { hook ->
@@ -184,8 +193,15 @@ object AgentRunner {
                 return result
             } finally {
                 if (lifecycleId != null) unregisterLifecycle(lifecycleId)
-                // ── SUBAGENT_STOP hook ──
+                // ── SUBAGENT_STOP event + hook ──
                 if (agentDef != null) {
+                    runCatching {
+                        AgentEventBus.emit(AgentEvent.SubagentStop(
+                            agentId = agentCallId,
+                            agentType = agentDef.agentType,
+                            result = "completed",
+                        ))
+                    }
                     runCatching {
                         val args = buildJsonObject { put("prompt", JsonPrimitive(prompt)) }
                         HookRegistry.getHooks(HookEvent.SUBAGENT_STOP).forEach { hook ->

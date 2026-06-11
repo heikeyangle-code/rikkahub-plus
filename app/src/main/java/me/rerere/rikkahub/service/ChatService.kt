@@ -329,6 +329,12 @@ class ChatService(
                 Log.i(TAG, "[agent summary] $agentId: $summary")
             }
         }
+
+        // ── Hook 系统初始化 ──
+        me.rerere.rikkahub.data.ai.hooks.LoggingToolHook.registerAll()
+        // 激活 AgentService（by lazy -> 先访问一次确保订阅）
+        agentService
+        Log.i(TAG, "AgentService initialized, ToolHook logger registered")
     }
 
     // 错误状态
