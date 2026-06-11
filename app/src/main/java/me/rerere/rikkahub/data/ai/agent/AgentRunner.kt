@@ -169,7 +169,6 @@ object AgentRunner {
                 val args = buildJsonObject { put("prompt", JsonPrimitive(prompt)) }
                 HookRegistry.getHooks(HookEvent.SUBAGENT_START).forEach { hook ->
                     hook.execute(NOOP_TOOL.copy(name = agentDef.agentType), args)
-                    hook.execute(tool, args)
                 }
             }
         }
