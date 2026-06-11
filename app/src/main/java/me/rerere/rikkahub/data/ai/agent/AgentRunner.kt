@@ -24,7 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import me.rerere.rikkahub.data.ai.listener.AgentEventBus
+import me.rerere.rikkahub.data.ai.listener.AgentEventBus as ListenerEventBus
 import me.rerere.rikkahub.data.ai.listener.AgentEvent
 
 /**
@@ -168,7 +168,7 @@ object AgentRunner {
         // ── SUBAGENT_START event + hook ──
         if (agentDef != null) {
             runCatching {
-                AgentEventBus.emit(AgentEvent.SubagentStart(
+                ListenerEventBus.emit(AgentEvent.SubagentStart(
                     agentId = agentCallId,
                     agentType = agentDef.agentType,
                     description = description,
@@ -196,7 +196,7 @@ object AgentRunner {
                 // ── SUBAGENT_STOP event + hook ──
                 if (agentDef != null) {
                     runCatching {
-                        AgentEventBus.emit(AgentEvent.SubagentStop(
+                        ListenerEventBus.emit(AgentEvent.SubagentStop(
                             agentId = agentCallId,
                             agentType = agentDef.agentType,
                             result = "completed",
