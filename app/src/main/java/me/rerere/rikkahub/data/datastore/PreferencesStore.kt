@@ -70,7 +70,7 @@ private val Context.settingsStore by preferencesDataStore(
 )
 
 class SettingsStore(
-    context: Context,
+    private val context: Context,
     scope: AppScope,
 ) : KoinComponent {
     companion object {
@@ -174,6 +174,11 @@ class SettingsStore(
         .catch { exception ->
             if (exception is IOException || exception is androidx.datastore.core.CorruptionException) {
                 Log.w(TAG, "DataStore corrupted, resetting: ${exception.message}")
+                // 删掉坏文件，下次启动时 DataStore 会重建
+                kotlinx.coroutines.runCatching {
+                    val f = java.io.File(context.filesDir, "settings.preferences_pb")
+                    if (f.exists()) f.delete()
+                }
                 emit(emptyPreferences())
             } else {
                 throw exception
