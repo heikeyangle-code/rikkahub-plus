@@ -962,11 +962,13 @@ class ChatService(
                                         properties = buildJsonObject {
                                             put("goal", buildJsonObject {
                                                 put("type", "string")
-                                                put("description", "What the agent should accomplish. Be specific and self-contained.")
+                                                put("maxLength", 2000)
+                                                put("description", "What the agent should accomplish. Be specific and concise (max 2000 chars). For long tasks, split into multiple sub_agent calls.")
                                             })
                                             put("context", buildJsonObject {
                                                 put("type", "string")
-                                                put("description", "Background information: code, data, text, etc.")
+                                                put("maxLength", 3000)
+                                                put("description", "Background information (max 3000 chars). Keep brief — the sub-agent has its own tools to read files if needed.")
                                             })
                                             put("subagent_type", buildJsonObject {
                                                 put("type", "string")
