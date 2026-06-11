@@ -134,6 +134,7 @@ class AgentLifecycleManager {
         task.status = AgentLifecycleStatus.COMPLETED
         task.result = result
         AgentTaskTracker.updateStatus(agentId, AgentStatus.COMPLETED)
+        AgentTaskTracker.endSession(agentId)
         task.deferred.complete(result)
         notify(task)
     }
@@ -144,6 +145,7 @@ class AgentLifecycleManager {
         task.error = error
         AgentTaskTracker.updateStatus(agentId, AgentStatus.FAILED)
         AgentTaskTracker.recordSummary(agentId, "Failed: $error")
+        AgentTaskTracker.endSession(agentId)
         task.deferred.completeExceptionally(RuntimeException(error))
         notify(task)
     }

@@ -1,9 +1,5 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -137,17 +133,12 @@ fun AgentExecutionPanel(
 
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainerHigh
 
-    AnimatedVisibility(
-        visible = true,
-        enter = fadeIn(animationSpec = tween(300)),
-        exit = fadeOut(animationSpec = tween(200)),
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = surfaceColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Card(
-            modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = surfaceColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 // ── Header ──
                 Row(
@@ -294,5 +285,4 @@ fun AgentExecutionPanel(
                 }
             }
         }
-    }
 }
