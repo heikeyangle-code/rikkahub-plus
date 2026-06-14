@@ -276,7 +276,6 @@ fun GroupChatPage(groupId: String) {
                                 // 编辑模式：直接更新消息，不走选人+生成
                                 if (inputState.isEditing()) {
                                     val editMsgId = inputState.editingMessage!!
-                                    inputState.clearInput()
                                     generationJob = scope.launch {
                                         chatService.updateConversationState(currentConvId) { conv ->
                                             val updatedNodes = conv.messageNodes.map { node ->
@@ -312,8 +311,6 @@ fun GroupChatPage(groupId: String) {
 
                                 queueMembers = allPicked.mapNotNull { id -> members.find { it.id == id }?.name }
                                 queueStatus = "等待 ${queueMembers.joinToString("、")} 回复..."
-
-                                inputState.clearInput()
 
                                 generationJob = scope.launch {
                                     try {

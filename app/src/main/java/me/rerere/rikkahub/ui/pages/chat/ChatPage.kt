@@ -401,10 +401,8 @@ private fun ChatPageContent(
                             toaster.show("请先选择模型", type = ToastType.Error)
                         } else if (inputState.isEditing()) {
                             vm.handleMessageEdit(inputState.getContents(), inputState.editingMessage!!)
-                            inputState.clearInput()
                         } else {
                             vm.handleMessageSend(inputState.getContents())
-                            inputState.clearInput()
                         }
                     },
                     onLongSendClick = {
@@ -413,7 +411,6 @@ private fun ChatPageContent(
                         } else {
                             vm.handleMessageSend(content = inputState.getContents(), answer = false)
                         }
-                        inputState.clearInput()
                     },
                 )
             },

@@ -60,7 +60,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -156,15 +159,24 @@ fun ChatInput(
     val filesHazeStyle = HazeMaterials.thin()
 
     val focusManager = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
 
     fun sendMessage() {
         focusManager.clearFocus(force = true)
         if (loading) onCancelClick() else onSendClick()
+        scope.launch {
+            withFrameNanos { }
+            state.clearInput()
+        }
     }
 
     fun sendMessageWithoutAnswer() {
         focusManager.clearFocus(force = true)
         if (loading) onCancelClick() else onLongSendClick()
+        scope.launch {
+            withFrameNanos { }
+            state.clearInput()
+        }
     }
 
     var expand by remember { mutableStateOf(ExpandState.Collapsed) }
