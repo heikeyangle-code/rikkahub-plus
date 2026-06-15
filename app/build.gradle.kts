@@ -49,6 +49,7 @@ chaquopy {
             install("flatlib")            // ⭐386 传统占星（宫位/相位/尊贵）
             install("meihua-yi")           // ⭐1  梅花易数起卦（纯Python）
             install("PyJHora")             // ⭐188 印度占星(吠陀)全套
+            install("immanuel")            // ⭐109 西洋占星合盘+推运（synastry/progression）
             install("setuptools")          // 先升级setuptools, kinastro需要>=68.0
             install("hatchling")           // hatchling构建工具, kinwangji需要
             install("git+https://github.com/kentang2017/kinastro.git")  // ⭐31 88种中外占星禄命合一
