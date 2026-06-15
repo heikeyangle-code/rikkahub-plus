@@ -1282,3 +1282,307 @@ def format_astrolabe(result: AstrolabeResult) -> str:
     lines.append("")
 
     return '\n'.join(lines)
+
+
+# ============================================================
+# 15. 流昌流曲 — 1:1 iztro location.ts getChangQuIndexByHeavenlyStem
+# ============================================================
+
+def get_chang_qu_index_by_heavenly_stem(heavenly_stem: str) -> dict:
+    """
+    流昌流曲（按天干定位）— 1:1 iztro getChangQuIndexByHeavenlyStem
+    用于大限/流年/流月/流日/流时的文昌文曲
+    """
+    table = {
+        '甲': ('巳', '酉'),
+        '乙': ('午', '申'),
+        '丙': ('申', '午'),
+        '丁': ('酉', '巳'),
+        '戊': ('申', '午'),
+        '己': ('酉', '巳'),
+        '庚': ('亥', '卯'),
+        '辛': ('子', '寅'),
+        '壬': ('寅', '子'),
+        '癸': ('卯', '亥'),
+    }
+    chang_eb, qu_eb = table.get(heavenly_stem, ('', ''))
+    return {
+        'chang_index': fix_index(eb_name_to_palace_index(chang_eb)) if chang_eb else -1,
+        'qu_index': fix_index(eb_name_to_palace_index(qu_eb)) if qu_eb else -1,
+    }
+
+
+# ============================================================
+# 16. 流耀系统 — 1:1 iztro horoscopeStar.ts
+# ============================================================
+# 大限/流年/流月/流日/流时的 魁钺昌曲禄羊陀马鸾喜 + 年解
+
+SCOPE_NAMES = {
+    'origin':   {'kui': '天魁', 'yue': '天钺', 'chang': '文昌', 'qu': '文曲',
+                 'lu': '禄存', 'yang': '擎羊', 'tuo': '陀罗', 'ma': '天马',
+                 'hongluan': '红鸾', 'tianxi': '天喜'},
+    'decadal':  {'kui': '运魁', 'yue': '运钺', 'chang': '运昌', 'qu': '运曲',
+                 'lu': '运禄', 'yang': '运羊', 'tuo': '运陀', 'ma': '运马',
+                 'hongluan': '运鸾', 'tianxi': '运喜'},
+    'yearly':   {'kui': '流魁', 'yue': '流钺', 'chang': '流昌', 'qu': '流曲',
+                 'lu': '流禄', 'yang': '流羊', 'tuo': '流陀', 'ma': '流马',
+                 'hongluan': '流鸾', 'tianxi': '流喜'},
+    'monthly':  {'kui': '月魁', 'yue': '月钺', 'chang': '月昌', 'qu': '月曲',
+                 'lu': '月禄', 'yang': '月羊', 'tuo': '月陀', 'ma': '月马',
+                 'hongluan': '月鸾', 'tianxi': '月喜'},
+    'daily':    {'kui': '日魁', 'yue': '日钺', 'chang': '日昌', 'qu': '日曲',
+                 'lu': '日禄', 'yang': '日羊', 'tuo': '日陀', 'ma': '日马',
+                 'hongluan': '日鸾', 'tianxi': '日喜'},
+    'hourly':   {'kui': '时魁', 'yue': '时钺', 'chang': '时昌', 'qu': '时曲',
+                 'lu': '时禄', 'yang': '时羊', 'tuo': '时陀', 'ma': '时马',
+                 'hongluan': '时鸾', 'tianxi': '时喜'},
+}
+
+
+def get_horoscope_star(heavenly_stem: str, earthly_branch: str,
+                       scope: str = 'origin') -> List[Dict]:
+    """
+    流耀 — 1:1 iztro getHoroscopeStar
+    scope: origin | decadal | yearly | monthly | daily | hourly
+    返回该scope下的 魁钺昌曲禄羊陀马鸾喜 列表
+    """
+    names = SCOPE_NAMES.get(scope, SCOPE_NAMES['origin'])
+
+    # 魁钺（按天干）
+    kui, yue = get_kui_yue_index(heavenly_stem)
+    # 昌曲（按天干 — 用流昌流曲公式）
+    cq = get_chang_qu_index_by_heavenly_stem(heavenly_stem)
+    # 禄羊陀马（按天干地支）
+    lu, yang, tuo, ma = get_lu_yang_tuo_ma_index(heavenly_stem, earthly_branch)
+    # 鸾喜（按地支）
+    hl_idx, tx_idx = get_hong_luan_tian_xi_index(earthly_branch)
+
+    stars = []
+    if kui >= 0:
+        stars.append({'name': names['kui'], 'index': kui, 'type': 'minor', 'scope': scope})
+    if yue >= 0:
+        stars.append({'name': names['yue'], 'index': yue, 'type': 'minor', 'scope': scope})
+    if cq['chang_index'] >= 0:
+        stars.append({'name': names['chang'], 'index': cq['chang_index'], 'type': 'minor', 'scope': scope})
+    if cq['qu_index'] >= 0:
+        stars.append({'name': names['qu'], 'index': cq['qu_index'], 'type': 'minor', 'scope': scope})
+    if lu >= 0:
+        stars.append({'name': names['lu'], 'index': lu, 'type': 'minor', 'scope': scope})
+    if yang >= 0:
+        stars.append({'name': names['yang'], 'index': yang, 'type': 'minor', 'scope': scope})
+    if tuo >= 0:
+        stars.append({'name': names['tuo'], 'index': tuo, 'type': 'minor', 'scope': scope})
+    if ma >= 0:
+        stars.append({'name': names['ma'], 'index': ma, 'type': 'minor', 'scope': scope})
+    stars.append({'name': names['hongluan'], 'index': hl_idx, 'type': 'flower', 'scope': scope})
+    stars.append({'name': names['tianxi'], 'index': tx_idx, 'type': 'flower', 'scope': scope})
+
+    # 流年才加年解
+    if scope == 'yearly':
+        nianjie = fix_index(
+            eb_name_to_palace_index(
+                ['戌', '酉', '申', '未', '午', '巳', '辰', '卯', '寅', '丑', '子', '亥'][
+                    EARTHLY_BRANCHES.index(earthly_branch)
+                ]
+            )
+        )
+        stars.append({'name': '年解', 'index': nianjie, 'type': 'helper', 'scope': 'yearly'})
+
+    return stars
+
+
+# ============================================================
+# 17. 三方四正 — 1:1 iztro analyzer.ts + FunctionalSurpalaces
+# ============================================================
+
+@dataclass
+class SurPalaces:
+    """
+    三方四正 — 1:1 iztro FunctionalSurpalaces / SurroundedPalaces
+    target: 目标宫
+    wealth: 财帛位（+4）
+    opposite: 对宫（+6）
+    career: 官禄位（+4 from opposite = +10 from target）
+    """
+    target: dict
+    wealth: dict
+    opposite: dict
+    career: dict
+
+
+def get_palace(result, index_or_name):
+    """
+    获取宫位 — 1:1 iztro analyzer.ts getPalace
+    支持索引（0-11）或宫位名称（'命宫', '兄弟宫', ...）
+    也支持特殊名称 'original'（命宫）和 'body'（身宫）
+    """
+    if isinstance(index_or_name, int):
+        if index_or_name < 0 or index_or_name > 11:
+            return None
+        palace = result.palaces[index_or_name]
+    elif isinstance(index_or_name, str):
+        if index_or_name == 'original':
+            matches = [p for p in result.palaces if p.get('is_soul')]
+        elif index_or_name == 'body':
+            matches = [p for p in result.palaces if p.get('is_body')]
+        else:
+            matches = [p for p in result.palaces if p['name'] == index_or_name]
+
+        if not matches:
+            return None
+        palace = matches[0]
+    else:
+        return None
+
+    return palace
+
+
+def get_surrounded_palaces(result, index_or_name):
+    """
+    三方四正 — 1:1 iztro analyzer.ts getSurroundedPalaces
+    传入星盘结果+宫位索引/名称，返回目标宫+财帛+对宫+官禄四个宫位
+    """
+    palace = get_palace(result, index_or_name)
+    if not palace:
+        return None
+
+    palace_idx = palace['index']
+
+    # 对宫：+6
+    opp_idx = fix_index(palace_idx + 6)
+    # 官禄：+4
+    car_idx = fix_index(palace_idx + 4)
+    # 财帛：+8
+    wea_idx = fix_index(palace_idx + 8)
+
+    return SurPalaces(
+        target=result.palaces[palace_idx],
+        wealth=result.palaces[wea_idx],
+        opposite=result.palaces[opp_idx],
+        career=result.palaces[car_idx],
+    )
+
+
+# ============================================================
+# 18. 星耀分析函数 — 1:1 iztro analyzer.ts
+# ============================================================
+
+def _get_all_stars_in_palace(palace, result) -> List[str]:
+    """获取宫位内所有星耀名称（主星+辅星+杂星+四化星）"""
+    names = []
+    for s in result.major_stars:
+        if s['index'] == palace['index']:
+            names.append(s['name'])
+    for s in result.minor_stars:
+        if s['index'] == palace['index']:
+            names.append(s['name'])
+    for s in result.adjective_stars:
+        if s['index'] == palace['index']:
+            names.append(s['name'])
+    return names
+
+
+def _get_all_stars_in_surpalaces(sp: SurPalaces, result) -> List[str]:
+    """获取三方四正内所有星耀"""
+    stars = []
+    for p in [sp.target, sp.wealth, sp.opposite, sp.career]:
+        stars.extend(_get_all_stars_in_palace(p, result))
+    return stars
+
+
+def has_stars(result, palace, star_names: List[str]) -> bool:
+    """
+    判断宫位是否包含所有指定星耀 — 1:1 hasStars
+    palace: 宫位dict或索引或名称
+    star_names: 星耀名称列表
+    """
+    p = get_palace(result, palace) if not isinstance(palace, dict) else palace
+    if not p:
+        return False
+    all_stars = _get_all_stars_in_palace(p, result)
+    return all(name in all_stars for name in star_names)
+
+
+def has_one_of_stars(result, palace, star_names: List[str]) -> bool:
+    """
+    判断宫位是否包含指定星耀的至少一个 — 1:1 hasOneOfStars
+    """
+    p = get_palace(result, palace) if not isinstance(palace, dict) else palace
+    if not p:
+        return False
+    all_stars = _get_all_stars_in_palace(p, result)
+    return any(name in all_stars for name in star_names)
+
+
+def not_have_stars(result, palace, star_names: List[str]) -> bool:
+    """
+    判断宫位是否不包含任何指定星耀 — 1:1 notHaveStars
+    """
+    return not has_one_of_stars(result, palace, star_names)
+
+
+def has_mutagen_in_place(result, palace, mutagen: str) -> bool:
+    """
+    判断宫位是否有指定四化 — 1:1 hasMutagenInPlace
+    mutagen: '化禄' | '化权' | '化科' | '化忌'
+    """
+    p = get_palace(result, palace) if not isinstance(palace, dict) else palace
+    if not p:
+        return False
+    return any(
+        m['index'] == p['index'] and m['mutagen'] == mutagen
+        for m in result.mutagens
+    )
+
+
+def not_have_mutagen_in_place(result, palace, mutagen: str) -> bool:
+    """判断宫位是否没有指定四化 — 1:1 notHaveMutagenInPalce"""
+    return not has_mutagen_in_place(result, palace, mutagen)
+
+
+def is_surrounded_by_stars(result, index_or_name, star_names: List[str]) -> bool:
+    """
+    判断三方四正是否包含所有指定星耀 — 1:1 isSurroundedByStars
+    """
+    sp = get_surrounded_palaces(result, index_or_name)
+    if not sp:
+        return False
+    all_stars = _get_all_stars_in_surpalaces(sp, result)
+    return all(name in all_stars for name in star_names)
+
+
+def is_surrounded_by_one_of_stars(result, index_or_name, star_names: List[str]) -> bool:
+    """
+    判断三方四正是否包含指定星耀的至少一个 — 1:1 isSurroundedByOneOfStars
+    """
+    sp = get_surrounded_palaces(result, index_or_name)
+    if not sp:
+        return False
+    all_stars = _get_all_stars_in_surpalaces(sp, result)
+    return any(name in all_stars for name in star_names)
+
+
+def not_surrounded_by_stars(result, index_or_name, star_names: List[str]) -> bool:
+    """
+    判断三方四正是否不含任何指定星耀 — 1:1 notSurroundedByStars
+    """
+    return not is_surrounded_by_one_of_stars(result, index_or_name, star_names)
+
+
+def mutagens_to_stars(heavenly_stem: str, mutagens):
+    """
+    根据天干查询四化对应的星耀名称 — 1:1 mutagensToStars
+    mutagens: '化禄' 或 ['化禄', '化权', ...]
+    返回星耀名称列表
+    """
+    if isinstance(mutagens, str):
+        mutagens = [mutagens]
+    if heavenly_stem not in MUTAGEN_DATA:
+        return []
+    hua_list = MUTAGEN_DATA[heavenly_stem]
+    result = []
+    for m in mutagens:
+        idx = MUTAGEN_NAMES.index(m)
+        if idx < len(hua_list):
+            result.append(hua_list[idx])
+    return result
