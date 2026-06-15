@@ -32,7 +32,7 @@ chaquopy {
             install("tabulate")
 
             // === 命理计算引擎 ===
-            install("lunar-python")
+            install(rootProject.file("app/src/main/python/lunar_python-1.4.8-py3-none-any.whl").path)
             install("cnlunar")
             install("ichingshifa")
             install("kinliuren")

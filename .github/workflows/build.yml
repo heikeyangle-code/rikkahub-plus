@@ -25,11 +25,11 @@ jobs:
         run: rm -rf app/build/python $HOME/.gradle/caches/chaquopy*
       - name: Pre-install setuptools for build
         run: pip install --upgrade pip setuptools wheel 2>&1 | tail -3
-      - name: Download packages missing from Chaquopy proxy
+      - name: Build lunar-python wheel locally
         run: |
-          pip download --no-deps --dest /tmp/pypi-offline "lunar-python==1.4.8" 2>&1 | tail -3
-          echo "downloaded:"
-          ls /tmp/pypi-offline/
+          pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
+          cd /tmp/pypi-offline && pip wheel --no-deps --wheel-dir /tmp/pypi-offline lunar_python-1.4.8.tar.gz 2>&1 | tail -5
+          ls /tmp/pypi-offline/*.whl 2>/dev/null && cp /tmp/pypi-offline/*.whl app/src/main/python/
       - uses: actions/cache@v4
         with:
           path: |
@@ -45,8 +45,6 @@ jobs:
           keyPassword=android
           EOF
       - name: Build
-        env:
-          PIP_FIND_LINKS: /tmp/pypi-offline
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease -x :web:buildWebUi --stacktrace 2>&1 | tee build.log | tail -20
