@@ -469,15 +469,15 @@ def get_major_stars(ziwei_index: int, tianfu_index: int) -> List[Dict]:
 
 def get_zuo_you_index(lunar_month: int) -> Tuple[int, int]:
     """左辅右弼：辰上顺正寻左辅，戌上逆正右弼当"""
-    zuo = fix_index(eb_name_to_index('辰') + (lunar_month - 1))
-    you = fix_index(eb_name_to_index('戌') - (lunar_month - 1))
+    zuo = fix_index(eb_name_to_palace_index('辰') + (lunar_month - 1))
+    you = fix_index(eb_name_to_palace_index('戌') - (lunar_month - 1))
     return zuo, you
 
 
 def get_chang_qu_index(time_index: int) -> Tuple[int, int]:
     """文昌文曲：辰上顺时文曲位，戌上逆时觅文昌"""
-    chang = fix_index(eb_name_to_index('戌') - fix_index(time_index))
-    qu = fix_index(eb_name_to_index('辰') + fix_index(time_index))
+    chang = fix_index(eb_name_to_palace_index('戌') - fix_index(time_index))
+    qu = fix_index(eb_name_to_palace_index('辰') + fix_index(time_index))
     return chang, qu
 
 
