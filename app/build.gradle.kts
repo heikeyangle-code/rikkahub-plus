@@ -59,16 +59,6 @@ chaquopy {
     }
 }
 
-// pip constraints: 锁定 setuptools<76 以支持 kinastro 的 _legacy 构建后端
-tasks.matching { it.name.startsWith("install") && it.name.endsWith("PythonRequirements") }.configureEach {
-    doFirst {
-        val constraintsFile = File("${layout.buildDirectory.get()}/pip-constraints.txt")
-        constraintsFile.parentFile.mkdirs()
-        constraintsFile.writeText("setuptools<76\n")
-        environment("PIP_CONSTRAINT", constraintsFile.absolutePath)
-    }
-}
-
 android {
     namespace = "me.rerere.rikkahub"
     compileSdk = 37
