@@ -1453,29 +1453,18 @@ def get_horoscope_by_date(astrolabe_result: AstrolabeResult,
             decadal_branch = h['earthly_branch']
             break
 
-    # 小限索引
-    age_index = -1
-    age_stem = '甲'
-    age_branch = '子'
-    for i, h in enumerate(astrolabe_result.horoscopes):
-        if h['range'][0] <= nominal_age <= h['range'][1]:
-            age_index = i
-            # 小限以命宫起1岁，阳男阴女顺，阴男阳女逆
-            is_male = (astrolabe_result.gender == '男')
-            is_yang_year = STEM_YIN_YANG[astrolabe_result.heavenly_stem_of_year] == '阳'
-            is_forward = (is_yang_year and is_male) or (not is_yang_year and not is_male)
-            age_offset = nominal_age - h['range'][0]
-            if is_forward:
-                age_idx = fix_index(astrolabe_result.soul_index + age_offset)
-            else:
-                age_idx = fix_index(astrolabe_result.soul_index - age_offset)
-            age_index = age_idx
-            # 小限天干地支
-            a_stem = HEAVENLY_STEMS[fix_index(HEAVENLY_STEMS.index(decadal_stem) + age_offset, 10)]
-            a_branch = EARTHLY_BRANCHES[fix_index(eb_name_to_index(astrolabe_result.earthly_branch_of_soul) + age_offset)]
-            age_stem = a_stem
-            age_branch = a_branch
-            break
+    # 小限索引：从命宫起1岁，阳男阴女顺行，阴男阳女逆行
+    is_male = (astrolabe_result.gender == '男')
+    is_yang_year = STEM_YIN_YANG[astrolabe_result.heavenly_stem_of_year] == '阳'
+    is_forward = (is_yang_year and is_male) or (not is_yang_year and not is_male)
+    age_offset = nominal_age - 1
+    age_index = fix_index(astrolabe_result.soul_index + (age_offset if is_forward else -age_offset))
+    # 小限天干：从命宫天干起，顺/逆推
+    soul_stem_idx = HEAVENLY_STEMS.index(astrolabe_result.heavenly_stem_of_soul)
+    age_stem = HEAVENLY_STEMS[fix_index(soul_stem_idx + (age_offset if is_forward else -age_offset), 10)]
+    # 小限地支：从命宫地支起，顺/逆推
+    soul_branch_idx = eb_name_to_index(astrolabe_result.earthly_branch_of_soul)
+    age_branch = EARTHLY_BRANCHES[fix_index(soul_branch_idx + (age_offset if is_forward else -age_offset))]
 
     # 流年索引 = 年支的宫位索引
     yearly_index = eb_name_to_palace_index(y_branch)
