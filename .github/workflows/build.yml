@@ -23,10 +23,8 @@ jobs:
         run: pip install --upgrade pip setuptools wheel
       - name: Force full Python reinstall (auto-update all packages)
         run: rm -rf app/build/python $HOME/.gradle/caches/chaquopy*
-      - name: Pre-install setuptools>=68 for legacy build backend
-        run: |
-          echo "setuptools<76" > /tmp/pip-constraints.txt
-          pip install "setuptools>=68,<76" hatchling wheel 2>&1 | tail -3
+      - name: Pre-install setuptools for build
+        run: pip install --upgrade pip setuptools wheel 2>&1 | tail -3
       - uses: actions/cache@v4
         with:
           path: |
@@ -42,8 +40,6 @@ jobs:
           keyPassword=android
           EOF
       - name: Build
-        env:
-          PIP_CONSTRAINT: /tmp/pip-constraints.txt
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease -x :web:buildWebUi --stacktrace 2>&1 | tee build.log | tail -20
