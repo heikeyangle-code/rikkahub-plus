@@ -44,6 +44,45 @@ RAT_RULE = {
 }
 
 # ============================================================
+# 1b. 全局配置 — 1:1 iztro config() 系统
+# ============================================================
+_CONFIG = {
+    'day_divide': 'forward',        # 'forward' | 'current' 晚子时算当天还是次日
+    'year_divide': 'normal',         # 'normal' | 'exact'   年柱以正月初一还是立春为界
+    'horoscope_divide': 'normal',    # 'normal' | 'exact'   流年/月系星以何分界
+    'algorithm': 'default',          # 'default' | 'zhongzhou' 中州派安星法
+    'mutagens': {},                  # 自定义四化覆盖
+    'brightness': {},                # 自定义亮度覆盖
+}
+
+
+def iztro_configure(**kwargs):
+    """配置 iztro 兼容选项 — 1:1 iztro config()"""
+    for k, v in kwargs.items():
+        if k in _CONFIG:
+            _CONFIG[k] = v
+
+
+def _get_mutagen_data(year_stem: str) -> list:
+    """获取四化数据（支持自定义覆盖）"""
+    custom = _CONFIG['mutagens'].get(year_stem)
+    if custom:
+        return custom
+    return MUTAGEN_DATA.get(year_stem, [])
+
+
+def _get_star_brightness(star_name: str) -> list:
+    """获取星曜亮度列表（支持自定义覆盖）"""
+    custom = _CONFIG['brightness'].get(star_name)
+    if custom:
+        return custom
+    info = STARS_INFO.get(star_name)
+    if info and 'brightness' in info:
+        return info['brightness']
+    return []
+
+
+# ============================================================
 # 2. 十四主星
 # ============================================================
 # 紫微系：紫微逆去天机星，隔一太阳武曲辰，连接天同空二宫，廉贞居处方是真
@@ -260,19 +299,21 @@ def get_solar_and_lunar(solar_date: str) -> Tuple[Any, Any]:
 
 
 def get_lunar_month_day_count(lunar_obj) -> int:
-    """获取农历当月天数 — lunar_python 1.4.8 兼容"""
+    """获取农历当月天数 — 1:1 iztro getTotalDaysOfLunarMonth"""
     solar = lunar_obj.getSolar()
     d = datetime(int(solar.getYear()), int(solar.getMonth()), int(solar.getDay()))
     cur_month = lunar_obj.getMonth()
+    # 回到当月1号
+    first = d - timedelta(days=lunar_obj.getDay() - 1)
     cnt = 0
     while True:
-        d += timedelta(days=1)
-        s = Solar.fromYmd(d.year, d.month, d.day)
+        first += timedelta(days=1)
+        s = Solar.fromYmd(first.year, first.month, first.day)
         l = s.getLunar()
         cnt += 1
         if l.getMonth() != cur_month:
             break
-    return lunar_obj.getDay() + cnt
+    return cnt
 
 
 def get_lunar_month_index(solar_date: str, time_index: int, fix_leap: bool = True) -> int:
@@ -313,14 +354,23 @@ def get_day_gan_zhi(solar_date: str) -> Tuple[str, str]:
     return dgz[0], dgz[1]
 
 
-def get_hour_gan_zhi(time_index: int, day_stem: str) -> Tuple[str, str]:
-    """获取时柱天干地支 — 五鼠遁"""
+def get_hour_gan_zhi(solar_date: str, time_index: int) -> Tuple[str, str]:
+    """获取时柱天干地支 — 五鼠遁 1:1 iztro timeToIndex → hourly
+    晚子时(time_index>=12)用次日日干推五鼠遁"""
     if time_index >= 12:
+        # 晚子时：次日日干
+        parts = solar_date.split('-')
+        d = datetime(int(parts[0]), int(parts[1]), int(parts[2]))
+        next_date = (d + timedelta(days=1)).strftime('%Y-%m-%d')
+        day_stem, _ = get_day_gan_zhi(next_date)
         eb = EARTHLY_BRANCHES[0]
         start_stem = RAT_RULE[day_stem]
         stem_idx = HEAVENLY_STEMS.index(start_stem)
         hs = HEAVENLY_STEMS[fix_index(stem_idx + 0, 10)]
     else:
+        _, lunar = get_solar_and_lunar(solar_date)
+        dgz = lunar.getDayInGanZhi()
+        day_stem = dgz[0]
         eb = EARTHLY_BRANCHES[time_index % 12]
         start_stem = RAT_RULE[day_stem]
         stem_idx = HEAVENLY_STEMS.index(start_stem)
@@ -405,9 +455,9 @@ def get_ziwei_tianfu_index(solar_date: str, time_index: int, fix_leap: bool = Tr
     _, lunar = get_solar_and_lunar(solar_date)
     lunar_day = lunar.getDay()
 
-    # 晚子时下一天处理
+    # 晚子时下一天处理（1:1 iztro getStartIndex — 检查 dayDivide 配置）
     max_days = get_lunar_month_day_count(lunar)
-    _day = lunar_day + 1 if time_index == 12 else lunar_day
+    _day = (lunar_day + 1) if (time_index == 12 and _CONFIG['day_divide'] != 'current') else lunar_day
     if _day > max_days:
         _day -= max_days
 
@@ -753,11 +803,15 @@ def get_jiangqian12_start_index(year_branch: str) -> int:
 
 
 def get_yearly12(solar_date: str) -> dict:
-    """岁前12神 + 将前12神 — 1:1 iztro getYearly12"""
+    """岁前12神 + 将前12神 — 1:1 iztro getYearly12（含中州派）"""
     _, year_branch = get_year_gan_zhi(solar_date)
     suiqian = [None] * 12
     start_idx = eb_name_to_palace_index(year_branch)
-    for i, name in enumerate(SUIQIAN_12):
+    # 中州派岁前第7位为"岁破"而非"大耗"
+    names = ['岁建', '晦气', '丧门', '贯索', '官符', '小耗',
+             '岁破' if _CONFIG['algorithm'] == 'zhongzhou' else '大耗',
+             '龙德', '白虎', '天德', '吊客', '病符']
+    for i, name in enumerate(names):
         idx = fix_index(start_idx + i)
         suiqian[idx] = name
     jiangqian = [None] * 12
@@ -772,10 +826,17 @@ def get_yearly12(solar_date: str) -> dict:
 # 10. 天使天伤 / 命主身主 / 小限
 # ============================================================
 
-def get_tianshi_tianshang_index(gender: str, soul_index: int) -> Tuple[int, int]:
-    """天使天伤 — 非中州派永不交换"""
+def get_tianshi_tianshang_index(gender: str, year_branch: str, soul_index: int) -> Tuple[int, int]:
+    """天使天伤 — 1:1 iztro getTianshiTianshangIndex 含中州派"""
     friends_idx = fix_index(PALACE_NAMES_BY_INDEX.index('交友宫') + soul_index)
     health_idx = fix_index(PALACE_NAMES_BY_INDEX.index('疾厄宫') + soul_index)
+    # 中州派：阴男阳女交换天使天伤
+    if _CONFIG['algorithm'] == 'zhongzhou':
+        is_yang_branch = BRANCH_YIN_YANG[year_branch] == '阳'
+        is_male = (gender == '男')
+        same_yinyang = (is_yang_branch and is_male) or (not is_yang_branch and not is_male)
+        if not same_yinyang:
+            friends_idx, health_idx = health_idx, friends_idx
     return friends_idx, health_idx
 
 
@@ -887,11 +948,16 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     result.time_index = time_index
     result.gender = gender
 
+    # 调整时辰索引 — 1:1 iztro bySolar dayDivide
+    t_index = time_index
+    if _CONFIG['day_divide'] == 'current' and t_index >= 12:
+        t_index = 0
+
     year_stem, year_branch = get_year_gan_zhi(solar_date)
     result.heavenly_stem_of_year = year_stem
     result.earthly_branch_of_year = year_branch
 
-    sb = get_soul_and_body(solar_date, time_index, fix_leap)
+    sb = get_soul_and_body(solar_date, t_index, fix_leap)
     result.soul_index = sb['soul_index']
     result.body_index = sb['body_index']
     result.heavenly_stem_of_soul = sb['heavenly_stem_of_soul']
@@ -900,7 +966,7 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     five_val = get_five_elements_class(sb['heavenly_stem_of_soul'], sb['earthly_branch_of_soul'])
     result.five_elements_class = FIVE_ELEMENTS_NAMES[five_val]
 
-    zi, tf = get_ziwei_tianfu_index(solar_date, time_index, fix_leap)
+    zi, tf = get_ziwei_tianfu_index(solar_date, t_index, fix_leap)
     result.ziwei_index = zi
     result.tianfu_index = tf
 
@@ -921,7 +987,7 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     minor_stars.append({'name': '左辅', 'index': zuo, 'type': 'minor'})
     minor_stars.append({'name': '右弼', 'index': you, 'type': 'minor'})
 
-    chang, qu = get_chang_qu_index(time_index)
+    chang, qu = get_chang_qu_index(t_index)
     minor_stars.append({'name': '文昌', 'index': chang, 'type': 'minor'})
     minor_stars.append({'name': '文曲', 'index': qu, 'type': 'minor'})
 
@@ -941,15 +1007,17 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     if ma >= 0:
         minor_stars.append({'name': '天马', 'index': ma, 'type': 'minor'})
 
-    huo, ling = get_huo_ling_index(year_branch, time_index)
+    huo, ling = get_huo_ling_index(year_branch, t_index)
     minor_stars.append({'name': '火星', 'index': huo, 'type': 'minor'})
     minor_stars.append({'name': '铃星', 'index': ling, 'type': 'minor'})
 
-    kong, jie = get_kong_jie_index(time_index)
+    kong, jie = get_kong_jie_index(t_index)
     minor_stars.append({'name': '地空', 'index': kong, 'type': 'minor'})
     minor_stars.append({'name': '地劫', 'index': jie, 'type': 'minor'})
 
     result.minor_stars = minor_stars
+
+    y12 = get_yearly12(solar_date)
 
     # 杂星
     adj_stars = []
@@ -958,15 +1026,15 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     adj_stars.append({'name': '红鸾', 'index': hl_idx, 'type': 'flower'})
     adj_stars.append({'name': '天喜', 'index': tx_idx, 'type': 'flower'})
 
-    monthly = get_monthly_star_index(solar_date, time_index, fix_leap)
+    monthly = get_monthly_star_index(solar_date, t_index, fix_leap)
     adj_stars.append({'name': '天姚', 'index': monthly['tianyao'], 'type': 'flower'})
 
-    yearly = get_yearly_star_index(solar_date, time_index, fix_leap,
+    yearly = get_yearly_star_index(solar_date, t_index, fix_leap,
                                    soul_index=sb['soul_index'], body_index=sb['body_index'])
     adj_stars.append({'name': '咸池', 'index': yearly['xianchi'], 'type': 'flower'})
     adj_stars.append({'name': '解神', 'index': monthly['yuejie'], 'type': 'helper'})
 
-    daily = get_daily_star_index(solar_date, time_index, fix_leap)
+    daily = get_daily_star_index(solar_date, t_index, fix_leap)
     adj_stars.append({'name': '三台', 'index': daily['santai'], 'type': 'adjective'})
     adj_stars.append({'name': '八座', 'index': daily['bazuo'], 'type': 'adjective'})
     adj_stars.append({'name': '恩光', 'index': daily['enguang'], 'type': 'adjective'})
@@ -977,7 +1045,7 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     adj_stars.append({'name': '天才', 'index': yearly['tiancai'], 'type': 'adjective'})
     adj_stars.append({'name': '天寿', 'index': yearly['tianshou'], 'type': 'adjective'})
 
-    timely = get_timely_star_index(time_index)
+    timely = get_timely_star_index(t_index)
     adj_stars.append({'name': '台辅', 'index': timely['taifu'], 'type': 'adjective'})
     adj_stars.append({'name': '封诰', 'index': timely['fenggao'], 'type': 'adjective'})
 
@@ -991,8 +1059,17 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     adj_stars.append({'name': '月德', 'index': yearly['yuede'], 'type': 'adjective'})
     adj_stars.append({'name': '天空', 'index': yearly['tiankong'], 'type': 'adjective'})
     adj_stars.append({'name': '旬空', 'index': yearly['xunkong'], 'type': 'adjective'})
-    adj_stars.append({'name': '截路', 'index': yearly['jielu'], 'type': 'adjective'})
-    adj_stars.append({'name': '空亡', 'index': yearly['kongwang'], 'type': 'adjective'})
+    # 中州派分支：1:1 iztro adjectiveStar.ts
+    if _CONFIG['algorithm'] == 'zhongzhou':
+        longde_idx = y12['suiqian'].index('龙德') if '龙德' in y12['suiqian'] else -1
+        if longde_idx >= 0:
+            adj_stars.append({'name': '龙德', 'index': longde_idx, 'type': 'adjective'})
+        adj_stars.append({'name': '截空', 'index': yearly['jiekong'], 'type': 'adjective'})
+        adj_stars.append({'name': '劫杀', 'index': yearly['jiesha_adj'], 'type': 'adjective'})
+        adj_stars.append({'name': '大耗', 'index': yearly['dahao'], 'type': 'adjective'})
+    else:
+        adj_stars.append({'name': '截路', 'index': yearly['jielu'], 'type': 'adjective'})
+        adj_stars.append({'name': '空亡', 'index': yearly['kongwang'], 'type': 'adjective'})
 
     adj_stars.append({'name': '孤辰', 'index': yearly['guchen'], 'type': 'adjective'})
     adj_stars.append({'name': '寡宿', 'index': yearly['guasu'], 'type': 'adjective'})
@@ -1003,7 +1080,7 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     adj_stars.append({'name': '天哭', 'index': yearly['tianku'], 'type': 'adjective'})
     adj_stars.append({'name': '天虚', 'index': yearly['tianxu'], 'type': 'adjective'})
 
-    tianshi, tianshang = get_tianshi_tianshang_index(gender, sb['soul_index'])
+    tianshi, tianshang = get_tianshi_tianshang_index(gender, year_branch, sb['soul_index'])
     adj_stars.append({'name': '天使', 'index': tianshi, 'type': 'adjective'})
     adj_stars.append({'name': '天伤', 'index': tianshang, 'type': 'adjective'})
 
@@ -1011,10 +1088,10 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
 
     result.adjective_stars = adj_stars
 
-    # 四化
+    # 四化（支持自定义覆盖）
     mutagens = []
-    if year_stem in MUTAGEN_DATA:
-        hua_list = MUTAGEN_DATA[year_stem]
+    hua_list = _get_mutagen_data(year_stem)
+    if hua_list:
         for i, hua_star_name in enumerate(hua_list):
             hua_type = MUTAGEN_NAMES[i]
             for s in result.major_stars:
@@ -1024,21 +1101,23 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     result.mutagens = mutagens
 
     # 大限
-    result.horoscopes = get_horoscope(solar_date, time_index, gender,
+    result.horoscopes = get_horoscope(solar_date, t_index, gender,
                                       sb['soul_index'],
                                       sb['heavenly_stem_of_soul'],
                                       sb['earthly_branch_of_soul'],
                                       five_val, fix_leap)
 
     # 长生12神
-    result.changsheng12 = get_changsheng12(solar_date, time_index, gender, fix_leap)
+    result.changsheng12 = get_changsheng12(solar_date, t_index, gender, fix_leap)
     result.boshi12 = get_boshi12(solar_date, gender)
-    y12 = get_yearly12(solar_date)
     result.suiqian12 = y12['suiqian']
     result.jiangqian12 = y12['jiangqian']
 
-    # 命主身主
-    result.soul_master = get_soul_master(sb['earthly_branch_of_soul'])
+    # 命主身主（中州派以生年年支找命主，通用以命宫地支找命主）
+    if _CONFIG['algorithm'] == 'zhongzhou':
+        result.soul_master = get_soul_master(year_branch)
+    else:
+        result.soul_master = get_soul_master(sb['earthly_branch_of_soul'])
     result.body_master = get_body_master(year_branch)
 
     return result
@@ -1303,11 +1382,10 @@ def _get_major_stars_in_palace(palace: dict, result) -> List[str]:
 
 
 def _get_brightness(star_name: str, palace_idx: int) -> str:
-    """获取星曜亮度 — 1:1 iztro FunctionalStar withBrightness"""
-    info = STARS_INFO.get(star_name)
-    if not info or 'brightness' not in info:
+    """获取星曜亮度 — 1:1 iztro FunctionalStar withBrightness（支持自定义覆盖）"""
+    brightness_list = _get_star_brightness(star_name)
+    if not brightness_list:
         return ''
-    brightness_list = info['brightness']
     if palace_idx < 0 or palace_idx >= len(brightness_list):
         return ''
     return brightness_list[palace_idx]
@@ -1376,12 +1454,12 @@ def not_surrounded_by_stars(result, index_or_name, star_names: List[str]) -> boo
 
 
 def mutagens_to_stars(heavenly_stem: str, mutagens):
-    """根据天干查询四化对应的星耀名称 — 1:1 mutagensToStars"""
+    """根据天干查询四化对应的星耀名称 — 1:1 mutagensToStars（支持自定义覆盖）"""
     if isinstance(mutagens, str):
         mutagens = [mutagens]
-    if heavenly_stem not in MUTAGEN_DATA:
+    hua_list = _get_mutagen_data(heavenly_stem)
+    if not hua_list:
         return []
-    hua_list = MUTAGEN_DATA[heavenly_stem]
     result = []
     for m in mutagens:
         idx = MUTAGEN_NAMES.index(m)
@@ -1435,7 +1513,7 @@ def get_horoscope_by_date(astrolabe_result: AstrolabeResult,
     y_stem, y_branch = get_year_gan_zhi(target_date_str)
     m_stem, m_branch = get_month_gan_zhi(target_date_str)
     d_stem, d_branch = get_day_gan_zhi(target_date_str)
-    h_stem, h_branch = get_hour_gan_zhi(time_index, d_stem)
+    h_stem, h_branch = get_hour_gan_zhi(target_date_str, time_index)
 
     # 虚岁
     raw_year_birth = birth_lunar.getYear()
