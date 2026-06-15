@@ -40,6 +40,8 @@ jobs:
           keyPassword=android
           EOF
       - name: Build
+        env:
+          PIP_INDEX_URL: https://pypi.org/simple/
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease -x :web:buildWebUi --stacktrace 2>&1 | tee build.log | tail -20
