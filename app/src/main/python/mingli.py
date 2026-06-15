@@ -273,22 +273,22 @@ def meihua(question: str = '', method: str = 'time') -> Dict[str, Any]:
         from meihua_yi import qigua_time, qigua_coin, compute_hexagrams, format_hexagram_text
 
         if method == 'coin':
-            lines, moving, _ = qigua_coin()
+            lines, moving, _details = qigua_coin()
         else:
-            now = datetime.now()
-            lines, moving, _ = qigua_time(now.year, now.month, now.day,
-                                          now.hour, now.minute)
+            lines, moving = qigua_time()
 
         result = compute_hexagrams(lines, moving)
-        text = format_hexagram_text(result, question=question or None)
+        text = format_hexagram_text(lines, moving)
 
         return {
             'status': 'ok',
             'data': {
                 'main': result['main'],
                 'mutual': result['mutual'],
-                'changing': result['changing'],
-                'ti_yong': result['ti_yong'],
+                'changed': result['changed'],
+                'ti': result['ti'],
+                'yong': result['yong'],
+                'moving_indices': result['moving_indices'],
             },
             'text': text,
         }
