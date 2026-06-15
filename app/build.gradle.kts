@@ -41,7 +41,9 @@ chaquopy {
             install("jingjue")
             install("colorama")           // china-testing/bazi 所需
             install("sxtwl")              // C扩展，kinqimen + bazi_china 共用
+            install("pyswisseph")         // C扩展，西洋占星用（从源码编译）
             install("kinqimen")           // ⭐119 奇门遁甲
+            install("pytarot")            // ⭐82  塔罗牌（纯Python）
         }
     }
 }
