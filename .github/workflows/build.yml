@@ -23,6 +23,8 @@ jobs:
         run: pip install --upgrade pip setuptools wheel
       - name: Force full Python reinstall (auto-update all packages)
         run: rm -rf app/build/python $HOME/.gradle/caches/chaquopy*
+      - name: Pre-install setuptools>=68 for legacy build backend
+        run: pip install "setuptools>=68" hatchling wheel 2>&1 | tail -3
       - uses: actions/cache@v4
         with:
           path: |
