@@ -698,6 +698,10 @@ def get_yearly_star_index(solar_date: str, time_index: int, fix_leap: bool = Tru
         jiesha_idx = 0
     jiesha_adj = fix_index(jiesha_idx)
 
+    # 年解 — 1:1 iztro getNianjieIndex
+    nianjie_table = ['戌', '酉', '申', '未', '午', '巳', '辰', '卯', '寅', '丑', '子', '亥']
+    nianjie = fix_index(eb_name_to_palace_index(nianjie_table[eb_name_to_index(year_branch)]))
+
     # 大耗
     dahao_table = ['未', '午', '酉', '申', '亥', '戌', '丑', '子', '卯', '寅', '巳', '辰']
     dahao_idx = eb_name_to_palace_index(dahao_table[eb_name_to_index(year_branch)])
@@ -715,7 +719,7 @@ def get_yearly_star_index(solar_date: str, time_index: int, fix_leap: bool = Tru
         'yuede': yuede, 'tiankong': tiankong,
         'jielu': jielu, 'kongwang': kongwang,
         'xunkong': xunkong, 'jiekong': jiekong,
-        'jiesha_adj': jiesha_adj, 'dahao': dahao,
+        'jiesha_adj': jiesha_adj, 'nianjie': nianjie, 'dahao': dahao,
     }
 
 
@@ -821,23 +825,12 @@ def get_yearly12(solar_date: str) -> dict:
 def get_tianshi_tianshang_index(solar_date: str, gender: str, soul_index: int) -> Tuple[int, int]:
     """
     天使天伤 — 1:1 iztro getTianshiTianshangIndex
-    天伤奴仆、天使疾厄
-    阳男阴女依此诀，阴男阳女则天伤居疾厄、天使居奴仆
+    天伤奴仆、天使疾厄 — iztro default (non-zhongzhou) 不交换
     """
-    _, year_branch = get_year_gan_zhi(solar_date)
-    yinyang_eb = eb_name_to_index(year_branch) % 2
-
-    is_male = (gender == '男')
-    gender_yinyang = 0 if is_male else 1  # 男=0(阳), 女=1(阴)
-    same_yinyang = yinyang_eb == gender_yinyang
-
     # 天使在疾厄宫(7)，天伤在交友宫(5) — using PALACE_NAMES_BY_INDEX
     friends_idx = fix_index(PALACE_NAMES_BY_INDEX.index('交友宫') + soul_index)
     health_idx = fix_index(PALACE_NAMES_BY_INDEX.index('疾厄宫') + soul_index)
-
-    if not same_yinyang:
-        # 阴男阳女：对调
-        return health_idx, friends_idx
+    # iztro default (non-zhongzhou): 永远不交换
     return friends_idx, health_idx
 
 
@@ -1152,7 +1145,7 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     adj_stars.append({'name': '天伤', 'index': tianshang, 'type': 'adjective'})
 
     # 年解
-    adj_stars.append({'name': '年解', 'index': yearly['jiesha_adj'], 'type': 'helper'})
+    adj_stars.append({'name': '年解', 'index': yearly['nianjie'], 'type': 'helper'})
 
     result.adjective_stars = adj_stars
 
