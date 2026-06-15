@@ -52,7 +52,7 @@ chaquopy {
             install("immanuel")            // ⭐109 西洋占星合盘+推运（synastry/progression）
             install("setuptools")          // 先升级setuptools, kinastro需要>=68.0
             install("hatchling")           // hatchling构建工具, kinwangji需要
-            install("git+https://github.com/kentang2017/kinastro.git")  // ⭐31 88种中外占星禄命合一
+            install("git+https://github.com/kentang2017/kinastro.git --no-build-isolation")  // ⭐31 88种中外占星禄命合一
             install("git+https://github.com/dturkuler/humandesign_api.git") // ⭐27 人类图
             install("git+https://github.com/kentang2017/kinwangji.git")  // ⭐10 皇极经世
         }
