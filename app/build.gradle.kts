@@ -46,6 +46,7 @@ chaquopy {
             install("pytarot")            // ⭐82  塔罗牌（纯Python）
             install("kerykeion")          // ⭐655 西洋占星（纯Python壳，等pyswisseph）
             install("stellium")           // ⭐40  西洋占星增强
+            install("flatlib")            // ⭐386 传统占星（宫位/相位/尊贵）
         }
     }
 }
