@@ -6,6 +6,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Tuple, Any
 from lunar_python import Solar, Lunar
+from datetime import datetime, timedelta
 
 # ============================================================
 # 1. 基础数据
@@ -153,6 +154,56 @@ SUIQIAN_12 = ['岁建', '晦气', '丧门', '贯索', '官符', '小耗', '大�
 # 将前12神名称
 JIANGQIAN_12 = ['将星', '攀鞍', '岁驿', '息神', '华盖', '劫煞', '灾煞', '天煞', '指背', '咸池', '月煞', '亡神']
 
+# ============================================================
+# 5b. 地支详细信息 — 1:1 iztro earthlyBranches.ts
+# ============================================================
+# 子丑寅卯辰巳午未申酉戌亥
+EARTHLY_BRANCHES_INFO = {
+    '子': {'yinYang': '阳', 'fiveElements': '水', 'crash': '午', 'soul': '贪狼', 'body': '火星', 'inside': '胆', 'outside': '下体', 'healthTip': '生殖系统、膀胱、尿道之疾病，听觉障碍'},
+    '丑': {'yinYang': '阴', 'fiveElements': '土', 'crash': '未', 'soul': '巨门', 'body': '天相', 'inside': '肝', 'outside': '小腿、脚（右）', 'healthTip': '胸部、肋膜炎、胃病、脚部'},
+    '寅': {'yinYang': '阳', 'fiveElements': '木', 'crash': '申', 'soul': '禄存', 'body': '天梁', 'inside': '肺', 'outside': '大腿（右）', 'healthTip': '胆囊、关节、胫部、神经痛、风湿'},
+    '卯': {'yinYang': '阴', 'fiveElements': '木', 'crash': '酉', 'soul': '文曲', 'body': '天同', 'inside': '大肠', 'outside': '腰（右）、背', 'healthTip': '肝病、颜面神经、失眠、神经衰弱'},
+    '辰': {'yinYang': '阳', 'fiveElements': '土', 'crash': '戌', 'soul': '廉贞', 'body': '文昌', 'inside': '胃', 'outside': '肩、胸', 'healthTip': '脾胃、消化系统、皮肤、肌肉'},
+    '巳': {'yinYang': '阴', 'fiveElements': '火', 'crash': '亥', 'soul': '武曲', 'body': '天机', 'inside': '脾', 'outside': '大腿（左）', 'healthTip': '咽喉、扁桃腺、鼻炎、齿痛、蛇咬伤'},
+    '午': {'yinYang': '阳', 'fiveElements': '火', 'crash': '子', 'soul': '破军', 'body': '火星', 'inside': '心', 'outside': '肋、腰（左）', 'healthTip': '心脏、血液循环、眼睛、头痛、眩晕'},
+    '未': {'yinYang': '阴', 'fiveElements': '土', 'crash': '丑', 'soul': '武曲', 'body': '天相', 'inside': '小肠', 'outside': '手、脚（左）', 'healthTip': '胃病、消化系统、腹部、胰脏'},
+    '申': {'yinYang': '阳', 'fiveElements': '金', 'crash': '寅', 'soul': '廉贞', 'body': '天梁', 'inside': '膀胱', 'outside': '小腿、脚（左）', 'healthTip': '肺结核、气管、呼吸系统、感冒、气喘'},
+    '酉': {'yinYang': '阴', 'fiveElements': '金', 'crash': '卯', 'soul': '文曲', 'body': '天同', 'inside': '肾', 'outside': '手臂（左）', 'healthTip': '肝病、呼吸系统、口舌、血液、肾疾'},
+    '戌': {'yinYang': '阳', 'fiveElements': '土', 'crash': '辰', 'soul': '禄存', 'body': '文昌', 'inside': '心包', 'outside': '手臂（右）', 'healthTip': '血管、心脏、血液循环、神经痛'},
+    '亥': {'yinYang': '阴', 'fiveElements': '水', 'crash': '巳', 'soul': '巨门', 'body': '天机', 'inside': '三焦', 'outside': '头、面', 'healthTip': '肾脏、泌尿系统、头痛、眩晕'},
+}
+
+# ============================================================
+# 5c. 星曜亮度数据 — 1:1 iztro STARS_INFO (data/stars.ts)
+# ============================================================
+BRIGHTNESS_MAP = {
+    'miao': '庙', 'wang': '旺', 'de': '得', 'li': '利',
+    'ping': '平', 'xian': '陷', 'bu': '不',
+}
+
+STARS_INFO = {
+    '紫微': {'brightness': ['旺','旺','得','旺','庙','庙','旺','旺','得','旺','平','庙'], 'fiveElements': '土', 'yinYang': '阴'},
+    '天机': {'brightness': ['得','旺','利','平','庙','陷','得','旺','利','平','庙','陷'], 'fiveElements': '木', 'yinYang': '阴'},
+    '太阳': {'brightness': ['旺','庙','旺','旺','旺','得','得','陷','不','陷','陷','不'], 'fiveElements': '', 'yinYang': ''},
+    '武曲': {'brightness': ['得','利','庙','平','旺','庙','得','利','庙','平','旺','庙'], 'fiveElements': '金', 'yinYang': '阴'},
+    '天同': {'brightness': ['利','平','平','庙','陷','不','旺','平','平','庙','旺','不'], 'fiveElements': '水', 'yinYang': '阳'},
+    '廉贞': {'brightness': ['庙','平','利','陷','平','利','庙','平','利','陷','平','利'], 'fiveElements': '火', 'yinYang': '阴'},
+    '天府': {'brightness': ['庙','得','庙','得','旺','庙','得','旺','庙','得','庙','庙'], 'fiveElements': '土', 'yinYang': '阳'},
+    '太阴': {'brightness': ['旺','陷','陷','陷','不','不','利','不','旺','庙','庙','庙'], 'fiveElements': '水', 'yinYang': '阴'},
+    '贪狼': {'brightness': ['平','利','庙','陷','旺','庙','平','利','庙','陷','旺','庙'], 'fiveElements': '水', 'yinYang': ''},
+    '巨门': {'brightness': ['庙','庙','陷','旺','旺','不','庙','庙','陷','旺','旺','不'], 'fiveElements': '土', 'yinYang': '阴'},
+    '天相': {'brightness': ['庙','陷','得','得','庙','得','庙','陷','得','得','庙','庙'], 'fiveElements': '水', 'yinYang': ''},
+    '天梁': {'brightness': ['庙','庙','庙','陷','庙','旺','陷','得','庙','陷','庙','旺'], 'fiveElements': '土', 'yinYang': ''},
+    '七杀': {'brightness': ['庙','旺','庙','平','旺','庙','庙','庙','庙','平','旺','庙'], 'fiveElements': '', 'yinYang': ''},
+    '破军': {'brightness': ['得','陷','旺','平','庙','旺','得','陷','旺','平','庙','旺'], 'fiveElements': '水', 'yinYang': ''},
+    '文昌': {'brightness': ['陷','利','得','庙','陷','利','得','庙','陷','利','得','庙']},
+    '文曲': {'brightness': ['平','旺','得','庙','陷','旺','得','庙','陷','旺','得','庙']},
+    '火星': {'brightness': ['庙','利','陷','得','庙','利','陷','得','庙','利','陷','得']},
+    '铃星': {'brightness': ['庙','利','陷','得','庙','利','陷','得','庙','利','陷','得']},
+    '擎羊': {'brightness': ['','陷','庙','','陷','庙','','陷','庙','','陷','庙']},
+    '陀罗': {'brightness': ['陷','','庙','陷','','庙','陷','','庙','陷','','庙']},
+}
+
 # 命主（按命宫地支）— 1:1 earthlyBranches.ts soul
 SOUL_MASTER = {
     '寅': '禄存', '卯': '文曲', '辰': '廉贞', '巳': '武曲',
@@ -166,6 +217,16 @@ BODY_MASTER = {
     '戌': '文昌', '亥': '天机', '子': '火星', '丑': '天相',
 }
 
+# 五行天干
+FIVE_ELEMENT_STEMS = {
+    '甲': '木', '乙': '木', '丙': '火', '丁': '火', '戊': '土',
+    '己': '土', '庚': '金', '辛': '金', '壬': '水', '癸': '水',
+}
+# 五行地支
+FIVE_ELEMENT_BRANCHES = {
+    '寅': '木', '卯': '木', '辰': '土', '巳': '火', '午': '火', '未': '土',
+    '申': '金', '酉': '金', '戌': '土', '亥': '水', '子': '水', '丑': '土',
+}
 
 # ============================================================
 # 6. 工具函数
@@ -200,7 +261,6 @@ def get_solar_and_lunar(solar_date: str) -> Tuple[Any, Any]:
 
 def get_lunar_month_day_count(lunar_obj) -> int:
     """获取农历当月天数 — lunar_python 1.4.8 兼容"""
-    from datetime import datetime, timedelta
     solar = lunar_obj.getSolar()
     d = datetime(int(solar.getYear()), int(solar.getMonth()), int(solar.getDay()))
     cur_month = lunar_obj.getMonth()
@@ -229,7 +289,6 @@ def get_lunar_month_index(solar_date: str, time_index: int, fix_leap: bool = Tru
     # 闰月前15天算上月，后15天算下月
     need_to_add = is_leap and fix_leap and lunar_day > 15 and time_index != 12
     # lunar_month 从1开始, 寅的索引为2, 所以 lunarMonth + 1 - 2 = lunarMonth - 1
-    # 紫微斗数以寅宫为第一个宫位
     first_index = eb_name_to_index('寅')  # = 2
     result = lunar_month + 1 - first_index + (1 if need_to_add else 0)
     return fix_index(result)
@@ -257,9 +316,7 @@ def get_day_gan_zhi(solar_date: str) -> Tuple[str, str]:
 def get_hour_gan_zhi(time_index: int, day_stem: str) -> Tuple[str, str]:
     """获取时柱天干地支 — 五鼠遁"""
     if time_index >= 12:
-        # 晚子时：地支为子，天干按次日日干算
         eb = EARTHLY_BRANCHES[0]
-        # 五鼠遁用 day_stem（已调整为次日）
         start_stem = RAT_RULE[day_stem]
         stem_idx = HEAVENLY_STEMS.index(start_stem)
         hs = HEAVENLY_STEMS[fix_index(stem_idx + 0, 10)]
@@ -271,42 +328,54 @@ def get_hour_gan_zhi(time_index: int, day_stem: str) -> Tuple[str, str]:
     return hs, eb
 
 
+def get_month_gan_zhi(solar_date: str) -> Tuple[str, str]:
+    """获取月柱天干地支 — 五虎遁"""
+    year_stem, _ = get_year_gan_zhi(solar_date)
+    _, lunar = get_solar_and_lunar(solar_date)
+    lunar_month = lunar.getMonth()
+    abs_month = abs(lunar_month)
+    # 月地支：正月寅，二月卯...
+    month_branch = EARTHLY_BRANCHES[fix_index(eb_name_to_index('寅') + abs_month - 1)]
+    # 月天干：五虎遁
+    start_stem = TIGER_RULE[year_stem]
+    start_idx = HEAVENLY_STEMS.index(start_stem)
+    month_stem = HEAVENLY_STEMS[fix_index(start_idx + abs_month - 1, 10)]
+    return month_stem, month_branch
+
+
+def get_hour_gan_zhi_by_time(time_str: str) -> int:
+    """
+    将时间字符串转换为时辰索引 — 1:1 iztro timeToIndex
+    '00:00' ~ '01:00' → 0 (早子)
+    '23:00' ~ '00:00' → 12 (晚子)
+    """
+    parts = time_str.split(':')
+    h = int(parts[0])
+    if h == 23:
+        return 12
+    return (h + 1) // 2
+
+
 # ============================================================
 # 7. 核心排盘算法
 # ============================================================
 
 def get_soul_and_body(solar_date: str, time_index: int, fix_leap: bool = True,
                       from_heavenly_stem: str = None, from_earthly_branch: str = None) -> dict:
-    """
-    定命宫、身宫
-    寅起正月，顺数至生月，逆数生时为命宫
-    寅起正月，顺数至生月，顺数生时为身宫
-    """
     month_index = get_lunar_month_index(solar_date, time_index, fix_leap)
-
-    # 命宫索引
     soul_index = fix_index(month_index - time_index)
-    # 身宫索引
     body_index = fix_index(month_index + time_index)
 
     if from_heavenly_stem and from_earthly_branch:
-        # 以传入地支为命宫
         soul_index = eb_name_to_palace_index(from_earthly_branch)
         body_offset = [0, 2, 4, 6, 8, 10, 0, 2, 4, 6, 8, 10, 0]
         body_index = fix_index(body_offset[time_index] + soul_index)
 
-    # 年柱
     year_stem, year_branch = get_year_gan_zhi(solar_date)
-
-    # 五虎遁取得寅宫天干
     start_stem = TIGER_RULE[year_stem]
     start_stem_idx = HEAVENLY_STEMS.index(start_stem)
-
-    # 命宫天干
     heavenly_stem_of_soul_idx = fix_index(start_stem_idx + soul_index, 10)
     heavenly_stem_of_soul = HEAVENLY_STEMS[heavenly_stem_of_soul_idx]
-
-    # 命宫地支（寅宫索引2 + soul_index）
     earthly_branch_of_soul = EARTHLY_BRANCHES[fix_index(soul_index + YIN)]
 
     return {
@@ -318,36 +387,21 @@ def get_soul_and_body(solar_date: str, time_index: int, fix_leap: bool = True,
 
 
 def get_five_elements_class(heavenly_stem: str, earthly_branch: str) -> int:
-    """
-    定五行局（纳音五行）
-    天干取数：甲乙1 丙丁2 戊己3 庚辛4 壬癸5
-    地支取数：子午丑未1 寅申卯酉2 辰戌巳亥3
-    干支相加，超5减5
-    1→木3局, 2→金4局, 3→水2局, 4→火6局, 5→土5局
-    """
     stem_num = HEAVENLY_STEMS.index(heavenly_stem) // 2 + 1
     eb_idx = EARTHLY_BRANCHES.index(earthly_branch)
     branch_num = eb_idx % 6 // 2 + 1
-
     idx = stem_num + branch_num
     while idx > 5:
         idx -= 5
-
     return FIVE_ELEMENT_TABLE[idx - 1]
 
 
 def get_ziwei_tianfu_index(solar_date: str, time_index: int, fix_leap: bool = True,
                            from_heavenly_stem: str = None, from_earthly_branch: str = None) -> Tuple[int, int]:
-    """
-    定紫微星、天府星位置（起紫微星诀）
-    对应 iztro getStartIndex
-    """
     sb = get_soul_and_body(solar_date, time_index, fix_leap)
     base_hs = from_heavenly_stem if from_heavenly_stem else sb['heavenly_stem_of_soul']
     base_eb = from_earthly_branch if from_earthly_branch else sb['earthly_branch_of_soul']
-
     five_elements = get_five_elements_class(base_hs, base_eb)
-
     _, lunar = get_solar_and_lunar(solar_date)
     lunar_day = lunar.getDay()
 
@@ -357,7 +411,6 @@ def get_ziwei_tianfu_index(solar_date: str, time_index: int, fix_leap: bool = Tr
     if _day > max_days:
         _day -= max_days
 
-    # 循环寻找能整除的数
     remainder = -1
     quotient = 0
     offset = -1
@@ -378,7 +431,6 @@ def get_ziwei_tianfu_index(solar_date: str, time_index: int, fix_leap: bool = Tr
 
     ziwei_index = fix_index(ziwei_index)
     tianfu_index = fix_index(12 - ziwei_index)
-
     return ziwei_index, tianfu_index
 
 
@@ -404,7 +456,7 @@ def get_major_stars(ziwei_index: int, tianfu_index: int) -> List[Dict]:
             'name': name, 'index': palace_idx, 'type': 'major', 'system': 'tianfu'
         })
 
-    # 扁平化为列表（保持与原有 API 兼容）
+    # 扁平化
     result = []
     for palace_stars in stars_by_palace:
         result.extend(palace_stars)
@@ -431,7 +483,6 @@ def get_chang_qu_index(time_index: int) -> Tuple[int, int]:
 
 def get_lu_yang_tuo_ma_index(year_stem: str, year_branch: str) -> Tuple[int, int, int, int]:
     """禄存、擎羊、陀罗、天马 — 1:1 iztro getLuYangTuoMaIndex"""
-    # 禄存（按年干）
     lu_map = {
         '甲': '寅', '乙': '卯', '丙': '巳', '丁': '午', '戊': '巳',
         '己': '午', '庚': '申', '辛': '酉', '壬': '亥', '癸': '子',
@@ -440,17 +491,13 @@ def get_lu_yang_tuo_ma_index(year_stem: str, year_branch: str) -> Tuple[int, int
     lu_idx = eb_name_to_palace_index(lu_eb)
     yang_idx = fix_index(lu_idx + 1)
     tuo_idx = fix_index(lu_idx - 1)
-
-    # 天马（按年支）
     ma_eb = TIAN_MA_MAP.get(year_branch, '')
     ma_idx = eb_name_to_palace_index(ma_eb) if ma_eb else -1
-
     return lu_idx, yang_idx, tuo_idx, ma_idx
 
 
 def get_kui_yue_index(year_stem: str) -> Tuple[int, int]:
     """天魁天钺 — 1:1 iztro getKuiYueIndex"""
-    # 天魁天钺位置
     kui_map = {
         '甲': '丑', '乙': '子', '丙': '亥', '丁': '亥', '戊': '丑',
         '己': '子', '庚': '丑', '辛': '午', '壬': '卯', '癸': '卯',
@@ -504,13 +551,7 @@ def get_hong_luan_tian_xi_index(year_branch: str) -> Tuple[int, int]:
 
 
 def get_huagai_xianchi_index(year_branch: str) -> Tuple[int, int]:
-    """
-    华盖咸池 — 1:1 iztro getHuagaiXianchiIndex
-    子辰申→华盖辰, 咸池酉
-    寅午戌→华盖戌, 咸池卯
-    巳酉丑→华盖丑, 咸池午
-    亥卯未→华盖未, 咸池子
-    """
+    """华盖咸池 — 1:1 iztro getHuagaiXianchiIndex"""
     if year_branch in ('寅', '午', '戌'):
         hg = eb_name_to_palace_index('戌')
         xc = eb_name_to_palace_index('卯')
@@ -527,13 +568,7 @@ def get_huagai_xianchi_index(year_branch: str) -> Tuple[int, int]:
 
 
 def get_guchen_guasu_index(year_branch: str) -> Tuple[int, int]:
-    """
-    孤辰寡宿 — 1:1 iztro getGuGuaIndex
-    寅卯辰→孤辰巳, 寡宿丑
-    巳午未→孤辰申, 寡宿辰
-    申酉戌→孤辰亥, 寡宿未
-    亥子丑→孤辰寅, 寡宿戌
-    """
+    """孤辰寡宿 — 1:1 iztro getGuGuaIndex"""
     if year_branch in ('寅', '卯', '辰'):
         gc = eb_name_to_palace_index('巳')
         gs = eb_name_to_palace_index('丑')
@@ -550,22 +585,17 @@ def get_guchen_guasu_index(year_branch: str) -> Tuple[int, int]:
 
 
 def get_daily_star_index(solar_date: str, time_index: int, fix_leap: bool = True) -> dict:
-    """
-    日系星：三台、八座、恩光、天贵 — 1:1 iztro getDailyStarIndex
-    """
+    """日系星：三台、八座、恩光、天贵 — 1:1 iztro getDailyStarIndex"""
     _, lunar = get_solar_and_lunar(solar_date)
     lunar_day = lunar.getDay()
     month_index = get_lunar_month_index(solar_date, time_index, fix_leap)
     day_index = get_lunar_day_index(lunar_day, time_index)
-
-    zuo, you = get_zuo_you_index(month_index + 1)  # monthIndex+1
+    zuo, you = get_zuo_you_index(month_index + 1)
     chang, qu = get_chang_qu_index(time_index)
-
     santai = fix_index((zuo + day_index) % 12)
     bazuo = fix_index((you - day_index) % 12)
     enguang = fix_index(((chang + day_index) % 12) - 1)
     tiangui = fix_index(((qu + day_index) % 12) - 1)
-
     return {'santai': santai, 'bazuo': bazuo, 'enguang': enguang, 'tiangui': tiangui}
 
 
@@ -577,117 +607,59 @@ def get_timely_star_index(time_index: int) -> dict:
 
 
 def get_monthly_star_index(solar_date: str, time_index: int, fix_leap: bool = True) -> dict:
-    """
-    月系星：月解、天姚、天刑、阴煞、天月、天巫
-    1:1 iztro getMonthlyStarIndex
-    """
+    """月系星：月解、天姚、天刑、阴煞、天月、天巫"""
     month_index = get_lunar_month_index(solar_date, time_index, fix_leap)
-
-    # 月解：正二在申三四在戌，五六在子七八在寅，九十月坐於辰宫，十一十二在午宫
     yuejie_branches = ['申', '戌', '子', '寅', '辰', '午']
     yuejie = fix_index(eb_name_to_palace_index(yuejie_branches[month_index // 2]))
-
-    # 天姚：丑宫起正月，顺到生月
     tianyao = fix_index(eb_name_to_palace_index('丑') + month_index)
-
-    # 天刑：从酉起正月，顺至生月
     tianxing = fix_index(eb_name_to_palace_index('酉') + month_index)
-
-    # 阴煞：正七月在寅，二八月在子，三九月在戌，四十月在申，五十一在午，六十二在辰
     yinsha_branches = ['寅', '子', '戌', '申', '午', '辰']
     yinsha = fix_index(eb_name_to_palace_index(yinsha_branches[month_index % 6]))
-
-    # 天月：一犬二蛇三在龙，四虎五羊六兔宫。七猪八羊九在虎，十马冬犬腊寅中
     tianyue_branches = ['戌', '巳', '辰', '寅', '未', '卯', '亥', '未', '寅', '午', '戌', '寅']
     tianyue = fix_index(eb_name_to_palace_index(tianyue_branches[month_index]))
-
-    # 天巫：正五九月在巳，二六十月在申，三七十一在寅，四八十二在亥
     tianwu_branches = ['巳', '申', '寅', '亥']
     tianwu = fix_index(eb_name_to_palace_index(tianwu_branches[month_index % 4]))
-
     return {'yuejie': yuejie, 'tianyao': tianyao, 'tianxing': tianxing,
             'yinsha': yinsha, 'tianyue': tianyue, 'tianwu': tianwu}
 
 
 def get_yearly_star_index(solar_date: str, time_index: int, fix_leap: bool = True,
                           soul_index: int = 0, body_index: int = 0) -> dict:
-    """
-    年系星：咸池、华盖、孤辰、寡宿、天才、天寿、天厨、破碎、蜚廉、龙池、
-           凤阁、天哭、天虚、天官、天福、天德、月德、天空、截路、空亡、旬空
-    1:1 iztro getYearlyStarIndex
-    注：所有流年神煞的年份都用年柱
-    """
+    """年系星 — 1:1 iztro getYearlyStarIndex"""
     year_stem, year_branch = get_year_gan_zhi(solar_date)
-
     hg_idx, xc_idx = get_huagai_xianchi_index(year_branch)
     gc_idx, gs_idx = get_guchen_guasu_index(year_branch)
-
-    # 天才：命宫起子，顺行至生年支
     tiancai = fix_index(soul_index + eb_name_to_index(year_branch))
-
-    # 天寿：身宫起子，顺行至生年支
     tianshou = fix_index(body_index + eb_name_to_index(year_branch))
-
-    # 天厨：甲丁蛇口，乙戊辛马方。丙从鼠口得，己食于猴房。庚食虎头上，壬鸡癸猪堂
     tianchu_map = ['巳', '午', '子', '巳', '午', '申', '寅', '午', '酉', '亥']
     tianchu = fix_index(eb_name_to_palace_index(tianchu_map[HEAVENLY_STEMS.index(year_stem)]))
-
-    # 破碎：子午卯酉→巳，寅申巳亥→酉，辰戌丑未→丑
     posui_map = ['巳', '丑', '酉']
     posui = fix_index(eb_name_to_palace_index(posui_map[eb_name_to_index(year_branch) % 3]))
-
-    # 蜚廉：按年支索引顺序
     feilian_map = ['申', '酉', '戌', '巳', '午', '未', '寅', '卯', '辰', '亥', '子', '丑']
     feilian = fix_index(eb_name_to_palace_index(feilian_map[eb_name_to_index(year_branch)]))
-
-    # 龙池：从辰宫起子，顺至本生年支
     longchi = fix_index(eb_name_to_palace_index('辰') + eb_name_to_index(year_branch))
-
-    # 凤阁：从戌宫起子，逆行至本生年支
     fengge = fix_index(eb_name_to_palace_index('戌') - eb_name_to_index(year_branch))
-
-    # 天哭：午宫起子逆数
     tianku = fix_index(eb_name_to_palace_index('午') - eb_name_to_index(year_branch))
-
-    # 天虚：午宫起子顺数
     tianxu = fix_index(eb_name_to_palace_index('午') + eb_name_to_index(year_branch))
-
-    # 天官：甲喜羊鸡乙龙猴，丙年蛇鼠一窝谋。丁虎擒猪戊玉兔，己鸡居然与虎俦。庚猪马辛鸡蛇走，壬犬马癸马蛇游
     tianguan_map = ['未', '辰', '巳', '寅', '卯', '酉', '亥', '酉', '戌', '午']
     tianguan = fix_index(eb_name_to_palace_index(tianguan_map[HEAVENLY_STEMS.index(year_stem)]))
-
-    # 天福
     tianfu_map = ['酉', '申', '子', '亥', '卯', '寅', '午', '巳', '午', '巳']
     tianfu_star = fix_index(eb_name_to_palace_index(tianfu_map[HEAVENLY_STEMS.index(year_stem)]))
-
-    # 天德：酉宫起子顺数
     tiande = fix_index(eb_name_to_palace_index('酉') + eb_name_to_index(year_branch))
-
-    # 月德：巳宫起子顺数
     yuede = fix_index(eb_name_to_palace_index('巳') + eb_name_to_index(year_branch))
-
-    # 天空：生年支顺数的前一位
     tiankong = fix_index(eb_name_to_palace_index(year_branch) + 1)
-
-    # 截路空亡：截=空落宫（按天干索引/5）
     jielu_branches = ['申', '午', '辰', '寅', '子']
     kongwang_branches = ['酉', '未', '巳', '卯', '丑']
     jielu = fix_index(eb_name_to_palace_index(jielu_branches[HEAVENLY_STEMS.index(year_stem) % 5]))
     kongwang = fix_index(eb_name_to_palace_index(kongwang_branches[HEAVENLY_STEMS.index(year_stem) % 5]))
-
-    # 旬空：年支索引 + 癸索引 - 年干索引 + 1
     xunkong = fix_index(
         eb_name_to_palace_index(year_branch) + HEAVENLY_STEMS.index('癸') - HEAVENLY_STEMS.index(year_stem) + 1
     )
-    # 阴阳调整
     yinyang_eb = eb_name_to_index(year_branch) % 2
     if yinyang_eb != xunkong % 2:
         xunkong = fix_index(xunkong + 1)
-
-    # 截空（中州派：阳干取截路，阴干取空亡）
     jiekong = jielu if yinyang_eb == 0 else kongwang
 
-    # 劫杀 idx
     if year_branch in ('申', '子', '辰'):
         jiesha_idx = 3
     elif year_branch in ('亥', '卯', '未'):
@@ -698,11 +670,9 @@ def get_yearly_star_index(solar_date: str, time_index: int, fix_leap: bool = Tru
         jiesha_idx = 0
     jiesha_adj = fix_index(jiesha_idx)
 
-    # 年解 — 1:1 iztro getNianjieIndex
     nianjie_table = ['戌', '酉', '申', '未', '午', '巳', '辰', '卯', '寅', '丑', '子', '亥']
     nianjie = fix_index(eb_name_to_palace_index(nianjie_table[eb_name_to_index(year_branch)]))
 
-    # 大耗
     dahao_table = ['未', '午', '酉', '申', '亥', '戌', '丑', '子', '卯', '寅', '巳', '辰']
     dahao_idx = eb_name_to_palace_index(dahao_table[eb_name_to_index(year_branch)])
     dahao = fix_index(dahao_idx)
@@ -728,34 +698,27 @@ def get_yearly_star_index(solar_date: str, time_index: int, fix_leap: bool = Tru
 # ============================================================
 
 def get_changsheng12_start_index(five_elements_value: int) -> int:
-    """长生12神起始宫位 — 1:1 iztro getChangesheng12StartIndex"""
+    """长生12神起始宫位"""
     start_idx_map = {
-        WATER_2ND: eb_name_to_palace_index('申'),   # 水二局长生在申
-        WOOD_3RD: eb_name_to_palace_index('亥'),    # 木三局长生在亥
-        METAL_4TH: eb_name_to_palace_index('巳'),   # 金四局长生在巳
-        EARTH_5TH: eb_name_to_palace_index('申'),   # 土五局长生在申
-        FIRE_6TH: eb_name_to_palace_index('寅'),    # 火六局长生在寅
+        WATER_2ND: eb_name_to_palace_index('申'),
+        WOOD_3RD: eb_name_to_palace_index('亥'),
+        METAL_4TH: eb_name_to_palace_index('巳'),
+        EARTH_5TH: eb_name_to_palace_index('申'),
+        FIRE_6TH: eb_name_to_palace_index('寅'),
     }
     return start_idx_map[five_elements_value]
 
 
 def get_changsheng12(solar_date: str, time_index: int, gender: str,
                      fix_leap: bool = True) -> List[Optional[str]]:
-    """
-    长生12神 — 1:1 iztro getchangsheng12
-    阳男阴女顺行，阴男阳女逆行
-    返回：12个宫位的长生12神名称列表（无长生12神的宫位为None）
-    """
+    """长生12神 — 1:1 iztro getchangsheng12"""
     year_stem, year_branch = get_year_gan_zhi(solar_date)
     sb = get_soul_and_body(solar_date, time_index, fix_leap)
     five_val = get_five_elements_class(sb['heavenly_stem_of_soul'], sb['earthly_branch_of_soul'])
-
     start_idx = get_changsheng12_start_index(five_val)
     is_male = (gender == '男')
     is_yang_year = STEM_YIN_YANG[year_stem] == '阳'
-    # 阳男阴女顺行，阴男阳女逆行
     is_forward = (is_yang_year and is_male) or (not is_yang_year and not is_male)
-
     result = [None] * 12
     for i, name in enumerate(CHANGSHENG_12):
         idx = fix_index(i + start_idx) if is_forward else fix_index(start_idx - i)
@@ -764,17 +727,12 @@ def get_changsheng12(solar_date: str, time_index: int, gender: str,
 
 
 def get_boshi12(solar_date: str, gender: str) -> List[Optional[str]]:
-    """
-    博士12神 — 1:1 iztro getBoShi12
-    从禄存起，阳男阴女顺行，阴男阳女逆行
-    """
+    """博士12神 — 1:1 iztro getBoShi12"""
     year_stem, year_branch = get_year_gan_zhi(solar_date)
     lu_idx, _, _, _ = get_lu_yang_tuo_ma_index(year_stem, year_branch)
-
     is_male = (gender == '男')
     is_yang_year = STEM_YIN_YANG[year_stem] == '阳'
     is_forward = (is_yang_year and is_male) or (not is_yang_year and not is_male)
-
     result = [None] * 12
     for i, name in enumerate(BOSHI_12):
         idx = fix_index(lu_idx + i) if is_forward else fix_index(lu_idx - i)
@@ -790,31 +748,23 @@ def get_jiangqian12_start_index(year_branch: str) -> int:
         return eb_name_to_palace_index('子')
     elif year_branch in ('巳', '酉', '丑'):
         return eb_name_to_palace_index('酉')
-    else:  # '亥', '卯', '未'
+    else:
         return eb_name_to_palace_index('卯')
 
 
 def get_yearly12(solar_date: str) -> dict:
-    """
-    岁前12神 + 将前12神 — 1:1 iztro getYearly12
-    """
-    _, lunar = get_solar_and_lunar(solar_date)
+    """岁前12神 + 将前12神 — 1:1 iztro getYearly12"""
     _, year_branch = get_year_gan_zhi(solar_date)
-
-    # 岁前12神：从岁建起（年支），顺排12宫
     suiqian = [None] * 12
     start_idx = eb_name_to_palace_index(year_branch)
     for i, name in enumerate(SUIQIAN_12):
         idx = fix_index(start_idx + i)
         suiqian[idx] = name
-
-    # 将前12神
     jiangqian = [None] * 12
     jq_start = get_jiangqian12_start_index(year_branch)
     for i, name in enumerate(JIANGQIAN_12):
         idx = fix_index(jq_start + i)
         jiangqian[idx] = name
-
     return {'suiqian': suiqian, 'jiangqian': jiangqian}
 
 
@@ -822,15 +772,10 @@ def get_yearly12(solar_date: str) -> dict:
 # 10. 天使天伤 / 命主身主 / 小限
 # ============================================================
 
-def get_tianshi_tianshang_index(solar_date: str, gender: str, soul_index: int) -> Tuple[int, int]:
-    """
-    天使天伤 — 1:1 iztro getTianshiTianshangIndex
-    天伤奴仆、天使疾厄 — iztro default (non-zhongzhou) 不交换
-    """
-    # 天使在疾厄宫(7)，天伤在交友宫(5) — using PALACE_NAMES_BY_INDEX
+def get_tianshi_tianshang_index(gender: str, soul_index: int) -> Tuple[int, int]:
+    """天使天伤 — 非中州派永不交换"""
     friends_idx = fix_index(PALACE_NAMES_BY_INDEX.index('交友宫') + soul_index)
     health_idx = fix_index(PALACE_NAMES_BY_INDEX.index('疾厄宫') + soul_index)
-    # iztro default (non-zhongzhou): 永远不交换
     return friends_idx, health_idx
 
 
@@ -851,36 +796,25 @@ def get_body_master(year_branch: str) -> str:
 def get_horoscope(solar_date: str, time_index: int, gender: str,
                   soul_index: int, heavenly_stem_of_soul: str, earthly_branch_of_soul: str,
                   five_elements_value: int, fix_leap: bool = True) -> List[Dict]:
-    """
-    起大限 — 1:1 iztro getHoroscope
-    大限由命宫起，阳男阴女顺行，阴男阳女逆行
-    """
+    """起大限 — 1:1 iztro getHoroscope"""
     year_stem, year_branch = get_year_gan_zhi(solar_date)
-
     is_male = (gender == '男')
     is_yang_year = STEM_YIN_YANG[year_stem] == '阳'
-
-    # 阳男阴女顺，阴男阳女逆
     is_forward = (is_yang_year and is_male) or (not is_yang_year and not is_male)
-
-    # 五虎遁取大限起始天干
     start_stem = TIGER_RULE[year_stem]
     start_stem_idx = HEAVENLY_STEMS.index(start_stem)
-
     horoscopes = []
     for i in range(12):
         idx = fix_index(soul_index + i) if is_forward else fix_index(soul_index - i)
         start_age = five_elements_value + 10 * i
         stem_idx = fix_index(start_stem_idx + idx, 10)
         branch_idx = fix_index(YIN + idx)
-
         horoscopes.append({
             'index': idx,
             'range': [start_age, start_age + 9],
             'heavenly_stem': HEAVENLY_STEMS[stem_idx],
             'earthly_branch': EARTHLY_BRANCHES[branch_idx],
         })
-
     return horoscopes
 
 
@@ -923,16 +857,12 @@ def build_palace(i: int, soul_index: int, year_stem: str, year_branch: str,
     palace_idx = fix_index(i - soul_index)
     palace_name = PALACE_NAMES_BY_INDEX[palace_idx]
     branch = EARTHLY_BRANCHES[fix_index(i + YIN)]
-
-    # 五虎遁定天干
     start_stem = TIGER_RULE[year_stem]
     start_stem_idx = HEAVENLY_STEMS.index(start_stem)
     stem_idx = fix_index(start_stem_idx + i, 10)
     stem = HEAVENLY_STEMS[stem_idx]
-
     is_soul = (i == soul_index)
     is_body = (i == body_index)
-
     return {
         'index': i,
         'name': palace_name,
@@ -957,59 +887,50 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     result.time_index = time_index
     result.gender = gender
 
-    # 年柱
     year_stem, year_branch = get_year_gan_zhi(solar_date)
     result.heavenly_stem_of_year = year_stem
     result.earthly_branch_of_year = year_branch
 
-    # 命宫身宫
     sb = get_soul_and_body(solar_date, time_index, fix_leap)
     result.soul_index = sb['soul_index']
     result.body_index = sb['body_index']
     result.heavenly_stem_of_soul = sb['heavenly_stem_of_soul']
     result.earthly_branch_of_soul = sb['earthly_branch_of_soul']
 
-    # 五行局
     five_val = get_five_elements_class(sb['heavenly_stem_of_soul'], sb['earthly_branch_of_soul'])
     result.five_elements_class = FIVE_ELEMENTS_NAMES[five_val]
 
-    # 紫微天府
     zi, tf = get_ziwei_tianfu_index(solar_date, time_index, fix_leap)
     result.ziwei_index = zi
     result.tianfu_index = tf
 
-    # 十二宫
     palaces = []
     for i in range(12):
         palaces.append(build_palace(i, sb['soul_index'], year_stem, year_branch, sb['body_index']))
     result.palaces = palaces
 
-    # 十四主星
     result.major_stars = get_major_stars(zi, tf)
 
-    # =========== 辅星 ===========
+    # 辅星
     minor_stars = []
     _, lunar = get_solar_and_lunar(solar_date)
     lunar_month = lunar.getMonth()
+    raw_month = abs(lunar_month)
 
-    # 左辅右弼（按农历月）
-    zuo, you = get_zuo_you_index(lunar_month)
+    zuo, you = get_zuo_you_index(raw_month)
     minor_stars.append({'name': '左辅', 'index': zuo, 'type': 'minor'})
     minor_stars.append({'name': '右弼', 'index': you, 'type': 'minor'})
 
-    # 文昌文曲（按时辰）
     chang, qu = get_chang_qu_index(time_index)
     minor_stars.append({'name': '文昌', 'index': chang, 'type': 'minor'})
     minor_stars.append({'name': '文曲', 'index': qu, 'type': 'minor'})
 
-    # 天魁天钺（按年干）
     kui, yue = get_kui_yue_index(year_stem)
     if kui >= 0:
         minor_stars.append({'name': '天魁', 'index': kui, 'type': 'minor'})
     if yue >= 0:
         minor_stars.append({'name': '天钺', 'index': yue, 'type': 'minor'})
 
-    # 禄存擎羊陀罗天马（按年干年支）
     lu, yang, tuo, ma = get_lu_yang_tuo_ma_index(year_stem, year_branch)
     if lu >= 0:
         minor_stars.append({'name': '禄存', 'index': lu, 'type': 'minor'})
@@ -1020,167 +941,103 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     if ma >= 0:
         minor_stars.append({'name': '天马', 'index': ma, 'type': 'minor'})
 
-    # 火星铃星（按年支+时支）
     huo, ling = get_huo_ling_index(year_branch, time_index)
     minor_stars.append({'name': '火星', 'index': huo, 'type': 'minor'})
     minor_stars.append({'name': '铃星', 'index': ling, 'type': 'minor'})
 
-    # 地空地劫（按时辰）
     kong, jie = get_kong_jie_index(time_index)
     minor_stars.append({'name': '地空', 'index': kong, 'type': 'minor'})
     minor_stars.append({'name': '地劫', 'index': jie, 'type': 'minor'})
 
     result.minor_stars = minor_stars
 
-    # =========== 杂星（adjective stars） ===========
+    # 杂星
     adj_stars = []
-    adj_types = {'红鸾': 'flower', '天喜': 'flower', '天姚': 'flower',
-                 '咸池': 'flower',
-                 '解神': 'helper',
-                 '三台': 'adjective', '八座': 'adjective', '恩光': 'adjective', '天贵': 'adjective',
-                 '龙池': 'adjective', '凤阁': 'adjective', '天才': 'adjective', '天寿': 'adjective',
-                 '台辅': 'adjective', '封诰': 'adjective', '天巫': 'adjective',
-                 '华盖': 'adjective', '天官': 'adjective', '天福': 'adjective',
-                 '天厨': 'adjective', '天月': 'adjective',
-                 '天德': 'adjective', '月德': 'adjective', '天空': 'adjective',
-                 '旬空': 'adjective', '截路': 'adjective', '空亡': 'adjective',
-                 '孤辰': 'adjective', '寡宿': 'adjective',
-                 '蜚廉': 'adjective', '破碎': 'adjective',
-                 '天刑': 'adjective', '阴煞': 'adjective',
-                 '天哭': 'adjective', '天虚': 'adjective',
-                 '天使': 'adjective', '天伤': 'adjective',
-                 '年解': 'helper',
-                 }
 
-    # 红鸾天喜
     hl_idx, tx_idx = get_hong_luan_tian_xi_index(year_branch)
     adj_stars.append({'name': '红鸾', 'index': hl_idx, 'type': 'flower'})
     adj_stars.append({'name': '天喜', 'index': tx_idx, 'type': 'flower'})
 
-    # 天姚
     monthly = get_monthly_star_index(solar_date, time_index, fix_leap)
     adj_stars.append({'name': '天姚', 'index': monthly['tianyao'], 'type': 'flower'})
 
-    # 咸池/华盖
     yearly = get_yearly_star_index(solar_date, time_index, fix_leap,
                                    soul_index=sb['soul_index'], body_index=sb['body_index'])
     adj_stars.append({'name': '咸池', 'index': yearly['xianchi'], 'type': 'flower'})
-
-    # 解神（月解）
     adj_stars.append({'name': '解神', 'index': monthly['yuejie'], 'type': 'helper'})
 
-    # 三台八座
     daily = get_daily_star_index(solar_date, time_index, fix_leap)
     adj_stars.append({'name': '三台', 'index': daily['santai'], 'type': 'adjective'})
     adj_stars.append({'name': '八座', 'index': daily['bazuo'], 'type': 'adjective'})
     adj_stars.append({'name': '恩光', 'index': daily['enguang'], 'type': 'adjective'})
     adj_stars.append({'name': '天贵', 'index': daily['tiangui'], 'type': 'adjective'})
 
-    # 龙池凤阁
     adj_stars.append({'name': '龙池', 'index': yearly['longchi'], 'type': 'adjective'})
     adj_stars.append({'name': '凤阁', 'index': yearly['fengge'], 'type': 'adjective'})
-
-    # 天才天寿
     adj_stars.append({'name': '天才', 'index': yearly['tiancai'], 'type': 'adjective'})
     adj_stars.append({'name': '天寿', 'index': yearly['tianshou'], 'type': 'adjective'})
 
-    # 台辅封诰
     timely = get_timely_star_index(time_index)
     adj_stars.append({'name': '台辅', 'index': timely['taifu'], 'type': 'adjective'})
     adj_stars.append({'name': '封诰', 'index': timely['fenggao'], 'type': 'adjective'})
 
-    # 天巫
     adj_stars.append({'name': '天巫', 'index': monthly['tianwu'], 'type': 'adjective'})
-
-    # 华盖
     adj_stars.append({'name': '华盖', 'index': yearly['huagai'], 'type': 'adjective'})
-
-    # 天官天福
     adj_stars.append({'name': '天官', 'index': yearly['tianguan'], 'type': 'adjective'})
     adj_stars.append({'name': '天福', 'index': yearly['tianfu'], 'type': 'adjective'})
-
-    # 天厨
     adj_stars.append({'name': '天厨', 'index': yearly['tianchu'], 'type': 'adjective'})
-
-    # 天月
     adj_stars.append({'name': '天月', 'index': monthly['tianyue'], 'type': 'adjective'})
-
-    # 天德月德
     adj_stars.append({'name': '天德', 'index': yearly['tiande'], 'type': 'adjective'})
     adj_stars.append({'name': '月德', 'index': yearly['yuede'], 'type': 'adjective'})
-
-    # 天空
     adj_stars.append({'name': '天空', 'index': yearly['tiankong'], 'type': 'adjective'})
-
-    # 旬空
     adj_stars.append({'name': '旬空', 'index': yearly['xunkong'], 'type': 'adjective'})
-
-    # 截路空亡
     adj_stars.append({'name': '截路', 'index': yearly['jielu'], 'type': 'adjective'})
     adj_stars.append({'name': '空亡', 'index': yearly['kongwang'], 'type': 'adjective'})
 
-    # 孤辰寡宿
     adj_stars.append({'name': '孤辰', 'index': yearly['guchen'], 'type': 'adjective'})
     adj_stars.append({'name': '寡宿', 'index': yearly['guasu'], 'type': 'adjective'})
-
-    # 蜚廉
     adj_stars.append({'name': '蜚廉', 'index': yearly['feilian'], 'type': 'adjective'})
-
-    # 破碎
     adj_stars.append({'name': '破碎', 'index': yearly['posui'], 'type': 'adjective'})
-
-    # 天刑
     adj_stars.append({'name': '天刑', 'index': monthly['tianxing'], 'type': 'adjective'})
-
-    # 阴煞
     adj_stars.append({'name': '阴煞', 'index': monthly['yinsha'], 'type': 'adjective'})
-
-    # 天哭天虚
     adj_stars.append({'name': '天哭', 'index': yearly['tianku'], 'type': 'adjective'})
     adj_stars.append({'name': '天虚', 'index': yearly['tianxu'], 'type': 'adjective'})
 
-    # 天使天伤
-    tianshi, tianshang = get_tianshi_tianshang_index(solar_date, gender, sb['soul_index'])
+    tianshi, tianshang = get_tianshi_tianshang_index(gender, sb['soul_index'])
     adj_stars.append({'name': '天使', 'index': tianshi, 'type': 'adjective'})
     adj_stars.append({'name': '天伤', 'index': tianshang, 'type': 'adjective'})
 
-    # 年解
     adj_stars.append({'name': '年解', 'index': yearly['nianjie'], 'type': 'helper'})
 
     result.adjective_stars = adj_stars
 
-    # =========== 四化 ===========
+    # 四化
     mutagens = []
     if year_stem in MUTAGEN_DATA:
         hua_list = MUTAGEN_DATA[year_stem]
         for i, hua_star_name in enumerate(hua_list):
             hua_type = MUTAGEN_NAMES[i]
-            # 在主星中找位置
             for s in result.major_stars:
                 if s['name'] == hua_star_name:
                     mutagens.append({'name': hua_star_name, 'index': s['index'], 'mutagen': hua_type})
                     break
     result.mutagens = mutagens
 
-    # =========== 大限 ===========
+    # 大限
     result.horoscopes = get_horoscope(solar_date, time_index, gender,
                                       sb['soul_index'],
                                       sb['heavenly_stem_of_soul'],
                                       sb['earthly_branch_of_soul'],
                                       five_val, fix_leap)
 
-    # =========== 长生12神 ===========
+    # 长生12神
     result.changsheng12 = get_changsheng12(solar_date, time_index, gender, fix_leap)
-
-    # =========== 博士12神 ===========
     result.boshi12 = get_boshi12(solar_date, gender)
-
-    # =========== 岁前12神 / 将前12神 ===========
     y12 = get_yearly12(solar_date)
     result.suiqian12 = y12['suiqian']
     result.jiangqian12 = y12['jiangqian']
 
-    # =========== 命主身主 ===========
+    # 命主身主
     result.soul_master = get_soul_master(sb['earthly_branch_of_soul'])
     result.body_master = get_body_master(year_branch)
 
@@ -1206,7 +1063,6 @@ def format_astrolabe(result: AstrolabeResult) -> str:
     lines.append(f"身宫: 第{result.body_index}宫")
     lines.append("")
 
-    # 十二宫
     lines.append("【十二宫】")
     for p in result.palaces:
         soul_mark = " ⭐命" if p['is_soul'] else ""
@@ -1214,7 +1070,6 @@ def format_astrolabe(result: AstrolabeResult) -> str:
         lines.append(f"  {p['name']:5s} {p['heavenly_stem']}{p['earthly_branch']}{soul_mark}{body_mark}")
     lines.append("")
 
-    # 十四主星
     lines.append("【十四主星】")
     for s in result.major_stars:
         palace = result.palaces[s['index']]['name']
@@ -1222,27 +1077,23 @@ def format_astrolabe(result: AstrolabeResult) -> str:
         lines.append(f"  {s['name']:4s} → {palace} ({eb})")
     lines.append("")
 
-    # 辅星
     lines.append("【辅星】")
     for s in result.minor_stars:
         palace = result.palaces[s['index']]['name']
         lines.append(f"  {s['name']:4s} → {palace}")
     lines.append("")
 
-    # 杂星
     lines.append("【杂星】")
     for s in result.adjective_stars:
         palace = result.palaces[s['index']]['name']
         lines.append(f"  {s['name']:4s} → {palace}")
     lines.append("")
 
-    # 四化
     lines.append("【四化】")
     for m in result.mutagens:
         lines.append(f"  {m['name']} {m['mutagen']}")
     lines.append("")
 
-    # 长生12神
     lines.append("【长生12神】")
     for i, name in enumerate(result.changsheng12):
         if name:
@@ -1250,7 +1101,6 @@ def format_astrolabe(result: AstrolabeResult) -> str:
             lines.append(f"  {name:4s} → {p_name}")
     lines.append("")
 
-    # 博士12神
     lines.append("【博士12神】")
     for i, name in enumerate(result.boshi12):
         if name:
@@ -1258,7 +1108,6 @@ def format_astrolabe(result: AstrolabeResult) -> str:
             lines.append(f"  {name:4s} → {p_name}")
     lines.append("")
 
-    # 岁前12神
     lines.append("【岁前12神】")
     for i, name in enumerate(result.suiqian12):
         if name:
@@ -1266,7 +1115,6 @@ def format_astrolabe(result: AstrolabeResult) -> str:
             lines.append(f"  {name:4s} → {p_name}")
     lines.append("")
 
-    # 将前12神
     lines.append("【将前12神】")
     for i, name in enumerate(result.jiangqian12):
         if name:
@@ -1274,7 +1122,6 @@ def format_astrolabe(result: AstrolabeResult) -> str:
             lines.append(f"  {name:4s} → {p_name}")
     lines.append("")
 
-    # 大限
     lines.append("【大限】")
     for h in sorted(result.horoscopes, key=lambda x: x['range'][0]):
         p_name = result.palaces[h['index']]['name']
@@ -1289,20 +1136,11 @@ def format_astrolabe(result: AstrolabeResult) -> str:
 # ============================================================
 
 def get_chang_qu_index_by_heavenly_stem(heavenly_stem: str) -> dict:
-    """
-    流昌流曲（按天干定位）— 1:1 iztro getChangQuIndexByHeavenlyStem
-    用于大限/流年/流月/流日/流时的文昌文曲
-    """
+    """流昌流曲（按天干定位）"""
     table = {
-        '甲': ('巳', '酉'),
-        '乙': ('午', '申'),
-        '丙': ('申', '午'),
-        '丁': ('酉', '巳'),
-        '戊': ('申', '午'),
-        '己': ('酉', '巳'),
-        '庚': ('亥', '卯'),
-        '辛': ('子', '寅'),
-        '壬': ('寅', '子'),
+        '甲': ('巳', '酉'), '乙': ('午', '申'), '丙': ('申', '午'),
+        '丁': ('酉', '巳'), '戊': ('申', '午'), '己': ('酉', '巳'),
+        '庚': ('亥', '卯'), '辛': ('子', '寅'), '壬': ('寅', '子'),
         '癸': ('卯', '亥'),
     }
     chang_eb, qu_eb = table.get(heavenly_stem, ('', ''))
@@ -1315,7 +1153,6 @@ def get_chang_qu_index_by_heavenly_stem(heavenly_stem: str) -> dict:
 # ============================================================
 # 16. 流耀系统 — 1:1 iztro horoscopeStar.ts
 # ============================================================
-# 大限/流年/流月/流日/流时的 魁钺昌曲禄羊陀马鸾喜 + 年解
 
 SCOPE_NAMES = {
     'origin':   {'kui': '天魁', 'yue': '天钺', 'chang': '文昌', 'qu': '文曲',
@@ -1341,20 +1178,12 @@ SCOPE_NAMES = {
 
 def get_horoscope_star(heavenly_stem: str, earthly_branch: str,
                        scope: str = 'origin') -> List[Dict]:
-    """
-    流耀 — 1:1 iztro getHoroscopeStar
-    scope: origin | decadal | yearly | monthly | daily | hourly
-    返回该scope下的 魁钺昌曲禄羊陀马鸾喜 列表
-    """
+    """流耀 — 1:1 iztro getHoroscopeStar"""
     names = SCOPE_NAMES.get(scope, SCOPE_NAMES['origin'])
 
-    # 魁钺（按天干）
     kui, yue = get_kui_yue_index(heavenly_stem)
-    # 昌曲（按天干 — 用流昌流曲公式）
     cq = get_chang_qu_index_by_heavenly_stem(heavenly_stem)
-    # 禄羊陀马（按天干地支）
     lu, yang, tuo, ma = get_lu_yang_tuo_ma_index(heavenly_stem, earthly_branch)
-    # 鸾喜（按地支）
     hl_idx, tx_idx = get_hong_luan_tian_xi_index(earthly_branch)
 
     stars = []
@@ -1377,7 +1206,6 @@ def get_horoscope_star(heavenly_stem: str, earthly_branch: str,
     stars.append({'name': names['hongluan'], 'index': hl_idx, 'type': 'flower', 'scope': scope})
     stars.append({'name': names['tianxi'], 'index': tx_idx, 'type': 'flower', 'scope': scope})
 
-    # 流年才加年解
     if scope == 'yearly':
         nianjie = fix_index(
             eb_name_to_palace_index(
@@ -1397,13 +1225,7 @@ def get_horoscope_star(heavenly_stem: str, earthly_branch: str,
 
 @dataclass
 class SurPalaces:
-    """
-    三方四正 — 1:1 iztro FunctionalSurpalaces / SurroundedPalaces
-    target: 目标宫
-    wealth: 财帛位（+4）
-    opposite: 对宫（+6）
-    career: 官禄位（+4 from opposite = +10 from target）
-    """
+    """三方四正"""
     target: dict
     wealth: dict
     opposite: dict
@@ -1411,11 +1233,7 @@ class SurPalaces:
 
 
 def get_palace(result, index_or_name):
-    """
-    获取宫位 — 1:1 iztro analyzer.ts getPalace
-    支持索引（0-11）或宫位名称（'命宫', '兄弟宫', ...）
-    也支持特殊名称 'original'（命宫）和 'body'（身宫）
-    """
+    """获取宫位 — 1:1 iztro getPalace"""
     if isinstance(index_or_name, int):
         if index_or_name < 0 or index_or_name > 11:
             return None
@@ -1427,34 +1245,23 @@ def get_palace(result, index_or_name):
             matches = [p for p in result.palaces if p.get('is_body')]
         else:
             matches = [p for p in result.palaces if p['name'] == index_or_name]
-
         if not matches:
             return None
         palace = matches[0]
     else:
         return None
-
     return palace
 
 
 def get_surrounded_palaces(result, index_or_name):
-    """
-    三方四正 — 1:1 iztro analyzer.ts getSurroundedPalaces
-    传入星盘结果+宫位索引/名称，返回目标宫+财帛+对宫+官禄四个宫位
-    """
+    """三方四正 — 1:1 iztro getSurroundedPalaces"""
     palace = get_palace(result, index_or_name)
     if not palace:
         return None
-
     palace_idx = palace['index']
-
-    # 对宫：+6
     opp_idx = fix_index(palace_idx + 6)
-    # 官禄：+4
     car_idx = fix_index(palace_idx + 4)
-    # 财帛：+8
     wea_idx = fix_index(palace_idx + 8)
-
     return SurPalaces(
         target=result.palaces[palace_idx],
         wealth=result.palaces[wea_idx],
@@ -1468,7 +1275,7 @@ def get_surrounded_palaces(result, index_or_name):
 # ============================================================
 
 def _get_all_stars_in_palace(palace, result) -> List[str]:
-    """获取宫位内所有星耀名称（主星+辅星+杂星+四化星）"""
+    """获取宫位内所有星耀名称"""
     names = []
     for s in result.major_stars:
         if s['index'] == palace['index']:
@@ -1490,12 +1297,24 @@ def _get_all_stars_in_surpalaces(sp: SurPalaces, result) -> List[str]:
     return stars
 
 
+def _get_major_stars_in_palace(palace: dict, result) -> List[str]:
+    """获取宫位内主星名称"""
+    return [s['name'] for s in result.major_stars if s['index'] == palace['index']]
+
+
+def _get_brightness(star_name: str, palace_idx: int) -> str:
+    """获取星曜亮度 — 1:1 iztro FunctionalStar withBrightness"""
+    info = STARS_INFO.get(star_name)
+    if not info or 'brightness' not in info:
+        return ''
+    brightness_list = info['brightness']
+    if palace_idx < 0 or palace_idx >= len(brightness_list):
+        return ''
+    return brightness_list[palace_idx]
+
+
 def has_stars(result, palace, star_names: List[str]) -> bool:
-    """
-    判断宫位是否包含所有指定星耀 — 1:1 hasStars
-    palace: 宫位dict或索引或名称
-    star_names: 星耀名称列表
-    """
+    """判断宫位是否包含所有指定星耀 — 1:1 hasStars"""
     p = get_palace(result, palace) if not isinstance(palace, dict) else palace
     if not p:
         return False
@@ -1504,9 +1323,7 @@ def has_stars(result, palace, star_names: List[str]) -> bool:
 
 
 def has_one_of_stars(result, palace, star_names: List[str]) -> bool:
-    """
-    判断宫位是否包含指定星耀的至少一个 — 1:1 hasOneOfStars
-    """
+    """判断宫位是否包含指定星耀的至少一个 — 1:1 hasOneOfStars"""
     p = get_palace(result, palace) if not isinstance(palace, dict) else palace
     if not p:
         return False
@@ -1515,17 +1332,12 @@ def has_one_of_stars(result, palace, star_names: List[str]) -> bool:
 
 
 def not_have_stars(result, palace, star_names: List[str]) -> bool:
-    """
-    判断宫位是否不包含任何指定星耀 — 1:1 notHaveStars
-    """
+    """判断宫位是否不包含任何指定星耀 — 1:1 notHaveStars"""
     return not has_one_of_stars(result, palace, star_names)
 
 
 def has_mutagen_in_place(result, palace, mutagen: str) -> bool:
-    """
-    判断宫位是否有指定四化 — 1:1 hasMutagenInPlace
-    mutagen: '化禄' | '化权' | '化科' | '化忌'
-    """
+    """判断宫位是否有指定四化 — 1:1 hasMutagenInPlace"""
     p = get_palace(result, palace) if not isinstance(palace, dict) else palace
     if not p:
         return False
@@ -1541,9 +1353,7 @@ def not_have_mutagen_in_place(result, palace, mutagen: str) -> bool:
 
 
 def is_surrounded_by_stars(result, index_or_name, star_names: List[str]) -> bool:
-    """
-    判断三方四正是否包含所有指定星耀 — 1:1 isSurroundedByStars
-    """
+    """判断三方四正是否包含所有指定星耀 — 1:1 isSurroundedByStars"""
     sp = get_surrounded_palaces(result, index_or_name)
     if not sp:
         return False
@@ -1552,9 +1362,7 @@ def is_surrounded_by_stars(result, index_or_name, star_names: List[str]) -> bool
 
 
 def is_surrounded_by_one_of_stars(result, index_or_name, star_names: List[str]) -> bool:
-    """
-    判断三方四正是否包含指定星耀的至少一个 — 1:1 isSurroundedByOneOfStars
-    """
+    """判断三方四正是否包含指定星耀的至少一个"""
     sp = get_surrounded_palaces(result, index_or_name)
     if not sp:
         return False
@@ -1563,18 +1371,12 @@ def is_surrounded_by_one_of_stars(result, index_or_name, star_names: List[str]) 
 
 
 def not_surrounded_by_stars(result, index_or_name, star_names: List[str]) -> bool:
-    """
-    判断三方四正是否不含任何指定星耀 — 1:1 notSurroundedByStars
-    """
+    """判断三方四正是否不含任何指定星耀"""
     return not is_surrounded_by_one_of_stars(result, index_or_name, star_names)
 
 
 def mutagens_to_stars(heavenly_stem: str, mutagens):
-    """
-    根据天干查询四化对应的星耀名称 — 1:1 mutagensToStars
-    mutagens: '化禄' 或 ['化禄', '化权', ...]
-    返回星耀名称列表
-    """
+    """根据天干查询四化对应的星耀名称 — 1:1 mutagensToStars"""
     if isinstance(mutagens, str):
         mutagens = [mutagens]
     if heavenly_stem not in MUTAGEN_DATA:
@@ -1586,3 +1388,198 @@ def mutagens_to_stars(heavenly_stem: str, mutagens):
         if idx < len(hua_list):
             result.append(hua_list[idx])
     return result
+
+
+# ============================================================
+# 19. 运限计算 — 1:1 iztro FunctionalAstrolabe._getHoroscopeBySolarDate
+# ============================================================
+
+def get_horoscope_by_date(astrolabe_result: AstrolabeResult,
+                          target_date_str: str = None,
+                          time_index: int = None) -> dict:
+    """
+    根据目标日期计算当前运限（大限/流年/流月/流日/流时）
+    1:1 iztro FunctionalAstrolabe._getHoroscopeBySolarDate
+
+    返回:
+    {
+        'solar_date': str,
+        'lunar_date': str,
+        'decadal': { 'index', 'name', 'heavenly_stem', 'earthly_branch', 'mutagen', 'stars', 'range' },
+        'age': { 'index', 'nominal_age', 'heavenly_stem', 'earthly_branch' },
+        'yearly': { 'index', 'heavenly_stem', 'earthly_branch', 'mutagen', 'stars' },
+        'monthly': { ... },
+        'daily': { ... },
+        'hourly': { ... },
+    }
+    """
+    import datetime as dt
+
+    if target_date_str is None:
+        now = datetime.now()
+        target_date_str = f"{now.year}-{now.month}-{now.day}"
+
+    # 生日和目标日期的农历
+    _, birth_lunar = get_solar_and_lunar(astrolabe_result.solar_date)
+    _, target_lunar = get_solar_and_lunar(target_date_str)
+
+    # 大小月天数处理
+    birth_days = get_lunar_month_day_count(birth_lunar)
+    target_days = get_lunar_month_day_count(target_lunar)
+
+    if time_index is None:
+        now = datetime.now()
+        time_index = get_hour_gan_zhi_by_time(f"{now.hour:02d}:{now.minute:02d}")
+
+    # 目标日期的年/月/日/时柱
+    y_stem, y_branch = get_year_gan_zhi(target_date_str)
+    m_stem, m_branch = get_month_gan_zhi(target_date_str)
+    d_stem, d_branch = get_day_gan_zhi(target_date_str)
+    h_stem, h_branch = get_hour_gan_zhi(time_index, d_stem)
+
+    # 虚岁
+    raw_year_birth = birth_lunar.getYear()
+    raw_year_target = target_lunar.getYear()
+    nominal_age = raw_year_target - raw_year_birth + 1
+
+    # 大限索引
+    decadal_index = -1
+    decadal_stem = '甲'
+    decadal_branch = '子'
+    for h in astrolabe_result.horoscopes:
+        if h['range'][0] <= nominal_age <= h['range'][1]:
+            decadal_index = h['index']
+            decadal_stem = h['heavenly_stem']
+            decadal_branch = h['earthly_branch']
+            break
+
+    # 小限索引
+    age_index = -1
+    age_stem = '甲'
+    age_branch = '子'
+    for i, h in enumerate(astrolabe_result.horoscopes):
+        if h['range'][0] <= nominal_age <= h['range'][1]:
+            age_index = i
+            # 小限以命宫起1岁，阳男阴女顺，阴男阳女逆
+            is_male = (astrolabe_result.gender == '男')
+            is_yang_year = STEM_YIN_YANG[astrolabe_result.heavenly_stem_of_year] == '阳'
+            is_forward = (is_yang_year and is_male) or (not is_yang_year and not is_male)
+            age_offset = nominal_age - h['range'][0]
+            if is_forward:
+                age_idx = fix_index(astrolabe_result.soul_index + age_offset)
+            else:
+                age_idx = fix_index(astrolabe_result.soul_index - age_offset)
+            age_index = age_idx
+            # 小限天干地支
+            a_stem = HEAVENLY_STEMS[fix_index(HEAVENLY_STEMS.index(decadal_stem) + age_offset, 10)]
+            a_branch = EARTHLY_BRANCHES[fix_index(eb_name_to_index(astrolabe_result.earthly_branch_of_soul) + age_offset)]
+            age_stem = a_stem
+            age_branch = a_branch
+            break
+
+    # 流年索引 = 年支的宫位索引
+    yearly_index = eb_name_to_palace_index(y_branch)
+
+    # 流月索引
+    birth_raw = birth_lunar.getMonth()
+    birth_abs = abs(birth_raw)
+    birth_day = birth_lunar.getDay()
+    is_leap_birth = birth_raw < 0
+    leap_add = 1 if (is_leap_birth and birth_day > 15) else 0
+    target_month = target_lunar.getMonth()
+    target_abs = abs(target_month)
+    monthly_index = fix_index(
+        yearly_index - (birth_abs + leap_add) +
+        eb_name_to_index(h_branch) +
+        target_abs
+    )
+
+    # 流日索引
+    target_day = target_lunar.getDay()
+    daily_index = fix_index(monthly_index + target_day - 1)
+
+    # 流时索引
+    hourly_index = fix_index(daily_index + eb_name_to_index(h_branch))
+
+    # 构建大限流耀
+    decadal_stars = get_horoscope_star(decadal_stem, decadal_branch, 'decadal')
+    yearly_stars = get_horoscope_star(y_stem, y_branch, 'yearly')
+    monthly_stars = get_horoscope_star(m_stem, m_branch, 'monthly')
+    daily_stars = get_horoscope_star(d_stem, d_branch, 'daily')
+    hourly_stars = get_horoscope_star(h_stem, h_branch, 'hourly')
+
+    # 大限四化
+    decadal_mutagen = mutagens_to_stars(decadal_stem, MUTAGEN_NAMES)
+    yearly_mutagen = mutagens_to_stars(y_stem, MUTAGEN_NAMES)
+    monthly_mutagen = mutagens_to_stars(m_stem, MUTAGEN_NAMES)
+    daily_mutagen = mutagens_to_stars(d_stem, MUTAGEN_NAMES)
+    hourly_mutagen = mutagens_to_stars(h_stem, MUTAGEN_NAMES)
+
+    # 岁前将前12神(用于流年)
+    y12 = get_yearly12(target_date_str)
+
+    decadal_range = None
+    for h in astrolabe_result.horoscopes:
+        if h['index'] == decadal_index:
+            decadal_range = h['range']
+            break
+
+    return {
+        'solar_date': target_date_str,
+        'lunar_date': target_lunar.toFullString() if hasattr(target_lunar, 'toFullString') else str(target_lunar),
+        'decadal': {
+            'index': decadal_index,
+            'name': '大限' if decadal_index >= 0 else '童限',
+            'heavenly_stem': decadal_stem,
+            'earthly_branch': decadal_branch,
+            'range': decadal_range,
+            'mutagen': decadal_mutagen,
+            'stars': decadal_stars,
+            'palace_name': astrolabe_result.palaces[decadal_index]['name'] if decadal_index >= 0 else '',
+        },
+        'age': {
+            'index': age_index,
+            'nominal_age': nominal_age,
+            'name': '小限',
+            'heavenly_stem': age_stem,
+            'earthly_branch': age_branch,
+            'palace_name': astrolabe_result.palaces[age_index]['name'] if age_index >= 0 else '',
+        },
+        'yearly': {
+            'index': yearly_index,
+            'name': '流年',
+            'heavenly_stem': y_stem,
+            'earthly_branch': y_branch,
+            'mutagen': yearly_mutagen,
+            'stars': yearly_stars,
+            'palace_name': astrolabe_result.palaces[yearly_index]['name'],
+            'yearly_dec_star': y12,
+        },
+        'monthly': {
+            'index': monthly_index,
+            'name': '流月',
+            'heavenly_stem': m_stem,
+            'earthly_branch': m_branch,
+            'mutagen': monthly_mutagen,
+            'stars': monthly_stars,
+            'palace_name': astrolabe_result.palaces[monthly_index]['name'],
+        },
+        'daily': {
+            'index': daily_index,
+            'name': '流日',
+            'heavenly_stem': d_stem,
+            'earthly_branch': d_branch,
+            'mutagen': daily_mutagen,
+            'stars': daily_stars,
+            'palace_name': astrolabe_result.palaces[daily_index]['name'],
+        },
+        'hourly': {
+            'index': hourly_index,
+            'name': '流时',
+            'heavenly_stem': h_stem if h_stem else '',
+            'earthly_branch': h_branch if h_branch else '',
+            'mutagen': hourly_mutagen,
+            'stars': hourly_stars,
+            'palace_name': astrolabe_result.palaces[hourly_index]['name'],
+        },
+    }
