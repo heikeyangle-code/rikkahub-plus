@@ -25,17 +25,13 @@ jobs:
         run: rm -rf app/build/python $HOME/.gradle/caches/chaquopy*
       - name: Pre-install setuptools for build
         run: pip install --upgrade pip setuptools wheel 2>&1 | tail -3
-      - name: Build lunar-python wheel locally
+      - name: Download packages missing from Chaquopy proxy
         run: |
           pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps "sxtwl" -d /tmp/pypi-offline 2>&1 | tail -3
-          mkdir -p app/src/main/python/offline_pkgs
-          cp /tmp/pypi-offline/* app/src/main/python/offline_pkgs/
-          echo "Offline packages:" && ls app/src/main/python/offline_pkgs/
-          # Create pip.conf for Chaquopy
-          mkdir -p ~/.config/pip
-          echo $'[global]\nfind-links =\n    file://${PWD}/app/src/main/python/offline_pkgs\n    https://chaquopy.com/pypi/simple/' > ~/.config/pip/pip.conf
-          cat ~/.config/pip/pip.conf
+          pip download --no-deps --no-binary :all: "sxtwl" -d /tmp/pypi-offline 2>&1 | tail -3
+          mkdir -p app/offline_pkgs
+          cp /tmp/pypi-offline/* app/offline_pkgs/
+          echo "Files:" && ls app/offline_pkgs/
       - uses: actions/cache@v4
         with:
           path: |

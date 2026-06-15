@@ -32,8 +32,8 @@ chaquopy {
             install("tabulate")
 
             // === 命理计算引擎 ===
-            install("lunar-python")
-            install("sxtwl")
+            install(file("app/offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
+            install(file("app/offline_pkgs/sxtwl-2.0.7.tar.gz").absolutePath)
             install("cnlunar")
             install("ichingshifa")
             install("kinliuren")
