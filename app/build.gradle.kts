@@ -40,7 +40,8 @@ chaquopy {
             install("taixuanshifa")
             install("jingjue")
             install("colorama")           // china-testing/bazi 所需
-            install("sxtwl")              // china-testing/bazi 所需（C扩展，自动交叉编译）
+            install("sxtwl")              // C扩展，kinqimen + bazi_china 共用
+            install("kinqimen")           // ⭐119 奇门遁甲
         }
     }
 }
