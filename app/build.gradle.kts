@@ -44,6 +44,8 @@ chaquopy {
             install("pyswisseph")         // C扩展，西洋占星用（从源码编译）
             install("kinqimen")           // ⭐119 奇门遁甲
             install("pytarot")            // ⭐82  塔罗牌（纯Python）
+            install("kerykeion")          // ⭐655 西洋占星（纯Python壳，等pyswisseph）
+            install("stellium")           // ⭐40  西洋占星增强
         }
     }
 }
