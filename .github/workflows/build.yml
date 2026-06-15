@@ -25,6 +25,11 @@ jobs:
         run: rm -rf app/build/python $HOME/.gradle/caches/chaquopy*
       - name: Pre-install setuptools for build
         run: pip install --upgrade pip setuptools wheel 2>&1 | tail -3
+      - name: Download packages missing from Chaquopy proxy
+        run: |
+          pip download --no-deps --dest /tmp/pypi-offline "lunar-python==1.4.8" 2>&1 | tail -3
+          echo "downloaded:"
+          ls /tmp/pypi-offline/
       - uses: actions/cache@v4
         with:
           path: |
@@ -41,7 +46,7 @@ jobs:
           EOF
       - name: Build
         env:
-          PIP_EXTRA_INDEX_URL: https://pypi.org/simple/
+          PIP_FIND_LINKS: /tmp/pypi-offline
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease -x :web:buildWebUi --stacktrace 2>&1 | tee build.log | tail -20
