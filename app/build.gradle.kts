@@ -30,6 +30,17 @@ chaquopy {
             install("ebooklib")
             install("markdownify")
             install("tabulate")
+
+            // === 命理计算引擎 ===
+            install("lunar-python")
+            install("cnlunar")
+            install("ichingshifa")
+            install("kinliuren")
+            install("kintaiyi")
+            install("taixuanshifa")
+            install("jingjue")
+            install("colorama")           // china-testing/bazi 所需
+            install("sxtwl")              // china-testing/bazi 所需（C扩展，自动交叉编译）
         }
     }
 }
