@@ -52,10 +52,20 @@ chaquopy {
             install("immanuel")            // ⭐109 西洋占星合盘+推运（synastry/progression）
             install("setuptools>=68,<76")      // 锁定<76以支持setuptools.backends._legacy（kinastro构建需要）
             install("hatchling")           // hatchling构建工具, kinwangji需要
-            install("--no-build-isolation git+https://github.com/kentang2017/kinastro.git")  // ⭐31 88种中外占星禄命合一
+            install("git+https://github.com/kentang2017/kinastro.git")  // ⭐31 88种中外占星禄命合一
             install("git+https://github.com/dturkuler/humandesign_api.git") // ⭐27 人类图
             install("git+https://github.com/kentang2017/kinwangji.git")  // ⭐10 皇极经世
         }
+    }
+}
+
+// pip constraints: 锁定 setuptools<76 以支持 kinastro 的 _legacy 构建后端
+tasks.matching { it.name.startsWith("install") && it.name.endsWith("PythonRequirements") }.configureEach {
+    doFirst {
+        val constraintsFile = File("${layout.buildDirectory.get()}/pip-constraints.txt")
+        constraintsFile.parentFile.mkdirs()
+        constraintsFile.writeText("setuptools<76\n")
+        environment("PIP_CONSTRAINT", constraintsFile.absolutePath)
     }
 }
 
