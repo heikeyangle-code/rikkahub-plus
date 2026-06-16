@@ -17,7 +17,55 @@ Available built-in functions (call these from your code):
   get_setting(key)                               - Read global app setting
   update_setting(key, value)                     - Change global app setting
   get_app_info()                                 - App version & paths
-"""
+
+=== 命理排盘规则（重要）===
+所有排盘计算必须使用以下真实 Python 函数/模块，不得依赖 AI 模型自身知识虚构星曜位置、宫位、神煞等数据。
+模型只负责解读算出来的结果，不负责计算本身。
+
+一、紫微斗数 —— ziwei_paipan.py
+  from ziwei_paipan import by_solar, format_astrolabe, get_horoscope, get_horoscope_by_date
+  result = by_solar(solar_date, time_index, gender)   # solar_date='2003-10-12', time_index=0-12, gender='male'/'female'
+  text = format_astrolabe(result)                      # 格式化输出星盘文字
+  horoscope = get_horoscope(solar_date, time_index, gender)  # 含大限流年
+  # 查询辅助:
+  get_palace(result, index_or_name)                    # 获取指定宫位
+  has_stars(result, palace, star_names)                # 判断是否有某星
+  has_mutagen_in_place(result, palace, mutagen)        # 判断四化
+  mutagens_to_stars(heavenly_stem, mutagens)           # 飞星四化
+
+二、八字/四柱 —— bazi_china.bazi
+  from bazi_china.bazi import get_gen, get_gong, get_shens
+  get_gen(gan, zhis)           # 获取天干地支关系
+  get_gong(zhis)               # 获取宫位
+  get_shens(gans, zhis, ...)   # 获取神煞
+
+三、西洋占星
+  from kerykeion import AstrologicalSubject              # 数据驱动占星
+  from flatlib import const                              # 传统占星宫位相位
+  import stellium                                        # 现代占星全套
+  
+四、奇门遁甲
+  import kinqimen                                        # 金函玉镜/拆补置闰
+
+五、六爻/周易
+  from ichingshifa import Ichingshifa                    # 大衍之数/京房易
+
+六、印度占星/吠陀
+  from PyJHora import *                                  # 吠陀占星全套
+
+七、其他
+  import immanuel          # 合盘推运
+  import kinliuren          # 大六壬
+  import pytarot            # 塔罗
+  import meihua_yi          # 梅花易数
+  import kinwangji          # 皇极经世
+  import kintaiyi           # 太乙神数
+  import cnlunar            # 农历黄历
+  from lunar_python import Lunar, Solar  # 农历公历转换
+  import humandesign        # 人类图
+  
+注意：以上所有 import 在 Chaquopy 环境中均已安装，直接导入即可使用。
+禁止 AI 模型自行虚构命理排盘数据。必须先调用真实函数获取数据，再进行解读分析。"""
 
 import sys
 import json
