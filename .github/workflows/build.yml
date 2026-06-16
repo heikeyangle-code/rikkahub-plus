@@ -43,33 +43,6 @@ jobs:
           mkdir -p app/offline_pkgs
           cp /tmp/pypi-offline/* app/offline_pkgs/
           echo "Offline packages:" && ls app/offline_pkgs/
-      - name: Patch humandesign-api (relax strict version pins)
-        run: |
-          git clone https://github.com/dturkuler/humandesign_api.git /tmp/humandesign_src
-          cd /tmp/humandesign_src
-          # Relax strict version pins to match Chaquopy proxy availability
-          sed -i 's/numpy==2.1.2/numpy>=1.26.2/' pyproject.toml
-          sed -i 's/ipython==/ipython>=/' pyproject.toml
-          sed -i 's/pandas==2.2.3/pandas>=2.0.0/' pyproject.toml
-          sed -i 's/python-dateutil==/python-dateutil>=/' pyproject.toml
-          sed -i 's/pytz==/pytz>=/' pyproject.toml
-          sed -i 's/tqdm==/tqdm>=/' pyproject.toml
-          sed -i 's/uvicorn==/uvicorn>=/' pyproject.toml
-          sed -i 's/timezonefinder>=8.2.0/timezonefinder>=3.4.2/' pyproject.toml
-          sed -i 's/geopy==/geopy>=/' pyproject.toml
-          # Remove dev/lint deps not available on Chaquopy proxy
-          sed -i '/"ruff"/d' pyproject.toml
-          sed -i '/"pytest"/d' pyproject.toml
-          # Remove pydantic dependency and patch code with dataclasses
-          sed -i '/"pydantic/d' pyproject.toml
-          python3 ${GITHUB_WORKSPACE}/ci/patch_humandesign_pydantic.py
-          # Keep pyswisseph pin — we provide the exact version via offline tarball
-          sed -i 's|pyswisseph.*|pyswisseph==2.10.3.2",|' pyproject.toml
-          echo "Patched pyproject.toml:"
-          grep -E '".*==' pyproject.toml || true
-          cd /tmp && tar czf /tmp/pypi-offline/humandesign-api-patched.tar.gz humandesign_src
-          cp /tmp/pypi-offline/humandesign-api-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          echo "Added humandesign-api-patched.tar.gz"
       - name: Patch kinwangji (relax ephem pin)
         run: |
           git clone https://github.com/kentang2017/kinwangji.git /tmp/kinwangji_src

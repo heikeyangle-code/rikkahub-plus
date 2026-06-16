@@ -57,7 +57,6 @@ Available built-in functions (call these from your code):
   印度占星/吠陀(南印/北印盘)  →  jhora                      ← stellium.visualization.vedic          生日必填
 
   【人类图/塔罗/其他】
-  人类图              →  humandesign                                             生日必填（需精确分钟）
   塔罗                →  pytarot                                                 无需出生
 
   【农历/干支/天文】
@@ -83,7 +82,7 @@ Available built-in functions (call these from your code):
   不局限于示例，每个库的全部方法都可调。
 
 【输入说明】不是所有排盘都需要生日：
-  • 需生日(含时辰) — 八字/紫微/占星/吠陀/人类图/皇极
+  • 需生日(含时辰) — 八字/紫微/占星/吠陀/皇极
   • 需生日(不含时辰也可) — 生肖/大六壬/二十八宿
   • 需双人生日 — 合盘/比较盘
   • 仅需日期(不需出生) — 黄历/择日/建除/太岁/节气/农历转换/日食月食
