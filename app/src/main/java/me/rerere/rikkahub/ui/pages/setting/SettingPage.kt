@@ -60,7 +60,7 @@ import me.rerere.hugeicons.stroke.ImageUpload
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.Edit01
-import me.rerere.hugeicons.stroke.CodeBrowser
+import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Notebook
 import me.rerere.hugeicons.stroke.MessageMultiple01
@@ -291,7 +291,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     )
                     item(
                         onClick = { showApiUrlDialog = true },
-                        leadingContent = { Icon(HugeIcons.CodeBrowser, null) },
+                        leadingContent = { Icon(HugeIcons.GlobalSearch, null) },
                         supportingContent = { Text("${settings.customApiConfigs.size} 个已配置") },
                         headlineContent = { Text("自定义 HTTP API") },
                     )
@@ -470,7 +470,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
         var headerVal by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showApiUrlDialog = false },
-            icon = { Icon(HugeIcons.CodeBrowser, null) },
+            icon = { Icon(HugeIcons.GlobalSearch, null) },
             title = { Text("自定义 HTTP API") },
             text = {
                 Column {
