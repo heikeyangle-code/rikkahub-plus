@@ -22,29 +22,90 @@ Available built-in functions (call these from your code):
 
 【核心原则】每次排盘都走真实 Python 库计算，模型不虚构任何数据。
 
-【路由规则】根据用户问题自动选择以下入口之一：
+【路由规则】根据用户问题自动选择对应模块。同一问题可能有多种方法，优先用最合适的：
 
-  用户问                     →  用这个
-  ───────────────────────────────────────────────────
-  八字/四柱/大运/流年        →  lunar_python + bazi_china
-  紫微斗数/星盘              →  ziwei_paipan
-  西洋占星/星座              →  kerykeion / flatlib / stellium
-  合盘/推运/比较盘           →  immanuel
-  印度占星/吠陀              →  PyJHora
-  人类图                     →  humandesign
-  奇门遁甲                   →  kinqimen
-  六爻/周易/卦               →  ichingshifa
-  大六壬                     →  kinliuren
-  太乙神数                   →  kintaiyi
-  太玄筮法                   →  taixuanshifa
-  梅花易数                   →  meihua_yi
-  塔罗                       →  pytarot
-  皇极经世                   →  kinwangji
-  荆诀/先秦占卜              →  jingjue
-  农历/黄历/择日             →  cnlunar / lunar_python
-  生肖/闰候/干支             →  bazi_china 子模块
+────────────────────────────────────────
+紫微斗数
+  方法1: ziwei_paipan.by_solar(date, time_idx, gender)
+         → 完整星盘（主星辅星四化神煞亮度三方四正）
+  方法2: ziwei_paipan.get_horoscope(date, time_idx, gender)
+         → 含大限流年运限
+  方法3: ziwei_paipan.get_horoscope_by_date(result, target_date, time_idx)
+         → 指定日期运限
 
-  不确定用哪个时，先 import 试试，哪个能用用哪个。
+八字/四柱
+  方法1: lunar_python.Solar → getLunar → getEightChar()
+         → 四柱干支、大运、命宫胎元身宫（推荐）
+  方法2: bazi_china.bazi.get_gen/get_gong/get_shens
+         → 通根、拱合、神煞（补充分析）
+  方法3: bazi_china.ganzhi.getGZ/get_jizhu/get_year_of_ganzhi
+         → 干支转换
+
+西洋占星
+  方法1: kerykeion.AstrologicalSubject + Report
+         → 数据驱动，行星/宫位/相位/上升（最快出报告）
+  方法2: flatlib.Chart + Datetime + GeoPos
+         → 传统宫位相位，指定宫位制（Placidus/Koch 等）
+  方法3: stellium.ChartBuilder
+         → 现代占星全套，含星历表、可视化
+  方法4: immanuel
+         → 合盘 synastry / 推运 progression / 行运 transit
+
+合盘/推运/比较盘
+  方法1: immanuel
+         → 合盘 synastry / 推运 progression / 行运 transit
+  方法2: kerykeion 两个 AstrologicalSubject 对比
+
+印度占星/吠陀
+  方法1: PyJHora
+         → 吠陀星盘、大运、合盘、推运（全套）
+
+人类图
+  方法1: humandesign
+         → 能量类型、Profile、定义、通道、闸门、轮回交叉
+
+奇门遁甲
+  方法1: kinqimen
+         → 金函玉镜日家奇门
+  方法2: kinqimen
+         → 拆补置闰时家奇门 / 刻家奇门
+
+六爻/周易
+  方法1: ichingshifa.Ichingshifa
+         → 大衍之数、六十四卦、京房易、日期占卦
+
+大六壬
+  方法1: kinliuren
+         → 天地盘、四课、三传
+
+太乙神数
+  方法1: kintaiyi
+         → 年计/月计/日计/时计/命法
+
+太玄筮法
+  方法1: taixuanshifa
+         → 太玄蓍法
+
+荆诀（北大竹简先秦占卜）
+  方法1: jingjue
+
+梅花易数
+  方法1: meihua_yi
+         → 年月日时起卦 / 物数 / 字占
+
+塔罗
+  方法1: pytarot
+         → 78 张完整牌面解读
+
+皇极经世
+  方法1: kinwangji
+         → 元会运世推算
+
+农历/黄历/择日
+  方法1: cnlunar
+         → 节气、星次、每日凶煞、值神、建除十二神、择日
+  方法2: lunar_python.Solar/Lunar
+         → 公历农历互转、节假日、干支、生肖
 
 【输入】所有排盘都需要出生信息：
   公历日期 time_index(0-12) 性别 地点(经纬度) 时区
