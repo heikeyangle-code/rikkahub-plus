@@ -8,58 +8,85 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Web 页面抓取工具，对齐原版 WebFetchTool。
+ * 通用 HTTP 工具，支持所有 HTTP 方法 + body + 自定义 Content-Type。
  *
- * - 通过 URL 抓取网页内容
- * - 将 HTML 转为纯文本返回
- * - 受 enableWebSearch 开关控制
+ * GET 请求直接返回纯文本，POST/PUT/PATCH 可带 JSON body。
+ * 用于调 REST API、抓网页、调命理服务等一切 HTTP 交互。
  */
 fun createWebFetchTool(): Tool = Tool(
     name = "web_fetch",
-    description = "Fetch content from a URL and return it as plain text.\n\n" +
-        "Use this tool to read documentation, articles, API responses, or any web page content.\n\n" +
-        "When to use:\n" +
-        "- Read documentation, articles, or API responses from a URL\n" +
-        "- Check web page content referenced in search results\n\n" +
-        "When NOT to use:\n" +
-        "- GitHub operations (use github_tool)\n" +
-        "- Searching the web (use web_search first)\n\n" +
+    description = "Send HTTP requests to any URL. Supports GET, POST, PUT, PATCH, DELETE with optional JSON body.\n\n" +
+        "Use this to call REST APIs, submit data, fetch web pages, or integrate external services.\n\n" +
         "Args:\n" +
-        "- url: Fully-formed URL including https:// (required)\n" +
-        "- HTTP URLs are auto-upgraded to HTTPS\n" +
-        "- Results truncated to 100KB for large pages",
+        "- url: Full URL including https:// (required)\n" +
+        "- method: HTTP method - GET, POST, PUT, PATCH, DELETE (default: GET)\n" +
+        "- body: JSON body string (required for POST/PUT/PATCH)\n" +
+        "- content_type: Content-Type header (default: application/json for POST/PUT/PATCH)\n\n" +
+        "Examples:\n" +
+        "- GET https://api.example.com/data\n" +
+        "- POST https://aov.cc/api/v1/bazi/calculate with body={\"year\":1990,...}\n" +
+        "- Results truncated to 100KB for large responses",
     needsApproval = false,
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("url", buildJsonObject {
                     put("type", "string")
-                    put("description", "Full URL to fetch (e.g., https://example.com/page)")
+                    put("description", "Full URL (e.g., https://aov.cc/api/v1/bazi/calculate)")
+                })
+                put("method", buildJsonObject {
+                    put("type", "string")
+                    put("description", "HTTP method: GET, POST, PUT, PATCH, DELETE (default: GET)")
+                })
+                put("body", buildJsonObject {
+                    put("type", "string")
+                    put("description", "JSON body for POST/PUT/PATCH (e.g., {\"year\":1990,\"month\":1,\"day\":1})")
+                })
+                put("content_type", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Content-Type header (default: application/json for POST/PUT/PATCH)")
                 })
             },
             required = listOf("url"),
         )
     },
     execute = { args ->
-        val urlStr = args.jsonObject["url"]?.jsonPrimitive?.contentOrNull
+        val obj = args.jsonObject
+        val urlStr = obj["url"]?.jsonPrimitive?.contentOrNull
             ?: error("url parameter is required")
+        val method = obj["method"]?.jsonPrimitive?.contentOrNull?.uppercase() ?: "GET"
+        val body = obj["body"]?.jsonPrimitive?.contentOrNull
+        val contentType = obj["content_type"]?.jsonPrimitive?.contentOrNull
+            ?: if (body != null) "application/json" else null
+
         val url = URL(urlStr)
         val conn = url.openConnection() as HttpURLConnection
         conn.connectTimeout = 15000
-        conn.readTimeout = 15000
-        conn.requestMethod = "GET"
+        conn.readTimeout = 30000
+        conn.requestMethod = method
         conn.setRequestProperty("User-Agent", "Rikkahub/1.0")
 
-        val responseCode = conn.responseCode
-        if (responseCode !in 200..399) {
-            error("HTTP $responseCode: ${conn.responseMessage}")
+        if (contentType != null) {
+            conn.setRequestProperty("Content-Type", contentType)
         }
 
-        val text = conn.inputStream.bufferedReader().use { it.readText() }
+        if (body != null && method in listOf("POST", "PUT", "PATCH")) {
+            conn.doOutput = true
+            OutputStreamWriter(conn.outputStream).use { it.write(body) }
+        }
+
+        val responseCode = conn.responseCode
+        val text = if (responseCode in 200..399) {
+            conn.inputStream.bufferedReader().use { it.readText() }
+        } else {
+            "HTTP $responseCode: ${conn.responseMessage}\n" +
+                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+        }
         val maxLen = 100 * 1024
         val truncated = if (text.length > maxLen) text.take(maxLen) + "\n\n...[truncated at 100KB]" else text
 
