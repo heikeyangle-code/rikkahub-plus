@@ -476,7 +476,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 Column {
                     Text("配置 API 端点，AI 可通过 web_fetch 调用。", style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(12.dp))
-                    settings.customApiConfigs.forEachIndexed { i, cfg ->
+                    for ((idx, cfg) in settings.customApiConfigs.withIndex()) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -487,10 +487,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 Text("${cfg.method} ${cfg.url}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             IconButton(onClick = {
-                                editName = cfg.name; editUrl = cfg.url; editMethod = cfg.method; editDesc = cfg.description; editHeaders = cfg.headers; editingIndex = i
+                                editName = cfg.name; editUrl = cfg.url; editMethod = cfg.method; editDesc = cfg.description; editHeaders = cfg.headers; editingIndex = idx
                             }) { Icon(HugeIcons.Edit01, "编辑", modifier = Modifier.size(18.dp)) }
                             IconButton(onClick = {
-                                vm.updateSettings(settings.copy(customApiConfigs = settings.customApiConfigs.toMutableList().also { it.removeAt(i) }))
+                                val list = settings.customApiConfigs.toMutableList()
+                                list.removeAt(idx)
+                                vm.updateSettings(settings.copy(customApiConfigs = list))
                             }) { Icon(HugeIcons.Delete02, "删除", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) }
                         }
                     }
@@ -503,12 +505,14 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         OutlinedTextField(value = editMethod, onValueChange = { editMethod = it.uppercase() }, label = { Text("方法") }, placeholder = { Text("POST") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         Spacer(Modifier.height(8.dp))
                         Text("请求头（Headers）", style = MaterialTheme.typography.labelMedium)
-                        editHeaders.forEachIndexed { hi, h ->
+                        var hi = 0
+                        for (h in editHeaders) {
                             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("${h.key}: ${h.value}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
                                 IconButton(onClick = { headerKey = h.key; headerVal = h.value; headerEditIdx = hi }) { Icon(HugeIcons.Edit01, null, modifier = Modifier.size(16.dp)) }
                                 IconButton(onClick = { editHeaders = editHeaders.toMutableList().also { it.removeAt(hi) } }) { Icon(HugeIcons.Delete02, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error) }
                             }
+                            hi++
                         }
                         if (headerEditIdx >= 0) {
                             Row(modifier = Modifier.fillMaxWidth()) {
