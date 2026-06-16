@@ -38,6 +38,7 @@ jobs:
           pip download --no-deps --no-binary :all: "sxtwl" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pyswisseph" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pydantic-core" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
           # timezonefinder 8.x needs numpy>=2 which isn't on proxy; use 6.0.1 from proxy directly
           mkdir -p app/offline_pkgs
           cp /tmp/pypi-offline/* app/offline_pkgs/
