@@ -210,9 +210,13 @@ class GenerationHandler(
                     appendLine()
                     appendLine("<custom_apis>")
                     settings.customApiConfigs.forEach { cfg ->
-                        appendLine("  [${cfg.name}] ${cfg.url} (${cfg.method})${if (cfg.description.isNotBlank()) " - ${cfg.description}" else ""}")
+                        val headerStr = if (cfg.headers.isNotEmpty()) {
+                            " (Headers: ${cfg.headers.joinToString(", ") { \"${it.key}: ${it.value}\" }})"
+                        } else ""
+                        val descStr = if (cfg.description.isNotBlank()) " - ${cfg.description}" else ""
+                        appendLine("  [${cfg.name}] ${cfg.method} ${cfg.url}$headerStr$descStr")
                     }
-                    appendLine("用 web_fetch 工具调用，method、body 按接口要求传")
+                    appendLine("用 web_fetch 工具调用，body 按接口要求传 JSON")
                     appendLine("</custom_apis>")
                 }
             },

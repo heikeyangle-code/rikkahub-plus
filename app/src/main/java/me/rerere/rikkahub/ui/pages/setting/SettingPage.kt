@@ -76,6 +76,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.tools.CustomApiConfig
+import me.rerere.rikkahub.data.ai.tools.CustomApiHeader
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.isNotConfigured
 import me.rerere.rikkahub.data.files.FilesManager
@@ -463,6 +464,10 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
         var editUrl by remember { mutableStateOf("") }
         var editMethod by remember { mutableStateOf("POST") }
         var editDesc by remember { mutableStateOf("") }
+        var editHeaders by remember { mutableStateOf(listOf<CustomApiHeader>()) }
+        var headerEditIdx by remember { mutableIntStateOf(-1) }
+        var headerKey by remember { mutableStateOf("") }
+        var headerVal by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showApiUrlDialog = false },
             icon = { Icon(HugeIcons.CodeBrowser, null) },
@@ -482,7 +487,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 Text("${cfg.method} ${cfg.url}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             IconButton(onClick = {
-                                editName = cfg.name; editUrl = cfg.url; editMethod = cfg.method; editDesc = cfg.description; editingIndex = i
+                                editName = cfg.name; editUrl = cfg.url; editMethod = cfg.method; editDesc = cfg.description; editHeaders = cfg.headers; editingIndex = i
                             }) { Icon(HugeIcons.Edit01, "编辑", modifier = Modifier.size(18.dp)) }
                             IconButton(onClick = {
                                 vm.updateSettings(settings.copy(customApiConfigs = settings.customApiConfigs.toMutableList().also { it.removeAt(i) }))
@@ -495,25 +500,54 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         Spacer(Modifier.height(8.dp))
                         OutlinedTextField(value = editUrl, onValueChange = { editUrl = it }, label = { Text("URL") }, placeholder = { Text("https://example.com/api") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(value = editMethod, onValueChange = { editMethod = it.uppercase() }, label = { Text("方法 (GET/POST/PUT/DELETE)") }, placeholder = { Text("POST") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        OutlinedTextField(value = editMethod, onValueChange = { editMethod = it.uppercase() }, label = { Text("方法") }, placeholder = { Text("POST") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        Spacer(Modifier.height(8.dp))
+                        Text("请求头（Headers）", style = MaterialTheme.typography.labelMedium)
+                        editHeaders.forEachIndexed { hi, h ->
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("${h.key}: ${h.value}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                                IconButton(onClick = { headerKey = h.key; headerVal = h.value; headerEditIdx = hi }) { Icon(HugeIcons.Edit01, null, modifier = Modifier.size(16.dp)) }
+                                IconButton(onClick = { editHeaders = editHeaders.toMutableList().also { it.removeAt(hi) } }) { Icon(HugeIcons.Delete02, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error) }
+                            }
+                        }
+                        if (headerEditIdx >= 0) {
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(value = headerKey, onValueChange = { headerKey = it }, label = { Text("Key") }, modifier = Modifier.weight(1f), singleLine = true)
+                                Spacer(Modifier.width(4.dp))
+                                OutlinedTextField(value = headerVal, onValueChange = { headerVal = it }, label = { Text("Value") }, modifier = Modifier.weight(1f), singleLine = true)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                TextButton(onClick = {
+                                    val list = editHeaders.toMutableList()
+                                    if (headerEditIdx < list.size) list[headerEditIdx] = CustomApiHeader(headerKey, headerVal)
+                                    else list.add(CustomApiHeader(headerKey, headerVal))
+                                    editHeaders = list; headerEditIdx = -1; headerKey = ""; headerVal = ""
+                                }) { Text("保存 Header") }
+                                TextButton(onClick = { headerEditIdx = -1; headerKey = ""; headerVal = "" }) { Text("取消") }
+                            }
+                        } else {
+                            TextButton(onClick = { headerEditIdx = editHeaders.size }) { Text("+ 添加 Header", style = MaterialTheme.typography.bodySmall) }
+                        }
                         Spacer(Modifier.height(8.dp))
                         OutlinedTextField(value = editDesc, onValueChange = { editDesc = it }, label = { Text("描述（可选）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             TextButton(onClick = {
                                 val list = settings.customApiConfigs.toMutableList()
-                                if (editingIndex < list.size) {
-                                    list[editingIndex] = list[editingIndex].copy(name = editName, url = editUrl, method = editMethod, description = editDesc)
-                                } else {
-                                    list.add(CustomApiConfig(id = java.util.UUID.randomUUID().toString(), name = editName, url = editUrl, method = editMethod, description = editDesc))
-                                }
+                                val newConfig = CustomApiConfig(
+                                    id = if (editingIndex < list.size) list[editingIndex].id else java.util.UUID.randomUUID().toString(),
+                                    name = editName, url = editUrl, method = editMethod,
+                                    headers = editHeaders, description = editDesc,
+                                )
+                                if (editingIndex < list.size) list[editingIndex] = newConfig
+                                else list.add(newConfig)
                                 vm.updateSettings(settings.copy(customApiConfigs = list))
-                                editingIndex = -1; editName = ""; editUrl = ""; editMethod = "POST"; editDesc = ""
+                                editingIndex = -1; editName = ""; editUrl = ""; editMethod = "POST"; editDesc = ""; editHeaders = emptyList(); headerEditIdx = -1
                             }) { Text("保存") }
-                            TextButton(onClick = { editingIndex = -1; editName = ""; editUrl = ""; editMethod = "POST"; editDesc = "" }) { Text("取消") }
+                            TextButton(onClick = { editingIndex = -1; editName = ""; editUrl = ""; editMethod = "POST"; editDesc = ""; editHeaders = emptyList(); headerEditIdx = -1 }) { Text("取消") }
                         }
                     } else {
-                        TextButton(onClick = { editingIndex = settings.customApiConfigs.size; editName = ""; editUrl = ""; editMethod = "POST"; editDesc = "" }) { Text("+ 添加 API") }
+                        TextButton(onClick = { editingIndex = settings.customApiConfigs.size; editName = ""; editUrl = ""; editMethod = "POST"; editDesc = ""; editHeaders = emptyList(); headerEditIdx = -1 }) { Text("+ 添加 API") }
                     }
                 }
             },
