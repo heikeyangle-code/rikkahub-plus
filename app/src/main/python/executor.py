@@ -22,29 +22,30 @@ Available built-in functions (call these from your code):
 
 【核心原则】每次排盘都走真实 Python 库计算，模型不虚构任何数据。
 
-【路由规则】根据用户问题自动选择以下入口之一：
+【路由规则】根据用户问题自动选择。同一结果可能多种方法，优先用最合适的：
 
-  用户问                     →  用这个
-  ───────────────────────────────────────────────────
-  八字/四柱/大运/流年        →  lunar_python + bazi_china
-  紫微斗数/星盘              →  ziwei_paipan
-  西洋占星/星座              →  kerykeion / flatlib / stellium
-  合盘/推运/比较盘           →  immanuel
-  印度占星/吠陀              →  PyJHora
-  人类图                     →  humandesign
-  奇门遁甲                   →  kinqimen
-  六爻/周易/卦               →  ichingshifa
-  大六壬                     →  kinliuren
-  太乙神数                   →  kintaiyi
-  太玄筮法                   →  taixuanshifa
-  梅花易数                   →  meihua_yi
-  塔罗                       →  pytarot
-  皇极经世                   →  kinwangji
-  荆诀/先秦占卜              →  jingjue
-  农历/黄历/择日             →  cnlunar / lunar_python
-  生肖/闰候/干支             →  bazi_china 子模块
+  用户问             →  首选                        ← 也能用这些
+  ─────────────────────────────────────────────────────────────────
+  八字/四柱/大运      →  lunar_python EightChar      ← bazi_china, sxtwl
+  紫微斗数            →  ziwei_paipan.by_solar()    ← by_solar 分步调取
+  西洋占星/星座       →  kerykeion                  ← flatlib, stellium
+  合盘/推运/比较盘    →  immanuel                   ← kerykeion 双人对比
+  印度占星/吠陀       →  PyJHora
+  人类图              →  humandesign
+  奇门遁甲            →  kinqimen                   ← 日家/时家/刻家不同用法
+  六爻/周易/卦        →  ichingshifa                ← 梅花易数也可起卦
+  梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排
+  大六壬              →  kinliuren
+  太乙神数            →  kintaiyi
+  太玄筮法            →  taixuanshifa
+  荆诀/先秦占卜       →  jingjue
+  塔罗                →  pytarot
+  皇极经世            →  kinwangji
+  农历/黄历/择日      →  cnlunar                    ← lunar_python
+  公历农历转换        →  lunar_python               ← cnlunar
+  生肖/干支/闰候      →  bazi_china 子模块           ← lunar_python
 
-  不确定用哪个时，先 import 试试，哪个能用用哪个。
+  不确定用哪个时，先 import 试，哪个能用用哪个。
 
 【输入】所有排盘都需要出生信息：
   公历日期 time_index(0-12) 性别 地点(经纬度) 时区
