@@ -25,11 +25,25 @@ jobs:
         run: rm -rf app/build/python $HOME/.gradle/caches/chaquopy*
       - name: Pre-install setuptools for build
         run: pip install --upgrade pip setuptools wheel 2>&1 | tail -3
+      - name: Pin pydantic constraint (pydantic-core not fully available on Chaquopy proxy)
+        run: |
+          cat > /tmp/pip-constraints.txt << 'CONSTRAINTS'
+          pydantic<2.8,>=2.7.0
+          pydantic-core<2.19,>=2.18.0
+          CONSTRAINTS
+          echo "PIP_CONSTRAINT=/tmp/pip-constraints.txt" >> $GITHUB_ENV
+      - name: Install Rust & Android target (needed by pydantic-core if constraint doesn't help)
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          . "$HOME/.cargo/env"
+          rustup target add aarch64-linux-android
+          echo "Rust installed: $(rustc --version)"
       - name: Download packages missing from Chaquopy proxy
         run: |
           pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "sxtwl" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pyswisseph" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "pydantic-core" -d /tmp/pypi-offline 2>&1 | tail -3
           # timezonefinder 8.x needs numpy>=2 which isn't on proxy; use 6.0.1 from proxy directly
           mkdir -p app/offline_pkgs
           cp /tmp/pypi-offline/* app/offline_pkgs/

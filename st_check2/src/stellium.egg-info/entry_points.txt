@@ -1,0 +1,2 @@
+[console_scripts]
+stellium = stellium.cli:cli
