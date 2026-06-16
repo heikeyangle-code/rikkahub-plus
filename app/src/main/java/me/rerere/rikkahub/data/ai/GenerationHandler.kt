@@ -219,7 +219,7 @@ class GenerationHandler(
                     appendLine("<custom_apis>")
                     settings.customApiConfigs.forEach { cfg ->
                         val headerStr = if (cfg.headers.isNotEmpty()) {
-                            " (Headers: ${cfg.headers.joinToString(", ") { \"${it.key}: ${it.value}\" }})"
+                            " (Headers: " + cfg.headers.joinToString(", ") { h -> "${h.key}: ${h.value}" } + ")"
                         } else ""
                         val descStr = if (cfg.description.isNotBlank()) " - ${cfg.description}" else ""
                         appendLine("  [${cfg.name}] ${cfg.method} ${cfg.url}$headerStr$descStr")
