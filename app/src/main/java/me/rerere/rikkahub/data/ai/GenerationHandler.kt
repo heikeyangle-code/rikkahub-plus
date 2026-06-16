@@ -54,9 +54,6 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
 
-/** 占位 Tool，用于 hook 事件传递，不执行任何逻辑 */
-private val NOOP_TOOL = Tool(name = "", description = "", execute = { emptyList<UIMessagePart>() })
-
 @Serializable
 sealed interface GenerationChunk {
     data class Messages(
@@ -286,19 +283,6 @@ class GenerationHandler(
 
             // Skip generation if we have approved/denied tool calls to handle
             if (pendingTools.isEmpty()) {
-                // ── USER_PROMPT_SUBMIT hook ──
-                runCatching {
-                        hook.execute(
-                            NOOP_TOOL.copy(name = "user_input"),
-                            kotlinx.serialization.json.buildJsonObject {
-                                put("messages", kotlinx.serialization.json.JsonPrimitive(
-                                    messages.takeLast(2).joinToString("\n") { it.parts.joinToString("") { p -> (p as? me.rerere.ai.ui.UIMessagePart.Text)?.text ?: "" } }
-                                ))
-                            }
-                        )
-                    }
-                }
-
                 generateInternal(
                     assistant = assistant,
                     settings = settings,
@@ -358,17 +342,6 @@ class GenerationHandler(
 
                 val tools = messages.last().getTools().filter { !it.isExecuted }
                 if (tools.isEmpty()) {
-                    // ── STOP hook（无 tool call，本轮结束）──
-                    runCatching {
-                            hook.execute(
-                                NOOP_TOOL.copy(name = "generation_end"),
-                                kotlinx.serialization.json.buildJsonObject {
-                                    put("step", kotlinx.serialization.json.JsonPrimitive(stepIndex))
-                                    put("total_steps", kotlinx.serialization.json.JsonPrimitive(maxSteps))
-                                }
-                            )
-                        }
-                    }
                     // no tool calls, break
                     break
                 }
@@ -454,6 +427,7 @@ class GenerationHandler(
                         async {
                             tool to runCatching {
                                 kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) {
+                                    executeToolCall(tool, toolsInternal, json)
                                 }
                             }
                         }
@@ -468,6 +442,7 @@ class GenerationHandler(
                 toolsToProcess.forEach { tool ->
                     val result = runCatching {
                         kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) {
+                            executeToolCall(tool, toolsInternal, json)
                         }
                     }
                     addToolResult(executedTools, tool, result, json)
@@ -822,72 +797,7 @@ private suspend fun executeToolCall(
             }
             Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
 
-                        return tool.copy(output = listOf(UIMessagePart.Text(
-                            json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Permission denied: ${result.reason}")) })
-                        )))
-                    }
-                        return tool.copy(output = listOf(UIMessagePart.Text(
-                            json.encodeToString(buildJsonObject {
-                                put("error", JsonPrimitive("⚠ ${result.reason}: tool '${result.toolName}' needs your approval before execution. Type 'approve' to allow or 'deny' to reject."))
-                                put("needs_approval", true)
-                                put("tool_name", JsonPrimitive(result.toolName))
-                                put("reason", JsonPrimitive(result.reason))
-                            })
-                        )))
-                    }
-                }
-            }
-
-            // 只对 execute_command 走完整检查流程，其他工具直接放行
-            val allowed = if (toolDef.name == "execute_command") {
-                val reply = kotlinx.coroutines.CompletableDeferred<Boolean>()
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    )
-                    reply.await()
-                }
-            } else true
-            if (!allowed) {
-                return tool.copy(output = listOf(UIMessagePart.Text(
-                    json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Tool blocked by safety check")) })
-                )))
-            }
-
-            // ── PRE_TOOL_USE hook ──
-            runCatching {
-                    when (val hookResult = hook.execute(toolDef, args)) {
-                            return tool.copy(output = listOf(UIMessagePart.Text(
-                                json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Hook blocked: ${hookResult.reason}")) })
-                            )))
-                        }
-                            // Re-parse modified args
-                            val parsed = json.parseToJsonElement(
-                                json.encodeToString(
-                                    kotlinx.serialization.json.JsonElement.serializer(), hookResult.newArgs
-                                )
-                            )
-                            // Execute with modified args
-                            val modifiedResult = toolDef.execute(parsed)
-                            // POST_TOOL_USE for modified execution
-                            runCatching {
-                            }
-                            return tool.copy(output = modifiedResult)
-                        }
-                    }
-                }
-            }
-
             val result = toolDef.execute(args)
-
-            // ── POST_TOOL_USE hook ──
-            runCatching {
-                    hook.execute(toolDef, args, result)
-                }
-            }
-
-            // Post-tool notification (fire-and-forget)
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                )
-            }
 
             tool.copy(output = result)
         }

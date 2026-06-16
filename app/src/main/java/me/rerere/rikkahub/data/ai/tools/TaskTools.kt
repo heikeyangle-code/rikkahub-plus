@@ -176,6 +176,8 @@ object TaskManager {
     data class TodoItem(val id: String, val subject: String, val status: String = "pending", val createdAt: Long = System.currentTimeMillis())
     private val todos = ConcurrentHashMap<String, TodoItem>()
     private val todoCounter = AtomicInteger(0)
+    private val roundsSinceTodoUpdate = AtomicInteger(0)
+    private val NAG_THRESHOLD = 5
 
     fun createTodo(subject: String, status: String = "pending"): TodoItem {
         val id = "todo-${todoCounter.incrementAndGet()}"
@@ -236,25 +238,25 @@ object TaskManager {
     }
 
 
-    fun getTodos(): List<TodoItem> = currentTodos.toList()
+    fun getTodos(): List<TodoItem> = todos.values.toList()
 
     fun getPlanSummary(): String {
-        if (currentTodos.isEmpty()) return ""
+        if (todos.isEmpty()) return ""
         return buildString {
             appendLine("## Current Plan")
-            currentTodos.forEachIndexed { i, item ->
+            todos.values.toList().forEachIndexed { i, item ->
                 val icon = when (item.status) {
                     "completed" -> "✅"
                     "in_progress" -> "▶"
                     else -> "⬜"
                 }
-                appendLine("$icon [$i] ${item.content} (${item.status})")
+                appendLine("$icon [$i] ${item.subject} (${item.status})")
             }
         }
     }
 
     fun shouldNag(): Boolean {
-        if (currentTodos.isEmpty()) return false
+        if (todos.isEmpty()) return false
         val rounds = roundsSinceTodoUpdate.incrementAndGet()
         return rounds > NAG_THRESHOLD
     }
@@ -264,21 +266,21 @@ object TaskManager {
     }
 
     fun clear() {
-        currentTodos.clear()
+        todos.clear()
         roundsSinceTodoUpdate.set(0)
     }
 
     private fun formatTodos(): String {
-        if (currentTodos.isEmpty()) return "Plan cleared (0 tasks)"
+        if (todos.isEmpty()) return "Plan cleared (0 tasks)"
         return buildString {
-            appendLine("Updated ${currentTodos.size} tasks:")
-            currentTodos.forEach { item ->
+            appendLine("Updated ${todos.size} tasks:")
+            todos.values.toList().forEach { item ->
                 val icon = when (item.status) {
                     "completed" -> "✓"
                     "in_progress" -> "▸"
                     else -> " "
                 }
-                appendLine("  [$icon] ${item.content} [${item.status}]")
+                appendLine("  [$icon] ${item.subject} [${item.status}]")
             }
         }
     }
@@ -336,7 +338,7 @@ fun createTaskTools(): List<Tool> = buildList {
             }))
         },
     ),
-    Tool(name = "task_mgmt", description = "Manage tasks: update status, stop, view output, manage teams and todos, check dependencies, and create structured task packets.\n\nActions: update, stop, output, todo, team_create, team_delete, run_packet, dag, can_start, unclaimed, claim",
+    Tool(name = "task_mgmt", description = "Manage tasks: update status, stop, view output, manage teams and todos, check dependencies, and create structured task packets.\n\nActions: update, stop, output, todo, team_create, team_delete, run_packet, dag, can_start",
         parameters = {
             InputSchema.Obj(properties = buildJsonObject {
                 put("action", buildJsonObject {
@@ -344,11 +346,11 @@ fun createTaskTools(): List<Tool> = buildList {
                     put("enum", buildJsonArray {
                         add("update"); add("stop"); add("output"); add("todo")
                         add("team_create"); add("team_delete"); add("run_packet")
-                        add("dag"); add("can_start"); add("unclaimed"); add("claim")
+                        add("dag"); add("can_start")
                     })
-                    put("description", "Operation: update=change task status/details, stop=cancel task, output=view result, todo=create lightweight todos, team_create/delete=manage teams, run_packet=structured task, dag=dependency graph, can_start=check deps, unclaimed=list unclaimed kanban tasks, claim=claim kanban task")
+                    put("description", "Operation: update=change task status/details, stop=cancel task, output=view result, todo=create lightweight todos, team_create/delete=manage teams, run_packet=structured task, dag=dependency graph, can_start=check deps")
                 })
-                put("id", buildJsonObject { put("type", "string"); put("description", "Task ID (used by: update, stop, output, can_start, claim)") })
+                put("id", buildJsonObject { put("type", "string"); put("description", "Task ID (used by: update, stop, output, can_start)") })
                 put("status", buildJsonObject { put("type", "string"); put("enum", buildJsonArray { add("pending"); add("in_progress"); add("completed"); add("failed"); add("cancelled") }); put("description", "New status (used by: update)") })
                 put("owner", buildJsonObject { put("type", "string"); put("description", "Assign to agent (used by: update)") })
                 put("description", buildJsonObject { put("type", "string"); put("description", "Updated description (used by: update)") })
@@ -398,7 +400,7 @@ fun createTaskTools(): List<Tool> = buildList {
                 "todo" -> {
                     val todos = obj["todos"]?.jsonArray ?: error("todos required")
                     val results = todos.map { item -> val itemObj = item.jsonObject; val s = itemObj["subject"]?.jsonPrimitive?.contentOrNull ?: ""; val st = itemObj["status"]?.jsonPrimitive?.contentOrNull ?: "pending"; TaskManager.createTodo(s, st); "${when (st) { "completed" -> "✅"; "in_progress" -> "🔄"; else -> "⏳" }} $s" }
-                    PlanManager.resetNag(); listOf(UIMessagePart.Text(results.joinToString("\n")))
+                    TaskManager.resetNag(); listOf(UIMessagePart.Text(results.joinToString("\n")))
                 }
                 "team_create" -> { val name = obj["team_name"]?.jsonPrimitive?.contentOrNull ?: error("team_name required"); val desc = obj["team_description"]?.jsonPrimitive?.contentOrNull ?: ""; TaskManager.createTeam(name, desc); listOf(UIMessagePart.Text("Team '$name' created")) }
                 "team_delete" -> { val name = obj["team_name"]?.jsonPrimitive?.contentOrNull ?: error("team_name required"); TaskManager.deleteTeam(name); listOf(UIMessagePart.Text("Team '$name' deleted")) }
@@ -419,17 +421,6 @@ fun createTaskTools(): List<Tool> = buildList {
                     val blocked = task.blockedBy.filter { b -> TaskManager.getTask(b)?.status != TaskStatus.COMPLETED }
                     if (blocked.isEmpty()) listOf(UIMessagePart.Text("Task $id is ready to start. All dependencies satisfied."))
                     else listOf(UIMessagePart.Text("Task $id is blocked by:\n" + blocked.mapNotNull { b -> TaskManager.getTask(b)?.let { "${it.id}: ${it.subject} (${it.status.name.lowercase()})" } }.joinToString("\n")))
-                }
-                "unclaimed" -> {
-                    val tasks = me.rerere.rikkahub.data.ai.team.KanbanBoard.getUnclaimedTasks()
-                    if (tasks.isEmpty()) listOf(UIMessagePart.Text("No unclaimed tasks."))
-                    else listOf(UIMessagePart.Text("Unclaimed tasks:\n" + tasks.joinToString("\n") { t: me.rerere.rikkahub.data.ai.team.KanbanTask -> val deps = if (t.blockedBy.isNotEmpty()) " [blockedBy: ${t.blockedBy.joinToString()}]" else ""; "  ${t.id}: ${t.subject}$deps" }))
-                }
-                "claim" -> {
-                    val taskId = obj["task_id"]?.jsonPrimitive?.contentOrNull ?: error("task_id required")
-                    val agentName = me.rerere.rikkahub.data.ai.agent.AgentContextStore.currentAgentName() ?: "main"
-                    val error = me.rerere.rikkahub.data.ai.team.KanbanBoard.claimTask(taskId, agentName)
-                    if (error != null) listOf(UIMessagePart.Text("Error: $error")) else listOf(UIMessagePart.Text("Claimed task $taskId"))
                 }
                 else -> error("Unknown action: $action")
             }

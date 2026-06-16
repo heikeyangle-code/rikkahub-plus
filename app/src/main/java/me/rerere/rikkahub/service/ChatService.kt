@@ -576,7 +576,7 @@ class ChatService(
                 tools = buildList {
                     val skillDirs = assistant.enabledSkills.mapNotNull { skillManager.getSkillDir(it)?.absolutePath }
                     if (assistant.localTools.contains(LocalToolOption.FileTools)) {
-                        addAll(createFileTools(skillDirs))
+                        addAll(createFileTools(skillDirs = skillDirs))
                     }
                     if (assistant.localTools.contains(LocalToolOption.AssetGenerator)) {
                         add(createAssetTool(context.filesDir.absolutePath))
@@ -692,7 +692,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                                         }
                                         if (assistant.localTools.contains(LocalToolOption.FileTools)) {
                                             addAll(
-                                                createFileTools(skillDirs)
+                                                createFileTools(skillDirs = skillDirs)
                                                     .filter { it.name in listOf("file_read", "file_write", "file_list") }
                                             )
                                         }
@@ -1095,7 +1095,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
             },
             tools = buildList {
                 if (assistant.localTools.contains(LocalToolOption.FileTools)) {
-                    addAll(createFileTools(skillDirs))
+                    addAll(createFileTools(skillDirs = skillDirs))
                 }
                 if (settings.enableWebSearch) {
                     addAll(createSearchTools(settings))
