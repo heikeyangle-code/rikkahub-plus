@@ -50,7 +50,7 @@ chaquopy {
             install(file("offline_pkgs/flatlib-patched.tar.gz").absolutePath) // ⭐386 传统占星 已patch pyswisseph版本
             install("meihua-yi")           // ⭐1  梅花易数起卦（纯Python）
             install("PyJHora")             // ⭐188 印度占星(吠陀)全套
-            install("immanuel")            // ⭐109 西洋占星合盘+推运（synastry/progression）
+            install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
             install("setuptools")              // setuptools 最新版
             install("hatchling")           // hatchling构建工具, kinwangji需要
             install(file("offline_pkgs/humandesign-api-patched.tar.gz").absolutePath)

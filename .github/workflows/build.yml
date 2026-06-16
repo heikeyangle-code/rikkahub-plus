@@ -110,6 +110,22 @@ jobs:
           cp /tmp/pypi-offline/flatlib-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
           rm -rf /tmp/fl_patch
           echo "Added flatlib-patched.tar.gz"
+      - name: Patch immanuel (remove scipy/stubs dep, relax timezonefinder pin)
+        run: |
+          pip download --no-deps --no-binary :all: "immanuel==1.5.4" -d /tmp/imm_patch
+          cd /tmp/imm_patch
+          tar xfz immanuel-*.tar.gz
+          rm immanuel-*.tar.gz
+          cd immanuel-*
+          sed -i '/"scipy"/d' pyproject.toml
+          sed -i '/"scipy-stubs"/d' pyproject.toml  
+          sed -i 's/timezonefinder~=5.2/timezonefinder>=3.4.2/' pyproject.toml
+          echo "Patched immanuel deps:"
+          grep -E 'timezonefinder|scipy' pyproject.toml || echo "(all clean)"
+          cd /tmp/imm_patch && tar czf /tmp/pypi-offline/immanuel-patched.tar.gz immanuel-*
+          cp /tmp/pypi-offline/immanuel-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+          rm -rf /tmp/imm_patch
+          echo "Added immanuel-patched.tar.gz"
       - name: Patch kerykeion (remove pydantic & scour deps not on Chaquopy proxy)
         run: |
           pip download --no-deps --no-binary :all: kerykeion -d /tmp/kerykeion_patch
