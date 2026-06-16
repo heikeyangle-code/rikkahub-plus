@@ -41,7 +41,6 @@ chaquopy {
             install("taixuanshifa")
             install("jingjue")
             install("colorama")           // china-testing/bazi 所需
-            install("sxtwl")              // C扩展，kinqimen + bazi_china 共用
             install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
             install("kinqimen")           // ⭐119 奇门遁甲
             install("pytarot")            // ⭐82  塔罗牌（纯Python）
