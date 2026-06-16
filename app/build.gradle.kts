@@ -53,7 +53,7 @@ chaquopy {
             install("immanuel")            // ⭐109 西洋占星合盘+推运（synastry/progression）
             install("setuptools")              // setuptools 最新版
             install("hatchling")           // hatchling构建工具, kinwangji需要
-            install("git+https://github.com/dturkuler/humandesign_api.git") // ⭐27 人类图
+            // install("git+https://github.com/dturkuler/humandesign_api.git") // 需要 Python>=3.12，Chaquopy 3.11 不兼容
             install("git+https://github.com/kentang2017/kinwangji.git")  // ⭐10 皇极经世
             // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
             // install("git+https://github.com/kentang2017/kinastro.git")
