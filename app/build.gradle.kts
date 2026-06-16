@@ -53,7 +53,7 @@ chaquopy {
             install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
             install("setuptools")              // setuptools 最新版
             install("hatchling")           // hatchling构建工具, kinwangji需要
-            install(file("offline_pkgs/pydantic-core-2.46.4.tar.gz").absolutePath) // arcanite 塔罗引擎需要
+            install(file("offline_pkgs/pydantic_core-2.46.4.tar.gz").absolutePath) // arcanite 塔罗引擎需要(pydantic-core)
             install(file("offline_pkgs/pydantic-2.13.4.tar.gz").absolutePath) // arcanite 塔罗引擎需要
             install(file("offline_pkgs/kinwangji-patched.tar.gz").absolutePath)
             // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
