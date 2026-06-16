@@ -59,6 +59,63 @@ jobs:
           # Remove dev/lint deps not available on Chaquopy proxy
           sed -i '/"ruff"/d' pyproject.toml
           sed -i '/"pytest"/d' pyproject.toml
+          # Remove pydantic dependency (pydantic-core Rust ext unavailable on Chaquopy)
+          sed -i '/"pydantic/d' pyproject.toml
+          # Replace pydantic BaseModel/Field with dataclasses in schema files
+          cat > /tmp/patch_pydantic.py << 'PYEOF'
+import re, os, sys
+
+files = [
+    "src/humandesign/schemas/v2/calculate.py",
+    "src/humandesign/schemas/response_models.py",
+]
+for fp in files:
+    with open(fp) as f:
+        lines = f.readlines()
+    new_lines = []
+    for line in lines:
+        if re.match(r'^class \w+\(BaseModel\):', line):
+            new_lines.append('@dataclass\n')
+            new_lines.append(re.sub(r'\(BaseModel\)', '', line))
+        elif 'from pydantic import BaseModel, Field' in line:
+            new_lines.append('from dataclasses import dataclass, field\n')
+        elif 'Field(' in line:
+            new_lines.append(line.replace('Field(', 'field('))
+        else:
+            new_lines.append(line)
+    with open(fp, 'w') as f:
+        f.writelines(new_lines)
+
+# Patch masking.py for model_dump
+mp = "src/humandesign/services/masking.py"
+with open(mp) as f:
+    content = f.read()
+content = content.replace('.model_dump(exclude_none=True)', '.model_dump_shim()')
+with open(mp, 'w') as f:
+    f.write(content)
+
+# Add import for shim
+with open(mp) as f:
+    lines = f.readlines()
+lines.insert(0, 'from humandesign.pydantic_shim import model_dump_shim\n')
+with open(mp, 'w') as f:
+    f.writelines(lines)
+
+# Create shim module
+shim_path = "src/humandesign/pydantic_shim.py"
+with open(shim_path, 'w') as f:
+    f.write('''from dataclasses import asdict
+
+def model_dump_shim(obj, *, exclude_none=True):
+    """Replacement for pydantic's model_dump using dataclasses.asdict."""
+    result = asdict(obj)
+    if exclude_none:
+        return {k: v for k, v in result.items() if v is not None}
+    return result
+''')
+print("Patched pydantic usage in humandesign-api")
+PYEOF
+          python3 /tmp/patch_pydantic.py
           # Keep pyswisseph pin — we provide the exact version via offline tarball
           sed -i 's|pyswisseph.*|pyswisseph==2.10.3.2",|' pyproject.toml
           echo "Patched pyproject.toml:"
