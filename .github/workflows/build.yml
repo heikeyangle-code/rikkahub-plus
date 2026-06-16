@@ -25,15 +25,9 @@ jobs:
         run: rm -rf app/build/python $HOME/.gradle/caches/chaquopy*
       - name: Pre-install setuptools for build
         run: pip install --upgrade pip setuptools wheel 2>&1 | tail -3
-      - name: Pin pydantic constraint (pydantic-core not fully available on Chaquopy proxy)
+      - name: Make offline_pkgs discoverable by pip and install Rust for pydantic-core
         run: |
-          cat > /tmp/pip-constraints.txt << 'CONSTRAINTS'
-          pydantic<2.8,>=2.7.0
-          pydantic-core<2.19,>=2.18.0
-          CONSTRAINTS
-          echo "PIP_CONSTRAINT=/tmp/pip-constraints.txt" >> $GITHUB_ENV
-      - name: Install Rust & Android target (needed by pydantic-core if constraint doesn't help)
-        run: |
+          echo "PIP_FIND_LINKS=file://${GITHUB_WORKSPACE}/app/offline_pkgs" >> $GITHUB_ENV
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           . "$HOME/.cargo/env"
           rustup target add aarch64-linux-android
