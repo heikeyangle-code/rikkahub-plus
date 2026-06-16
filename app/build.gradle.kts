@@ -38,8 +38,8 @@ chaquopy {
             install("ichingshifa")
             install(file("offline_pkgs/kinliuren-src.tar.gz").absolutePath) // 大六壬
             install(file("offline_pkgs/kintaiyi-src.tar.gz").absolutePath) // 太乙神数
-            install("taixuanshifa")
-            install("jingjue")
+            install(file("offline_pkgs/taixuanshifa-src.tar.gz").absolutePath) // ⭐10 太玄筮法
+            install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // ⭐6 荆诀（北大简先秦占卜）
             install("colorama")           // china-testing/bazi 所需
             install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
             install(file("offline_pkgs/kinqimen-src.tar.gz").absolutePath) // ⭐119 奇门遁甲
