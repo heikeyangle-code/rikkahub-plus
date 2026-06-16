@@ -461,6 +461,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
         var editingIndex by remember { mutableIntStateOf(-1) }
         var editName by remember { mutableStateOf("") }
         var editUrl by remember { mutableStateOf("") }
+        var editMethod by remember { mutableStateOf("POST") }
+        var editDesc by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showApiUrlDialog = false },
             icon = { Icon(HugeIcons.CodeBrowser, null) },
@@ -477,10 +479,10 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(cfg.name.ifBlank { cfg.url }, style = MaterialTheme.typography.bodyMedium)
-                                Text(cfg.url, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("${cfg.method} ${cfg.url}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             IconButton(onClick = {
-                                editName = cfg.name; editUrl = cfg.url; editingIndex = i
+                                editName = cfg.name; editUrl = cfg.url; editMethod = cfg.method; editDesc = cfg.description; editingIndex = i
                             }) { Icon(HugeIcons.Edit01, "编辑", modifier = Modifier.size(18.dp)) }
                             IconButton(onClick = {
                                 vm.updateSettings(settings.copy(customApiConfigs = settings.customApiConfigs.toMutableList().also { it.removeAt(i) }))
@@ -493,21 +495,25 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         Spacer(Modifier.height(8.dp))
                         OutlinedTextField(value = editUrl, onValueChange = { editUrl = it }, label = { Text("URL") }, placeholder = { Text("https://example.com/api") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(value = editMethod, onValueChange = { editMethod = it.uppercase() }, label = { Text("方法 (GET/POST/PUT/DELETE)") }, placeholder = { Text("POST") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(value = editDesc, onValueChange = { editDesc = it }, label = { Text("描述（可选）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             TextButton(onClick = {
                                 val list = settings.customApiConfigs.toMutableList()
                                 if (editingIndex < list.size) {
-                                    list[editingIndex] = list[editingIndex].copy(name = editName, url = editUrl)
+                                    list[editingIndex] = list[editingIndex].copy(name = editName, url = editUrl, method = editMethod, description = editDesc)
                                 } else {
-                                    list.add(CustomApiConfig(id = java.util.UUID.randomUUID().toString(), name = editName, url = editUrl))
+                                    list.add(CustomApiConfig(id = java.util.UUID.randomUUID().toString(), name = editName, url = editUrl, method = editMethod, description = editDesc))
                                 }
                                 vm.updateSettings(settings.copy(customApiConfigs = list))
-                                editingIndex = -1; editName = ""; editUrl = ""
+                                editingIndex = -1; editName = ""; editUrl = ""; editMethod = "POST"; editDesc = ""
                             }) { Text("保存") }
-                            TextButton(onClick = { editingIndex = -1; editName = ""; editUrl = "" }) { Text("取消") }
+                            TextButton(onClick = { editingIndex = -1; editName = ""; editUrl = ""; editMethod = "POST"; editDesc = "" }) { Text("取消") }
                         }
                     } else {
-                        TextButton(onClick = { editingIndex = settings.customApiConfigs.size; editName = ""; editUrl = "" }) { Text("+ 添加 API") }
+                        TextButton(onClick = { editingIndex = settings.customApiConfigs.size; editName = ""; editUrl = ""; editMethod = "POST"; editDesc = "" }) { Text("+ 添加 API") }
                     }
                 }
             },
