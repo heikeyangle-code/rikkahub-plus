@@ -554,23 +554,6 @@ class GenerationHandler(
                     appendLine("- Prefer dedicated tools over shell commands for file operations")
                     appendLine("- When a tool fails, try an alternative approach before giving up")
                     appendLine("- If you need clarification, ask the user directly")
-                    appendLine()
-                    appendLine("<mingli_routing>")
-                    appendLine("命理/玄学问题一律走 execute_python 工具。格式：首选 | 备选")
-                    appendLine("【中华正统】")
-                    appendLine("八字/四柱/大运 → lunar_python EightChar | bazi_china(bazi,ganzhi,sizi,shengxiao,luohou,yue,convert), sxtwl")
-                    appendLine("紫微斗数 → ziwei_paipan.by_solar()")
-                    appendLine("【奇门三式】")
-                    appendLine("奇门遁甲 → kinqimen | 日家/时家/刻家用法不同")
-                    appendLine("大六壬 → kinliuren | 小六壬→手算(lunar_python掌诀) | 太乙→kintaiyi")
-                    appendLine("【象数易】")
-                    appendLine("太玄→taixuanshifa | 荆诀→jingjue | 皇极→kinwangji")
-                    appendLine("【六爻/卦象】六爻/周易→ichingshifa（需起卦数） | 梅花→meihua_yi（需数字）")
-                    appendLine("【西洋占星】本命盘→kerykeion | 深析→stellium | 日返月返→stellium.returns/flatlib")
-                    appendLine("合盘推运→immanuel | 日食/行星→pyswisseph | 吠陀→jhora/stellium.vedic")
-                    appendLine("【其他】塔罗→tarot | 黄历/择日→cnlunar | 转换→lunar_python")
-                    appendLine("生肖/干支→bazi_china | 节气→lunar_python | 二十八宿→Lunar.getTwentyEightMans()")
-                    appendLine("</mingli_routing>")
                 },
                 workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
                 extraInstructions = buildString {
