@@ -37,8 +37,15 @@ jobs:
         run: |
           git clone https://github.com/dturkuler/humandesign_api.git /tmp/humandesign_src
           cd /tmp/humandesign_src
-          # Relax numpy==2.1.2 → numpy>=1.26.2, pandas==2.2.3 → pandas>=2.0.0, etc.
-          sed -i 's/==/>=/g' pyproject.toml
+          # Relax strict version pins to match Chaquopy proxy availability
+          sed -i 's/numpy==2.1.2/numpy>=1.26.2/' pyproject.toml
+          sed -i 's/ipython==/ipython>=/' pyproject.toml
+          sed -i 's/pandas==/pandas>=/' pyproject.toml
+          sed -i 's/python-dateutil==/python-dateutil>=/' pyproject.toml
+          sed -i 's/pytz==/pytz>=/' pyproject.toml
+          sed -i 's/tqdm==/tqdm>=/' pyproject.toml
+          sed -i 's/uvicorn==/uvicorn>=/' pyproject.toml
+          sed -i 's/geopy==/geopy>=/' pyproject.toml
           # Keep pyswisseph pin — we provide the exact version via offline tarball
           sed -i 's|pyswisseph.*|pyswisseph==2.10.3.2",|' pyproject.toml
           echo "Patched pyproject.toml:"
