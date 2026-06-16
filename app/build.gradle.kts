@@ -33,7 +33,7 @@ chaquopy {
 
             // === 命理计算引擎 ===
             install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
-            install(file("offline_pkgs/sxtwl-2.0.7.tar.gz").absolutePath)
+            install(file("offline_pkgs/sxtwl-2.0.6.tar.gz").absolutePath)
             install("cnlunar")
             install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // ⭐254 周易筮法/六爻
             install(file("offline_pkgs/kinliuren-src.tar.gz").absolutePath) // 大六壬
