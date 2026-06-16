@@ -59,12 +59,12 @@ jobs:
             cp "$f" "app/offline_pkgs/$fname"
           done
           # Rename kin* packages to stable names (strip version numbers)
-          for f in app/offline_pkgs/kinliuren-*.tar.gz; do mv "$f" "app/offline_pkgs/kinliuren-src.tar.gz" 2>/dev/null; done
-          for f in app/offline_pkgs/kinqimen-*.tar.gz; do mv "$f" "app/offline_pkgs/kinqimen-src.tar.gz" 2>/dev/null; done
-          for f in app/offline_pkgs/kintaiyi-*.tar.gz; do mv "$f" "app/offline_pkgs/kintaiyi-src.tar.gz" 2>/dev/null; done
-          for f in app/offline_pkgs/taixuanshifa-*.tar.gz; do mv "$f" "app/offline_pkgs/taixuanshifa-src.tar.gz" 2>/dev/null; done
-          for f in app/offline_pkgs/jingjue-*.tar.gz; do mv "$f" "app/offline_pkgs/jingjue-src.tar.gz" 2>/dev/null; done
-          for f in app/offline_pkgs/ichingshifa-*.tar.gz; do mv "$f" "app/offline_pkgs/ichingshifa-src.tar.gz" 2>/dev/null; done
+          for f in app/offline_pkgs/kinliuren-*.tar.gz; do mv "$f" "app/offline_pkgs/kinliuren-src.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/kinqimen-*.tar.gz; do mv "$f" "app/offline_pkgs/kinqimen-src.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/kintaiyi-*.tar.gz; do mv "$f" "app/offline_pkgs/kintaiyi-src.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/taixuanshifa-*.tar.gz; do mv "$f" "app/offline_pkgs/taixuanshifa-src.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/jingjue-*.tar.gz; do mv "$f" "app/offline_pkgs/jingjue-src.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/ichingshifa-*.tar.gz; do mv "$f" "app/offline_pkgs/ichingshifa-src.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls app/offline_pkgs/
       - name: Patch kinwangji (relax ephem pin)
         run: |
