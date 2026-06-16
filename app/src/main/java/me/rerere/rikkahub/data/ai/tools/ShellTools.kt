@@ -18,7 +18,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.agent.AgentContextStore
-import me.rerere.rikkahub.data.ai.agent.BackgroundTaskQueue
+import me.rerere.rikkahub.data.ai.agent./* BackgroundTaskQueue */
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -143,7 +143,7 @@ fun createShellTools(shellTimeoutSec: Int = 120): List<Tool> {
                 }
 
                 if (runInBackground) {
-                    val bgId = BackgroundTaskQueue.start(
+                    val bgId = /* BackgroundTaskQueue */.start(
                         toolName = "execute_command",
                         command = command,
                         executor = {

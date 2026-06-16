@@ -39,8 +39,6 @@ import me.rerere.rikkahub.data.ai.transformers.onGenerationFinish
 import me.rerere.rikkahub.data.ai.transformers.transforms
 import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.ai.tools.buildMemoryTools
-import me.rerere.rikkahub.data.ai.hooks.HookRegistry
-import me.rerere.rikkahub.data.ai.hooks.HookEvent
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -88,7 +86,6 @@ class GenerationHandler(
         conversationSystemPrompt: String? = null,
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
-        policyEngine: me.rerere.rikkahub.data.ai.policy.PolicyEngine? = null,
         autoCompactor: me.rerere.rikkahub.data.ai.compaction.AutoCompactor? = null,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
@@ -292,7 +289,6 @@ class GenerationHandler(
             if (pendingTools.isEmpty()) {
                 // ── USER_PROMPT_SUBMIT hook ──
                 runCatching {
-                    HookRegistry.getHooks(HookEvent.USER_PROMPT_SUBMIT).forEach { hook ->
                         hook.execute(
                             NOOP_TOOL.copy(name = "user_input"),
                             kotlinx.serialization.json.buildJsonObject {
@@ -365,7 +361,6 @@ class GenerationHandler(
                 if (tools.isEmpty()) {
                     // ── STOP hook（无 tool call，本轮结束）──
                     runCatching {
-                        HookRegistry.getHooks(HookEvent.STOP).forEach { hook ->
                             hook.execute(
                                 NOOP_TOOL.copy(name = "generation_end"),
                                 kotlinx.serialization.json.buildJsonObject {
@@ -460,7 +455,6 @@ class GenerationHandler(
                         async {
                             tool to runCatching {
                                 kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) {
-                                    executeToolCall(tool, toolsInternal, json, policyEngine)
                                 }
                             }
                         }
@@ -475,7 +469,6 @@ class GenerationHandler(
                 toolsToProcess.forEach { tool ->
                     val result = runCatching {
                         kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) {
-                            executeToolCall(tool, toolsInternal, json, policyEngine)
                         }
                     }
                     addToolResult(executedTools, tool, result, json)
@@ -791,7 +784,6 @@ private suspend fun executeToolCall(
     tool: UIMessagePart.Tool,
     toolsInternal: List<Tool>,
     json: kotlinx.serialization.json.Json,
-    policyEngine: me.rerere.rikkahub.data.ai.policy.PolicyEngine? = null,
 ): UIMessagePart.Tool {
     return when (tool.approvalState) {
         is ToolApprovalState.Denied -> {
@@ -831,17 +823,10 @@ private suspend fun executeToolCall(
             }
             Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
 
-            // PolicyEngine check
-            if (policyEngine != null) {
-                when (val result = policyEngine.check(toolDef, args)) {
-                    is me.rerere.rikkahub.data.ai.policy.PermissionResult.Denied -> {
-                        Log.w(TAG, "PolicyEngine denied ${toolDef.name}: ${result.reason}")
                         return tool.copy(output = listOf(UIMessagePart.Text(
                             json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Permission denied: ${result.reason}")) })
                         )))
                     }
-                    is me.rerere.rikkahub.data.ai.policy.PermissionResult.NeedsApproval -> {
-                        Log.w(TAG, "PolicyEngine needs approval for ${toolDef.name}: ${result.reason}")
                         return tool.copy(output = listOf(UIMessagePart.Text(
                             json.encodeToString(buildJsonObject {
                                 put("error", JsonPrimitive("⚠ ${result.reason}: tool '${result.toolName}' needs your approval before execution. Type 'approve' to allow or 'deny' to reject."))
@@ -851,19 +836,30 @@ private suspend fun executeToolCall(
                             })
                         )))
                     }
-                    is me.rerere.rikkahub.data.ai.policy.PermissionResult.Allowed -> {}
                 }
             }
 
+            // 只对 execute_command 走完整检查流程，其他工具直接放行
+            val allowed = if (toolDef.name == "execute_command") {
+                val reply = kotlinx.coroutines.CompletableDeferred<Boolean>()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    )
+                    reply.await()
+                }
+            } else true
+            if (!allowed) {
+                return tool.copy(output = listOf(UIMessagePart.Text(
+                    json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Tool blocked by safety check")) })
+                )))
+            }
+
+            // ── PRE_TOOL_USE hook ──
             runCatching {
-                HookRegistry.getHooks(HookEvent.PRE_TOOL_USE).forEach { hook ->
                     when (val hookResult = hook.execute(toolDef, args)) {
-                        is me.rerere.rikkahub.data.ai.hooks.HookResult.Block -> {
                             return tool.copy(output = listOf(UIMessagePart.Text(
                                 json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Hook blocked: ${hookResult.reason}")) })
                             )))
                         }
-                        is me.rerere.rikkahub.data.ai.hooks.HookResult.ModifiedInput -> {
                             // Re-parse modified args
                             val parsed = json.parseToJsonElement(
                                 json.encodeToString(
@@ -874,11 +870,9 @@ private suspend fun executeToolCall(
                             val modifiedResult = toolDef.execute(parsed)
                             // POST_TOOL_USE for modified execution
                             runCatching {
-                                HookRegistry.getHooks(HookEvent.POST_TOOL_USE).forEach { h -> h.execute(toolDef, parsed, modifiedResult) }
                             }
                             return tool.copy(output = modifiedResult)
                         }
-                        is me.rerere.rikkahub.data.ai.hooks.HookResult.Allow -> {}
                     }
                 }
             }
@@ -887,16 +881,19 @@ private suspend fun executeToolCall(
 
             // ── POST_TOOL_USE hook ──
             runCatching {
-                HookRegistry.getHooks(HookEvent.POST_TOOL_USE).forEach { hook ->
                     hook.execute(toolDef, args, result)
                 }
+            }
+
+            // Post-tool notification (fire-and-forget)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                )
             }
 
             tool.copy(output = result)
         }
     }
 }
-
 
 /**
  * 将工具执行结果添加到列表中（处理成功和失败两种情况）
