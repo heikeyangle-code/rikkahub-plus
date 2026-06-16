@@ -36,13 +36,13 @@ chaquopy {
             install(file("offline_pkgs/sxtwl-2.0.7.tar.gz").absolutePath)
             install("cnlunar")
             install("ichingshifa")
-            install("kinliuren")
-            install("kintaiyi")
+            install(file("offline_pkgs/kinliuren-src.tar.gz").absolutePath) // 大六壬
+            install(file("offline_pkgs/kintaiyi-src.tar.gz").absolutePath) // 太乙神数
             install("taixuanshifa")
             install("jingjue")
             install("colorama")           // china-testing/bazi 所需
             install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
-            install("kinqimen")           // ⭐119 奇门遁甲
+            install(file("offline_pkgs/kinqimen-src.tar.gz").absolutePath) // ⭐119 奇门遁甲
             install("pytarot")            // ⭐82  塔罗牌（纯Python）
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
             install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)

@@ -35,13 +35,18 @@ jobs:
       - name: Download packages missing from Chaquopy proxy
         run: |
           pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "sxtwl" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pyswisseph" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "sxtwl==2.0.7" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "pyswisseph==2.10.3.2" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pydantic-core" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
-          # timezonefinder 8.x needs numpy>=2 which isn't on proxy; use 6.0.1 from proxy directly
+          # Rename files to match build.gradle.kts expectations (hyphen→underscore, version pin)
           mkdir -p app/offline_pkgs
-          cp /tmp/pypi-offline/* app/offline_pkgs/
+          for f in /tmp/pypi-offline/*.tar.gz; do
+            fname=$(basename "$f")
+            # lunar-python → lunar_python
+            fname="${fname//lunar-python/lunar_python}"
+            cp "$f" "app/offline_pkgs/$fname"
+          done
           echo "Offline packages:" && ls app/offline_pkgs/
       - name: Patch kinwangji (relax ephem pin)
         run: |
@@ -53,6 +58,14 @@ jobs:
           cd /tmp && tar czf /tmp/pypi-offline/kinwangji-patched.tar.gz kinwangji_src
           cp /tmp/pypi-offline/kinwangji-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
           echo "Added kinwangji-patched.tar.gz"
+      - name: Package kinliuren/kinqimen/kintaiyi from GitHub source
+        run: |
+          for repo in kinliuren kinqimen kintaiyi; do
+            git clone --depth 1 "https://github.com/kentang2017/${repo}.git" "/tmp/${repo}_src"
+            cd /tmp && tar czf "/tmp/pypi-offline/${repo}-src.tar.gz" "${repo}_src"
+            cp "/tmp/pypi-offline/${repo}-src.tar.gz" "${GITHUB_WORKSPACE}/app/offline_pkgs/"
+            echo "Added ${repo}-src.tar.gz"
+          done
       - name: Patch stellium (relax timezonefinder pin)
         run: |
           pip download --no-deps --no-binary :all: stellium -d /tmp/st_patch
