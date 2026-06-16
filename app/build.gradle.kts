@@ -47,7 +47,7 @@ chaquopy {
             install("pytarot")            // ⭐82  塔罗牌（纯Python）
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
             install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)
-            install("flatlib")            // ⭐386 传统占星（宫位/相位/尊贵）
+            install(file("offline_pkgs/flatlib-patched.tar.gz").absolutePath) // ⭐386 传统占星 已patch pyswisseph版本
             install("meihua-yi")           // ⭐1  梅花易数起卦（纯Python）
             install("PyJHora")             // ⭐188 印度占星(吠陀)全套
             install("immanuel")            // ⭐109 西洋占星合盘+推运（synastry/progression）

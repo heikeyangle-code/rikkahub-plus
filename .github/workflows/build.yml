@@ -97,6 +97,19 @@ jobs:
           cp /tmp/pypi-offline/stellium-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
           rm -rf /tmp/st_patch
           echo "Added stellium-patched.tar.gz"
+      - name: Patch flatlib (relax pyswisseph pin to match provided version)
+        run: |
+          pip download --no-deps --no-binary :all: flatlib -d /tmp/fl_patch
+          cd /tmp/fl_patch
+          tar xfz flatlib-*.tar.gz
+          rm flatlib-*.tar.gz
+          cd flatlib-*
+          sed -i 's/pyswisseph==2.08.00-1/pyswisseph>=2.10.3/' setup.py
+          grep "pyswisseph" setup.py
+          cd /tmp/fl_patch && tar czf /tmp/pypi-offline/flatlib-patched.tar.gz flatlib-*
+          cp /tmp/pypi-offline/flatlib-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+          rm -rf /tmp/fl_patch
+          echo "Added flatlib-patched.tar.gz"
       - name: Patch kerykeion (remove pydantic & scour deps not on Chaquopy proxy)
         run: |
           pip download --no-deps --no-binary :all: kerykeion -d /tmp/kerykeion_patch
