@@ -25,28 +25,21 @@ import java.io.File
 
 fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
     name = "execute_python",
-    description = """
-        Execute Python code to process data, call APIs, or generate files.
-        Use get_app_info() to see app paths, or use file_read/file_write tools.
-        Libraries: requests (HTTP), beautifulsoup4 (HTML), markdown, python-docx (Word),
-        pypdf (PDF), openpyxl (Excel), python-pptx (PowerPoint).
-        Standard library: json, csv, re, math, datetime, statistics, hashlib, base64, zipfile, pathlib.
-        Built-in bridge functions (no import needed):
-          query_knowledge_base(query, limit=10)         - Search knowledge base
-          add_knowledge_entry(title, content)           - Add entry to knowledge base
-          update_knowledge_entry(id, title, content)    - Update knowledge entry
-          delete_knowledge_entry(id)                    - Delete knowledge entry
-          list_knowledge_entries(limit=20)               - List knowledge base
-          list_conversations(limit=10)                   - List recent conversations
-          get_conversation_messages(conv_id)             - Read conversation messages
-          list_assistants()                              - List all assistants
-          get_assistant_settings(assistant_id)           - Read assistant settings
-          update_assistant_setting(id, key, value)       - Change assistant setting
-          get_setting(key)                               - Read global setting
-          update_setting(key, value)                     - Change global setting
-          get_app_info()                                 - Get app info
-        Generated files (charts, documents, images) are automatically detected and returned.
-    """.trimIndent().replace("\n", " "),
+    description = "Execute Python code for data processing, API calls, or file generation.\n\n" +
+        "Use this tool when you need programmatic logic — loops, conditionals, API integration — that goes beyond simple math.\n\n" +
+        "When to use:\n" +
+        "- Data processing and transformation (CSV, JSON)\n" +
+        "- API calls to external services\n" +
+        "- File generation (CSV, JSON, images)\n" +
+        "- Complex computations that calculator cannot handle\n\n" +
+        "When NOT to use:\n" +
+        "- Simple math (use calculator)\n" +
+        "- Shell commands (use execute_command)\n" +
+        "- File operations (use file tools)\n\n" +
+        "*** 命理排盘见系统提示词 <mingli_routing> 段（不虚构数据）***\n" +
+        "Args:\n" +
+        "- code: Python code to execute. Last expression value returned. Use print() for debugging.\n" +
+        "Code runs in an isolated Python environment on the device.",
     needsApproval = false,
     parameters = {
         InputSchema.Obj(

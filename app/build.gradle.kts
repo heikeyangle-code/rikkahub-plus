@@ -17,7 +17,7 @@ plugins {
 // Python 引擎配置 — Chaquopy 新 DSL
 chaquopy {
     defaultConfig {
-        version = "3.11"
+        version = "3.12"
         pip {
             install("requests")
             install("beautifulsoup4")
@@ -26,6 +26,35 @@ chaquopy {
             install("pypdf")
             install("openpyxl")
             install("python-pptx")
+            install("fpdf2")
+            install("ebooklib")
+            install("markdownify")
+            install("tabulate")
+
+            // === 命理计算引擎 ===
+            install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
+            install(file("offline_pkgs/sxtwl-2.0.6.tar.gz").absolutePath)
+            install("cnlunar")
+            install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // ⭐254 周易筮法/六爻
+            install(file("offline_pkgs/kinliuren-src.tar.gz").absolutePath) // 大六壬
+            install(file("offline_pkgs/kintaiyi-src.tar.gz").absolutePath) // 太乙神数
+            install(file("offline_pkgs/taixuanshifa-src.tar.gz").absolutePath) // ⭐10 太玄筮法
+            install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // ⭐6 荆诀（北大简先秦占卜）
+            install("colorama")           // china-testing/bazi 所需
+            install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
+            install(file("offline_pkgs/kinqimen-patched.tar.gz").absolutePath) // ⭐119 奇门遁甲
+            install(file("offline_pkgs/tarot-0.0.4.tar.gz").absolutePath) // 真塔罗 78张牌+牌义
+            install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
+            install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)
+            install(file("offline_pkgs/flatlib-patched.tar.gz").absolutePath) // ⭐386 传统占星 已patch pyswisseph版本
+            install("meihua-yi")           // ⭐1  梅花易数起卦（纯Python）
+            install("PyJHora")             // ⭐188 印度占星(吠陀)全套
+            install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
+            install("setuptools")              // setuptools 最新版
+            install("hatchling")           // hatchling构建工具, kinwangji需要
+            install(file("offline_pkgs/kinwangji-patched.tar.gz").absolutePath)
+            // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
+            // install("git+https://github.com/kentang2017/kinastro.git")
         }
     }
 }
@@ -42,7 +71,7 @@ android {
         versionName = "2.2.6"
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            abiFilters += listOf("arm64-v8a")
         }
     }
 

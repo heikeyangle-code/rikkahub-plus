@@ -112,43 +112,103 @@ class SkillsVM(
                 val zipBytes = inputStream.readBytes()
                 inputStream.close()
 
-                val zipIn = java.util.zip.ZipInputStream(java.io.ByteArrayInputStream(zipBytes))
-                val entries = mutableMapOf<String, ByteArray>()
-                var entry = zipIn.nextEntry
-                while (entry != null) {
-                    if (!entry.isDirectory) {
-                        val name = entry.name.removePrefix("/")
-                            .split("/").dropWhile { it.isEmpty() || it == "__MACOSX" }.joinToString("/")
-                        if (name.isNotBlank() && !name.startsWith(".")) {
-                            entries[name] = zipIn.readBytes()
-                        }
-                    }
-                    entry = zipIn.nextEntry
+                // 解压并规范化路径
+                val entries = extractZipEntries(zipBytes)
+
+                // 找所有 SKILL.md
+                val skillMdPaths = entries.keys
+                    .filter { it.substringAfterLast('/').equals("SKILL.md", ignoreCase = true) }
+                    .sorted()
+                if (skillMdPaths.isEmpty()) {
+                    withContext(Dispatchers.Main) { onResult(false, "ZIP 中未找到 SKILL.md") }
+                    return@launch
                 }
-                zipIn.close()
 
-                // 找到 SKILL.md
-                val skillMdPath = entries.keys.find { it.endsWith("SKILL.md") }
-                    ?: run { withContext(Dispatchers.Main) { onResult(false, "ZIP 中未找到 SKILL.md") }; return@launch }
+                // 每个 SKILL.md 对应一个技能，按目录分组
+                val skillBasePaths = skillMdPaths.map { it.substringBeforeLast('/', "") }
+                val importedNames = mutableListOf<String>()
 
-                val skillName = SkillFrontmatterParser.parse(String(entries[skillMdPath]!!))["name"]
-                    ?: run { withContext(Dispatchers.Main) { onResult(false, "SKILL.md 缺少 name") }; return@launch }
+                for (skillMdPath in skillMdPaths) {
+                    val skillContent = String(entries[skillMdPath]!!)
+                    val frontmatter = SkillFrontmatterParser.parse(skillContent)
+                    val name = frontmatter["name"]?.trim()
+                    if (name.isNullOrBlank()) {
+                        withContext(Dispatchers.Main) { onResult(false, "$skillMdPath 缺少 name 字段") }
+                        return@launch
+                    }
 
-                // 保存所有文件
-                val prefix = skillMdPath.removeSuffix("SKILL.md")
-                val fileMap = entries.mapKeys { (k, _) ->
-                    k.removePrefix(prefix)
-                }.filterKeys { it.isNotBlank() }
+                    // 收集属于当前技能的文件（排除嵌套在其他技能目录下的）
+                    val basePath = skillMdPath.substringBeforeLast('/', "")
+                    val skillFiles = LinkedHashMap<String, ByteArray>()
+                    for ((path, content) in entries) {
+                        if (isInsideNestedSkill(path, basePath, skillBasePaths)) continue
+                        val relativePath = relativeToSkillBase(path, basePath) ?: continue
+                        skillFiles[relativePath] = content
+                    }
 
-                val saved = skillManager.saveSkillFilesAtomically(skillName, fileMap.mapValues { String(it.value) })
+                    val saved = skillManager.saveSkillFileBytesAtomically(name, skillFiles)
+                    if (!saved) {
+                        withContext(Dispatchers.Main) { onResult(false, "保存失败：$name") }
+                        return@launch
+                    }
+                    importedNames += name
+                }
+
                 _skills.value = skillManager.listSkills()
                 withContext(Dispatchers.Main) {
-                    onResult(saved, if (saved) skillName else "保存失败")
+                    onResult(true, importedNames.distinct().joinToString(", "))
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { onResult(false, e.message ?: "导入失败") }
             }
         }
+    }
+
+    private fun extractZipEntries(zipBytes: ByteArray): Map<String, ByteArray> {
+        val entries = LinkedHashMap<String, ByteArray>()
+        val zipIn = java.util.zip.ZipInputStream(java.io.ByteArrayInputStream(zipBytes))
+        while (true) {
+            val entry = zipIn.nextEntry ?: break
+            try {
+                if (!entry.isDirectory) {
+                    val normalized = normalizeZipEntryPath(entry.name)
+                    if (normalized != null) {
+                        entries[normalized] = zipIn.readBytes()
+                    }
+                }
+            } finally {
+                zipIn.closeEntry()
+            }
+        }
+        zipIn.close()
+        return entries
+    }
+
+    private fun normalizeZipEntryPath(path: String): String? {
+        val parts = path.replace('\\', '/')
+            .trimStart('/')
+            .split('/')
+            .filter { it.isNotBlank() && it != "." && it != "__MACOSX" }
+        if (parts.isEmpty() || parts.any { it == ".." }) return null
+        return parts.joinToString("/")
+    }
+
+    private fun isInsideNestedSkill(path: String, basePath: String, skillBasePaths: List<String>): Boolean {
+        return skillBasePaths.any { otherBasePath ->
+            otherBasePath != basePath &&
+                isPathInsideBase(path, otherBasePath) &&
+                (basePath.isBlank() || isPathInsideBase(otherBasePath, basePath))
+        }
+    }
+
+    private fun isPathInsideBase(path: String, basePath: String): Boolean {
+        return basePath.isBlank() || path == basePath || path.startsWith("$basePath/")
+    }
+
+    private fun relativeToSkillBase(path: String, basePath: String): String? {
+        if (basePath.isBlank()) return path
+        if (path == basePath) return null
+        return path.removePrefix("$basePath/").takeIf { it != path }
     }
 
     /**

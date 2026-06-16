@@ -21,23 +21,19 @@ fun createSearchTools(settings: Settings): Set<Tool> {
         add(
             Tool(
                 name = "search_web",
-                description = """
-                    Search the web for up-to-date or specific information.
-                    Generate focused keywords and run multiple searches if needed.
-                    Today is ${LocalDate.now().toLocalString(true)}.
-
-                    Response format:
-                    - items[].id (short id), title, url, text
-
-                    Citations:
-                    - After using results, add `[citation,domain](id)` after the sentence.
-                    - Multiple citations are allowed.
-                    - If no results are cited, omit citations.
-
-                    Example:
-                    The capital of France is Paris. [citation,example.com](abc123)
-                    The population is about 2.1 million. [citation,example.com](abc123) [citation,example2.com](def456)
-                    """.trimIndent(),
+                                description = "Search the web for up-to-date information from current events and online sources.\n\n" +
+                                    "Use this tool when you need information beyond your training data — recent news, live data, or research across multiple sources.\n\n" +
+                                    "When to use:\n" +
+                                    "- Current events, recent data, or information beyond your knowledge cutoff\n" +
+                                    "- Research topics requiring multiple sources\n\n" +
+                                    "When NOT to use:\n" +
+                                    "- Reading a specific URL (use web_fetch)\n" +
+                                    "- GitHub operations (use github_tool)\n\n" +
+                                    "Args:\n" +
+                                    "- query: Search keywords. Generate focused queries, run multiple searches if needed.\n\n" +
+                                    "CRITICAL: After using search results, you MUST include a \"Sources:\" section.\n" +
+                                    "Format: [citation,domain](id) after each cited sentence.\n" +
+                                    "Today is ${LocalDate.now().toLocalString(true)}.",
                 parameters = {
                     val options = settings.searchServices.getOrElse(
                         index = settings.searchServiceSelected,
@@ -80,9 +76,14 @@ fun createSearchTools(settings: Settings): Set<Tool> {
             add(
                 Tool(
                     name = "scrape_web",
-                    description = """
-                        Scrape a URL for detailed page content.
-                        """.trimIndent(),
+                    description = "Scrape a URL for detailed page content.\n\n" +
+                        "When to use:\n" +
+                        "- Read full content of a specific URL (not search results)\n" +
+                        "- Extract text from web pages for analysis\n\n" +
+                        "When NOT to use:\n" +
+                        "- Web search (use search_web)\n\n" +
+                        "Args:\n" +
+                        "- url: URL to scrape",
                     parameters = {
                         val options = settings.searchServices.getOrElse(
                             index = settings.searchServiceSelected,

@@ -93,20 +93,46 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("database_query")
     data object DatabaseQuery : LocalToolOption()
+
+    @Serializable
+    @SerialName("task_tools")
+    data object TaskTools : LocalToolOption()
+
+    @Serializable
+    @SerialName("plan_mode")
+    data object PlanMode : LocalToolOption()
+
+    @Serializable
+    @SerialName("calculator")
+    data object Calculator : LocalToolOption()
+
+    @Serializable
+    @SerialName("worker_tools")
+    data object WorkerTools : LocalToolOption()
+
+    @Serializable
+    @SerialName("teammate_tools")
+    data object TeammateTools : LocalToolOption()
+
+    @Serializable
+    @SerialName("send_message")
+    data object SendMessage : LocalToolOption()
 }
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {
     val javascriptTool by lazy {
         Tool(
             name = "eval_javascript",
-            description = """
-                Execute JavaScript code using QuickJS engine (ES2020).
-                The result is the value of the last expression in the code.
-                For calculations with decimals, use toFixed() to control precision.
-                Console output (log/info/warn/error) is captured and returned in 'logs' field.
-                No DOM or Node.js APIs available.
-                Example: '1 + 2' returns 3; 'const x = 5; x * 2' returns 10.
-            """.trimIndent().replace("\n", " "),
+            description = "Execute JavaScript code using QuickJS engine (ES2020).\n\n" +
+                "Use this tool to run JavaScript for calculations, text processing, or prototyping. 15s timeout, no DOM or network APIs.\n\n" +
+                "When to use:\n" +
+                "- Run JavaScript for calculations, text processing, or prototyping\n" +
+                "- Test JS snippets without a browser\n\n" +
+                "When NOT to use:\n" +
+                "- DOM manipulation or network requests (no browser APIs)\n" +
+                "- Heavy computations (15s timeout)\n\n" +
+                "Args:\n" +
+                "- code: JavaScript code to execute (last expression is the result)",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -120,47 +146,41 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
             },
             execute = {
                 val logs = arrayListOf<String>()
-                val jsContext = QuickJSContext.create()
-                jsContext.setConsole(object : QuickJSContext.Console {
-                    override fun log(info: String?) {
-                        logs.add("[LOG] $info")
-                    }
-
-                    override fun info(info: String?) {
-                        logs.add("[INFO] $info")
-                    }
-
-                    override fun warn(info: String?) {
-                        logs.add("[WARN] $info")
-                    }
-
-                    override fun error(info: String?) {
-                        logs.add("[ERROR] $info")
-                    }
-                })
                 val code = it.jsonObject["code"]?.jsonPrimitive?.contentOrNull
-                val resultStr: String = try {
-                    val future = java.util.concurrent.Executors.newSingleThreadExecutor().submit<String> {
-                        val jsResult = jsContext.evaluate(code)
-                        when (jsResult) {
-                            null -> "null"
-                            is QuickJSObject -> jsResult.stringify()
-                            else -> jsResult.toString()
+                val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+                try {
+                    val future = executor.submit<String> {
+                        val jsContext = QuickJSContext.create()
+                        try {
+                            jsContext.setConsole(object : QuickJSContext.Console {
+                                override fun log(info: String?) { logs.add("[LOG] $info") }
+                                override fun info(info: String?) { logs.add("[INFO] $info") }
+                                override fun warn(info: String?) { logs.add("[WARN] $info") }
+                                override fun error(info: String?) { logs.add("[ERROR] $info") }
+                            })
+                            val jsResult = jsContext.evaluate(code)
+                            when (jsResult) {
+                                null -> "null"
+                                is QuickJSObject -> jsResult.stringify()
+                                else -> jsResult.toString()
+                            }
+                        } finally {
+                            jsContext.destroy()
                         }
                     }
-                    future.get(15, java.util.concurrent.TimeUnit.SECONDS)
+                    val resultStr = future.get(15, java.util.concurrent.TimeUnit.SECONDS)
+                    val payload = buildJsonObject {
+                        if (logs.isNotEmpty()) {
+                            put("logs", JsonPrimitive(logs.joinToString("\n")))
+                        }
+                        put("result", JsonPrimitive(resultStr))
+                    }
+                    listOf(UIMessagePart.Text(payload.toString()))
                 } catch (e: java.util.concurrent.TimeoutException) {
                     error("JavaScript execution timed out after 15 seconds")
                 } finally {
-                    jsContext.destroy()
+                    executor.shutdownNow()
                 }
-                val payload = buildJsonObject {
-                    if (logs.isNotEmpty()) {
-                        put("logs", JsonPrimitive(logs.joinToString("\n")))
-                    }
-                    put("result", JsonPrimitive(resultStr))
-                }
-                listOf(UIMessagePart.Text(payload.toString()))
             }
         )
     }
@@ -168,10 +188,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val timeTool by lazy {
         Tool(
             name = "get_time_info",
-            description = """
-                Get the current local date and time info from the device.
-                Returns year/month/day, weekday, ISO date/time strings, timezone, and timestamp.
-            """.trimIndent().replace("\n", " "),
+            description = "Get the current local date and time from the device, including timezone and UTC offset.\n\n" +
+                "Use this tool when you need the current timestamp, weekday, or ISO date strings.\n\n" +
+                "Args: (none)",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject { }
@@ -204,11 +223,17 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val clipboardTool by lazy {
         Tool(
             name = "clipboard_tool",
-            description = """
-                Read or write plain text from the device clipboard.
-                Use action: read or write. For write, provide text.
-                Do NOT write to the clipboard unless the user has explicitly requested it.
-            """.trimIndent().replace("\n", " "),
+            description = "Read or write plain text from the device clipboard.\n\n" +
+                "Use this tool to read clipboard content for reference, or write text after the user requests it.\n" +
+                "Do NOT write to clipboard without explicit user request.\n\n" +
+                "When to use:\n" +
+                "- Read clipboard content to use in a response\n" +
+                "- Write text to clipboard after user request\n\n" +
+                "When NOT to use:\n" +
+                "- Writing to clipboard without explicit user request\n\n" +
+                "Args:\n" +
+                "- action: read or write\n" +
+                "- text: Text to write (required for write action)",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -261,11 +286,14 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val ttsTool by lazy {
         Tool(
             name = "text_to_speech",
-            description = """
-                Speak text aloud to the user using the device's text-to-speech engine.
-                The tool returns immediately; audio plays in the background on the device.
-                Provide natural, readable text without markdown formatting.
-            """.trimIndent().replace("\n", " "),
+            description = "Speak text aloud using the device's text-to-speech engine.\n\n" +
+                "Use this tool to read stories, messages, or notifications aloud.\n" +
+                "Audio plays on the device in background; tool returns immediately.\n\n" +
+                "When to use:\n" +
+                "- Read text aloud to the user (stories, messages, notifications)\n" +
+                "- Audio plays on the device in background; tool returns immediately\n\n" +
+                "Args:\n" +
+                "- text: Text to speak (natural, readable, no markdown)",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -292,12 +320,17 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val askUserTool by lazy {
         Tool(
             name = "ask_user",
-            description = """
-                Ask the user one or more questions.
-                Each question can optionally provide a list of suggested options for the user to choose from.
-                The user may select an option or provide their own free-text answer for each question.
-                The answers will be returned as a JSON object mapping question IDs to the user's responses.
-            """.trimIndent().replace("\n", " "),
+            description = "Ask the user one or more questions when you need clarification or a decision.\n\n" +
+                "Use this tool for ambiguous requests or when multiple valid approaches exist.\n" +
+                "Do NOT use for destructive op confirmation (tool system handles that automatically).\n\n" +
+                "When to use:\n" +
+                "- Need clarification from the user on ambiguous requests\n" +
+                "- Presenting yes/no or multiple-choice options\n\n" +
+                "When NOT to use:\n" +
+                "- Confirming destructive operations (tool handles this automatically)\n" +
+                "- Asking questions the answer is already known\n\n" +
+                "Args:\n" +
+                "- questions: List of questions, each with id, text, and optional options",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -361,11 +394,14 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
     val presentFileTool by lazy {
         Tool(
             name = "present_file",
-            description = """
-                Show a file to the user by opening the system share sheet.
-                The file is copied to a temporary location and a share dialog is opened
-                so the user can save, send, or open the file with another app.
-            """.trimIndent().replace("\n", " "),
+            description = "Show a file to the user via the system share sheet for saving, sending, or opening with another app.\n\n" +
+                "Use this tool to present screenshots, documents, or exported data.\n" +
+                "Opens the system share sheet so the user can choose how to handle the file.\n\n" +
+                "When to use:\n" +
+                "- Present a file for saving, sending, or opening with another app\n" +
+                "- Share screenshots, documents, or exported data\n\n" +
+                "Args:\n" +
+                "- path: Absolute path to the file to present",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -442,6 +478,15 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         }
         return tools
     }
+}
+
+/**
+ * 去重：同名工具保留第一个（对标 Claude Code uniqBy）。
+ * Provider 不接受同名工具，用这个兜底防止 "Tool names must be unique" 错误。
+ */
+fun deduplicateTools(tools: List<Tool>): List<Tool> {
+    val seen = LinkedHashSet<String>()
+    return tools.filter { seen.add(it.name) }
 }
 
 private fun guessMimeType(fileName: String): String {

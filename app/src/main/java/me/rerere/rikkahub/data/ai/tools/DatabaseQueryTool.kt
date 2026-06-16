@@ -9,8 +9,22 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 
 fun createDatabaseQueryTool(database: AppDatabase): Tool = Tool(
     name = "database_query",
-    description = "Query the Rikkahub local database: list tables, view schema, run SQL, search all tables, or export data. " +
-            "Useful for browsing chat history, checking knowledge base entries, finding memories, and debugging.",
+    description = "Query the Rikkahub local SQLite database (read-only access).\n\n" +
+        "Use this tool to inspect the app's internal data — configuration, conversations, messages, and settings.\n\n" +
+        "When to use:\n" +
+        "- list_tables: Show all database tables\n" +
+        "- schema: View table column definitions\n" +
+        "- sql: Run a custom SELECT query\n" +
+        "- search: Search across all tables for a term\n" +
+        "- export: Export table data as JSON\n\n" +
+        "When NOT to use:\n" +
+        "- Modifying data (SELECT queries only — no INSERT/UPDATE/DELETE)\n\n" +
+        "Args:\n" +
+        "- action: list_tables | schema | sql | search | export\n" +
+        "- table: Table name (schema, export)\n" +
+        "- query: SQL SELECT statement (sql)\n" +
+        "- term: Search term (search)\n" +
+        "- limit: Max rows (default: 100)",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

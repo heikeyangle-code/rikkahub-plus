@@ -11,15 +11,22 @@ import me.rerere.ai.ui.UIMessagePart
  */
 fun createDataProcessTool(): Tool = Tool(
     name = "data_process",
-    description = """
-        Process and transform text data.
-        Supported actions:
-        - json_format: Pretty-print or compress JSON
-        - json_validate: Check if text is valid JSON
-        - base64: Encode or decode Base64
-        - token_count: Estimate token count of text
-        - diff: Compare two texts and show differences
-    """.trimIndent().replace("\n", " "),
+    description = "Process and transform text data — JSON, Base64, tokens, and diffs.\n\n" +
+        "Use this tool for quick text transformations without writing a full script.\n\n" +
+        "When to use:\n" +
+        "- json_format: Pretty-print or compress JSON\n" +
+        "- json_validate: Check if text is valid JSON\n" +
+        "- base64: Encode or decode Base64\n" +
+        "- token_count: Estimate token count of text\n" +
+        "- diff: Compare two texts and show differences\n\n" +
+        "When NOT to use:\n" +
+        "- Reading or editing files (use file tool)\n" +
+        "- Converting between file formats (use convert_file)\n\n" +
+        "Args:\n" +
+        "- action: Operation (json_format/json_validate/base64/token_count/diff)\n" +
+        "- input: Text to process\n" +
+        "- input2: Second text (for diff only)\n" +
+        "- json_style: pretty or compact (for json_format only)",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

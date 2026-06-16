@@ -73,6 +73,10 @@ import me.rerere.rikkahub.data.ai.tools.createPythonTool
 import me.rerere.rikkahub.data.ai.tools.createGitHubTool
 import me.rerere.rikkahub.data.ai.tools.createConvertFileTool
 import me.rerere.rikkahub.data.ai.tools.createDatabaseQueryTool
+import me.rerere.rikkahub.data.ai.tools.createCalculatorTool
+import me.rerere.rikkahub.data.ai.tools.createWebFetchTool
+import me.rerere.rikkahub.data.ai.tools.createSleepTool
+import me.rerere.rikkahub.data.ai.tools.createTaskTools
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -599,6 +603,14 @@ class ChatService(
                     if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) {
                         add(createDatabaseQueryTool(database))
                     }
+                    if (assistant.localTools.contains(LocalToolOption.Calculator)) {
+                        add(createCalculatorTool(context))
+                    }
+                    add(createWebFetchTool())
+                    add(createSleepTool())
+                    if (assistant.localTools.contains(LocalToolOption.TaskTools)) {
+                        addAll(createTaskTools())
+                    }
                     if (assistant.enabledSkills.isNotEmpty()) {
                         addAll(
                             createSkillTools(
@@ -1100,6 +1112,14 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                 }
                 if (assistant.localTools.contains(LocalToolOption.DatabaseQuery)) {
                     add(createDatabaseQueryTool(database))
+                }
+                if (assistant.localTools.contains(LocalToolOption.Calculator)) {
+                    add(createCalculatorTool(context))
+                }
+                add(createWebFetchTool())
+                add(createSleepTool())
+                if (assistant.localTools.contains(LocalToolOption.TaskTools)) {
+                    addAll(createTaskTools())
                 }
                 if (assistant.enabledSkills.isNotEmpty()) {
                     addAll(

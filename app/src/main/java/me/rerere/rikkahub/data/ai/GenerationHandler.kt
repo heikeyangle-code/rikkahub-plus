@@ -39,6 +39,8 @@ import me.rerere.rikkahub.data.ai.transformers.onGenerationFinish
 import me.rerere.rikkahub.data.ai.transformers.transforms
 import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.ai.tools.buildMemoryTools
+import me.rerere.rikkahub.data.ai.hooks.HookRegistry
+import me.rerere.rikkahub.data.ai.hooks.HookEvent
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -53,6 +55,9 @@ import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationHandler"
+
+/** 占位 Tool，用于 hook 事件传递，不执行任何逻辑 */
+private val NOOP_TOOL = Tool(name = "", description = "", execute = { emptyList<UIMessagePart>() })
 
 @Serializable
 sealed interface GenerationChunk {
@@ -83,6 +88,8 @@ class GenerationHandler(
         conversationSystemPrompt: String? = null,
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
+        policyEngine: me.rerere.rikkahub.data.ai.policy.PolicyEngine? = null,
+        autoCompactor: me.rerere.rikkahub.data.ai.compaction.AutoCompactor? = null,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -93,7 +100,7 @@ class GenerationHandler(
         name.startsWith("github_") -> "🔧 GitHub → 正在操作..."
         name.startsWith("execute_python") -> "🔧 Python → 正在执行代码..."
         name.startsWith("execute_command") -> "🔧 Shell → 正在执行命令..."
-        name.startsWith("file_") -> "🔧 文件 → 正在操作..."
+        name == "file" -> "🔧 文件 → 正在操作..."
         name.startsWith("data_process") -> "🔧 数据 → 正在处理..."
         name.startsWith("database_") -> "🔧 数据库 → 正在查询..."
         name.startsWith("search_web") || name.startsWith("scrape_") -> "🔧 搜索 → 正在搜索..."
@@ -106,60 +113,173 @@ class GenerationHandler(
         name.startsWith("present_file") -> "🔧 文件 → 正在分享..."
         name.startsWith("eval_javascript") -> "🔧 JS → 正在执行..."
         name.startsWith("memory_") -> "🔧 记忆 → 正在处理..."
-        else -> "🔧 $name → 正在处理..."
+            else -> "🔧 $name → 正在处理..."
     }
+
+    /**
+     * 缓存 system prompt（循环不变，避免每步重建 PromptContext + tool.systemPrompt）
+     */
+    suspend fun buildCachedSystemPrompt(
+        assistant: Assistant,
+        settings: Settings,
+        messages: List<UIMessage>,
+        memories: List<AssistantMemory>,
+        conversationSystemPrompt: String?,
+        tools: List<Tool>,
+        model: Model,
+        context: android.content.Context,
+        conversationRepo: me.rerere.rikkahub.data.repository.ConversationRepository,
+    ): String {
+        val assemblerContext = me.rerere.rikkahub.data.ai.prompts.PromptContext(
+            identitySection = buildString {
+                val effectiveSystemPrompt =
+                    if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
+                        conversationSystemPrompt
+                    } else {
+                        if (assistant.tavernData != null) {
+                            val persona = settings.personas.find { it.id == settings.activePersonaId }
+                            assistant.assembleContext(
+                                userName = settings.displaySetting.userNickname.ifBlank { "User" },
+                                personaDesc = persona?.description ?: ""
+                            )
+                        } else {
+                            assistant.systemPrompt
+                        }
+                    }
+                append(effectiveSystemPrompt)
+            },
+            leadInInstructions = buildString {
+                appendLine("<tool_selection>")
+                appendLine("Read files → file action=\"read\"")
+                appendLine("Search files → file action=\"search\"")
+                appendLine("List dirs → file action=\"list\"")
+                appendLine("Write files → file action=\"write\"")
+                appendLine("Edit files → file action=\"patch\" (surgical find-and-replace)")
+                appendLine("Copy/move/delete → file action=\"copy\"/\"move\"/\"delete\"")
+                appendLine("Shell → execute_command (git, builds only)")
+                appendLine("Python → execute_python (data processing, API)")
+                appendLine("Math → calculator (NOT execute_python)")
+                appendLine("Web → web_search / web_fetch")
+                appendLine("GitHub → github_tool")
+                appendLine("Memory → memory_tool")
+                appendLine("Sub-agent → sub_agent (complex multi-step)")
+                appendLine("</tool_selection>")
+                appendLine()
+                appendLine("<work_ethic>")
+                appendLine("❌ Do NOT describe what you will do — just do it")
+                appendLine("❌ Do NOT stop after writing a stub — complete then report")
+                appendLine("❌ Do NOT fabricate results — if a tool fails, say so")
+                appendLine("❌ Do NOT use shell when a dedicated tool exists")
+                appendLine("❌ Do NOT use execute_python for math (use calculator)")
+                appendLine("✅ If you need user input, use ask_user directly")
+                appendLine("</work_ethic>")
+                appendLine()
+                appendLine("<mingli_routing>")
+                appendLine("命理/玄学问题一律走 execute_python 工具。格式：首选 | 备选")
+                appendLine("【中华正统】")
+                appendLine("八字/四柱/大运 → lunar_python EightChar | bazi_china(bazi,ganzhi,sizi,shengxiao,luohou,yue,convert), sxtwl")
+                appendLine("紫微斗数 → ziwei_paipan.by_solar()")
+                appendLine("【奇门三式】")
+                appendLine("奇门遁甲 → kinqimen | 日家/时家/刻家用法不同")
+                appendLine("大六壬 → kinliuren")
+                appendLine("小六壬(马前课) → 手算(lunar_python取月日时→掌诀)")
+                appendLine("太乙神数 → kintaiyi")
+                appendLine("【象数易】")
+                appendLine("太玄筮法 → taixuanshifa | 荆诀/先秦占卜 → jingjue | 皇极经世 → kinwangji")
+                appendLine("【六爻/卦象】")
+                appendLine("六爻/周易 → ichingshifa（需起卦数） | 梅花也可用 ichingshifa 起卦")
+                appendLine("梅花易数 → meihua_yi（需数字） | 六爻也可用 meihua_yi 起卦")
+                appendLine("【西洋占星】")
+                appendLine("本命盘/星座 → kerykeion | 深析/中点/格局/相位 → stellium")
+                appendLine("日返月返/回归盘 → stellium.returns | 也可是 flatlib")
+                appendLine("合盘/比较盘/推运 → immanuel | 也可是 kerykeion synastry")
+                appendLine("日食月食/行星升降 → pyswisseph")
+                appendLine("【印度/吠陀】")
+                appendLine("吠陀占星(南印/北印盘) → jhora | 也可是 stellium.visualization.vedic")
+                appendLine("【塔罗/其他】")
+                appendLine("塔罗(78张牌+牌义) → tarot")
+                appendLine("【农历/干支/天文】")
+                appendLine("黄历/择日/建除/太岁/吉神 → cnlunar | lunar_python")
+                appendLine("公历农历转换 → lunar_python | cnlunar")
+                appendLine("二十八宿/宿曜 → Lunar.getTwentyEightMans() | pyswisseph, cnlunar")
+                appendLine("生肖/干支/纳音/闰候 → bazi_china(bazi,shengxiao,ganzhi,yue) | lunar_python")
+                appendLine("节气/天文 → lunar_python | cnlunar, pyswisseph")
+                appendLine("输入：八字/紫微/占星/吠陀/皇极需生日+时辰+性别+经纬度")
+                appendLine("</mingli_routing>")
+            },
+            workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
+            extraInstructions = buildString {
+                if (assistant.enableRecentChatsReference) {
+                    appendLine()
+                    append(buildRecentChatsPrompt(assistant, conversationRepo))
+                }
+            },
+            constraints = emptyList(),
+        )
+        val system = me.rerere.rikkahub.data.ai.prompts.SystemPromptAssembler.assemble(assemblerContext)
+        return buildString {
+            append(system)
+            tools.forEach { tool ->
+                appendLine()
+                append(tool.systemPrompt(model, messages))
+            }
+        }
+    }
+
+    // ── 预构建：tools + systemPrompt（循环不变，移到外面）──
+    val toolsInternal = buildList {
+        Log.i(TAG, "generateInternal: build tools($assistant)")
+        if (assistant?.enableMemory == true) {
+            val memoryAssistantId = if (assistant.useGlobalMemory) {
+                MemoryRepository.GLOBAL_MEMORY_ID
+            } else {
+                assistant.id.toString()
+            }
+            buildMemoryTools(
+                json = json,
+                onCreation = { content ->
+                    memoryRepo.addMemory(memoryAssistantId, content)
+                },
+                onUpdate = { id, content ->
+                    memoryRepo.updateContent(id, content)
+                },
+                onDelete = { id ->
+                    memoryRepo.deleteMemory(id)
+                }
+            ).let(this::addAll)
+        }
+        addAll(tools)
+    }
+    val statusTrackedTools = toolsInternal.map { tool ->
+        if (tool.name == "ask_user") tool else tool.copy(
+            execute = { args ->
+                processingStatus.value = describeTool(tool.name)
+                if (tool.name.contains("github")) {
+                    me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = processingStatus
+                }
+                try {
+                    val result = tool.execute(args)
+                    if (tool.name.contains("github")) {
+                        me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
+                    }
+                    processingStatus.value = null
+                    result
+                } catch (e: Exception) {
+                    if (tool.name.contains("github")) {
+                        me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
+                    }
+                    processingStatus.value = null
+                    throw e
+                }
+            }
+        )
+    }
+    // ── 预构建：system prompt 全文（循环不变，移到外面）──
+    // buildString 不是 suspend 上下文，直接调用即可
+    val prebuiltSystemPrompt = buildCachedSystemPrompt(assistant, settings, messages, memories ?: emptyList(), conversationSystemPrompt, tools, model, context, conversationRepo)
 
     for (stepIndex in 0 until maxSteps) {
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
-
-            val toolsInternal = buildList {
-                Log.i(TAG, "generateInternal: build tools($assistant)")
-                if (assistant?.enableMemory == true) {
-                    val memoryAssistantId = if (assistant.useGlobalMemory) {
-                        MemoryRepository.GLOBAL_MEMORY_ID
-                    } else {
-                        assistant.id.toString()
-                    }
-                    buildMemoryTools(
-                        json = json,
-                        onCreation = { content ->
-                            memoryRepo.addMemory(memoryAssistantId, content)
-                        },
-                        onUpdate = { id, content ->
-                            memoryRepo.updateContent(id, content)
-                        },
-                        onDelete = { id ->
-                            memoryRepo.deleteMemory(id)
-                        }
-                    ).let(this::addAll)
-                }
-                addAll(tools)
-            }
-            // Wrap tools with status tracking
-            val statusTrackedTools = toolsInternal.map { tool ->
-                if (tool.name == "ask_user") tool else tool.copy(
-                    execute = { args ->
-                        processingStatus.value = describeTool(tool.name)
-                        if (tool.name.contains("github")) {
-                            me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = processingStatus
-                        }
-                        try {
-                            val result = tool.execute(args)
-                            if (tool.name.contains("github")) {
-                                me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
-                            }
-                            processingStatus.value = null
-                            result
-                        } catch (e: Exception) {
-                            if (tool.name.contains("github")) {
-                                me.rerere.rikkahub.data.ai.tools.GhProgress.processingRef = null
-                            }
-                            processingStatus.value = null
-                            throw e
-                        }
-                    }
-                )
-            }
 
             // Check if we have tool calls ready to continue after user interaction.
             val pendingTools = messages.lastOrNull()?.getTools()?.filter {
@@ -170,6 +290,20 @@ class GenerationHandler(
 
             // Skip generation if we have approved/denied tool calls to handle
             if (pendingTools.isEmpty()) {
+                // ── USER_PROMPT_SUBMIT hook ──
+                runCatching {
+                    HookRegistry.getHooks(HookEvent.USER_PROMPT_SUBMIT).forEach { hook ->
+                        hook.execute(
+                            NOOP_TOOL.copy(name = "user_input"),
+                            kotlinx.serialization.json.buildJsonObject {
+                                put("messages", kotlinx.serialization.json.JsonPrimitive(
+                                    messages.takeLast(2).joinToString("\n") { it.parts.joinToString("") { p -> (p as? me.rerere.ai.ui.UIMessagePart.Text)?.text ?: "" } }
+                                ))
+                            }
+                        )
+                    }
+                }
+
                 generateInternal(
                     assistant = assistant,
                     settings = settings,
@@ -190,7 +324,7 @@ class GenerationHandler(
                                     model = model,
                                     assistant = assistant,
                                     settings = settings
-                                )
+                                ).filter { it.role != MessageRole.SYSTEM }
                             )
                         )
                     },
@@ -205,6 +339,7 @@ class GenerationHandler(
                     conversationSystemPrompt = conversationSystemPrompt,
                     conversationModeInjectionIds = conversationModeInjectionIds,
                     conversationLorebookIds = conversationLorebookIds,
+                    prebuiltSystemPrompt = prebuiltSystemPrompt,
                 )
                 messages = messages.visualTransforms(
                     transformers = outputTransformers,
@@ -224,10 +359,22 @@ class GenerationHandler(
                     finishedAt = Clock.System.now()
                         .toLocalDateTime(TimeZone.currentSystemDefault())
                 )
-                emit(GenerationChunk.Messages(messages))
+                emit(GenerationChunk.Messages(messages.filter { it.role != MessageRole.SYSTEM }))
 
                 val tools = messages.last().getTools().filter { !it.isExecuted }
                 if (tools.isEmpty()) {
+                    // ── STOP hook（无 tool call，本轮结束）──
+                    runCatching {
+                        HookRegistry.getHooks(HookEvent.STOP).forEach { hook ->
+                            hook.execute(
+                                NOOP_TOOL.copy(name = "generation_end"),
+                                kotlinx.serialization.json.buildJsonObject {
+                                    put("step", kotlinx.serialization.json.JsonPrimitive(stepIndex))
+                                    put("total_steps", kotlinx.serialization.json.JsonPrimitive(maxSteps))
+                                }
+                            )
+                        }
+                    }
                     // no tool calls, break
                     break
                 }
@@ -276,7 +423,7 @@ class GenerationHandler(
                         }
                     }
                     messages = messages.dropLast(1) + lastMessage.copy(parts = updatedParts)
-                    emit(GenerationChunk.Messages(messages))
+                    emit(GenerationChunk.Messages(messages.filter { it.role != MessageRole.SYSTEM }))
                 }
 
                 // 3. Guardrail: same tool called N+ times in one batch → break
@@ -313,7 +460,7 @@ class GenerationHandler(
                         async {
                             tool to runCatching {
                                 kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) {
-                                    executeToolCall(tool, toolsInternal, json)
+                                    executeToolCall(tool, toolsInternal, json, policyEngine)
                                 }
                             }
                         }
@@ -327,8 +474,8 @@ class GenerationHandler(
                 // 顺序执行（原版行为）
                 toolsToProcess.forEach { tool ->
                     val result = runCatching {
-                        kotlinx.coroutines.withTimeout(60_000) {
-                            executeToolCall(tool, toolsInternal, json)
+                        kotlinx.coroutines.withTimeout(assistant.toolExecTimeout * 1000L) {
+                            executeToolCall(tool, toolsInternal, json, policyEngine)
                         }
                     }
                     addToolResult(executedTools, tool, result, json)
@@ -356,7 +503,7 @@ class GenerationHandler(
                         model = model,
                         assistant = assistant,
                         settings = settings
-                    )
+                    ).filter { it.role != MessageRole.SYSTEM }
                 )
             )
         }
@@ -379,45 +526,64 @@ class GenerationHandler(
         conversationSystemPrompt: String? = null,
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
+        prebuiltSystemPrompt: String = "",
     ) {
         val internalMessages = buildList {
-            val system = buildString {
-                val effectiveSystemPrompt =
-                    if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
-                        conversationSystemPrompt
-                    } else {
-                        // 如果导入了酒馆卡，使用模板组装；否则使用原始 system prompt
-                        if (assistant.tavernData != null) {
-                            val persona = settings.personas.find { it.id == settings.activePersonaId }
-                            assistant.assembleContext(
-                                userName = settings.displaySetting.userNickname.ifBlank { "User" },
-                                personaDesc = persona?.description ?: ""
-                            )
+            val fullSystem = if (prebuiltSystemPrompt.isNotBlank()) prebuiltSystemPrompt else buildString {
+                // ── s10: 使用 SystemPromptAssembler 替代硬编码 ──
+                val assemblerContext = me.rerere.rikkahub.data.ai.prompts.PromptContext(
+                identitySection = buildString {
+                    val effectiveSystemPrompt =
+                        if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
+                            conversationSystemPrompt
                         } else {
-                            assistant.systemPrompt
+                            if (assistant.tavernData != null) {
+                                val persona = settings.personas.find { it.id == settings.activePersonaId }
+                                assistant.assembleContext(
+                                    userName = settings.displaySetting.userNickname.ifBlank { "User" },
+                                    personaDesc = persona?.description ?: ""
+                                )
+                            } else {
+                                assistant.systemPrompt
+                            }
                         }
-                    }
-                if (effectiveSystemPrompt.isNotBlank()) {
                     append(effectiveSystemPrompt)
-                }
+                },
+                leadInInstructions = buildString {
+                    appendLine("Guidelines:")
+                    appendLine("- Prefer dedicated tools over shell commands for file operations")
+                    appendLine("- When a tool fails, try an alternative approach before giving up")
+                    appendLine("- If you need clarification, ask the user directly")
+                },
+                workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
+                extraInstructions = buildString {
+                    if (assistant.enableRecentChatsReference) {
+                        appendLine()
+                        append(buildRecentChatsPrompt(assistant, conversationRepo))
+                    }
+                },
+                constraints = emptyList(),
+            )
+            val system = me.rerere.rikkahub.data.ai.prompts.SystemPromptAssembler.assemble(assemblerContext)
 
-                // 记忆
-                if (assistant.enableMemory) {
-                    appendLine()
-                    append(buildMemoryPrompt(memories = memories))
-                }
-                if (assistant.enableRecentChatsReference) {
-                    appendLine()
-                    append(buildRecentChatsPrompt(assistant, conversationRepo))
-                }
-
-                // 工具prompt
-                tools.forEach { tool ->
-                    appendLine()
-                    append(tool.systemPrompt(model, messages))
-                }
+            // ── 工具prompt（追加在 assembler 结果之后）──
+            append(system)
+            tools.forEach { tool ->
+                appendLine()
+                append(tool.systemPrompt(model, messages))
             }
-            if (system.isNotBlank()) add(UIMessage.system(prompt = system))
+            }
+            val systemMsg = fullSystem.ifBlank { null }
+            if (systemMsg != null) add(UIMessage.system(prompt = systemMsg))
+
+            // ── s10: getUserContext — 用户上下文通过 <system-reminder> UserMessage 注入 ──
+            // 对标 Claude Code context.ts → prependUserContext()
+            // getUserContext 返回 { claudeMd, currentDate }，此处映射为 memories + currentDate
+            val userContext = buildUserContext(memories, assistant, settings)
+            if (userContext.isNotBlank()) {
+                add(UIMessage.user(prompt = userContext))
+            }
+
             addAll(messages.limitContext(assistant.contextMessageSize))
         }.transforms(
             transformers = transformers,
@@ -509,24 +675,25 @@ class GenerationHandler(
                     stream = false
                 )
             )
+            val recoveryState = me.rerere.rikkahub.data.ai.error.RecoveryState()
             val chunk = try {
-                providerImpl.generateText(
-                    providerSetting = provider,
-                    messages = internalMessages,
-                    params = params,
+                me.rerere.rikkahub.data.ai.error.withRetry(
+                    block = suspend {
+                        providerImpl.generateText(
+                            providerSetting = provider,
+                            messages = internalMessages,
+                            params = params.copy(
+                                maxTokens = if (recoveryState.hasEscalated)
+                                    me.rerere.rikkahub.data.ai.error.ESCALATED_MAX_TOKENS
+                                else params.maxTokens
+                            ),
+                        )
+                    },
+                    state = recoveryState,
                 )
             } catch (e: Exception) {
-                val msg = e.message ?: ""
-                if (msg.contains("429 ") || msg.contains("5") || msg.contains("timeout") || msg.contains("reset")) {
-                    Log.w(TAG, "generateText: retrying once after: ${e.message}")
-                    providerImpl.generateText(
-                        providerSetting = provider,
-                        messages = internalMessages,
-                        params = params,
-                    )
-                } else {
-                    throw e
-                }
+                Log.e(TAG, "generateText failed after retries: ${e.message}")
+                throw e
             }
             messages = messages.handleMessageChunk(chunk = chunk, model = model)
             chunk.usage?.let { usage ->
@@ -624,6 +791,7 @@ private suspend fun executeToolCall(
     tool: UIMessagePart.Tool,
     toolsInternal: List<Tool>,
     json: kotlinx.serialization.json.Json,
+    policyEngine: me.rerere.rikkahub.data.ai.policy.PolicyEngine? = null,
 ): UIMessagePart.Tool {
     return when (tool.approvalState) {
         is ToolApprovalState.Denied -> {
@@ -662,11 +830,98 @@ private suspend fun executeToolCall(
                 error("Invalid tool arguments JSON for ${tool.toolName}: ${it.message}")
             }
             Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
+
+            // PolicyEngine check
+            if (policyEngine != null) {
+                when (val result = policyEngine.check(toolDef, args)) {
+                    is me.rerere.rikkahub.data.ai.policy.PermissionResult.Denied -> {
+                        Log.w(TAG, "PolicyEngine denied ${toolDef.name}: ${result.reason}")
+                        return tool.copy(output = listOf(UIMessagePart.Text(
+                            json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Permission denied: ${result.reason}")) })
+                        )))
+                    }
+                    is me.rerere.rikkahub.data.ai.policy.PermissionResult.NeedsApproval -> {
+                        Log.w(TAG, "PolicyEngine needs approval for ${toolDef.name}: ${result.reason}")
+                        return tool.copy(output = listOf(UIMessagePart.Text(
+                            json.encodeToString(buildJsonObject {
+                                put("error", JsonPrimitive("⚠ ${result.reason}: tool '${result.toolName}' needs your approval before execution. Type 'approve' to allow or 'deny' to reject."))
+                                put("needs_approval", true)
+                                put("tool_name", JsonPrimitive(result.toolName))
+                                put("reason", JsonPrimitive(result.reason))
+                            })
+                        )))
+                    }
+                    is me.rerere.rikkahub.data.ai.policy.PermissionResult.Allowed -> {}
+                }
+            }
+
+            // Pre-tool check via AgentEventBus (SafetyHook — blocking with reply)
+            // 只对 execute_command 走完整检查流程，其他工具直接放行
+            val allowed = if (toolDef.name == "execute_command") {
+                val reply = kotlinx.coroutines.CompletableDeferred<Boolean>()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
+                        me.rerere.rikkahub.data.ai.listener.AgentEvent.PreToolCheck(toolDef, args, reply)
+                    )
+                    reply.await()
+                }
+            } else true
+            if (!allowed) {
+                return tool.copy(output = listOf(UIMessagePart.Text(
+                    json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Tool blocked by safety check")) })
+                )))
+            }
+
+            // ── PRE_TOOL_USE hook ──
+            runCatching {
+                HookRegistry.getHooks(HookEvent.PRE_TOOL_USE).forEach { hook ->
+                    when (val hookResult = hook.execute(toolDef, args)) {
+                        is me.rerere.rikkahub.data.ai.hooks.HookResult.Block -> {
+                            return tool.copy(output = listOf(UIMessagePart.Text(
+                                json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Hook blocked: ${hookResult.reason}")) })
+                            )))
+                        }
+                        is me.rerere.rikkahub.data.ai.hooks.HookResult.ModifiedInput -> {
+                            // Re-parse modified args
+                            val parsed = json.parseToJsonElement(
+                                json.encodeToString(
+                                    kotlinx.serialization.json.JsonElement.serializer(), hookResult.newArgs
+                                )
+                            )
+                            // Execute with modified args
+                            val modifiedResult = toolDef.execute(parsed)
+                            // POST_TOOL_USE for modified execution
+                            runCatching {
+                                HookRegistry.getHooks(HookEvent.POST_TOOL_USE).forEach { h -> h.execute(toolDef, parsed, modifiedResult) }
+                            }
+                            return tool.copy(output = modifiedResult)
+                        }
+                        is me.rerere.rikkahub.data.ai.hooks.HookResult.Allow -> {}
+                    }
+                }
+            }
+
             val result = toolDef.execute(args)
+
+            // ── POST_TOOL_USE hook ──
+            runCatching {
+                HookRegistry.getHooks(HookEvent.POST_TOOL_USE).forEach { hook ->
+                    hook.execute(toolDef, args, result)
+                }
+            }
+
+            // Post-tool notification (fire-and-forget)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
+                    me.rerere.rikkahub.data.ai.listener.AgentEvent.PostToolNotify(toolDef, args, result)
+                )
+            }
+
             tool.copy(output = result)
         }
     }
 }
+
 
 /**
  * 将工具执行结果添加到列表中（处理成功和失败两种情况）
@@ -700,4 +955,70 @@ private fun addToolResult(
                 )
             )
         }
+}
+
+/**
+ * ── s10: getUserContext ──
+ * 对标 Claude Code context.ts → getUserContext() → prependUserContext()
+ *
+ * CC 源码 (context.ts):
+ *   getUserContext = memoize(async (): Promise<{claudeMd, currentDate}> => {
+ *     const claudeMd = getClaudeMds(filterInjectedMemoryFiles(await getMemoryFiles()))
+ *     return { ...(claudeMd && { claudeMd }), currentDate: "Today's date is ..." }
+ *   })
+ *
+ * CC 源码 (api.ts → prependUserContext):
+ *   createUserMessage({
+ *     content: `<system-reminder>\nAs you answer the user's questions, you can use the following context:\n${
+ *       Object.entries(context).map(([key, value]) => `# ${key}\n${value}`).join('\n')
+ *     }\n\nIMPORTANT: this context may or may not be relevant...\n</system-reminder>\n`,
+ *     isMeta: true,
+ *   })
+ *
+ * 记忆：整轮对话缓存（memoize），仅当记忆列表变化时重建
+ */
+private var _lastUserContextKey: String? = null
+private var _lastUserContext: String? = null
+
+private fun buildUserContext(
+    memories: List<AssistantMemory>,
+    assistant: Assistant,
+    settings: Settings,
+): String {
+    val contextMap = linkedMapOf<String, String>()
+
+    // 对标 CC getUserContext: claudeMd (CLAUDE.md content)
+    if (assistant.enableMemory && memories.isNotEmpty()) {
+        val memoryText = memories.joinToString("\n") { memory ->
+            "- ${memory.content.take(200)}"
+        }
+        contextMap["memories"] = memoryText
+    }
+
+    // 对标 CC getUserContext: currentDate
+    contextMap["currentDate"] = "Today's date is ${java.time.LocalDate.now()}."
+
+    if (contextMap.isEmpty()) return ""
+
+    // Memoize: 当 contextMap 内容不变时复用
+    val key = contextMap.entries.joinToString("|") { "${it.key}=${it.value}" }
+    if (key == _lastUserContextKey && _lastUserContext != null) {
+        return _lastUserContext!!
+    }
+
+    val result = buildString {
+        appendLine("<system-reminder>")
+        appendLine("As you answer the user's questions, you can use the following context:")
+        contextMap.forEach { (key, value) ->
+            appendLine("# $key")
+            appendLine(value)
+        }
+        appendLine()
+        appendLine("IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.")
+        append("</system-reminder>")
+    }
+
+    _lastUserContextKey = key
+    _lastUserContext = result
+    return result
 }

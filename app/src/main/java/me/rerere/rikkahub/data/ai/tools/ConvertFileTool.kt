@@ -3,6 +3,8 @@ package me.rerere.rikkahub.data.ai.tools
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.pdf.PdfDocument
+import android.graphics.pdf.PdfDocument.PageInfo
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import kotlinx.coroutines.Dispatchers
@@ -18,11 +20,28 @@ import me.rerere.rikkahub.data.knowledge.KnowledgeBaseService
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import org.koin.java.KoinJavaComponent
 import java.io.File
+import java.io.FileOutputStream
 
 fun createConvertFileTool(context: Context): Tool = Tool(
     name = "convert_file",
-    description = "Convert files between formats: txt↔md↔docx↔html, pdf→txt/md, xlsx↔csv↔json, pptx→txt/md, " +
-            "image format conversion (png/jpg/webp), zip extract, combine files.",
+    description = "Convert files between supported formats.\n\n" +
+        "Use this tool when you need to transform a file from one format to another.\n\n" +
+        "Supported conversions:\n" +
+        "- Text formats: txt, md, html, docx (bidirectional)\n" +
+        "- Extract text from PDF, DOCX, PPTX, EPUB\n" +
+        "- Spreadsheets: xlsx, csv, json (bidirectional)\n" +
+        "- Images: png, jpg, webp, bmp, gif (bidirectional)\n" +
+        "- Generate PDF from txt/md/images; merge or split PDF files\n" +
+        "- Fetch URL and convert to markdown\n\n" +
+        "When NOT to use:\n" +
+        "- Reading file content (use file action=\"read\")\n" +
+        "- Editing files (use file action=\"patch\")\n\n" +
+        "Args:\n" +
+        "- input: Path to source file\n" +
+        "- input_text: Direct text input (mutually exclusive with input)\n" +
+        "- from_format: Source format (auto-detected if omitted)\n" +
+        "- to_format: Target format\n" +
+        "- output: Output path (auto-generated if omitted)",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -39,7 +58,9 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                     put("enum", buildJsonArray {
                         add("txt"); add("md"); add("docx"); add("html")
                         add("pdf"); add("xlsx"); add("csv"); add("json")
-                        add("pptx"); add("png"); add("jpg"); add("webp"); add("zip")
+                        add("pptx"); add("png"); add("jpg"); add("jpeg"); add("webp")
+                        add("bmp"); add("gif")
+                        add("epub"); add("zip"); add("url")
                     })
                     put("description", "Source format (auto-detected from extension if omitted)")
                 })
@@ -47,7 +68,10 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                     put("type", "string")
                     put("enum", buildJsonArray {
                         add("txt"); add("md"); add("docx"); add("html")
-                        add("xlsx"); add("csv"); add("json"); add("png"); add("jpg"); add("webp")
+                        add("xlsx"); add("csv"); add("json")
+                        add("png"); add("jpg"); add("jpeg"); add("webp")
+                        add("bmp"); add("gif"); add("pdf")
+                        add("split"); add("images"); add("table"); add("frames")
                     })
                     put("description", "Target format")
                 })
@@ -101,9 +125,9 @@ fun createConvertFileTool(context: Context): Tool = Tool(
         } else error("input, input_text, or combine required")
         if (toFormat == "jpeg") toFormat = "jpg"
 
-        val downloadDir = File("/storage/emulated/0/Download").also { it.mkdirs() }
+        val downloadDir = context.filesDir.also { it.mkdirs() }
 
-        // ── Kombinier ──
+        // ── Combine ──
         if (combine.isNotBlank()) {
             val paths = combine.split(",").map { it.trim() }
             if (toFormat == "md" || toFormat == "txt") {
@@ -133,8 +157,8 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                             "<h$level>${it.groupValues[2].replace("&", "&amp;").replace("<", "&lt;")}</h$level>"
                         }
                         .replace(Regex("(?m)^[-*]\\s+(.+)$")) { "<li>${it.groupValues[1]}</li>" }
-                        .split("\\n\\n".toRegex()).joinToString("") { "<p>$it</p>\\n" }
-                    "<!DOCTYPE html>\\n<html lang=\\\"zh\\\">\\n<head><meta charset=\\\"utf-8\\\">\\n<title>Converted</title></head>\\n<body>\\n$body\\n</body>\\n</html>"
+                        .split("\n\n").joinToString("") { "<p>$it</p>\n" }
+                    "<!DOCTYPE html>\n<html lang=\"zh\">\n<head><meta charset=\"utf-8\">\n<title>Converted</title></head>\n<body>\n$body\n</body>\n</html>"
                 }
                 "md" to "txt" -> text
                 "md" to "html" -> {
@@ -146,19 +170,16 @@ fun createConvertFileTool(context: Context): Tool = Tool(
                         .replace(Regex("(?m)^(#{1,6})\\s+(.+)$")) {
                             "<h${it.groupValues[1].length}>${it.groupValues[2]}</h${it.groupValues[1].length}>"
                         }
-                        .replace(Regex("(?m)^\\*\\*(.+?)\\*\\*"), "<strong>\$1</strong>")
-                        .replace(Regex("(?m)^\\*(.+?)\\*"), "<em>\$1</em>")
+                        .replace(Regex("(?m)^\\*\\*(.+?)\\*\\*"), "<strong>$1</strong>")
+                        .replace(Regex("(?m)^\\*(.+?)\\*"), "<em>$1</em>")
                         .replace(Regex("(?m)^```(\\w*)\\s*$"), "<pre><code>")
                         .replace(Regex("(?m)^```$"), "</code></pre>")
-                        .replace(Regex("(?m)^[-*]\\s+(.+)$"), "<li>\$1</li>")
-                        .replace(Regex("(?m)^>\\s+(.+)$"), "<blockquote>\$1</blockquote>")
-                    html = html.split("\\n\\n".toRegex()).joinToString("") { "<p>$it</p>\\n" }
-                    "<!DOCTYPE html>\\n<html lang=\\\"zh\\\">\\n<head><meta charset=\\\"utf-8\\\">\\n<title>Converted Markdown</title></head>\\n<body>\\n$html\\n</body>\\n</html>"
+                        .replace(Regex("(?m)^[-*]\\s+(.+)$"), "<li>$1</li>")
+                        .replace(Regex("(?m)^>\\s+(.+)$"), "<blockquote>$1</blockquote>")
+                    html = html.split("\n\n").joinToString("") { "<p>$it</p>\n" }
+                    "<!DOCTYPE html>\n<html lang=\"zh\">\n<head><meta charset=\"utf-8\">\n<title>Converted Markdown</title></head>\n<body>\n$html\n</body>\n</html>"
                 }
-                "html" to "md" -> {
-                    text.replace(Regex("<[^>]+>"), "")
-                        .replace(Regex("\\n{3,}"), "\\n\\n")
-                }
+                "html" to "md" -> text.replace(Regex("<[^>]+>"), "").replace(Regex("\n{3,}"), "\n\n")
                 "html" to "txt" -> text.replace(Regex("<[^>]+>"), "").trim()
                 else -> text
             }
@@ -168,9 +189,9 @@ fun createConvertFileTool(context: Context): Tool = Tool(
             return@Tool listOf(UIMessagePart.Text("OK: $toFormat (${outFile.absolutePath})"))
         }
 
-        // ── Image conversions (Kotlin Bitmap) ──
-        val imageFormats = setOf("png", "jpg", "webp")
-        if (fromFormat in imageFormats && toFormat in imageFormats) {
+        // ── Image conversions (Kotlin Bitmap + native formats) ──
+        val imageFormats = setOf("png", "jpg", "webp", "bmp", "gif")
+        if (fromFormat in imageFormats && toFormat in imageFormats && fromFormat != toFormat) {
             val imgFile = inputFile ?: error("Image file required")
             val bitmap = BitmapFactory.decodeFile(imgFile.absolutePath)
                 ?: error("Cannot decode image: $imgFile")
@@ -182,12 +203,46 @@ fun createConvertFileTool(context: Context): Tool = Tool(
             } else bitmap
             val outFile = if (outputPath.isNotBlank()) File(outputPath)
             else File(downloadDir, "${imgFile.nameWithoutExtension}.$toFormat")
-            val fmt = when (toFormat) { "jpg" -> Bitmap.CompressFormat.JPEG; "webp" -> Bitmap.CompressFormat.WEBP
-                else -> Bitmap.CompressFormat.PNG }
+            val fmt = when (toFormat) {
+                "jpg", "jpeg" -> Bitmap.CompressFormat.JPEG
+                "webp" -> Bitmap.CompressFormat.WEBP
+                else -> Bitmap.CompressFormat.PNG
+            }
             outFile.outputStream().use { scaled.compress(fmt, quality.coerceIn(1, 100), it) }
             if (scaled !== bitmap) scaled.recycle()
             bitmap.recycle()
             return@Tool listOf(UIMessagePart.Text("OK: ${imgFile.name} → ${outFile.absolutePath}"))
+        }
+
+        // ── Image → PDF (using Android PdfDocument API) ──
+        if (fromFormat in imageFormats && toFormat == "pdf") {
+            val imgFile = inputFile ?: error("Image file required")
+            val bitmap = BitmapFactory.decodeFile(imgFile.absolutePath)
+                ?: error("Cannot decode image: $imgFile")
+            val outFile = if (outputPath.isNotBlank()) File(outputPath)
+            else File(downloadDir, "${imgFile.nameWithoutExtension}.pdf")
+            val document = PdfDocument()
+            val pageInfo = PageInfo.Builder(bitmap.width, bitmap.height, 1).create()
+            val page = document.startPage(pageInfo)
+            page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+            document.finishPage(page)
+            FileOutputStream(outFile).use { document.writeTo(it) }
+            document.close()
+            bitmap.recycle()
+            return@Tool listOf(UIMessagePart.Text("OK: ${imgFile.name} → pdf (${outFile.absolutePath})"))
+        }
+
+        // ── GIF → frames (extract static frame) ──
+        if (fromFormat == "gif" && toFormat == "frames") {
+            val imgFile = inputFile ?: error("Image file required")
+            val baseName = imgFile.nameWithoutExtension
+            val bitmap = BitmapFactory.decodeFile(imgFile.absolutePath)
+                ?: return@Tool listOf(UIMessagePart.Text(
+                    "Cannot decode GIF: $imgFile. GIF frame extraction requires Pillow for multi-frame support."))
+            val outFile = File(downloadDir, "${baseName}_frame001.png")
+            FileOutputStream(outFile).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+            return@Tool listOf(UIMessagePart.Text("OK: extracted 1 frame from GIF (${outFile.absolutePath})"))
         }
 
         // ── OCR hint ──
@@ -202,7 +257,7 @@ fun createConvertFileTool(context: Context): Tool = Tool(
         val py = Python.getInstance()
         val workdir = context.filesDir.absolutePath
 
-        // 如果是 input_text 模式，写到临时文件
+        // If input_text mode, write to temp file
         if (inputFile == null && inputText.isNotBlank()) {
             val tempFile = File(downloadDir, "convert_input.$fromFormat")
             tempFile.writeText(inputText)
@@ -212,7 +267,6 @@ fun createConvertFileTool(context: Context): Tool = Tool(
         val convertModule = try {
             py.getModule("convert")
         } catch (_: Exception) {
-            // Module not loaded, use executor
             null
         }
 

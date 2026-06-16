@@ -15,18 +15,21 @@ import java.io.File
  */
 fun createAssetTool(saveDir: String): Tool = Tool(
     name = "create_asset",
-    description = """
-        Generate visual content and save it as a file on the device.
-        Types:
-        - html_page: Full HTML page with CSS/JS. BEST for web design, slides, portfolios, dashboards.
-        - diagram: Flowchart/sequence diagram, rendered as Mermaid HTML page.
-        - chart: Quick SVG bar/line/pie chart from numeric data. Basic styling, suitable for fast previews.
-        - qrcode: QR code from text/URL → .svg
-        - color_scheme: Color palette from a base color using color theory math → .svg.
-          AI cannot easily replicate this — use this type for color schemes.
-        - code_screenshot: Carbon-style code screenshot → .svg
-        - timeline: Basic SVG timeline from chronological events.
-    """.trimIndent().replace("\n", " "),
+    description = "Generate visual content saved as a file on the device.\n\n" +
+        "Use this tool when you need to create visual content:\n" +
+        "- html_page: Full HTML page with CSS/JS — web design, slides, dashboards\n" +
+        "- diagram: Flowchart/sequence diagram as Mermaid HTML\n" +
+        "- chart: SVG bar/line/pie chart from numeric data\n" +
+        "- qrcode: QR code from text/URL\n" +
+        "- color_scheme: Color palette from base color\n" +
+        "- code_screenshot: Carbon-style code screenshot\n" +
+        "- timeline: SVG timeline from chronological events\n\n" +
+        "When NOT to use:\n" +
+        "- Editing existing files (use file tool)\n" +
+        "- Data processing (use data_process or convert_file)\n\n" +
+        "Args:\n" +
+        "- type: Asset type (required)\n" +
+        "- Other params vary by type; see per-param descriptions",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -141,7 +144,7 @@ fun createAssetTool(saveDir: String): Tool = Tool(
     execute = { args ->
         val obj = args.jsonObject
         val type = obj["type"]?.jsonPrimitive?.contentOrNull ?: error("type required")
-        val dir = File(saveDir).takeIf { it.exists() } ?: File("/storage/emulated/0/Download")
+        val dir = File(saveDir).also { it.mkdirs() }
         val ts = System.currentTimeMillis()
 
         val (filename, content) = when (type) {

@@ -1,163 +1,366 @@
-import json, sys, os, csv, re, base64
+"""
+File conversion engine for Rikkahub.
+No C extension dependencies — pure Python only.
+
+Supported conversions:
+  txt <-> md <-> html (native)
+  txt/md/html -> docx
+  pdf -> txt, pdf -> md, pdf -> docx (via pypdf)
+  docx -> txt, docx -> md
+  xlsx <-> csv, xlsx/json <-> csv/json/xlsx
+  pptx -> txt, pptx -> md
+  zip -> extract
+  txt/md -> pdf (via fpdf2)
+  epub -> txt, epub -> md
+  html -> markdown (via markdownify)
+  pdf -> merge (multiple PDFs into one)
+  pdf -> split (one file per page)
+  pdf -> images (extract embedded images, raw bytes)
+  docx -> images (extract embedded images, raw bytes)
+  url -> md (fetch webpage, convert to markdown)
+  csv -> table (pretty ASCII table via tabulate)
+
+Image conversions (bmp/gif <-> png/jpg/webp, image->pdf, gif->frames)
+are handled in Kotlin via Android native APIs.
+
+Returns: {'stdout': str, 'files': [str], 'error': str?}
+"""
+
+import json
+import sys
+import os
+import csv
+import zipfile
+import traceback
+from io import BytesIO
+
 
 def convert(input_path, input_text, from_format, to_format, output_dir):
-    """File conversion entry point. Returns {'stdout': str, 'files': [str]}"""
-    result = {'stdout': '', 'files': []}
+    result = {'stdout': '', 'files': [], 'error': None}
 
-    if from_format in ('txt',) and to_format in ('docx', 'html', 'md'):
-        text = open(input_path, 'r', encoding='utf-8').read() if input_path else input_text
+    try:
+        _text = lambda: _read_file(input_path, input_text)
+        _out = lambda ext, fallback='output': _outpath(input_path, ext, output_dir, fallback)
 
-    if from_format == 'txt' and to_format == 'docx':
-        from docx import Document
-        doc = Document()
-        for para in text.split('\n\n'):
-            p = para.strip()
-            if not p: continue
-            if p.startswith('# '): doc.add_heading(p[2:], level=1)
-            elif p.startswith('## '): doc.add_heading(p[3:], level=2)
-            elif p.startswith('### '): doc.add_heading(p[4:], level=3)
-            else: doc.add_paragraph(p)
-        out = os.path.join(output_dir, os.path.basename(input_path or 'output').rsplit('.',1)[0] + '.docx')
-        doc.save(out)
-        result['files'].append(out)
-        result['stdout'] = f'Saved: {out}'
+        # ── DOCX conversions ──
+        if from_format in ('txt', 'md', 'html') and to_format == 'docx':
+            from docx import Document
+            from bs4 import BeautifulSoup
+            text = _text()
+            doc = Document()
+            if from_format == 'html':
+                soup = BeautifulSoup(text, 'html.parser')
+                for el in soup.find_all(['h1','h2','h3','h4','h5','h6','p','li']):
+                    txt = el.get_text(strip=True)
+                    if not txt: continue
+                    tag = el.name
+                    if tag == 'h1': doc.add_heading(txt, level=1)
+                    elif tag == 'h2': doc.add_heading(txt, level=2)
+                    elif tag in ('h3','h4','h5','h6'): doc.add_heading(txt, level=int(tag[1]))
+                    elif tag == 'li': doc.add_paragraph(txt, style='List Bullet')
+                    else: doc.add_paragraph(txt)
+            else:
+                for para in text.split('\n\n'):
+                    p = para.strip()
+                    if not p: continue
+                    if p.startswith('# '): doc.add_heading(p[2:], level=1)
+                    elif p.startswith('## '): doc.add_heading(p[3:], level=2)
+                    elif p.startswith('### '): doc.add_heading(p[4:], level=3)
+                    else: doc.add_paragraph(p)
+            out = _out('docx')
+            doc.save(out)
+            result['files'].append(out)
+            result['stdout'] = f'Saved: {out}'
 
-    elif from_format == 'md' and to_format == 'docx':
-        from docx import Document
-        doc = Document()
-        text = open(input_path, 'r', encoding='utf-8').read() if input_path else input_text
-        for line in text.split('\n'):
-            s = line.strip()
-            if s.startswith('# '): doc.add_heading(s[2:], level=1)
-            elif s.startswith('## '): doc.add_heading(s[3:], level=2)
-            elif s.startswith('### '): doc.add_heading(s[4:], level=3)
-            elif s.startswith('- ') or s.startswith('* '): doc.add_paragraph(s, style='List Bullet')
-            else: doc.add_paragraph(s)
-        out = os.path.join(output_dir, os.path.basename(input_path or 'output').rsplit('.',1)[0] + '.docx')
-        doc.save(out)
-        result['files'].append(out)
-        result['stdout'] = f'Saved: {out}'
-
-    elif from_format == 'pdf' and to_format in ('txt', 'md'):
-        from pypdf import PdfReader
-        reader = PdfReader(input_path)
-        text = []
-        for page in reader.pages:
-            t = page.extract_text()
-            if t: text.append(t)
-        output = '\n\n'.join(text)
-        if to_format == 'md':
-            output = '# Extracted from PDF\n\n' + output
-        result['stdout'] = output
-
-    elif from_format == 'docx' and to_format in ('txt', 'md'):
-        from docx import Document
-        doc = Document(input_path)
-        lines = []
-        for p in doc.paragraphs:
-            t = p.text.strip()
-            if not t: continue
+        # ── PDF extraction (pypdf) ──
+        elif from_format == 'pdf' and to_format in ('txt', 'md'):
+            from pypdf import PdfReader
+            reader = PdfReader(input_path)
+            pages = [page.extract_text() or '' for page in reader.pages]
+            output = '\n\n'.join(pages)
             if to_format == 'md':
-                style = p.style.name.lower() if p.style else ''
-                if 'heading 1' in style: lines.append(f'# {t}')
-                elif 'heading 2' in style: lines.append(f'## {t}')
-                elif 'heading 3' in style: lines.append(f'### {t}')
-                elif 'list' in style: lines.append(f'- {t}')
+                output = '# Extracted from PDF\n\n' + output
+            result['stdout'] = output
+
+        elif from_format == 'pdf' and to_format == 'docx':
+            from pypdf import PdfReader
+            from docx import Document
+            doc = Document()
+            reader = PdfReader(input_path)
+            for page in reader.pages:
+                    text = page.extract_text() or ''
+                    for line in text.split('\n'):
+                        if line.strip():
+                            doc.add_paragraph(line.strip())
+            out = _out('docx')
+            doc.save(out)
+            result['files'].append(out)
+            result['stdout'] = f'Saved: {out}'
+
+        # ── DOCX extraction ──
+        elif from_format == 'docx' and to_format in ('txt', 'md'):
+            from docx import Document
+            doc = Document(input_path)
+            lines = []
+            for p in doc.paragraphs:
+                t = p.text.strip()
+                if not t: continue
+                if to_format == 'md':
+                    style = p.style.name.lower() if p.style else ''
+                    if 'heading 1' in style: lines.append(f'# {t}')
+                    elif 'heading 2' in style: lines.append(f'## {t}')
+                    elif 'heading 3' in style: lines.append(f'### {t}')
+                    elif 'list' in style: lines.append(f'- {t}')
+                    else: lines.append(t)
                 else: lines.append(t)
-            else:
-                lines.append(t)
-        result['stdout'] = '\n'.join(lines)
+            result['stdout'] = '\n'.join(lines)
 
-    elif from_format == 'xlsx':
-        import openpyxl
-        wb = openpyxl.load_workbook(input_path)
-        if to_format == 'csv':
-            ws = wb.active
-            out = os.path.join(output_dir, os.path.basename(input_path).rsplit('.',1)[0] + '.csv')
-            with open(out, 'w', newline='', encoding='utf-8') as f:
-                w = csv.writer(f)
-                for row in ws.iter_rows(values_only=True):
-                    w.writerow(row)
-            result['files'].append(out)
-            result['stdout'] = f'Saved: {out}'
-        elif to_format == 'json':
-            ws = wb.active
-            headers = [c.value for c in ws[1]]
-            data = []
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                data.append({headers[i]: row[i] for i in range(len(headers)) if i < len(headers)})
-            result['stdout'] = json.dumps(data, ensure_ascii=False)
-
-    elif from_format == 'csv':
-        if to_format == 'json':
-            with open(input_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                data = list(reader)
-            result['stdout'] = json.dumps(data, ensure_ascii=False)
-        elif to_format == 'xlsx':
+        # ── Spreadsheet ──
+        elif from_format == 'xlsx':
             import openpyxl
-            wb = openpyxl.Workbook()
+            wb = openpyxl.load_workbook(input_path)
             ws = wb.active
-            with open(input_path, 'r', encoding='utf-8') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    ws.append(row)
-            out = os.path.join(output_dir, os.path.basename(input_path).rsplit('.',1)[0] + '.xlsx')
-            wb.save(out)
-            result['files'].append(out)
-            result['stdout'] = f'Saved: {out}'
+            if to_format == 'csv':
+                out = _out('csv')
+                with open(out, 'w', newline='', encoding='utf-8') as f:
+                    csv.writer(f).writerows(ws.iter_rows(values_only=True))
+                result['files'].append(out)
+                result['stdout'] = f'Saved: {out}'
+            elif to_format == 'json':
+                headers = [c.value for c in ws[1]]
+                data = [{headers[i]: row[i] for i in range(len(headers)) if i < len(headers)}
+                        for row in ws.iter_rows(min_row=2, values_only=True)]
+                result['stdout'] = json.dumps(data, ensure_ascii=False, indent=2)
 
-    elif from_format == 'json':
-        if to_format == 'csv':
-            data = json.load(open(input_path, 'r', encoding='utf-8'))
+        elif from_format == 'csv':
+            if to_format == 'json':
+                with open(input_path, encoding='utf-8') as f:
+                    result['stdout'] = json.dumps(list(csv.DictReader(f)), ensure_ascii=False, indent=2)
+            elif to_format == 'xlsx':
+                import openpyxl
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                with open(input_path, encoding='utf-8') as f:
+                    for row in csv.reader(f): ws.append(row)
+                out = _out('xlsx')
+                wb.save(out)
+                result['files'].append(out)
+                result['stdout'] = f'Saved: {out}'
+
+        elif from_format == 'json':
+            data = json.load(open(input_path, encoding='utf-8'))
             if isinstance(data, dict): data = [data]
-            if not data: raise ValueError('Empty JSON data')
-            headers = list(data[0].keys())
-            out = os.path.join(output_dir, os.path.basename(input_path).rsplit('.',1)[0] + '.csv')
-            with open(out, 'w', newline='', encoding='utf-8') as f:
-                w = csv.writer(f)
-                w.writerow(headers)
-                for row in data:
-                    w.writerow([row.get(h, '') for h in headers])
+            if not data: raise ValueError('Empty JSON')
+            if to_format == 'csv':
+                headers = list(data[0].keys())
+                out = _out('csv')
+                with open(out, 'w', newline='', encoding='utf-8') as f:
+                    w = csv.writer(f)
+                    w.writerow(headers)
+                    for row in data: w.writerow([row.get(h, '') for h in headers])
+                result['files'].append(out)
+                result['stdout'] = f'Saved: {out}'
+            elif to_format == 'xlsx':
+                import openpyxl
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                headers = list(data[0].keys())
+                ws.append(headers)
+                for row in data: ws.append([row.get(h, '') for h in headers])
+                out = _out('xlsx')
+                wb.save(out)
+                result['files'].append(out)
+                result['stdout'] = f'Saved: {out}'
+
+        # ── PowerPoint ──
+        elif from_format == 'pptx' and to_format in ('txt', 'md'):
+            from pptx import Presentation
+            prs = Presentation(input_path)
+            lines = []
+            for i, slide in enumerate(prs.slides, 1):
+                lines.append(f'## Slide {i}' if to_format == 'md' else f'--- Slide {i} ---')
+                for shape in slide.shapes:
+                    if hasattr(shape, 'text') and shape.text.strip():
+                        lines.append(shape.text.strip())
+            result['stdout'] = '\n\n'.join(lines)
+
+        # ── ZIP extraction ──
+        elif from_format == 'zip':
+            extract_dir = os.path.join(output_dir, os.path.basename(input_path).rsplit('.',1)[0] + '_extracted')
+            with zipfile.ZipFile(input_path, 'r') as z:
+                z.extractall(extract_dir)
+            files = [os.path.join(root, f) for root, _, fnames in os.walk(extract_dir) for f in fnames]
+            result['stdout'] = f'Extracted to {extract_dir} ({len(files)} files)'
+            result['files'] = files
+
+        # ── Text → PDF (via fpdf2, lightweight) ──
+        elif from_format in ('txt', 'md') and to_format == 'pdf':
+            from fpdf import FPDF
+            text = _text()
+            pdf = FPDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.add_page()
+            pdf.set_font('Helvetica', size=11)
+            for line in text.split('\n'):
+                s = line.strip()
+                if not s:
+                    pdf.ln(5)
+                    continue
+                if from_format == 'md' and s.startswith('#'):
+                    level = min(len(s.split(' ')[0]), 4)
+                    pdf.set_font('Helvetica', size=[24, 18, 14, 12][level-1])
+                    pdf.multi_cell(0, 10, s.lstrip('#').strip())
+                    pdf.set_font('Helvetica', size=11)
+                else:
+                    pdf.multi_cell(0, 7, s)
+            out = _out('pdf')
+            pdf.output(out)
             result['files'].append(out)
             result['stdout'] = f'Saved: {out}'
 
-    elif from_format == 'pptx' and to_format in ('txt', 'md'):
-        from pptx import Presentation
-        prs = Presentation(input_path)
-        lines = []
-        for i, slide in enumerate(prs.slides, 1):
-            if to_format == 'md':
-                lines.append(f'## Slide {i}')
+        # ── HTML → Markdown (via markdownify) ──
+        elif from_format in ('html',) and to_format == 'md':
+            from markdownify import markdownify as md
+            html = _text()
+            md_text = md(html, heading_style='ATX')
+            out = _out('md')
+            with open(out, 'w', encoding='utf-8') as f:
+                f.write(md_text)
+            result['files'].append(out)
+            result['stdout'] = f'Saved: {out}'
+
+        # ── EPUB extraction ──
+        elif from_format == 'epub' and to_format in ('txt', 'md'):
+            import ebooklib
+            from ebooklib import epub
+            from bs4 import BeautifulSoup
+            book = epub.read_epub(input_path)
+            lines = []
+            title = book.get_metadata('DC', 'title')
+            if title:
+                lines.append(f'# {title[0][0]}\n' if to_format == 'md' else f'{title[0][0]}\n{"="*len(title[0][0])}\n')
+            for item in book.get_items():
+                if item.get_type() == ebooklib.ITEM_DOCUMENT and item.get_body_content():
+                    text = BeautifulSoup(item.get_body_content(), 'html.parser').get_text(strip=True)
+                    if text: lines.append(text)
+            result['stdout'] = '\n\n'.join(lines)
+
+        # ── PDF merge ──
+        elif from_format in ('pdf',) and to_format == 'merge' and input_text:
+            paths = [p.strip() for p in input_text.split(',') if p.strip()]
+            if not paths:
+                raise ValueError('Provide comma-separated PDF paths in input_text')
+            from pypdf import PdfWriter
+            merger = PdfWriter()
+            for p in paths:
+                merger.append(p)
+            out = os.path.join(output_dir, 'merged.pdf')
+            merger.write(out)
+            merger.close()
+            result['files'].append(out)
+            result['stdout'] = f'Merged {len(paths)} PDFs into: {out}'
+
+        # ── PDF split ──
+        elif from_format == 'pdf' and to_format == 'split':
+            from pypdf import PdfReader, PdfWriter
+            reader = PdfReader(input_path)
+            base = os.path.basename(input_path).rsplit('.',1)[0]
+            for i, page in enumerate(reader.pages, 1):
+                w = PdfWriter()
+                w.add_page(page)
+                out = os.path.join(output_dir, f'{base}_p{i:03d}.pdf')
+                w.write(out)
+                w.close()
+                result['files'].append(out)
+            result['stdout'] = f'Split {len(reader.pages)} pages'
+
+        # ── PDF extract images (no Pillow needed — save raw bytes) ──
+        elif from_format == 'pdf' and to_format == 'images':
+            from pypdf import PdfReader
+            reader = PdfReader(input_path)
+            base = os.path.basename(input_path).rsplit('.',1)[0]
+            count = 0
+            for page_num, page in enumerate(reader.pages, 1):
+                for img_idx, img in enumerate(page.images):
+                    try:
+                        ext = img.name.rsplit('.',1)[-1] if '.' in img.name else 'png'
+                        out = os.path.join(output_dir, f'{base}_p{page_num}_img{img_idx+1}.{ext}')
+                        with open(out, 'wb') as f:
+                            f.write(img.data)
+                        result['files'].append(out)
+                        count += 1
+                    except Exception:
+                        pass
+            result['stdout'] = f'Extracted {count} images from {len(reader.pages)} pages'
+
+        # ── DOCX extract images (no Pillow needed — save raw bytes from zip) ──
+        elif from_format == 'docx' and to_format == 'images':
+            base = os.path.basename(input_path).rsplit('.',1)[0]
+            count = 0
+            with zipfile.ZipFile(input_path) as z:
+                for name in z.namelist():
+                    if name.startswith('word/media/'):
+                        try:
+                            data = z.read(name)
+                            ext = name.rsplit('.',1)[-1]
+                            out = os.path.join(output_dir, f'{base}_{os.path.basename(name)}')
+                            with open(out, 'wb') as f:
+                                f.write(data)
+                            result['files'].append(out)
+                            count += 1
+                        except Exception:
+                            pass
+            result['stdout'] = f'Extracted {count} images from docx'
+
+        # ── URL → Markdown ──
+        elif from_format == 'url' and to_format == 'md':
+            import requests
+            from markdownify import markdownify as md
+            url = input_text.strip() if input_text else (input_path or '')
+            if not url:
+                raise ValueError('Provide URL in input_text')
+            resp = requests.get(url, timeout=30)
+            resp.raise_for_status()
+            md_text = md(resp.text, heading_style='ATX')
+            out = os.path.join(output_dir, 'webpage.md')
+            with open(out, 'w', encoding='utf-8') as f:
+                f.write(md_text)
+            result['files'].append(out)
+            result['stdout'] = f'Fetched {url} → markdown ({len(md_text)} chars)'
+
+        # ── CSV → table ──
+        elif from_format == 'csv' and to_format == 'table':
+            from tabulate import tabulate
+            with open(input_path, 'r', encoding='utf-8') as f:
+                rows = list(csv.reader(f))
+            if rows:
+                table = tabulate(rows[1:], headers=rows[0], tablefmt='pipe', numalign='left')
             else:
-                lines.append(f'--- Slide {i} ---')
-            for shape in slide.shapes:
-                if hasattr(shape, 'text') and shape.text.strip():
-                    lines.append(shape.text.strip())
-        result['stdout'] = '\n\n'.join(lines)
+                table = '(empty)'
+            result['stdout'] = table
 
-    elif from_format == 'zip':
-        import zipfile
-        extract_dir = os.path.join(output_dir, os.path.basename(input_path).rsplit('.',1)[0] + '_extracted')
-        with zipfile.ZipFile(input_path, 'r') as z:
-            z.extractall(extract_dir)
-        files = []
-        for root, dirs, fnames in os.walk(extract_dir):
-            for fname in fnames:
-                files.append(os.path.join(root, fname))
-        result['stdout'] = f'Extracted to {extract_dir} ({len(files)} files)'
-        result['files'] = files
+        else:
+            raise ValueError(f'Conversion from {from_format} to {to_format} not supported')
 
-    else:
-        raise ValueError(f'Conversion from {from_format} to {to_format} not supported')
+    except Exception as e:
+        result['error'] = f'{type(e).__name__}: {str(e)}'
+        result['stdout'] = ''
 
     return json.dumps(result)
 
 
-if __name__ == '__main__':
-    input_path = sys.argv[1] if len(sys.argv) > 1 else ''
-    input_text = sys.argv[2] if len(sys.argv) > 2 else ''
-    from_format = sys.argv[3] if len(sys.argv) > 3 else 'txt'
-    to_format = sys.argv[4] if len(sys.argv) > 4 else 'txt'
-    output_dir = sys.argv[5] if len(sys.argv) > 5 else '/storage/emulated/0/Download'
-    print(convert(input_path, input_text, from_format, to_format, output_dir))
+def _read_file(path, text):
+    if path:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    return text or ''
+
+
+def _outpath(input_path, ext, output_dir, fallback='output'):
+    base = os.path.basename(input_path).rsplit('.', 1)[0] if input_path else fallback
+    return os.path.join(output_dir, f'{base}.{ext}')
+
+
+if __name__ == '__main__' and len(sys.argv) > 1:
+    args = [sys.argv[i] if len(sys.argv) > i else '' for i in range(1, 7)]
+    print(convert(*args, '/storage/emulated/0/Download' if len(sys.argv) < 7 else sys.argv[6]))

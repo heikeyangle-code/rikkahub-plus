@@ -39,6 +39,11 @@ data class Assistant(
     val localTools: List<LocalToolOption> = listOf(
         LocalToolOption.TimeInfo,
         LocalToolOption.FileTools,
+        LocalToolOption.ShellTools,
+        LocalToolOption.TaskTools,
+        LocalToolOption.Calculator,
+        LocalToolOption.AskUser,
+        LocalToolOption.Clipboard,
     ),
     val background: String? = null,
     val backgroundOpacity: Float = 1.0f,
@@ -50,19 +55,22 @@ data class Assistant(
     val allowConversationPromptInjection: Boolean = false, // 允许对话单独绑定提示词注入
     val tavernData: TavernCharacterData? = null,       // 酒馆角色卡结构化数据（从PNG/JSON导入时填充）
     val enableParallelToolExecution: Boolean = true,    // 并行执行多个工具调用
-    val enableSubAgent: Boolean = false,                // 启用子Agent（AI可委托子任务）
+    val enableSubAgent: Boolean = true,                 // 启用子Agent（AI可委托子任务）
     val enableAutoFixCi: Boolean = false,               // GitHub 工具自动修复 CI
     val enableCiTimeout: Int = 120,                     // CI 工具操作超时(秒)，默认 120
     val subAgentModelId: Uuid? = null,                  // 子Agent模型（null=使用父模型）
     val toolRecurringLimit: Int = 8,                    // 单批同工具调用上限
-    val subAgentMaxSteps: Int = 8,                      // 子Agent最大步骤数
+    val subAgentMaxSteps: Int = 12,                      // 子Agent最大步骤数
     val totalStepsLimit: Int = 256,                     // 总工具调用轮数上限
-    val toolExecTimeout: Int = 60,                      // 单工具执行超时(秒)
+    val toolExecTimeout: Int = 120,                     // 单工具执行超时(秒)
     val jsTimeout: Int = 15,                            // JavaScript引擎超时(秒)
-    val shellTimeout: Int = 30,                         // Shell命令超时(秒)
+    val shellTimeout: Int = 60,                         // Shell命令超时(秒)
     val enableKnowledgeBase: Boolean = false,           // 启用知识库检索
     val talkativeness: Float = 0.5f,                    // 群聊发言倾向 (0-1)，酒馆对齐
     val embeddingModelId: Uuid? = null,                  // 专用embedding模型（null=使用聊天模型）
+    val enableAutoCompact: Boolean = true,               // 自动压缩对话历史（token过多时）
+    val enableAutoMemoryExtract: Boolean = true,          // [新增] 自动从对话提取记忆（独立开关，不依赖 enableMemory）
+    val autoMemoryExtractInterval: Int = 5,                // 每 N 轮对话提取一次记忆
 )
 
 @Serializable
