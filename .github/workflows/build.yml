@@ -45,7 +45,11 @@ jobs:
           pip download --no-deps --no-binary :all: "kintaiyi" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "taixuanshifa" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "jingjue" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "ichingshifa" -d /tmp/pypi-offline 2>&1 | tail -3
+          # ichingshifa: PyPI proxy 给的是残缺版, 从 GitHub 源码拉完整版
+          git clone --depth 1 https://github.com/kentang2017/ichingshifa.git /tmp/ichingshifa_src 2>&1 | tail -3
+          cd /tmp/ichingshifa_src && tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz src/ichingshifa 2>&1
+          cd /tmp && rm -rf /tmp/ichingshifa_src
+          echo "ichingshifa tarball ready"
           # Rename files to match build.gradle.kts expectations (hyphen→underscore, version pin)
           mkdir -p app/offline_pkgs
           for f in /tmp/pypi-offline/*.tar.gz; do
