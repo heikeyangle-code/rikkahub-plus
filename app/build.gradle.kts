@@ -33,7 +33,7 @@ chaquopy {
 
             // === 命理计算引擎 ===
             install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
-            install(file("offline_pkgs/sxtwl-2.0.6.tar.gz").absolutePath)
+            install(file("offline_pkgs/sxtwl-src.tar.gz").absolutePath)
             install("cnlunar")
             install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // ⭐254 周易筮法/六爻
             install(file("offline_pkgs/kinliuren-src.tar.gz").absolutePath) // 大六壬
@@ -42,7 +42,7 @@ chaquopy {
             install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // ⭐6 荆诀（北大简先秦占卜）
             install("bidict")            // bazi_china(ganzhi/datas/common/bazi) 所需
             install("colorama")           // china-testing/bazi 所需
-            install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
+            install(file("offline_pkgs/pyswisseph-src.tar.gz").absolutePath)
             install(file("offline_pkgs/kinqimen-patched.tar.gz").absolutePath) // ⭐119 奇门遁甲
             install(file("offline_pkgs/tarot-0.0.4.tar.gz").absolutePath) // 真塔罗 78张牌+牌义
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
