@@ -192,7 +192,7 @@ class GenerationHandler(
                 appendLine("【印度/吠陀】")
                 appendLine("吠陀占星(南印/北印盘) → jhora | 也可是 stellium.visualization.vedic")
                 appendLine("【塔罗/其他】")
-                appendLine("塔罗(78张牌+牌义) → tarot")
+                appendLine("塔罗(78张韦特+36雷诺曼) → arcanite | 抽牌+d=TarotDeck.load(system='tarot')")
                 appendLine("【农历/干支/天文】")
                 appendLine("黄历/择日/建除/太岁/吉神 → cnlunar | lunar_python")
                 appendLine("公历农历转换 → lunar_python | cnlunar")

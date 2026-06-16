@@ -60,10 +60,51 @@ jobs:
             dir="${sdist%.tar.gz}"
             tar xfz "$sdist" && rm "$sdist"
             find "$dir" -name '*.so' -delete
+            # pyswisseph: 禁用系统 libswe 检测(CI 上是 x86_64 版), 强制用内置源码编译 ARM64
+            if [ "$pkg_name" = "pyswisseph" ]; then
+              sed -i 's/swe_detection = True/swe_detection = False/' "$dir/setup.py"
+              sed -i 's/sqlite3_detection = True/sqlite3_detection = False/' "$dir/setup.py"
+              echo "Patched pyswisseph: swe_detection=False, sqlite3_detection=False"
+            fi
+            # sxtwl: 清理预置 egg-info(干扰 pip), 删除 distutils 弃用代码防止 NDK 失效
+            if [ "$pkg_name" = "sxtwl" ]; then
+              rm -rf "$dir/sxtwl.egg-info"
+              sed -i 's/from distutils import ccompiler//' "$dir/setup.py"
+              sed -i 's/if ccompiler.get_default_compiler() == "msvc":/if platform.system() == "Windows":/' "$dir/setup.py"
+              echo "Patched sxtwl: cleaned egg-info, replaced distutils"
+            fi
             tar czf "/tmp/pypi-offline/${sdist}" "$dir"
             rm -rf "$dir"
             cd ${GITHUB_WORKSPACE}
           done
+
+          # arcanite: 塔罗引擎, 删掉图片(16MB)+LLM+PDF 只留牌义JSON+抽牌引擎
+          pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1 | tail -1
+          cd /tmp/pypi-offline
+          sdist=$(ls arcanite-*.tar.gz | head -1)
+          dir="${sdist%.tar.gz}"
+          tar xfz "$sdist" && rm "$sdist"
+          rm -rf "$dir/src/arcanite/images"
+          rm -rf "$dir/src/arcanite/interpretation"
+          rm -rf "$dir/src/arcanite/render"
+          rm -rf "$dir/src/arcanite/templates"
+          rm -rf "$dir/src/arcanite/prompts"
+          rm -f "$dir/src/arcanite/cards/update_card_positions.py"
+          # 用 printf 写 __init__.py，避免 YAML 解析 """ 报错
+          printf '%%s\n' '"""Arcanite - A Tarot Reading Engine (stripped: no LLM/PDF/images)"""' \
+            '__version__ = "0.2.0"' \
+            'from arcanite.core import (' \
+            '    Card, CardInterpretation, Deck, DeckConfig, DrawnCard,' \
+            '    Orientation, QuestionType, Reading, ReadingConfig,' \
+            '    SpreadDefinition, SpreadLoader,' \
+            ')' \
+            'from arcanite.reading import ReadingEngine, create_reading' \
+            'from arcanite.core.deck import TarotDeck, TarotCard, load_tarot_deck' \
+            > "$dir/src/arcanite/__init__.py"
+          tar czf "/tmp/pypi-offline/arcanite-stripped.tar.gz" "$dir"
+          rm -rf "$dir"
+          cd ${GITHUB_WORKSPACE}
+          echo "arcanite stripped ready"
 
           # Rename files to match build.gradle.kts expectations (hyphen→underscore, version pin)
           mkdir -p app/offline_pkgs
