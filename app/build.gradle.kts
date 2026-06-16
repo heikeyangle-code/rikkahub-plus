@@ -41,13 +41,12 @@ chaquopy {
             install("taixuanshifa")
             install("jingjue")
             install("colorama")           // china-testing/bazi 所需
-            install(file("offline_pkgs/timezonefinder-8.2.4.tar.gz").absolutePath)
             install("sxtwl")              // C扩展，kinqimen + bazi_china 共用
             install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
             install("kinqimen")           // ⭐119 奇门遁甲
             install("pytarot")            // ⭐82  塔罗牌（纯Python）
             install("kerykeion")          // ⭐655 西洋占星（纯Python壳，等pyswisseph）
-            install("stellium")           // ⭐40  西洋占星增强
+            install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)
             install("flatlib")            // ⭐386 传统占星（宫位/相位/尊贵）
             install("meihua-yi")           // ⭐1  梅花易数起卦（纯Python）
             install("PyJHora")             // ⭐188 印度占星(吠陀)全套

@@ -30,7 +30,7 @@ jobs:
           pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "sxtwl" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pyswisseph" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "timezonefinder" -d /tmp/pypi-offline 2>&1 | tail -3
+          # timezonefinder 8.x needs numpy>=2 which isn't on proxy; use 6.0.1 from proxy directly
           mkdir -p app/offline_pkgs
           cp /tmp/pypi-offline/* app/offline_pkgs/
           echo "Offline packages:" && ls app/offline_pkgs/
@@ -68,6 +68,20 @@ jobs:
           cd /tmp && tar czf /tmp/pypi-offline/kinwangji-patched.tar.gz kinwangji_src
           cp /tmp/pypi-offline/kinwangji-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
           echo "Added kinwangji-patched.tar.gz"
+      - name: Patch stellium (relax timezonefinder pin)
+        run: |
+          pip download --no-deps --no-binary :all: stellium -d /tmp/st_patch
+          cd /tmp/st_patch
+          tar xfz stellium-*.tar.gz
+          rm stellium-*.tar.gz
+          cd stellium-*
+          sed -i 's/timezonefinder>=6.5.0/timezonefinder>=6.0.0/' pyproject.toml
+          echo "Patched stellium:"
+          grep "timezonefinder" pyproject.toml
+          cd /tmp/st_patch && tar czf /tmp/pypi-offline/stellium-patched.tar.gz stellium-*
+          cp /tmp/pypi-offline/stellium-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+          rm -rf /tmp/st_patch
+          echo "Added stellium-patched.tar.gz"
       - uses: actions/cache@v4
         with:
           path: |
