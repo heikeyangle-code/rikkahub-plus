@@ -855,24 +855,6 @@ private suspend fun executeToolCall(
                 }
             }
 
-            // Pre-tool check via AgentEventBus (SafetyHook — blocking with reply)
-            // 只对 execute_command 走完整检查流程，其他工具直接放行
-            val allowed = if (toolDef.name == "execute_command") {
-                val reply = kotlinx.coroutines.CompletableDeferred<Boolean>()
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
-                        me.rerere.rikkahub.data.ai.listener.AgentEvent.PreToolCheck(toolDef, args, reply)
-                    )
-                    reply.await()
-                }
-            } else true
-            if (!allowed) {
-                return tool.copy(output = listOf(UIMessagePart.Text(
-                    json.encodeToString(buildJsonObject { put("error", JsonPrimitive("Tool blocked by safety check")) })
-                )))
-            }
-
-            // ── PRE_TOOL_USE hook ──
             runCatching {
                 HookRegistry.getHooks(HookEvent.PRE_TOOL_USE).forEach { hook ->
                     when (val hookResult = hook.execute(toolDef, args)) {
@@ -908,13 +890,6 @@ private suspend fun executeToolCall(
                 HookRegistry.getHooks(HookEvent.POST_TOOL_USE).forEach { hook ->
                     hook.execute(toolDef, args, result)
                 }
-            }
-
-            // Post-tool notification (fire-and-forget)
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                me.rerere.rikkahub.data.ai.listener.AgentEventBus.emit(
-                    me.rerere.rikkahub.data.ai.listener.AgentEvent.PostToolNotify(toolDef, args, result)
-                )
             }
 
             tool.copy(output = result)
