@@ -188,6 +188,7 @@ class GenerationHandler(
                 appendLine("日返月返/回归盘 → stellium.returns | 也可是 flatlib")
                 appendLine("合盘/比较盘/推运 → immanuel | 也可是 kerykeion synastry")
                 appendLine("日食月食/行星升降 → pyswisseph")
+                appendLine("✨ 星盘SVG可视化 → render_astrology_svg(theme随机) | 排完盘调用即出图")
                 appendLine("【印度/吠陀】")
                 appendLine("吠陀占星(南印/北印盘) → jhora | 也可是 stellium.visualization.vedic")
                 appendLine("【塔罗/其他】")

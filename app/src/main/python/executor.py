@@ -52,6 +52,7 @@ Available built-in functions (call these from your code):
   日返/月返/回归盘     →  stellium.returns.builder.ReturnBuilder  ← flatlib                 生日必填
   合盘/推运/比较盘     →  immanuel                   ← kerykeion synastry      双人生日必填
   日食月食/行星升降     →  pyswisseph                                            日期即可
+  🌟 生成星盘SVG图   →  render_astrology_svg()                              生日必填（需经纬度）
 
   【印度/吠陀】
   印度占星/吠陀(南印/北印盘)  →  jhora                      ← stellium.visualization.vedic          生日必填
@@ -208,6 +209,52 @@ def update_setting(key, value):
         except Exception as e:
             return f"Bridge error: {e}"
     return "Bridge not available"
+
+
+# ============================================================
+# 渲染函数 — AI 排完盘后调用，生成可视化 SVG 图表
+# ============================================================
+
+def render_astrology_svg(name, year, month, day, hour, minute,
+                          lat=39.9, lng=116.4, city="", tz_str="Asia/Shanghai",
+                          chart_type="Natal", theme=None) -> str:
+    """
+    生成西洋占星星盘 SVG 文件。
+
+    参数：
+        chart_type: Natal(本命) Synastry(合盘) Composite Transit SolarReturn LunarReturn
+        theme: 留空则随机选择(推荐) / light / dark / classic / strawberry / dark-high-contrast / black-and-white
+
+    用法：
+        # 本命盘（随机主题）
+        render_astrology_svg("张三", 1990,6,15, 14,30, lat=39.9,lng=116.4, city="北京")
+
+        # 合盘（双人）
+        render_astrology_svg("张三&李四", 1990,6,15, 14,30, chart_type="Composite",
+            lat=39.9,lng=116.4, city="北京")
+
+        # 指定主题
+        render_astrology_svg(..., theme="strawberry", chart_type="Natal")
+
+    返回：SVG 文件路径（executor 自动检测并传回 App 显示）
+    """
+    import random
+    from kerykeion import AstrologicalSubject, KerykeionChartSVG
+
+    themes = ["light", "dark", "dark-high-contrast", "classic", "strawberry", "black-and-white"]
+    if theme is None:
+        theme = random.choice(themes)
+
+    sub = AstrologicalSubject(
+        name=name, year=year, month=month, day=day,
+        hour=hour, minute=minute, city=city,
+        lat=lat, lng=lng, tz_str=tz_str,
+    )
+    chart = KerykeionChartSVG(sub, chart_type=chart_type, theme=theme)
+    filename = f"{name}_{chart_type}.svg"
+    chart.save_svg(filename)
+    print(f"✨ 星盘图已生成：{filename}（主题：{theme}）")
+    return filename
 
 
 # ============================================================
