@@ -43,11 +43,21 @@ jobs:
           pip download --no-deps --no-binary :all: "kintaiyi" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "taixuanshifa" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "jingjue" -d /tmp/pypi-offline 2>&1 | tail -3
-          # ichingshifa: PyPI 残缺版, 从 GitHub 源码拉
+          # ichingshifa: PyPI 残缺版缺20函数, 从 GitHub 拉完整源码 + 补 setup.py
           git clone --depth 1 https://github.com/kentang2017/ichingshifa.git /tmp/ichingshifa_src 2>&1 | tail -3
-          cd /tmp/ichingshifa_src && tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz src/ichingshifa 2>&1
+          cd /tmp/ichingshifa_src
+          cat > setup.py << 'SETUP'
+from setuptools import setup, find_packages
+setup(name="ichingshifa", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)
+SETUP
+          cat > pyproject.toml << 'PYPROJ'
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+PYPROJ
+          tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz --exclude=".git" . 2>&1
           cd /tmp && rm -rf /tmp/ichingshifa_src
-          echo "ichingshifa tarball ready"
+          echo "ichingshifa full tarball ready"
           # sxtwl + pyswisseph: PyPI sdist 带预编译 x86_64 .so, 下源码剥离后重打包
           for pkg_ver in "sxtwl==2.0.6" "pyswisseph==2.10.3.2"; do
             pkg_name="${pkg_ver%%==*}"
