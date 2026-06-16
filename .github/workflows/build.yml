@@ -78,18 +78,18 @@ jobs:
             cd ${GITHUB_WORKSPACE}
           done
 
-          # arcanite: 塔罗引擎, 删掉图片(16MB)+LLM+PDF 只留牌义JSON+抽牌引擎
+          # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容
           pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1 | tail -1
           cd /tmp/pypi-offline
           sdist=$(ls arcanite-*.tar.gz | head -1)
           dir="${sdist%.tar.gz}"
           tar xfz "$sdist" && rm "$sdist"
-          rm -rf "$dir/src/arcanite/images"
           rm -rf "$dir/src/arcanite/interpretation"
           rm -rf "$dir/src/arcanite/render"
           rm -rf "$dir/src/arcanite/templates"
           rm -rf "$dir/src/arcanite/prompts"
           rm -f "$dir/src/arcanite/cards/update_card_positions.py"
+          rm -rf "$dir/examples"
           # 用 printf 写 __init__.py，避免 YAML 解析 """ 报错
           printf '%%s\n' '"""Arcanite - A Tarot Reading Engine (stripped: no LLM/PDF/images)"""' \
             '__version__ = "0.2.0"' \
@@ -226,7 +226,7 @@ jobs:
           PIP_NO_BINARY: sxtwl,pyswisseph
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease -x :web:buildWebUi --stacktrace 2>&1 | tee build.log
+          ./gradlew clean assembleRelease -x :web:buildWebUi --stacktrace 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
       - name: Upload build log
         uses: actions/upload-artifact@v4
