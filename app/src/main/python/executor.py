@@ -30,7 +30,7 @@ Available built-in functions (call these from your code):
   紫微斗数            →  ziwei_paipan.by_solar()    ← by_solar 分步调取
   西洋占星/星座       →  kerykeion                  ← flatlib, stellium
   合盘/推运/比较盘    →  immanuel                   ← kerykeion 双人对比
-  印度占星/吠陀       →  PyJHora
+  印度占星/吠陀       →  jhora
   人类图              →  humandesign
   奇门遁甲            →  kinqimen                   ← 日家/时家/刻家不同用法
   六爻/周易/卦        →  ichingshifa                ← 梅花易数也可起卦
