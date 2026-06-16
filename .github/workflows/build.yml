@@ -228,7 +228,7 @@ jobs:
           PIP_NO_BINARY: sxtwl,pyswisseph
         run: |
           chmod +x gradlew
-          ./gradlew clean assembleRelease -x :web:buildWebUi --stacktrace 2>&1 | tee build.log
+          ./gradlew assembleRelease -x :web:buildWebUi --no-build-cache --stacktrace 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
       - name: Upload build log
         uses: actions/upload-artifact@v4
