@@ -642,28 +642,18 @@ class GenerationHandler(
                     stream = false
                 )
             )
-            val recoveryState = me.rerere.rikkahub.data.ai.error.RecoveryState()
             val chunk = try {
-                me.rerere.rikkahub.data.ai.error.withRetry(
-                    block = suspend {
-                        providerImpl.generateText(
-                            providerSetting = provider,
-                            messages = internalMessages,
-                            params = params.copy(
-                                maxTokens = if (recoveryState.hasEscalated)
-                                    me.rerere.rikkahub.data.ai.error.ESCALATED_MAX_TOKENS
-                                else params.maxTokens
-                            ),
-                        )
-                    },
-                    state = recoveryState,
+                providerImpl.generateText(
+                    providerSetting = provider,
+                    messages = internalMessages,
+                    params = params,
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "generateText failed after retries: ${e.message}")
+                Log.e(TAG, "generateText failed: ${e.message}")
                 throw e
             }
             messages = messages.handleMessageChunk(chunk = chunk, model = model)
-            chunk.usage?.let { usage ->
+            (chunk as? me.rerere.ai.provider.GenerationResult)?.usage?.let { usage ->
                 messages = messages.mapIndexed { index, message ->
                     if (index == messages.lastIndex) {
                         message.copy(
