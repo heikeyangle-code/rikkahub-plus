@@ -47,6 +47,9 @@ jobs:
           sed -i 's/uvicorn==/uvicorn>=/' pyproject.toml
           sed -i 's/timezonefinder>=8.2.0/timezonefinder>=3.4.2/' pyproject.toml
           sed -i 's/geopy==/geopy>=/' pyproject.toml
+          # Remove dev/lint deps not available on Chaquopy proxy
+          sed -i '/"ruff"/d' pyproject.toml
+          sed -i '/"pytest"/d' pyproject.toml
           # Keep pyswisseph pin — we provide the exact version via offline tarball
           sed -i 's|pyswisseph.*|pyswisseph==2.10.3.2",|' pyproject.toml
           echo "Patched pyproject.toml:"
