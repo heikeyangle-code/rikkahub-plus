@@ -67,7 +67,7 @@ jobs:
             echo "Added ${repo}-src.tar.gz"
           done
           # Also package taixuanshifa and jingjue (same author)
-          for repo in taixuanshifa jingjue; do
+          for repo in taixuanshifa jingjue ichingshifa; do
             git clone --depth 1 "https://github.com/kentang2017/${repo}.git" "/tmp/${repo}_src"
             cd /tmp && tar czf "/tmp/pypi-offline/${repo}-src.tar.gz" "${repo}_src"
             cp "/tmp/pypi-offline/${repo}-src.tar.gz" "${GITHUB_WORKSPACE}/app/offline_pkgs/"

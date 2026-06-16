@@ -35,7 +35,7 @@ chaquopy {
             install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
             install(file("offline_pkgs/sxtwl-2.0.7.tar.gz").absolutePath)
             install("cnlunar")
-            install("ichingshifa")
+            install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // ⭐254 周易筮法/六爻
             install(file("offline_pkgs/kinliuren-src.tar.gz").absolutePath) // 大六壬
             install(file("offline_pkgs/kintaiyi-src.tar.gz").absolutePath) // 太乙神数
             install(file("offline_pkgs/taixuanshifa-src.tar.gz").absolutePath) // ⭐10 太玄筮法
