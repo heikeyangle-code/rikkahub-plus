@@ -89,14 +89,27 @@ jobs:
           cd stellium-*
           sed -i 's/timezonefinder>=6.5.0/timezonefinder>=6.0.0/' pyproject.toml
           # Remove deps unavailable on Chaquopy proxy
-          sed -i '/\"typst\"/d' pyproject.toml
-          sed -i '/\"graphviz\"/d' pyproject.toml
+          sed -i '/"typst"/d' pyproject.toml
+          sed -i '/"graphviz"/d' pyproject.toml
           echo "Patched stellium:"
           grep "timezonefinder" pyproject.toml
           cd /tmp/st_patch && tar czf /tmp/pypi-offline/stellium-patched.tar.gz stellium-*
           cp /tmp/pypi-offline/stellium-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
           rm -rf /tmp/st_patch
           echo "Added stellium-patched.tar.gz"
+      - name: Patch kerykeion (remove pydantic & scour deps not on Chaquopy proxy)
+        run: |
+          pip download --no-deps --no-binary :all: kerykeion -d /tmp/kerykeion_patch
+          cd /tmp/kerykeion_patch
+          tar xfz kerykeion-*.tar.gz
+          rm kerykeion-*.tar.gz
+          cd kerykeion-*
+          KERYKEION_SRC=$(pwd) python3 ${GITHUB_WORKSPACE}/ci/patch_kerykeion.py
+          grep -E 'pydantic|scour' pyproject.toml || echo "(all deps removed)"
+          cd /tmp/kerykeion_patch && tar czf /tmp/pypi-offline/kerykeion-patched.tar.gz kerykeion-*
+          cp /tmp/pypi-offline/kerykeion-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+          rm -rf /tmp/kerykeion_patch
+          echo "Added kerykeion-patched.tar.gz"
       - uses: actions/cache@v4
         with:
           path: |

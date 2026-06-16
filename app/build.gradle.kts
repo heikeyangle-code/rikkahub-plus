@@ -45,7 +45,7 @@ chaquopy {
             install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
             install("kinqimen")           // ⭐119 奇门遁甲
             install("pytarot")            // ⭐82  塔罗牌（纯Python）
-            install("kerykeion")          // ⭐655 西洋占星（纯Python壳，等pyswisseph）
+            install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
             install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)
             install("flatlib")            // ⭐386 传统占星（宫位/相位/尊贵）
             install("meihua-yi")           // ⭐1  梅花易数起卦（纯Python）
