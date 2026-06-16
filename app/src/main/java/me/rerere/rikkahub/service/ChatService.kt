@@ -1378,7 +1378,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
         val intent = Intent(context, GenerationForegroundService::class.java).apply {
             action = GenerationForegroundService.ACTION_STOP
         }
-        context.stopService(intent)
+        context.startService(intent)
     }
 
     // endregion

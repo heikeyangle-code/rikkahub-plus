@@ -108,10 +108,7 @@
     <service
       android:name=".service.GenerationForegroundService"
       android:exported="false"
-      android:foregroundServiceType="specialUse">
-      <property
-        android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-        android:value="AI chat message generation background task" />
+      android:foregroundServiceType="dataSync">
     </service>
 
     <provider

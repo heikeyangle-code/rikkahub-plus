@@ -167,6 +167,12 @@ class RouteActivity : ComponentActivity() {
             finish()
             return
         }
+        // Android 13+ 请求通知权限（后台生成需要）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+        }
         setContent {
             RikkahubTheme {
                 setSingletonImageLoaderFactory { context ->
