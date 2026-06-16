@@ -169,4 +169,4 @@ jobs:
         if: success()
         with:
           name: rikkahub-plus-fresh
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/release/*arm64-v8a*.apk
