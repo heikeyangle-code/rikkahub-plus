@@ -32,7 +32,20 @@ jobs:
           pip download --no-deps --no-binary :all: "pyswisseph" -d /tmp/pypi-offline 2>&1 | tail -3
           mkdir -p app/offline_pkgs
           cp /tmp/pypi-offline/* app/offline_pkgs/
-          echo "Files:" && ls app/offline_pkgs/
+          echo "Offline packages:" && ls app/offline_pkgs/
+      - name: Patch humandesign-api (relax strict version pins)
+        run: |
+          git clone https://github.com/dturkuler/humandesign_api.git /tmp/humandesign_src
+          cd /tmp/humandesign_src
+          # Relax numpy==2.1.2 → numpy>=1.26.2, pandas==2.2.3 → pandas>=2.0.0, etc.
+          sed -i 's/==/>=/g' pyproject.toml
+          # Keep pyswisseph pin — we provide the exact version via offline tarball
+          sed -i 's|pyswisseph.*|pyswisseph==2.10.3.2",|' pyproject.toml
+          echo "Patched pyproject.toml:"
+          grep -E "\".*==" pyproject.toml || true
+          cd /tmp && tar czf /tmp/pypi-offline/humandesign-api-patched.tar.gz -C /tmp humandesign_src
+          cp /tmp/pypi-offline/humandesign-api-patched.tar.gz app/offline_pkgs/
+          echo "Added humandesign-api-patched.tar.gz"
       - uses: actions/cache@v4
         with:
           path: |
