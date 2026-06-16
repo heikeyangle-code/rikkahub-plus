@@ -103,43 +103,7 @@ Available built-in functions (call these from your code):
   星次                           →  .dayStar
   卦象                           →  .dayGua
 
-  ── kerykeion（数据驱动占星）──
-  太阳/月亮/上升星座             →  AstrologicalSubject(planet_list)
-  所有行星位置/星座/宫位         →  subject.planet_list[].sign / .house
-  相位/容许度                    →  subject.planet_list[].aspects
-  行星速度/逆行                  →  .speed 属性
-  # 完整: subject = AstrologicalSubject("n",y,m,d,h,min,lat,lng,tz)
-
-  ── stellium（现代占星，含星历表可视化）──
-  星历表数据/行星位置             →  ChartBuilder
-  星盘可视化/SVG                  →  visualization
-  比较盘/合盘对比                →  comparison
-
-  ── flatlib（传统占星）──
-  宫位制列表                     →  const.LIST_HOUSE_SYSTEMS
-  行星入庙/擢升/落陷             →  const (dignities)
-  阿拉伯点                       →  arabic_parts
-  # 排盘: Chart(Datetime, GeoPos, IDs=house_system)
-
-  ── jhora（印度占星/吠陀）──
-  吠陀星盘数据                   →  jhora.horoscope.main.Horoscope
-  大运/小运                     →  dhasa 模块
-  合盘                           →  match 模块
-  行运/推运                     →  transit 模块
-
-  ── immanuel（合盘推运）──
-  合盘/synastry                  →  immanuel
-  推运/progression               →  immanuel
-  行运/transit                   →  immanuel
-
-  ── humandesign（人类图）──
-  能量类型/Profile/定义          →  humandesign
-  通道/闸门/轮回交叉             →  humandesign
-
-  ── 其他查询 ──
-  五行生克                       →  bazi_china / calculator
-
-  不确定查哪个时，先 import 试，哪个能用用哪个。
+  除此之外（kerykeion/flatlib/stellium/jhora/immanuel/humandesign 等）都是完整排盘库，不是查询库。查单项数据只用上面三个。
 
 【输入】所有排盘都需要出生信息：
   公历日期 time_index(0-12) 性别 地点(经纬度) 时区
