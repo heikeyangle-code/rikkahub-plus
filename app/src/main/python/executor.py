@@ -57,7 +57,7 @@ Available built-in functions (call these from your code):
   印度占星/吠陀(南印/北印盘)  →  jhora                      ← stellium.visualization.vedic          生日必填
 
   【人类图/塔罗/其他】
-  塔罗                →  pytarot                                                 无需出生
+  塔罗                →  tarot（78张牌+正逆位牌义，三方阵）                                  无需出生
 
   【农历/干支/天文】
   农历/黄历/择日      →  cnlunar                    ← lunar_python             日期即可
@@ -75,7 +75,7 @@ Available built-in functions (call these from your code):
   cnlunar             →  import cnlunar; print(dir(cnlunar.LunarDate))
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import book; print(dir(book))        # 梅花起卦查询
-  pytarot             →  import pytarot; print(dir(pytarot))                 # 抽牌
+  tarot               →  import tarot; print(tarot.deck[0])                     # 78张牌+牌义
   kinqimen            →  import kinqimen; print(dir(kinqimen))              # 查局
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数

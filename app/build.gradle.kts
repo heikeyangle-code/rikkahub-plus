@@ -43,7 +43,7 @@ chaquopy {
             install("colorama")           // china-testing/bazi 所需
             install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
             install(file("offline_pkgs/kinqimen-src.tar.gz").absolutePath) // ⭐119 奇门遁甲
-            install("pytarot")            // ⭐82  塔罗牌（纯Python）
+            install(file("offline_pkgs/tarot-0.0.4.tar.gz").absolutePath) // 真塔罗 78张牌+牌义
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
             install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)
             install(file("offline_pkgs/flatlib-patched.tar.gz").absolutePath) // ⭐386 传统占星 已patch pyswisseph版本

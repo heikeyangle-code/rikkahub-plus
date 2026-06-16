@@ -39,6 +39,7 @@ jobs:
           pip download --no-deps --no-binary :all: "pyswisseph==2.10.3.2" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pydantic-core" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "tarot" -d /tmp/pypi-offline 2>&1 | tail -3
           # Rename files to match build.gradle.kts expectations (hyphen→underscore, version pin)
           mkdir -p app/offline_pkgs
           for f in /tmp/pypi-offline/*.tar.gz; do
