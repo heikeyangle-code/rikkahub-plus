@@ -76,6 +76,9 @@ jobs:
           rm stellium-*.tar.gz
           cd stellium-*
           sed -i 's/timezonefinder>=6.5.0/timezonefinder>=6.0.0/' pyproject.toml
+          # Remove deps unavailable on Chaquopy proxy
+          sed -i '/\"typst\"/d' pyproject.toml
+          sed -i '/\"graphviz\"/d' pyproject.toml
           echo "Patched stellium:"
           grep "timezonefinder" pyproject.toml
           cd /tmp/st_patch && tar czf /tmp/pypi-offline/stellium-patched.tar.gz stellium-*
