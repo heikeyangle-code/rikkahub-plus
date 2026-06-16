@@ -29,6 +29,7 @@ jobs:
         run: |
           pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "sxtwl" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "pyswisseph" -d /tmp/pypi-offline 2>&1 | tail -3
           mkdir -p app/offline_pkgs
           cp /tmp/pypi-offline/* app/offline_pkgs/
           echo "Files:" && ls app/offline_pkgs/

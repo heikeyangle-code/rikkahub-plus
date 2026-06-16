@@ -17,7 +17,7 @@ plugins {
 // Python 引擎配置 — Chaquopy 新 DSL
 chaquopy {
     defaultConfig {
-        version = "3.11"
+        version = "3.12"
         pip {
             install("requests")
             install("beautifulsoup4")
@@ -42,7 +42,7 @@ chaquopy {
             install("jingjue")
             install("colorama")           // china-testing/bazi 所需
             install("sxtwl")              // C扩展，kinqimen + bazi_china 共用
-            // install("pyswisseph")      // C扩展（无Android ARM64 wheel），跳过
+            install(file("offline_pkgs/pyswisseph.tar.gz").absolutePath)
             install("kinqimen")           // ⭐119 奇门遁甲
             install("pytarot")            // ⭐82  塔罗牌（纯Python）
             install("kerykeion")          // ⭐655 西洋占星（纯Python壳，等pyswisseph）
@@ -53,8 +53,8 @@ chaquopy {
             install("immanuel")            // ⭐109 西洋占星合盘+推运（synastry/progression）
             install("setuptools")              // setuptools 最新版
             install("hatchling")           // hatchling构建工具, kinwangji需要
-            // install("git+https://github.com/dturkuler/humandesign_api.git") // 需要 Python>=3.12，Chaquopy 3.11 不兼容
-            // install("git+https://github.com/kentang2017/kinwangji.git")  // 依赖 ephem>=4.1.6（需要 Python>=3.12），Chaquopy 3.11 不兼容
+            install("git+https://github.com/dturkuler/humandesign_api.git") // ⭐27 人类图（需要Python>=3.12，见上方Python版本）
+            install("git+https://github.com/kentang2017/kinwangji.git")  // ⭐10 皇极经世
             // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
             // install("git+https://github.com/kentang2017/kinastro.git")
         }
