@@ -14,7 +14,7 @@ import collections
 from lunar_python import Lunar
 from colorama import init
 
-from ganzhi import Gan, Zhi, ymc, rmc, zhi_time, jis, zhi_atts, get_jizhu, datouxiu, xiaotouxiu
+from .ganzhi import Gan, Zhi, ymc, rmc, zhi_time, jis, zhi_atts, get_jizhu, datouxiu, xiaotouxiu
 
 def get_hou(d, xiazhi, dongzhi):
     cal_day = sxtwl.fromSolar(d.year, d.month, d.day)
@@ -161,102 +161,103 @@ JiuFeiXing = collections.namedtuple("JiuFeiXing", "中 西北 西 东北 南 北
 
 
 
-description = '''
-# 年罗猴日
-$ python luohou.py -d "2019 6 16"
+if __name__ == '__main__':
+    description = '''
+    # 年罗猴日
+    $ python luohou.py -d "2019 6 16"
 
-'''
+    '''
 
-parser = argparse.ArgumentParser(description=description,
-                                 formatter_class=argparse.RawTextHelpFormatter)
-parser.add_argument('-d', action="store", help=u'year',default="")
-parser.add_argument('-n', action="store", help=u'days',default=32, type=int)
-parser.add_argument('--version', action='version',
-                    version='%(prog)s 0.1 Rongzhong xu 2019 05 05')
-options = parser.parse_args()
+    parser = argparse.ArgumentParser(description=description,
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('-d', action="store", help=u'year',default="")
+    parser.add_argument('-n', action="store", help=u'days',default=32, type=int)
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s 0.1 Rongzhong xu 2019 05 05')
+    options = parser.parse_args()
 
-Gans = collections.namedtuple("Gans", "year month day")
-Zhis = collections.namedtuple("Zhis", "year month day")
+    Gans = collections.namedtuple("Gans", "year month day")
+    Zhis = collections.namedtuple("Zhis", "year month day")
 
-if options.d:
-    year, month, day = options.d.split()
-    d = datetime.datetime(int(year), int(month), int(day))
-else:
-    d = datetime.datetime.today()
+    if options.d:
+        year, month, day = options.d.split()
+        d = datetime.datetime(int(year), int(month), int(day))
+    else:
+        d = datetime.datetime.today()
     
-cal_day = sxtwl.fromSolar(d.year, d.month, d.day)
-yTG = cal_day.getYearGZ()
-mTG = cal_day.getMonthGZ()
-dTG  = cal_day.getDayGZ()
+    cal_day = sxtwl.fromSolar(d.year, d.month, d.day)
+    yTG = cal_day.getYearGZ()
+    mTG = cal_day.getMonthGZ()
+    dTG  = cal_day.getDayGZ()
 
 
-gans = Gans(year=Gan[yTG.tg], month=Gan[mTG.tg], 
-            day=Gan[dTG.tg])
-zhis = Zhis(year=Zhi[yTG.dz], month=Zhi[mTG.dz], 
-            day=Zhi[dTG.dz])
-mountains[zhis.year] += " 太岁"
-mountains[zhi_atts[zhis.year]['冲']] += " 岁破"
+    gans = Gans(year=Gan[yTG.tg], month=Gan[mTG.tg], 
+                day=Gan[dTG.tg])
+    zhis = Zhis(year=Zhi[yTG.dz], month=Zhi[mTG.dz], 
+                day=Zhi[dTG.dz])
+    mountains[zhis.year] += " 太岁"
+    mountains[zhi_atts[zhis.year]['冲']] += " 岁破"
     
 
-# 计算中央位
-year = d.year
-index = year % 10 + year // 10 % 10
-index = index - 9 if index > 9 else index
-index = 9 - index
-#print(index)
-jius = JiuFeiXing(*fangweis[index:], *fangweis[0:index])
-#print(jius)
+    # 计算中央位
+    year = d.year
+    index = year % 10 + year // 10 % 10
+    index = index - 9 if index > 9 else index
+    index = 9 - index
+    #print(index)
+    jius = JiuFeiXing(*fangweis[index:], *fangweis[0:index])
+    #print(jius)
 
-print(jiuxings_dsp)
-print('-'*120)
-print("{}年九宫飞星".format(year))
-print('-'*120)
-print("\033[1;36;40m{1:{0}<25s}{2:{0}<25s}{3:{0}<25s}\033[0m".format(
-    chr(12288), 
-    "巽 东南：{}".format(jius.东南), 
-    '离   南：{}'.format(jius.南), 
-    '坤 西南：{}'.format(jius.西南),))
-print("\033[1;36;40m{1:{0}<25s}{2:{0}<25s}{3:{0}<25s}\033[0m".format(
-    chr(12288), 
-    "震   东：{}".format(jius.东), 
-    '  中   央：{}'.format(jius.中), 
-    '    兑   西：{}'.format(jius.西),))
-print("\033[1;36;40m{1:{0}<25s}{2:{0}<25s}{3:{0}<25s}\033[0m".format(
-    chr(12288), 
-    "艮 东北：{}".format(jius.东北), 
-    '坎   北：{}'.format(jius.北), 
-    '乾 西北：{}'.format(jius.西北),))
-print('-'*120)
+    print(jiuxings_dsp)
+    print('-'*120)
+    print("{}年九宫飞星".format(year))
+    print('-'*120)
+    print("\033[1;36;40m{1:{0}<25s}{2:{0}<25s}{3:{0}<25s}\033[0m".format(
+        chr(12288), 
+        "巽 东南：{}".format(jius.东南), 
+        '离   南：{}'.format(jius.南), 
+        '坤 西南：{}'.format(jius.西南),))
+    print("\033[1;36;40m{1:{0}<25s}{2:{0}<25s}{3:{0}<25s}\033[0m".format(
+        chr(12288), 
+        "震   东：{}".format(jius.东), 
+        '  中   央：{}'.format(jius.中), 
+        '    兑   西：{}'.format(jius.西),))
+    print("\033[1;36;40m{1:{0}<25s}{2:{0}<25s}{3:{0}<25s}\033[0m".format(
+        chr(12288), 
+        "艮 东北：{}".format(jius.东北), 
+        '坎   北：{}'.format(jius.北), 
+        '乾 西北：{}'.format(jius.西北),))
+    print('-'*120)
 
-print("月份九宫飞星", end=' ')
-items = month_feixings[Zhi[yTG.dz]]
-for i in range(1,13):
-    print(i, items[i], end=' ')
-print()
-year_yas = get_jizhu(Gan[yTG.tg], Zhi[yTG.dz])
-print("太岁压祭主", year_yas)
-day_yas = get_jizhu(Gan[dTG.tg], Zhi[dTG.dz])
-print("日压祭主", day_yas)
-print('-'*120)
+    print("月份九宫飞星", end=' ')
+    items = month_feixings[Zhi[yTG.dz]]
+    for i in range(1,13):
+        print(i, items[i], end=' ')
+    print()
+    year_yas = get_jizhu(Gan[yTG.tg], Zhi[yTG.dz])
+    print("太岁压祭主", year_yas)
+    day_yas = get_jizhu(Gan[dTG.tg], Zhi[dTG.dz])
+    print("日压祭主", day_yas)
+    print('-'*120)
 
-#计算夏至日、冬至日
-lunar = Lunar.fromYmd(d.year, d.month, d.day)
-jieqis = lunar.getJieQiTable()
-#start = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
-#print("去年冬至", jieqis['冬至'].toFullString())
-#print("雨水", jieqis['雨水'].toFullString())
-#print("谷雨", jieqis['谷雨'].toFullString())
-#print("夏至", jieqis['夏至'].toFullString())
-#print("处暑", jieqis['处暑'].toFullString())
-#print("霜降", jieqis['霜降'].toFullString())
-#print("今年冬至", jieqis['DONG_ZHI'].toFullString())
-xiazhi = datetime.datetime.strptime(' '.join(jieqis['夏至'].toFullString().split(' ')[:2]), "%Y-%m-%d %H:%M:%S")
-dongzhi = datetime.datetime.strptime(' '.join(jieqis['DONG_ZHI'].toFullString().split(' ')[:2]), "%Y-%m-%d %H:%M:%S")
+    #计算夏至日、冬至日
+    lunar = Lunar.fromYmd(d.year, d.month, d.day)
+    jieqis = lunar.getJieQiTable()
+    #start = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+    #print("去年冬至", jieqis['冬至'].toFullString())
+    #print("雨水", jieqis['雨水'].toFullString())
+    #print("谷雨", jieqis['谷雨'].toFullString())
+    #print("夏至", jieqis['夏至'].toFullString())
+    #print("处暑", jieqis['处暑'].toFullString())
+    #print("霜降", jieqis['霜降'].toFullString())
+    #print("今年冬至", jieqis['DONG_ZHI'].toFullString())
+    xiazhi = datetime.datetime.strptime(' '.join(jieqis['夏至'].toFullString().split(' ')[:2]), "%Y-%m-%d %H:%M:%S")
+    dongzhi = datetime.datetime.strptime(' '.join(jieqis['DONG_ZHI'].toFullString().split(' ')[:2]), "%Y-%m-%d %H:%M:%S")
 
 
 
-get_hou(d, xiazhi, dongzhi)      
+    get_hou(d, xiazhi, dongzhi)      
 
-for i in range(1,options.n):
-    d_ = d + datetime.timedelta(days=i)
-    get_hou(d_,  xiazhi, dongzhi)  
+    for i in range(1,options.n):
+        d_ = d + datetime.timedelta(days=i)
+        get_hou(d_,  xiazhi, dongzhi)  

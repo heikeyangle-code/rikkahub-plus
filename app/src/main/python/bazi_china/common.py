@@ -10,9 +10,9 @@ import datetime
 
 from bidict import bidict
 
-from datas import *
-from ganzhi import *
-from sizi import summarys
+from .datas import *
+from .ganzhi import *
+from .sizi import summarys
 
 def check_gan(gan, gans):
     result = ''

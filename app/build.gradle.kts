@@ -40,6 +40,7 @@ chaquopy {
             install(file("offline_pkgs/kintaiyi-src.tar.gz").absolutePath) // 太乙神数
             install(file("offline_pkgs/taixuanshifa-src.tar.gz").absolutePath) // ⭐10 太玄筮法
             install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // ⭐6 荆诀（北大简先秦占卜）
+            install("bidict")            // bazi_china(ganzhi/datas/common/bazi) 所需
             install("colorama")           // china-testing/bazi 所需
             install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
             install(file("offline_pkgs/kinqimen-patched.tar.gz").absolutePath) // ⭐119 奇门遁甲
