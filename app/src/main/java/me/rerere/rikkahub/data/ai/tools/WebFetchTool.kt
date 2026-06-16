@@ -13,19 +13,20 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * 通用 HTTP 工具，支持所有 HTTP 方法 + body + 自定义 Content-Type。
+ * 通用 HTTP 工具，支持所有 HTTP 方法 + body + 自定义 Header。
  *
  * GET 请求直接返回纯文本，POST/PUT/PATCH 可带 JSON body。
  * 用于调 REST API、抓网页、调命理服务等一切 HTTP 交互。
  */
 fun createWebFetchTool(): Tool = Tool(
     name = "web_fetch",
-    description = "Send HTTP requests to any URL. Supports GET, POST, PUT, PATCH, DELETE with optional JSON body.\n\n" +
+    description = "Send HTTP requests to any URL. Supports GET, POST, PUT, PATCH, DELETE with optional body and custom headers.\n\n" +
         "Use this to call REST APIs, submit data, fetch web pages, or integrate external services.\n\n" +
         "Args:\n" +
         "- url: Full URL including https:// (required)\n" +
         "- method: HTTP method - GET, POST, PUT, PATCH, DELETE (default: GET)\n" +
         "- body: JSON body string (required for POST/PUT/PATCH)\n" +
+        "- headers: JSON object of headers, e.g. {\"Authorization\":\"Bearer xxx\",\"X-API-Key\":\"yyy\"}\n" +
         "- content_type: Content-Type header (default: application/json for POST/PUT/PATCH)\n\n" +
         "Examples:\n" +
         "- GET https://api.example.com/data\n" +
@@ -47,6 +48,10 @@ fun createWebFetchTool(): Tool = Tool(
                     put("type", "string")
                     put("description", "JSON body for POST/PUT/PATCH (e.g., {\"year\":1990,\"month\":1,\"day\":1})")
                 })
+                put("headers", buildJsonObject {
+                    put("type", "string")
+                    put("description", "JSON object of headers, e.g. {\"Authorization\":\"Bearer xxx\",\"X-API-Key\":\"yyy\"}")
+                })
                 put("content_type", buildJsonObject {
                     put("type", "string")
                     put("description", "Content-Type header (default: application/json for POST/PUT/PATCH)")
@@ -61,6 +66,7 @@ fun createWebFetchTool(): Tool = Tool(
             ?: error("url parameter is required")
         val method = obj["method"]?.jsonPrimitive?.contentOrNull?.uppercase() ?: "GET"
         val body = obj["body"]?.jsonPrimitive?.contentOrNull
+        val headersJson = obj["headers"]?.jsonPrimitive?.contentOrNull
         val contentType = obj["content_type"]?.jsonPrimitive?.contentOrNull
             ?: if (body != null) "application/json" else null
 
@@ -70,6 +76,16 @@ fun createWebFetchTool(): Tool = Tool(
         conn.readTimeout = 30000
         conn.requestMethod = method
         conn.setRequestProperty("User-Agent", "Rikkahub/1.0")
+
+        // Parse and set custom headers
+        if (headersJson != null) {
+            try {
+                val parsed = kotlinx.serialization.json.Json.parseToJsonElement(headersJson).jsonObject
+                parsed.forEach { (key, value) ->
+                    conn.setRequestProperty(key, value.jsonPrimitive.contentOrNull ?: "")
+                }
+            } catch (_: Exception) { /* invalid headers json, ignore */ }
+        }
 
         if (contentType != null) {
             conn.setRequestProperty("Content-Type", contentType)
