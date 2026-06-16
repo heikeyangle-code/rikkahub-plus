@@ -38,12 +38,16 @@ jobs:
           pip download --no-deps --no-binary :all: "pydantic-core" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "tarot" -d /tmp/pypi-offline 2>&1 | tail -3
-          # kentang2017 包: PyPI proxy 给的是空壳, 从 GitHub 源码拉
-          for pkg in kinliuren kinqimen kintaiyi taixuanshifa jingjue ichingshifa; do
-            git clone --depth 1 https://github.com/kentang2017/${pkg}.git /tmp/${pkg}_src 2>&1 | tail -1
-            cd /tmp/${pkg}_src && tar czf /tmp/pypi-offline/${pkg}-src.tar.gz src/${pkg} 2>&1
-            cd /tmp && rm -rf /tmp/${pkg}_src
-          done
+          pip download --no-deps --no-binary :all: "kinliuren" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "kinqimen" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "kintaiyi" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "taixuanshifa" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "jingjue" -d /tmp/pypi-offline 2>&1 | tail -3
+          # ichingshifa: PyPI 残缺版, 从 GitHub 源码拉
+          git clone --depth 1 https://github.com/kentang2017/ichingshifa.git /tmp/ichingshifa_src 2>&1 | tail -3
+          cd /tmp/ichingshifa_src && tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz src/ichingshifa 2>&1
+          cd /tmp && rm -rf /tmp/ichingshifa_src
+          echo "ichingshifa tarball ready"
           # sxtwl + pyswisseph: PyPI sdist 带预编译 x86_64 .so, 下源码剥离后重打包
           for pkg_ver in "sxtwl==2.0.6" "pyswisseph==2.10.3.2"; do
             pkg_name="${pkg_ver%%==*}"
