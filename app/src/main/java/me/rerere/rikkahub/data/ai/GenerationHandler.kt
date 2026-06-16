@@ -653,7 +653,7 @@ class GenerationHandler(
                 throw e
             }
             messages = messages.handleMessageChunk(chunk = chunk, model = model)
-            (chunk as? me.rerere.ai.provider.GenerationResult)?.usage?.let { usage ->
+            (chunk as? me.rerere.ai.ui.MessageChunk)?.usage?.let { usage ->
                 messages = messages.mapIndexed { index, message ->
                     if (index == messages.lastIndex) {
                         message.copy(

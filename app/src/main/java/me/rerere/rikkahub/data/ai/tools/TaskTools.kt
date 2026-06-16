@@ -426,5 +426,5 @@ fun createTaskTools(): List<Tool> = buildList {
             }
         },
     ),
-    )
+    ))
 }
