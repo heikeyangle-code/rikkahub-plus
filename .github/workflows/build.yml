@@ -87,7 +87,7 @@ jobs:
           tar xfz stellium-*.tar.gz
           rm stellium-*.tar.gz
           cd stellium-*
-          sed -i 's/timezonefinder>=6.5.0/timezonefinder>=6.0.0/' pyproject.toml
+          sed -i 's/timezonefinder>=6.5.0/timezonefinder>=3.4.2/' pyproject.toml
           # Remove deps unavailable on Chaquopy proxy
           sed -i '/"typst"/d' pyproject.toml
           sed -i '/"graphviz"/d' pyproject.toml
