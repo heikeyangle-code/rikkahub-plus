@@ -235,27 +235,6 @@ object TaskManager {
         messages.add(msg); return msg
     }
 
-    fun readMessages(agentName: String): List<Message> = messages.filter { it.to == agentName || it.to == "*" }
-    fun clearMessages(agentName: String) { messages.removeAll { it.to == agentName } }
-}
-
-/**
- * s05: TodoWrite/Planning — AI 自主写计划、按步骤执行。
- * 对标 learn-claude-code s05_todo_write。
- */
-object PlanManager {
-    private val currentTodos = java.util.concurrent.CopyOnWriteArrayList<TodoItem>()
-    private val roundsSinceTodoUpdate = java.util.concurrent.atomic.AtomicInteger(0)
-    private const val NAG_THRESHOLD = 3
-
-    data class TodoItem(val content: String, val status: String)
-
-    fun updateTodos(todos: List<TodoItem>): String {
-        currentTodos.clear()
-        currentTodos.addAll(todos)
-        roundsSinceTodoUpdate.set(0)
-        return formatTodos()
-    }
 
     fun getTodos(): List<TodoItem> = currentTodos.toList()
 
@@ -441,6 +420,7 @@ fun createTaskTools(): List<Tool> = buildList {
                     if (blocked.isEmpty()) listOf(UIMessagePart.Text("Task $id is ready to start. All dependencies satisfied."))
                     else listOf(UIMessagePart.Text("Task $id is blocked by:\n" + blocked.mapNotNull { b -> TaskManager.getTask(b)?.let { "${it.id}: ${it.subject} (${it.status.name.lowercase()})" } }.joinToString("\n")))
                 }
+                "unclaimed" -> {
                     val tasks = me.rerere.rikkahub.data.ai.team.KanbanBoard.getUnclaimedTasks()
                     if (tasks.isEmpty()) listOf(UIMessagePart.Text("No unclaimed tasks."))
                     else listOf(UIMessagePart.Text("Unclaimed tasks:\n" + tasks.joinToString("\n") { t: me.rerere.rikkahub.data.ai.team.KanbanTask -> val deps = if (t.blockedBy.isNotEmpty()) " [blockedBy: ${t.blockedBy.joinToString()}]" else ""; "  ${t.id}: ${t.subject}$deps" }))
