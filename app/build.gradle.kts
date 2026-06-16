@@ -42,7 +42,7 @@ chaquopy {
             install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // ⭐6 荆诀（北大简先秦占卜）
             install("colorama")           // china-testing/bazi 所需
             install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
-            install(file("offline_pkgs/kinqimen-src.tar.gz").absolutePath) // ⭐119 奇门遁甲
+            install(file("offline_pkgs/kinqimen-patched.tar.gz").absolutePath) // ⭐119 奇门遁甲
             install(file("offline_pkgs/tarot-0.0.4.tar.gz").absolutePath) // 真塔罗 78张牌+牌义
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
             install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)
