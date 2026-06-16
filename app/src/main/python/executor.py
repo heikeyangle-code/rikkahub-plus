@@ -22,8 +22,7 @@ Available built-in functions (call these from your code):
 
 【核心原则】每次排盘都走真实 Python 库计算，模型不虚构任何数据。
 
-【路由规则】根据用户问题自动选择。同一结果可能多种方法，优先用最合适的：
-
+【排盘路由】需要完整命理分析时用：
   用户问             →  首选                        ← 也能用这些
   ─────────────────────────────────────────────────────────────────
   八字/四柱/大运      →  lunar_python EightChar      ← bazi_china, sxtwl
@@ -44,6 +43,50 @@ Available built-in functions (call these from your code):
   农历/黄历/择日      →  cnlunar                    ← lunar_python
   公历农历转换        →  lunar_python               ← cnlunar
   生肖/干支/闰候      →  bazi_china 子模块           ← lunar_python
+
+【查询路由】只查单项数据不排盘时用：
+  查什么                      →  调这个
+  ─────────────────────────────────────────────────────────────────
+  任一行星恒星位置/速度        →  swisseph swe.calc_ut(jd, planet, flag)
+  日月食日期/类型              →  swisseph swe.solar_eclipse_how()
+  固定星(恒星)位置             →  swisseph swe.fixstar2(name)
+  宫头/宫位制                  →  swisseph swe.houses_ex()
+  儒略日/日期互转              →  swisseph swe.julday() / swe.revjul()
+  黄赤交角/岁差/章动           →  swisseph swe.nutation(), swe.calc(FLAG_NUT)
+  日出日落/晨昏蒙影             →  swisseph swe.rise_transit()
+  行星出没/中天/升起            →  swisseph swe.rise_transit()
+
+  节气日期/二十四节气            →  lunar_python Lunar.fromYmd().getJieQi()
+  农历公历互转                  →  lunar_python Solar/Lunar .fromYmd()
+  四柱干支                      →  lunar_python EightChar .getYearGan() 系列
+  时柱                          →  lunar_python EightChar .getTimeGan() / getTimeZhi()
+  生肖年份                      →  lunar_python Lunar.getYearShengXiao()
+  纳音                          →  lunar_python EightChar ganZhi 查纳音表
+  星座                          →  lunar_python Solar.getXingZuo()
+  彭祖百忌                      →  lunar_python Lunar.getPengZuHundredTaboos()
+  喜神/福神/财神方位             →  lunar_python 系列 getDayPositionXi() 等
+  每日宜忌                      →  lunar_python Lunar.getDayYi() / getDayJi()
+  时辰吉凶                      →  lunar_python Lunar.getTimeYi() / getTimeJi()
+  胎元/命宫/身宫                →  lunar_python EightChar.getTaiYuan() / getMingGong()
+  起运时间/大运                 →  lunar_python getYun().getStartSolar() / getDaYun()
+  流年/流月/流日/流时           →  lunar_python EightChar 系列方法
+
+  本日黄历/每日宜忌              →  cnlunar
+  每日凶煞/时辰吉凶              →  cnlunar
+  二十八星宿                    →  cnlunar
+  建除十二神/值神               →  cnlunar
+  星次                           →  cnlunar
+  星座                           →  cnlunar
+
+  太阳/月亮/上升星座             →  kerykeion AstrologicalSubject
+  行星落星座/落宫                →  kerykeion subject.planet_list
+  行星相位/容许度               →  kerykeion (含 aspects 属性)
+  宫位制列表/选择                →  flatlib const.LIST_HOUSE_SYSTEMS
+  阿拉伯点/Arabic Parts          →  flatlib
+  行星入庙/擢升/落陷              →  flatlib const (dignities)
+  行星速度/逆行                  →  kerykeion / swisseph
+
+  五行生克                      →  bazi_china / calculator
 
   不确定用哪个时，先 import 试，哪个能用用哪个。
 
