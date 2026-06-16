@@ -57,6 +57,16 @@ jobs:
           cd /tmp && tar czf /tmp/pypi-offline/humandesign-api-patched.tar.gz humandesign_src
           cp /tmp/pypi-offline/humandesign-api-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
           echo "Added humandesign-api-patched.tar.gz"
+      - name: Patch kinwangji (relax ephem pin)
+        run: |
+          git clone https://github.com/kentang2017/kinwangji.git /tmp/kinwangji_src
+          cd /tmp/kinwangji_src
+          sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' pyproject.toml 2>/dev/null || sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' setup.py 2>/dev/null || true
+          echo "Patched kinwangji:"
+          grep -n 'ephem' pyproject.toml setup.py setup.cfg 2>/dev/null || true
+          cd /tmp && tar czf /tmp/pypi-offline/kinwangji-patched.tar.gz kinwangji_src
+          cp /tmp/pypi-offline/kinwangji-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+          echo "Added kinwangji-patched.tar.gz"
       - uses: actions/cache@v4
         with:
           path: |
