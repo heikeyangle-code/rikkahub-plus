@@ -206,12 +206,14 @@ class GenerationHandler(
                     appendLine()
                     append(buildRecentChatsPrompt(assistant, conversationRepo))
                 }
-                if (settings.customApiUrl.isNotBlank()) {
+                if (settings.customApiConfigs.isNotEmpty()) {
                     appendLine()
-                    appendLine("<custom_api>")
-                    appendLine("可用 API: ${settings.customApiUrl}")
-                    appendLine("用 web_fetch 工具调用，method=POST，body 按接口要求传 JSON")
-                    appendLine("</custom_api>")
+                    appendLine("<custom_apis>")
+                    settings.customApiConfigs.forEach { cfg ->
+                        appendLine("  [${cfg.name}] ${cfg.url} (${cfg.method})${if (cfg.description.isNotBlank()) " - ${cfg.description}" else ""}")
+                    }
+                    appendLine("用 web_fetch 工具调用，method、body 按接口要求传")
+                    appendLine("</custom_apis>")
                 }
             },
             constraints = emptyList(),
