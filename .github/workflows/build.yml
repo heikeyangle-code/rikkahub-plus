@@ -40,7 +40,7 @@ jobs:
           # Relax strict version pins to match Chaquopy proxy availability
           sed -i 's/numpy==2.1.2/numpy>=1.26.2/' pyproject.toml
           sed -i 's/ipython==/ipython>=/' pyproject.toml
-          sed -i 's/pandas==/pandas>=/' pyproject.toml
+          sed -i 's/pandas==2.2.3/pandas>=2.0.0/' pyproject.toml
           sed -i 's/python-dateutil==/python-dateutil>=/' pyproject.toml
           sed -i 's/pytz==/pytz>=/' pyproject.toml
           sed -i 's/tqdm==/tqdm>=/' pyproject.toml
