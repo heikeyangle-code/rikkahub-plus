@@ -181,6 +181,8 @@ jobs:
           keyPassword=android
           EOF
       - name: Build
+        env:
+          PIP_NO_BINARY: sxtwl,pyswisseph
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease -x :web:buildWebUi --stacktrace 2>&1 | tee build.log
