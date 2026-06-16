@@ -29,7 +29,7 @@ fun createWebFetchTool(): Tool = Tool(
         "- content_type: Content-Type header (default: application/json for POST/PUT/PATCH)\n\n" +
         "Examples:\n" +
         "- GET https://api.example.com/data\n" +
-        "- POST https://aov.cc/api/v1/bazi/calculate with body={\"year\":1990,...}\n" +
+        "- POST https://api.example.com/submit with body={\"key\":\"value\"}\n" +
         "- Results truncated to 100KB for large responses",
     needsApproval = false,
     parameters = {
@@ -37,7 +37,7 @@ fun createWebFetchTool(): Tool = Tool(
             properties = buildJsonObject {
                 put("url", buildJsonObject {
                     put("type", "string")
-                    put("description", "Full URL (e.g., https://aov.cc/api/v1/bazi/calculate)")
+                    put("description", "Full URL (e.g., https://api.example.com/data)")
                 })
                 put("method", buildJsonObject {
                     put("type", "string")
