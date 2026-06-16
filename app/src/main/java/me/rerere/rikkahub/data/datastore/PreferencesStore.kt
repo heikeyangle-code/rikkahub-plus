@@ -153,6 +153,9 @@ class SettingsStore(
         // 赞助提醒
         val SPONSOR_ALERT_DISMISSED_AT = intPreferencesKey("sponsor_alert_dismissed_at")
 
+        // Custom HTTP API
+        val CUSTOM_API_URL = stringPreferencesKey("custom_api_url")
+
         // 人设 & 导演备注（补全）
         val PERSONAS = stringPreferencesKey("personas")
         val ACTIVE_PERSONA_ID = stringPreferencesKey("active_persona_id")
@@ -252,6 +255,7 @@ class SettingsStore(
                     JsonInstant.decodeFromString(it)
                 } ?: BackupReminderConfig(),
                 githubToken = preferences[GITHUB_TOKEN] ?: "",
+                customApiUrl = preferences[CUSTOM_API_URL] ?: "",
                 launchCount = preferences[LAUNCH_COUNT] ?: 0,
                 sponsorAlertDismissedAt = preferences[SPONSOR_ALERT_DISMISSED_AT] ?: 0,
                 personas = preferences[PERSONAS]?.let { JsonInstant.decodeFromString(it) } ?: DEFAULT_PERSONAS,
@@ -421,6 +425,7 @@ class SettingsStore(
             preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
             preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
             preferences[GITHUB_TOKEN] = settings.githubToken
+            preferences[CUSTOM_API_URL] = settings.customApiUrl
             preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
             preferences[LAUNCH_COUNT] = settings.launchCount
             preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
@@ -554,6 +559,7 @@ data class Settings(
     val modeInjections: List<PromptInjection.ModeInjection> = DEFAULT_MODE_INJECTIONS,
     val lorebooks: List<Lorebook> = emptyList(),
     val quickMessages: List<QuickMessage> = emptyList(),
+    val customApiUrl: String = "",
     val personas: List<Persona> = DEFAULT_PERSONAS,
     val activePersonaId: Uuid? = null,             // 当前激活的 Persona
     val authorNote: String = "",                    // Author's Note 内容

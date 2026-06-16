@@ -97,6 +97,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     val filesManager: FilesManager = koinInject()
     var showGithubDialog by androidx.compose.runtime.remember { mutableStateOf(false) }
     var githubTokenInput by androidx.compose.runtime.remember(settings) { mutableStateOf(settings.githubToken) }
+    var showApiUrlDialog by androidx.compose.runtime.remember { mutableStateOf(false) }
+    var apiUrlInput by androidx.compose.runtime.remember(settings) { mutableStateOf(settings.customApiUrl) }
     val context = LocalContext.current
 
     if (settings.launchCount > 100 && (settings.launchCount - settings.sponsorAlertDismissedAt) >= 50) {
@@ -282,6 +284,14 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
                     )
                     item(
+                        onClick = { showApiUrlDialog = true },
+                        leadingContent = { Icon(HugeIcons.CodeBrowser, null) },
+                        supportingContent = { Text("自定义 HTTP API 地址") },
+                        headlineContent = {
+                            Text(if (settings.customApiUrl.isNotBlank()) settings.customApiUrl else "API 地址（可选）")
+                        },
+                    )
+                    item(
                         onClick = { showGithubDialog = true },
                         leadingContent = { Icon(HugeIcons.BookmarkAdd01, null) },
                         supportingContent = { Text("搜索仓库、管理PR、查CI状态") },
@@ -440,6 +450,37 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             },
             dismissButton = {
                 TextButton(onClick = { showGithubDialog = false }) { Text("取消") }
+            },
+        )
+    }
+
+    if (showApiUrlDialog) {
+        AlertDialog(
+            onDismissRequest = { showApiUrlDialog = false },
+            icon = { Icon(HugeIcons.CodeBrowser, null) },
+            title = { Text("自定义 HTTP API") },
+            text = {
+                Column {
+                    Text("设置默认 API 地址，AI 调用 web_fetch 时自动使用。", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = apiUrlInput,
+                        onValueChange = { apiUrlInput = it },
+                        label = { Text("API Base URL") },
+                        placeholder = { Text("https://aov.cc/api/v1") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.updateSettings(settings.copy(customApiUrl = apiUrlInput))
+                    showApiUrlDialog = false
+                }) { Text("保存") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApiUrlDialog = false }) { Text("取消") }
             },
         )
     }
