@@ -279,17 +279,14 @@ def compile_rust_package(pkg, env):
     # Ensure maturin is installed
     run("pip install maturin 2>&1 | tail -3", check=False)
 
-    # Build env: carry over PYO3_CROSS_LIB_DIR from setup_env
-    rust_env = env.copy()
-    rust_env["CARGO_BUILD_TARGET"] = "aarch64-linux-android"
-    rust_env["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] = env["CC"]
-
     # Try maturin first
     log("Trying maturin with PYO3_CROSS_LIB_DIR...")
     result = run(
         f"cd '{src_dir}' && "
         f"CARGO_BUILD_TARGET=aarch64-linux-android "
         f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
+        f"PYO3_CROSS_LIB_DIR='{env['PYO3_CROSS_LIB_DIR']}' "
+        f"PYO3_CROSS_PYTHON_VERSION='{env['PYO3_CROSS_PYTHON_VERSION']}' "
         f"maturin build --target aarch64-linux-android "
         f"--release -o /tmp/wheels/ 2>&1",
         check=False, timeout=600)
@@ -313,6 +310,8 @@ def compile_rust_package(pkg, env):
         f"cd '{src_dir}' && "
         f"CARGO_BUILD_TARGET=aarch64-linux-android "
         f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
+        f"PYO3_CROSS_LIB_DIR='{env['PYO3_CROSS_LIB_DIR']}' "
+        f"PYO3_CROSS_PYTHON_VERSION='{env['PYO3_CROSS_PYTHON_VERSION']}' "
         f"cargo build --release --target aarch64-linux-android 2>&1",
         check=False, timeout=600)
 
