@@ -346,22 +346,48 @@ def main():
             run(f"find '{orig_dir}' -name '*.so' -delete", check=False)
             
             # 3. Copy NEW ARM64 .so files into the original sdist structure
-            # The original sdist has .so at: {pkg_dir}/{subpackage}/_sxtwl.cpython-312-*.so
-            # Find the subpackage directory(ies) by looking for existing .py files
+            # Find the actual Python package dir (has __init__.py, not docs/tests/examples)
             copied = 0
-            for src, dest_name in so_files:
-                # Try each subdirectory of orig_dir
-                for item in os.listdir(orig_dir):
-                    item_path = os.path.join(orig_dir, item)
-                    if os.path.isdir(item_path) and item[0].isalpha():
-                        # Check if this dir has Python files (it's a Python package)
-                        py_files = [f for f in os.listdir(item_path) if f.endswith('.py')]
-                        if py_files:
-                            dest = os.path.join(item_path, dest_name)
-                            shutil.copy2(src, dest)
-                            log(f"  ARM64 .so placed: {dest}")
-                            copied += 1
+            pkg_dir = None
+            for root, dirs, files in os.walk(orig_dir):
+                for f in files:
+                    if f == '__init__.py':
+                        candidate = root
+                        # Skip if it's in docs, tests, examples
+                        parts = os.path.relpath(candidate, orig_dir).split(os.sep)
+                        if any(p in parts for p in ['docs', 'test', 'example', 'demo', 'bench']):
+                            continue
+                        # Prefer the one that matches the package name
+                        basename = os.path.basename(candidate)
+                        if basename == py_pkg or basename == pkg_name:
+                            pkg_dir = candidate
                             break
+                if pkg_dir:
+                    break
+            
+            if not pkg_dir:
+                # Fallback: find any __init__.py dir not in docs/tests/examples
+                for root, dirs, files in os.walk(orig_dir):
+                    for f in files:
+                        if f == '__init__.py':
+                            parts = os.path.relpath(root, orig_dir).split(os.sep)
+                            if not any(p in parts for p in ['docs', 'test', 'example', 'demo', 'bench']):
+                                pkg_dir = root
+                                break
+                    if pkg_dir:
+                        break
+            
+            if not pkg_dir:
+                log(f"WARNING: Could not find Python package dir in {orig_dir}")
+                log(f"  contents: {os.listdir(orig_dir)}")
+                continue
+            
+            # Copy .so files into the found package directory
+            for src, dest_name in so_files:
+                dest = os.path.join(pkg_dir, dest_name)
+                shutil.copy2(src, dest)
+                log(f"  ARM64 .so placed: {dest}")
+                copied += 1
             
             if copied == 0:
                 log(f"WARNING: Could not place .so files into original sdist structure")
