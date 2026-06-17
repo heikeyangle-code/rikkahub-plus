@@ -44,7 +44,7 @@ jobs:
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
           sed -i "/numpy/d" timezonefinder-*/pyproject.toml timezonefinder-*/setup.cfg 2>/dev/null || true
-          tar czf timezonefinder-8.2.4.tar.gz timezonefinder-* && rm -rf timezonefinder-*
+          tar czf timezonefinder-8.2.4.tar.gz timezonefinder-* && rm -rf timezonefinder-8.2.4
           cd ${GITHUB_WORKSPACE}
           pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "tarot" -d /tmp/pypi-offline 2>&1 | tail -3
