@@ -202,6 +202,10 @@ class ConversationRepository(
         return conversationDAO.existsById(uuid.toString())
     }
 
+    suspend fun countConversations(): Int {
+        return conversationDAO.countAll()
+    }
+
     suspend fun insertConversation(conversation: Conversation) {
         database.withTransaction {
             conversationDAO.insert(
