@@ -80,6 +80,7 @@ import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.ImageUtils
+import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyStaggeredGridState
@@ -163,7 +164,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(top = innerPadding.calculateTopPadding())
         ) {
             // Search bar
             OutlinedTextField(
@@ -193,9 +194,9 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                     .fillMaxWidth()
                     .weight(1f)
                     .imePadding(),
-                contentPadding = PaddingValues(16.dp),
-                verticalItemSpacing = 8.dp,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp) +
+                    PaddingValues(bottom = innerPadding.calculateBottomPadding()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 state = lazyListState,
                 columns = StaggeredGridCells.Fixed(2)
             ) {
