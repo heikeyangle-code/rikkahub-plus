@@ -315,14 +315,15 @@ def main():
                     log(result.stdout[-2000:] if hasattr(result, 'stdout') else "")
                     continue
             
-            # Find compiled .so files
+            # Find compiled .so files — accept any .so, rename x86_64→aarch64
             so_files = []
             for root, dirs, files in os.walk(src_dir):
                 for f in files:
-                    if f.endswith(".so") and "x86_64" not in f:
+                    if f.endswith(".so") and "libc++" not in f:
                         src = os.path.join(root, f)
-                        # Determine the right target name
+                        # Rename to proper platform tag if needed
                         name = f.replace("x86_64-linux-gnu", "aarch64-linux-android")
+                        name = name.replace("linux_x86_64", "aarch64-linux-android")
                         so_files.append((src, name))
             
             if not so_files:
@@ -342,6 +343,15 @@ def main():
             
         elif pkg_type == "rust":
             # Rust package (pydantic-core)
+            # Create python3.11 symlink (maturin needs specific version name)
+            py_path = subprocess.run(["which", "python3"], capture_output=True, text=True).stdout.strip()
+            if py_path:
+                py_dir = os.path.dirname(py_path)
+                py311_link = os.path.join(py_dir, "python3.11")
+                if not os.path.exists(py311_link):
+                    os.symlink(py_path, py311_link)
+                    log(f"Created symlink: {py311_link} -> {py_path}")
+            
             rust_env = env.copy()
             rust_env["CARGO_BUILD_TARGET"] = "aarch64-linux-android"
             rust_env["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] = env["CC"]
