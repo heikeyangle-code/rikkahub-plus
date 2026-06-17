@@ -243,11 +243,11 @@ def main():
         
         log(f"\n=== Cross-compiling {pkg_name}=={version} ({pkg_type}) ===")
         
-        # Download source tarball
+        # Download source tarball — --no-build-isolation 防止 pip 单独装 maturin
         sdist_file = f"/tmp/{pkg_name}-{version}.tar.gz"
         if not os.path.exists(sdist_file):
-            run(f"pip download --no-deps --no-binary :all: '{pkg_name}=={version}' -d /tmp/ --no-index 2>/dev/null || "
-                f"pip download --no-deps --no-binary :all: '{pkg_name}=={version}' -d /tmp/ 2>&1 | tail -1",
+            run(f"pip download --no-deps --no-build-isolation --no-binary :all: '{pkg_name}=={version}' -d /tmp/ --no-index 2>/dev/null || "
+                f"pip download --no-deps --no-build-isolation --no-binary :all: '{pkg_name}=={version}' -d /tmp/ 2>&1 | tail -1",
                 check=True, timeout=120)
         
         # Find the downloaded file
@@ -343,14 +343,36 @@ def main():
             
         elif pkg_type == "rust":
             # Rust package (pydantic-core)
-            # Create python3.11 symlink (maturin needs specific version name)
+            # Find Python 3.11 exact path (maturin needs the version in the name)
             py_path = subprocess.run(["which", "python3"], capture_output=True, text=True).stdout.strip()
-            if py_path:
-                py_dir = os.path.dirname(py_path)
-                py311_link = os.path.join(py_dir, "python3.11")
-                if not os.path.exists(py311_link):
-                    os.symlink(py_path, py311_link)
-                    log(f"Created symlink: {py311_link} -> {py_path}")
+            py_dir = os.path.dirname(py_path) if py_path else ""
+            
+            # Python 3.11 may be at a versioned path in hostedtoolcache
+            for candidate in [
+                os.path.join(py_dir, "python3.11"),
+                "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python3.11",
+                "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python",
+            ]:
+                if os.path.exists(candidate):
+                    # Create versioned symlink if needed
+                    target_dir = os.path.dirname(candidate)
+                    versioned = os.path.join(target_dir, "python3.11")
+                    if not os.path.exists(versioned) and "python3.11" not in candidate:
+                        try:
+                            os.symlink(candidate, versioned)
+                            log(f"Created symlink: {versioned} -> {candidate}")
+                        except PermissionError:
+                            # Can't write to /opt/, try /tmp/
+                            tmp_python = "/tmp/python3.11"
+                            if not os.path.exists(tmp_python):
+                                os.symlink(candidate, tmp_python)
+                                versioned = tmp_python
+                                log(f"Created symlink: {versioned}")
+                    else:
+                        versioned = candidate
+                    break
+            else:
+                versioned = "python3.11"  # Fallback, might work if in PATH
             
             rust_env = env.copy()
             rust_env["CARGO_BUILD_TARGET"] = "aarch64-linux-android"
@@ -361,7 +383,7 @@ def main():
                 f"CARGO_BUILD_TARGET=aarch64-linux-android "
                 f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
                 f"maturin build --target aarch64-linux-android "
-                f"--interpreter python3 --release -o /tmp/wheels/ 2>&1",
+                f"--interpreter '{versioned}' --release -o /tmp/wheels/ 2>&1",
                 check=False, timeout=600)
             
             if result.returncode != 0:
