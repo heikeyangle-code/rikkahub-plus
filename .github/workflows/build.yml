@@ -41,6 +41,7 @@ jobs:
           pip download --no-deps --no-binary :all: "PyYAML==6.0.2" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "timezonefinder==8.2.4" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "flatbuffers==25.9.23" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps "lxml==5.4.0" -d /tmp/pypi-offline 2>&1 | tail -3
           # 去掉 numpy/h3/cffi 依赖 (CFFI加速模块需要,纯Python回退不需要)
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz

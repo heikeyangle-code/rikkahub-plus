@@ -181,7 +181,8 @@ def compile_c_package(pkg, env):
 
     sdist_file = f"/tmp/{pkg_name}-{version}.tar.gz"
     if not os.path.exists(sdist_file):
-        run(f"pip download --no-deps --no-build-isolation --no-binary :all: "
+        iso_flag = "" if pkg.get("build_isolation") else "--no-build-isolation"
+        run(f"pip download --no-deps {iso_flag} --no-binary :all: "
             f"'{pkg_name}=={version}' -d /tmp/ 2>&1 | tail -1", check=True, timeout=120)
 
     matches = (glob.glob(f"/tmp/{pkg_name.replace('-', '_')}-{version}.tar.gz")
@@ -366,7 +367,7 @@ def main():
         {"name": "ephem", "version": "4.2.1", "py_pkg": "ephem", "type": "c",
          "patches": []},
         {"name": "lxml", "version": "5.4.0", "py_pkg": "lxml",
-         "type": "c", "patches": []},
+         "type": "c", "patches": [], "build_isolation": True},
     ]
 
     for pkg in PACKAGES:
