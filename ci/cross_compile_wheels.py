@@ -89,12 +89,23 @@ def find_or_install_ndk():
     run(f"unzip -q {zip_path} -d /tmp/android-sdk/cmdline-tools-tmp", check=True)
     
     # Set up sdkmanager
-    os.makedirs("/tmp/android-sdk/cmdline-tools/latest", exist_ok=True)
-    for item in os.listdir("/tmp/android-sdk/cmdline-tools-tmp"):
-        shutil.move(f"/tmp/android-sdk/cmdline-tools-tmp/{item}",
-                     f"/tmp/android-sdk/cmdline-tools/latest/{item}")
+    # The zip contains a "cmdline-tools/" prefix directory
+    # Move contents into latest/ stripping the prefix
+    extracted = "/tmp/android-sdk/cmdline-tools-tmp"
+    src_dir = os.path.join(extracted, "cmdline-tools")
+    if os.path.exists(src_dir):
+        os.makedirs("/tmp/android-sdk/cmdline-tools/latest", exist_ok=True)
+        for item in os.listdir(src_dir):
+            shutil.move(os.path.join(src_dir, item),
+                        f"/tmp/android-sdk/cmdline-tools/latest/{item}")
     
     sdkmanager = "/tmp/android-sdk/cmdline-tools/latest/bin/sdkmanager"
+    if not os.path.exists(sdkmanager):
+        # Fallback: search for it
+        for root, dirs, files in os.walk("/tmp/android-sdk"):
+            if "sdkmanager" in files:
+                sdkmanager = os.path.join(root, "sdkmanager")
+                break
     os.environ["ANDROID_HOME"] = "/tmp/android-sdk"
     
     # Accept licenses and install NDK
