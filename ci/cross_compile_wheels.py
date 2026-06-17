@@ -182,8 +182,9 @@ def compile_c_package(pkg, env):
     sdist_file = f"/tmp/{pkg_name}-{version}.tar.gz"
     if not os.path.exists(sdist_file):
         iso_flag = "" if pkg.get("build_isolation") else "--no-build-isolation"
+        to = 600 if pkg.get("build_isolation") else 120
         run(f"pip download --no-deps {iso_flag} --no-binary :all: "
-            f"'{pkg_name}=={version}' -d /tmp/ 2>&1 | tail -1", check=True, timeout=120)
+            f"'{pkg_name}=={version}' -d /tmp/ 2>&1 | tail -1", check=True, timeout=to)
 
     matches = (glob.glob(f"/tmp/{pkg_name.replace('-', '_')}-{version}.tar.gz")
                + glob.glob(f"/tmp/{pkg_name}-{version}.tar.gz"))

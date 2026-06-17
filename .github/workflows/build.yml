@@ -41,7 +41,7 @@ jobs:
           pip download --no-deps --no-binary :all: "PyYAML==6.0.2" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "timezonefinder==8.2.4" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "flatbuffers==25.9.23" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps "lxml==5.4.0" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "lxml==5.4.0" -d /tmp/pypi-offline 2>&1 | tail -3
           # 去掉 numpy/h3/cffi 依赖 (CFFI加速模块需要,纯Python回退不需要)
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
@@ -208,6 +208,9 @@ jobs:
           keyAlias=androiddebugkey
           keyPassword=android
           EOF
+      - name: Pre-stage lxml sdist for cross-compiler
+        run: |
+          cp app/offline_pkgs/lxml-*.tar.gz /tmp/ 2>/dev/null || true
       - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core, ephem, lxml)
         run: |
           python3 ci/cross_compile_wheels.py 2>&1
