@@ -22,7 +22,7 @@ chaquopy {
             install("requests")
             install("beautifulsoup4")
             install("markdown")
-            install("python-docx")
+            install("python-docx==1.1.2")
             install("pypdf")
             install("openpyxl")
             install("python-pptx")
