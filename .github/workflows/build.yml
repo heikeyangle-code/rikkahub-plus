@@ -67,8 +67,6 @@ jobs:
           rm -f "$dir/src/arcanite/cards/update_card_positions.py"
           rm -rf "$dir/src/arcanite/images"
           rm -rf "$dir/examples"
-          # pyyaml: 移除 C 扩展依赖 (Chaquo 3.14 无). SpreadLoader 改用 Python json 回退
-          sed -i "/pyyaml/d" "$dir/setup.py" "$dir/pyproject.toml" "$dir/setup.cfg" 2>/dev/null || true
           # 用 printf 写 __init__.py，避免 YAML 解析 """ 报错
           printf '%s\n' '"""Arcanite - A Tarot Reading Engine (stripped: no LLM/PDF/images)"""' \
             '__version__ = "0.2.0"' \
