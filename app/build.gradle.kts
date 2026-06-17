@@ -22,7 +22,6 @@ chaquopy {
             install("markdown")
             install("pypdf")
             install("openpyxl")
-            install("ebooklib")
             install("markdownify")
             install("tabulate")
             // === 命理计算引擎 ===
