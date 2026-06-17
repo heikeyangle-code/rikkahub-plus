@@ -17,27 +17,26 @@ chaquopy {
     defaultConfig {
         version = "3.14"
         pip {
-            install("requests==2.32.3")
-            install("beautifulsoup4==4.12.3")
-            install("markdown==3.7")
-            install("pypdf==5.1.0")
-            install("openpyxl==3.1.5")
-            install("fpdf2==2.8.7")
-            install("ebooklib==0.18")
-            install("markdownify==0.12.1")
-            install("tabulate==0.9.0")
+            install("requests")
+            install("beautifulsoup4")
+            install("markdown")
+            install("pypdf")
+            install("openpyxl")
+            install("ebooklib")
+            install("markdownify")
+            install("tabulate")
             // === 命理计算引擎 ===
             // sxtwl/pyswisseph: 交叉编译 ARM64 .whl, pydantic-core: 本地 sdist
             install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
             install(file("offline_pkgs/sxtwl-2.0.6-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)
-            install("cnlunar==0.2.2")
+            install("cnlunar")
             install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // ⭐254 周易筮法/六爻
             install(file("offline_pkgs/kinliuren-src.tar.gz").absolutePath) // 大六壬
             install(file("offline_pkgs/kintaiyi-src.tar.gz").absolutePath) // 太乙神数
             install(file("offline_pkgs/taixuanshifa-src.tar.gz").absolutePath) // ⭐10 太玄筮法
             install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // ⭐6 荆诀（北大简先秦占卜）
-            install("bidict==0.23.1")            // bazi_china(ganzhi/datas/common/bazi) 所需
-            install("colorama==0.4.6")           // china-testing/bazi 所需
+            install("bidict")            // bazi_china(ganzhi/datas/common/bazi) 所需
+            install("colorama")           // china-testing/bazi 所需
             install(file("offline_pkgs/pyswisseph-2.10.3.2-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)
             install(file("offline_pkgs/ephem-4.2.1-cp314-cp314-android_21_arm64_v8a.whl").absolutePath) // ephem: 高精度天文计算, kinqimen/kinwangji 依赖
             install(file("offline_pkgs/pyyaml-6.0.2.tar.gz").absolutePath) // pip download 存为小写 // pyyaml: arcanite 牌阵 YAML 解析 (C扩展有纯Python回退)
@@ -48,11 +47,11 @@ chaquopy {
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
             install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)
             install(file("offline_pkgs/flatlib-patched.tar.gz").absolutePath) // ⭐386 传统占星 已patch pyswisseph版本
-            install("meihua-yi==0.1.1")           // ⭐1  梅花易数起卦（纯Python）
-            install("PyJHora==4.8.7")             // ⭐188 印度占星(吠陀)全套
+            install("meihua-yi")           // ⭐1  梅花易数起卦（纯Python）
+            install("PyJHora")             // ⭐188 印度占星(吠陀)全套
             install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
-            install("setuptools==82.0.1")              // setuptools 最新版
-            install("hatchling==1.25.0")           // hatchling构建工具, kinwangji需要
+            install("setuptools")              // setuptools 最新版
+            install("hatchling")           // hatchling构建工具, kinwangji需要
             install(file("offline_pkgs/pydantic_core-2.46.4.tar.gz").absolutePath)  // Rust 扩展, 尝试 PYO3_NO_PYTHON 交叉编译
             install(file("offline_pkgs/pydantic-2.13.4.tar.gz").absolutePath) // arcanite 需要, 纯 Python
             install(file("offline_pkgs/kinwangji-patched.tar.gz").absolutePath)
