@@ -282,7 +282,7 @@ def main():
             # Apply patches
             if "patches" in pkg:
                 for patch_cmd, _ in pkg["patches"]:
-                    result = run(f"cd '{src_dir}' && {patch_cmd}", check=False, shell=True)
+                    result = run(f"cd '{src_dir}' && {patch_cmd}", check=False)
                     if result.returncode != 0 and _:  # required patch failed
                         raise RuntimeError(f"Required patch failed: {patch_cmd}")
             
@@ -297,7 +297,7 @@ def main():
                 f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
                 f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
                 f"python setup.py build_ext --inplace 2>&1",
-                check=False, timeout=300, shell=True)
+                check=False, timeout=300)
             
             if result.returncode != 0:
                 # Try with build directory instead of --inplace
@@ -309,7 +309,7 @@ def main():
                     f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
                     f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
                     f"python setup.py build 2>&1",
-                    check=False, timeout=300, shell=True)
+                    check=False, timeout=300)
                 if result.returncode != 0:
                     log(f"Build FAILED for {pkg_name}")
                     log(result.stdout[-2000:] if hasattr(result, 'stdout') else "")
@@ -327,7 +327,7 @@ def main():
             
             if not so_files:
                 log(f"No .so files found for {pkg_name}, checking...")
-                run(f"find '{src_dir}' -name '*.so' 2>/dev/null", check=False, shell=True)
+                run(f"find '{src_dir}' -name '*.so' 2>/dev/null", check=False)
                 continue
             
             log(f"Found .so files: {[s for s,_ in so_files]}")
@@ -352,7 +352,7 @@ def main():
                 f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
                 f"maturin build --target aarch64-linux-android "
                 f"--interpreter python3 --release -o /tmp/wheels/ 2>&1",
-                check=False, timeout=600, shell=True)
+                check=False, timeout=600)
             
             if result.returncode != 0:
                 log(f"maturin build FAILED for {pkg_name}")
@@ -363,7 +363,7 @@ def main():
                     f"CARGO_BUILD_TARGET=aarch64-linux-android "
                     f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
                     f"pip wheel --no-deps . -w /tmp/wheels/ 2>&1",
-                    check=False, timeout=600, shell=True)
+                    check=False, timeout=600)
                 if result.returncode != 0:
                     log(f"pip wheel also FAILED for {pkg_name}")
                     continue
