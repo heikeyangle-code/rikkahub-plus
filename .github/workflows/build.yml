@@ -103,8 +103,8 @@ jobs:
         run: |
           git clone https://github.com/kentang2017/kinwangji.git /tmp/kinwangji_src
           cd /tmp/kinwangji_src
-          sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' pyproject.toml 2>/dev/null || sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' setup.py 2>/dev/null || true
-          echo "Patched kinwangji:"
+          sed -i '/ephem/d' pyproject.toml setup.py setup.cfg 2>/dev/null || true
+          echo "Patched kinwangji (removed ephem):"
           grep -n 'ephem' pyproject.toml setup.py setup.cfg 2>/dev/null || true
           cd /tmp && tar czf /tmp/pypi-offline/kinwangji-patched.tar.gz kinwangji_src
           cp /tmp/pypi-offline/kinwangji-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
@@ -175,9 +175,9 @@ jobs:
           tar xfz kinqimen-*.tar.gz
           rm kinqimen-*.tar.gz
           cd kinqimen-*
-          # ephem==4.1.3 is too strict, Chaquopy proxy has 4.1.5
-          sed -i 's/ephem==4.1.3/ephem>=4.1.3/' pyproject.toml 2>/dev/null || sed -i 's/ephem==4.1.3/ephem>=4.1.3/' setup.py 2>/dev/null || echo "ephem pin not found, skipping"
-          echo "Patched kinqimen ephem dep:"
+          # ephem unavailable on Chaquopy 3.14 proxy — remove dep entirely
+          sed -i '/ephem/d' pyproject.toml setup.py setup.cfg 2>/dev/null || true
+          echo "Patched kinqimen (removed ephem):"
           grep -n 'ephem' pyproject.toml setup.py setup.cfg 2>/dev/null || echo "(no ephem ref found)"
           cd /tmp/kq_patch && tar czf /tmp/pypi-offline/kinqimen-patched.tar.gz kinqimen-*
           cp /tmp/pypi-offline/kinqimen-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
