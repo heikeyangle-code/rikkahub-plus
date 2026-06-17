@@ -3,7 +3,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileInputStream
 import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -13,7 +12,6 @@ plugins {
     alias(libs.plugins.firebase.crashlytics)
     id("com.chaquo.python")
 }
-
 // Python 引擎配置 — Chaquopy 新 DSL
 chaquopy {
     defaultConfig {
@@ -22,7 +20,6 @@ chaquopy {
             install("requests")
             install("beautifulsoup4")
             install("markdown")
-            install("python-docx==1.1.2")
             install("pypdf")
             install("openpyxl")
             install("python-pptx")
@@ -30,7 +27,6 @@ chaquopy {
             install("ebooklib")
             install("markdownify")
             install("tabulate")
-
             // === 命理计算引擎 ===
             // sxtwl/pyswisseph: 交叉编译 ARM64 .whl, pydantic-core: 本地 sdist
             install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
@@ -48,7 +44,6 @@ chaquopy {
             install(file("offline_pkgs/pyyaml-6.0.2.tar.gz").absolutePath) // pip download 存为小写 // pyyaml: arcanite 牌阵 YAML 解析 (C扩展有纯Python回退)
             install(file("offline_pkgs/timezonefinder-8.2.4.tar.gz").absolutePath) // timezonefinder: stellium/immanuel 时区查询
             install(file("offline_pkgs/flatbuffers-25.9.23.tar.gz").absolutePath) // flatbuffers: timezonefinder
-            install(file("offline_pkgs/lxml-5.4.0-cp314-cp314-android_21_arm64_v8a.whl").absolutePath) // lxml: python-docx XML 解析 时区数据
             install(file("offline_pkgs/kinqimen-patched.tar.gz").absolutePath) // ⭐119 奇门遁甲
             install(file("offline_pkgs/arcanite-stripped.tar.gz").absolutePath) // ⭐78张韦特塔罗+36雷诺曼 牌义引擎
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
@@ -67,23 +62,19 @@ chaquopy {
         }
     }
 }
-
 android {
     namespace = "me.rerere.rikkahub"
     compileSdk = 37
-
     defaultConfig {
         applicationId = "me.rerere.rikkahub"
         minSdk = 26
         targetSdk = 37
         versionCode = 162
         versionName = "2.2.6"
-
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
     }
-
     splits {
         abi {
             // AppBundle tasks usually contain "bundle" in their name
@@ -95,20 +86,16 @@ android {
             isUniversalApk = true
         }
     }
-
     signingConfigs {
         create("release") {
             val localProperties = Properties()
             val localPropertiesFile = rootProject.file("local.properties")
-
             if (localPropertiesFile.exists()) {
                 localProperties.load(FileInputStream(localPropertiesFile))
-
                 val storeFilePath = localProperties.getProperty("storeFile")
                 val storePasswordValue = localProperties.getProperty("storePassword")
                 val keyAliasValue = localProperties.getProperty("keyAlias")
                 val keyPasswordValue = localProperties.getProperty("keyPassword")
-
                 if (storeFilePath != null && storePasswordValue != null &&
                     keyAliasValue != null && keyPasswordValue != null
                 ) {
@@ -120,7 +107,6 @@ android {
             }
         }
     }
-
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
@@ -182,22 +168,18 @@ android {
         compilerOptions.optIn.add("androidx.navigation3.runtime.ExperimentalNavigation3Api")
     }
 }
-
 tasks.register("buildAll") {
     dependsOn("assembleRelease", "bundleRelease")
     description = "Build both APK and AAB"
 }
-
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
-
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
-
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -205,7 +187,6 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.browser)
     implementation(libs.androidx.profileinstaller)
-
     // Compose
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -216,120 +197,92 @@ dependencies {
     implementation(libs.androidx.material3.adaptive)
     implementation(libs.androidx.material3.adaptive.layout)
     implementation(libs.androidx.material3.adaptive.navigation3)
-
     // Navigation 3
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.config)
-
     // DataStore
     implementation(libs.androidx.datastore.preferences)
-
     // Image metadata extractor
     // https://github.com/drewnoakes/metadata-extractor
     implementation(libs.metadata.extractor)
-
     // Haze (background blur)
     implementation(libs.haze)
     implementation(libs.haze.blur)
     implementation(libs.haze.blur.materials)
-
     // koin
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
     implementation(libs.koin.compose)
     implementation(libs.koin.androidx.workmanager)
-
     // jetbrains markdown parser
     implementation(libs.jetbrains.markdown)
-
     // okhttp
     implementation(libs.okhttp)
     implementation(libs.okhttp.sse)
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization.json)
-
     // ktor client
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
-
     // ucrop
     implementation(libs.ucrop)
-
     // pebble (template engine)
     implementation(libs.pebble)
-
     // coil
     implementation(libs.coil.compose)
     implementation(libs.coil.gif)
     implementation(libs.coil.okhttp)
     implementation(libs.coil.svg)
     implementation(libs.coil.cache.control)
-
     // serialization
     implementation(libs.kotlinx.serialization.json)
-
     // zxing
     implementation(libs.zxing.core)
-
     // quickie (qrcode scanner)
     implementation(libs.quickie.bundled)
     implementation(libs.barcode.scanning)
     implementation(libs.androidx.camera.core)
-
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.paging)
     ksp(libs.androidx.room.compiler)
-
     // Paging3
     implementation(libs.androidx.paging.runtime)
     implementation(libs.androidx.paging.compose)
-
     // Apache Commons Text
     implementation(libs.commons.text)
-
     // Toast (Sonner)
     implementation(libs.sonner)
-
     // Reorderable (https://github.com/Calvin-LL/Reorderable/)
     implementation(libs.reorderable)
-
     // lucide icons
     implementation(libs.lucide.icons)
     implementation(libs.huge.icons)
-
     // image viewer
     implementation(libs.image.viewer)
-
     // JLatexMath
     // https://github.com/rikkahub/jlatexmath-android
     implementation(libs.jlatexmath)
     implementation(libs.jlatexmath.font.greek)
     implementation(libs.jlatexmath.font.cyrillic)
-
     // mcp
     implementation(libs.modelcontextprotocol.kotlin.sdk)
-
     // jmDNS (mDNS/Bonjour for .local hostname)
     implementation(libs.jmdns)
-
     // SLF4J Android binding — routes Ktor/SLF4J logs to logcat
     implementation(libs.slf4j.api)
     implementation(libs.slf4j.android)
-
     // sqlite-android (requery SQLite for Android)
     implementation(libs.sqlite.android)
-
     // modules
     implementation(project(":ai"))
     implementation(project(":web"))
@@ -341,10 +294,8 @@ dependencies {
     implementation(project(":material3"))
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
     implementation(kotlin("reflect"))
-
     // Leak Canary
     // debugImplementation(libs.leakcanary.android)
-
     // tests
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

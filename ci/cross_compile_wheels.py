@@ -367,8 +367,6 @@ def main():
         {"name": "pydantic-core", "version": "2.46.4", "py_pkg": "pydantic_core", "type": "rust"},
         {"name": "ephem", "version": "4.2.1", "py_pkg": "ephem", "type": "c",
          "patches": []},
-        {"name": "lxml", "version": "5.4.0", "py_pkg": "lxml",
-         "type": "c", "patches": [], "build_isolation": True},
     ]
 
     for pkg in PACKAGES:
