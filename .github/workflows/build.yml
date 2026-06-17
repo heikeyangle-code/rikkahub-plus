@@ -40,6 +40,12 @@ jobs:
           pip download --no-deps --no-binary :all: "pydantic==2.13.4" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "PyYAML==6.0.2" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "timezonefinder==8.2.4" -d /tmp/pypi-offline 2>&1 | tail -3
+          # 去掉 numpy>=2 依赖 (Chaquo 3.14 无 numpy>=2, 纯Python回退也不需要numpy)
+          cd /tmp/pypi-offline
+          tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
+          sed -i "/numpy/d" timezonefinder-*/pyproject.toml timezonefinder-*/setup.cfg 2>/dev/null || true
+          tar czf timezonefinder-8.2.4.tar.gz timezonefinder-* && rm -rf timezonefinder-*
+          cd ${GITHUB_WORKSPACE}
           pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "tarot" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "kinliuren" -d /tmp/pypi-offline 2>&1 | tail -3
