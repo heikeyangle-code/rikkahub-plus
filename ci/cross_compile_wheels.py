@@ -363,6 +363,8 @@ def main():
              ("sed -i 's/sqlite3_detection = True/sqlite3_detection = False/' setup.py", True),
          ]},
         {"name": "pydantic-core", "version": "2.46.4", "py_pkg": "pydantic_core", "type": "rust"},
+        {"name": "ephem", "version": "4.2.1", "py_pkg": "ephem", "type": "c",
+         "patches": []},
     ]
 
     for pkg in PACKAGES:
