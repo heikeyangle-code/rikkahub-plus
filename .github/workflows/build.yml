@@ -38,6 +38,7 @@ jobs:
           pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pydantic-core==2.46.4" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pydantic==2.13.4" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "PyYAML==6.0.2" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "tarot" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "kinliuren" -d /tmp/pypi-offline 2>&1 | tail -3
@@ -198,7 +199,7 @@ jobs:
           keyAlias=androiddebugkey
           keyPassword=android
           EOF
-      - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core, ephem, timezonefinder, pyyaml)
+      - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core, ephem, timezonefinder)
         run: |
           python3 ci/cross_compile_wheels.py 2>&1
       - name: Build

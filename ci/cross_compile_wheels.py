@@ -367,8 +367,6 @@ def main():
          "patches": []},
         {"name": "timezonefinder", "version": "8.2.4", "py_pkg": "timezonefinder",
          "type": "c", "patches": []},
-        {"name": "pyyaml", "version": "6.0.2", "py_pkg": "yaml",
-         "type": "c", "patches": []},
     ]
 
     for pkg in PACKAGES:

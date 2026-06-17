@@ -45,7 +45,7 @@ chaquopy {
             install("colorama")           // china-testing/bazi 所需
             install(file("offline_pkgs/pyswisseph-2.10.3.2-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)
             install(file("offline_pkgs/ephem-4.2.1-cp314-cp314-android_21_arm64_v8a.whl").absolutePath) // ephem: 高精度天文计算, kinqimen/kinwangji 依赖
-            install(file("offline_pkgs/pyyaml-6.0.2-cp314-cp314-android_21_arm64_v8a.whl").absolutePath) // pyyaml: arcanite 牌阵 YAML 解析
+            install(file("offline_pkgs/PyYAML-6.0.2.tar.gz").absolutePath) // pyyaml: arcanite 牌阵 YAML 解析 (C扩展有纯Python回退)
             install(file("offline_pkgs/kinqimen-patched.tar.gz").absolutePath) // ⭐119 奇门遁甲
             install(file("offline_pkgs/arcanite-stripped.tar.gz").absolutePath) // ⭐78张韦特塔罗+36雷诺曼 牌义引擎
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
