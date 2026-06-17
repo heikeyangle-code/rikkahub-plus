@@ -351,6 +351,21 @@ def compile_rust_package(pkg, env):
     if not py_interp:
         py_interp = sys.executable  # fallback
 
+    # Maturin requires versioned interpreter name (e.g. python3.12, not python)
+    # Create a symlink if needed
+    interp_basename = os.path.basename(py_interp)
+    if interp_basename == "python" or interp_basename == f"python{PY_TAG[2:]}":
+        target_name = f"python{PY_TAG[2:]}"
+        symlink_path = f"/tmp/{target_name}"
+        if not os.path.exists(symlink_path):
+            try:
+                os.symlink(py_interp, symlink_path)
+                log(f"Created symlink: {symlink_path} -> {py_interp}")
+            except OSError:
+                log(f"Could not create symlink, using original: {py_interp}")
+        if os.path.exists(symlink_path):
+            py_interp = symlink_path
+
     rust_env = env.copy()
     rust_env["CARGO_BUILD_TARGET"] = "aarch64-linux-android"
     rust_env["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] = env["CC"]
@@ -375,6 +390,7 @@ def compile_rust_package(pkg, env):
             f"CARGO_BUILD_TARGET=aarch64-linux-android "
             f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
             f"maturin build --target aarch64-linux-android "
+            f"--interpreter '{py_interp}' "
             f"--release -o /tmp/wheels/ 2>&1",
             check=False, timeout=600)
         if result.returncode != 0:
