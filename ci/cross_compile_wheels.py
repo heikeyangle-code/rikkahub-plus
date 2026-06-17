@@ -365,8 +365,6 @@ def main():
         {"name": "pydantic-core", "version": "2.46.4", "py_pkg": "pydantic_core", "type": "rust"},
         {"name": "ephem", "version": "4.2.1", "py_pkg": "ephem", "type": "c",
          "patches": []},
-        {"name": "timezonefinder", "version": "8.2.4", "py_pkg": "timezonefinder",
-         "type": "c", "patches": []},
     ]
 
     for pkg in PACKAGES:
