@@ -113,6 +113,9 @@ def setup_ndk_env(ndk_path):
     ar = os.path.join(toolchain, "bin", "llvm-ar")
     ld = os.path.join(toolchain, "bin", "ld.lld")
 
+    ndk_lib_dir = os.path.join(ndk_path, "toolchains", "llvm", "prebuilt", "linux-x86_64",
+                                "sysroot", "usr", "lib", "aarch64-linux-android", "21")
+
     env = os.environ.copy()
     env.update({
         "CC": cc,
@@ -121,11 +124,25 @@ def setup_ndk_env(ndk_path):
         "LD": ld,
         "CFLAGS": "--target=aarch64-linux-android21 -O2 -fPIC",
         "CXXFLAGS": "--target=aarch64-linux-android21 -O2 -fPIC",
-        "LDFLAGS": "--target=aarch64-linux-android21 -Wl,--allow-shlib-undefined",
-        "LDSHARED": f"{cc} --target=aarch64-linux-android21 -shared -Wl,--allow-shlib-undefined",
+        "LDFLAGS": f"--target=aarch64-linux-android21 -L{ndk_lib_dir} -lpython3.12",
+        "LDSHARED": f"{cc} --target=aarch64-linux-android21 -shared -L{ndk_lib_dir} -lpython3.12",
         "_PYTHON_HOST_PLATFORM": "aarch64-linux-android",
         "ANDROID_NDK_HOME": ndk_path,
     })
+    # Create a stub ARM64 libpython3.12.so so the linker adds NEEDED entry.
+    # Chaquopy ships libpython3.12.so in the APK; our .so must declare it as NEEDED
+    # for the Android dynamic linker to find Python C API symbols at runtime.
+    stub_path = os.path.join(ndk_lib_dir, "libpython3.12.so")
+    if not os.path.exists(stub_path):
+        os.makedirs(ndk_lib_dir, exist_ok=True)
+        # Compile a genuine empty ARM64 .so with the correct SONAME
+        stub_c = "/tmp/stub_python.c"
+        with open(stub_c, 'w') as f:
+            f.write("void Py_Initialize(void) {}\n")
+        run(f"{cc} -shared -o {stub_path} {stub_c} "
+            f"-Wl,-soname,libpython3.12.so 2>&1", check=True)
+        os.unlink(stub_c)
+        log(f"Created stub libpython3.12.so in NDK sysroot")
     return env
 
 
