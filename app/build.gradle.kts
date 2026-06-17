@@ -32,8 +32,9 @@ chaquopy {
             install("tabulate")
 
             // === 命理计算引擎 ===
-            install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
-            install(file("offline_pkgs/sxtwl-2.0.6.tar.gz").absolutePath)
+            // 方案B: 走 Chaquopy 代理预编译 ARM64 wheel, 不走本地源码编译
+            install("lunar-python==1.4.8")
+            install("sxtwl==2.0.6")
             install("cnlunar")
             install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // ⭐254 周易筮法/六爻
             install(file("offline_pkgs/kinliuren-src.tar.gz").absolutePath) // 大六壬
@@ -42,7 +43,7 @@ chaquopy {
             install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // ⭐6 荆诀（北大简先秦占卜）
             install("bidict")            // bazi_china(ganzhi/datas/common/bazi) 所需
             install("colorama")           // china-testing/bazi 所需
-            install(file("offline_pkgs/pyswisseph-2.10.3.2.tar.gz").absolutePath)
+            install("pyswisseph==2.10.3.2")
             install(file("offline_pkgs/kinqimen-patched.tar.gz").absolutePath) // ⭐119 奇门遁甲
             install(file("offline_pkgs/arcanite-stripped.tar.gz").absolutePath) // ⭐78张韦特塔罗+36雷诺曼 牌义引擎
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
@@ -53,8 +54,8 @@ chaquopy {
             install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
             install("setuptools")              // setuptools 最新版
             install("hatchling")           // hatchling构建工具, kinwangji需要
-            install(file("offline_pkgs/pydantic_core-2.46.4.tar.gz").absolutePath) // arcanite 塔罗引擎需要(pydantic-core)
-            install(file("offline_pkgs/pydantic-2.13.4.tar.gz").absolutePath) // arcanite 塔罗引擎需要
+            install("pydantic-core==2.46.4")  // arcanite 塔罗引擎需要(pydantic-core), 走代理 ARM64 wheel
+            install("pydantic==2.13.4")       // arcanite 塔罗引擎需要, 走代理 wheel
             install(file("offline_pkgs/kinwangji-patched.tar.gz").absolutePath)
             // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
             // install("git+https://github.com/kentang2017/kinastro.git")

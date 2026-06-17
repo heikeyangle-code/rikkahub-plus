@@ -35,9 +35,6 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Download packages missing from Chaquopy proxy
         run: |
-          pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pydantic-core==2.46.4" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pydantic==2.13.4" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "tarot" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "kinliuren" -d /tmp/pypi-offline 2>&1 | tail -3
@@ -53,32 +50,6 @@ jobs:
           tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz --exclude=".git" . 2>&1
           cd /tmp && rm -rf /tmp/ichingshifa_src
           echo "ichingshifa full tarball ready"
-          # sxtwl + pyswisseph: PyPI sdist 带预编译 x86_64 .so, 下源码剥离后重打包
-          for pkg_ver in "sxtwl==2.0.6" "pyswisseph==2.10.3.2"; do
-            pkg_name="${pkg_ver%%==*}"
-            pip download --no-deps --no-binary :all: "${pkg_ver}" -d /tmp/pypi-offline 2>&1 | tail -1
-            cd /tmp/pypi-offline
-            sdist=$(ls ${pkg_name}-*.tar.gz | head -1)
-            dir="${sdist%.tar.gz}"
-            tar xfz "$sdist" && rm "$sdist"
-            find "$dir" -name '*.so' -delete
-            # pyswisseph: 禁用系统 libswe 检测(CI 上是 x86_64 版), 强制用内置源码编译 ARM64
-            if [ "$pkg_name" = "pyswisseph" ]; then
-              sed -i 's/swe_detection = True/swe_detection = False/' "$dir/setup.py"
-              sed -i 's/sqlite3_detection = True/sqlite3_detection = False/' "$dir/setup.py"
-              echo "Patched pyswisseph: swe_detection=False, sqlite3_detection=False"
-            fi
-            # sxtwl: 清理 egg-info, 保留 distutils import (Chaquopy 需要 hook), 只改 msvc 判断
-            if [ "$pkg_name" = "sxtwl" ]; then
-              rm -rf "$dir/sxtwl.egg-info"
-              # 保留 from distutils import ccompiler — Chaquopy 通过 distutils hook NDK 交叉编译
-              sed -i 's/if ccompiler.get_default_compiler() == "msvc":/if platform.system() == "Windows":/' "$dir/setup.py"
-              echo "Patched sxtwl: cleaned egg-info, kept distutils import"
-            fi
-            tar czf "/tmp/pypi-offline/${sdist}" "$dir"
-            rm -rf "$dir"
-            cd ${GITHUB_WORKSPACE}
-          done
 
           # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容
           pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1 | tail -1
@@ -112,7 +83,7 @@ jobs:
           mkdir -p app/offline_pkgs
           for f in /tmp/pypi-offline/*.tar.gz; do
             fname=$(basename "$f")
-            # lunar-python → lunar_python
+            # lunar-python → lunar_python (if any lunar-python files appear)
             fname="${fname//lunar-python/lunar_python}"
             cp "$f" "app/offline_pkgs/$fname"
           done
@@ -223,33 +194,7 @@ jobs:
           keyAlias=androiddebugkey
           keyPassword=android
           EOF
-      - name: Setup NDK cross-compilation
-        run: |
-          # Find NDK — AGP downloads it to Gradle cache
-          NDK_DIR=$(find ~/.gradle/caches -name "ndk-bundle" -type d 2>/dev/null | head -1)
-          if [ -z "$NDK_DIR" ]; then
-            NDK_DIR=$(find ~/.gradle/caches -path "*/transforms/*/ndk" -type d 2>/dev/null | head -1)
-          fi
-          if [ -z "$NDK_DIR" ]; then
-            NDK_DIR=$(find / -name "aarch64-linux-android21-clang" -type f 2>/dev/null | head -1)
-            if [ -n "$NDK_DIR" ]; then
-              NDK_DIR=$(dirname "$NDK_DIR")
-            fi
-          fi
-          if [ -n "$NDK_DIR" ]; then
-            echo "Found NDK: $NDK_DIR"
-            echo "CC=$NDK_DIR/bin/aarch64-linux-android21-clang" >> $GITHUB_ENV
-            echo "CXX=$NDK_DIR/bin/aarch64-linux-android21-clang++" >> $GITHUB_ENV
-            echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$NDK_DIR/bin/aarch64-linux-android21-clang" >> $GITHUB_ENV
-          else
-            echo "NDK not found pre-build, will be downloaded by AGP during build"
-          fi
       - name: Build
-        env:
-          PIP_NO_BINARY: sxtwl,pyswisseph,pydantic-core
-          _PYTHON_HOST_PLATFORM: aarch64-linux-android
-          _ANDROID_TARGET_ARCH: arm64-v8a
-          CARGO_BUILD_TARGET: aarch64-linux-android
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease -x :web:buildWebUi --no-build-cache --stacktrace 2>&1 | tee build.log
