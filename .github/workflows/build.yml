@@ -18,7 +18,7 @@ jobs:
           java-version: '21'
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: Upgrade pip & setuptools (required for git+ packages)
         run: pip install --upgrade pip setuptools wheel
       - name: Force full Python reinstall (auto-update all packages)
@@ -65,6 +65,7 @@ jobs:
           rm -rf "$dir/src/arcanite/templates"
           rm -rf "$dir/src/arcanite/prompts"
           rm -f "$dir/src/arcanite/cards/update_card_positions.py"
+          rm -rf "$dir/src/arcanite/images"
           rm -rf "$dir/examples"
           # 用 printf 写 __init__.py，避免 YAML 解析 """ 报错
           printf '%%s\n' '"""Arcanite - A Tarot Reading Engine (stripped: no LLM/PDF/images)"""' \
