@@ -394,9 +394,39 @@ def compile_rust_package(pkg, env):
             f"--release -o /tmp/wheels/ 2>&1",
             check=False, timeout=600)
         if result.returncode != 0:
-            log(f"PYO3_NO_PYTHON fallback also FAILED for {pkg_name}. "
-                f"Will use original sdist (Chaquo may fail to load on ARM64).")
-            return False
+            log(f"PYO3_NO_PYTHON maturin also FAILED for {pkg_name}. "
+                f"Trying cargo build directly...")
+            # Cargo build directly with PYO3_NO_PYTHON (skips Python detection)
+            result = run(
+                f"cd '{src_dir}' && "
+                f"PYO3_NO_PYTHON=1 "
+                f"CARGO_BUILD_TARGET=aarch64-linux-android "
+                f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
+                f"cargo build --release --target aarch64-linux-android 2>&1",
+                check=False, timeout=600)
+            if result.returncode != 0:
+                log(f"cargo build also FAILED for {pkg_name}. "
+                    f"Will use original sdist.")
+                return False
+            # Find .so: cdylib produces target/.../release/lib{name}.so → lib_pydantic_core.so
+            so_candidates = list(glob.glob(
+                f"{src_dir}/target/aarch64-linux-android/release/lib*.so"))
+            if not so_candidates:
+                log(f"No .so found after cargo build for {pkg_name}")
+                return False
+            so_files = []
+            for so_path in so_candidates:
+                basename = os.path.basename(so_path)
+                # Rename lib_{name}.so → {name}.cpython-312-aarch64-linux-android.so
+                pyname = basename.replace('lib_', '').replace('lib', '')
+                pyname = pyname.replace('.so', f'.cpython-312-aarch64-linux-android.so')
+                so_files.append((so_path, pyname))
+            log(f"Cargo produced: {[s for s,_ in so_files]}")
+            wheel_path = create_wheel(pkg_name, version, py_pkg, so_files)
+            dest = os.path.join(OFFLINE_PKGS, os.path.basename(wheel_path))
+            shutil.copy2(wheel_path, dest)
+            log(f"ARM64 wheel from cargo: {dest}")
+            return True
 
     wheels = glob.glob(f"/tmp/wheels/{pkg_name.replace('-', '_')}*.whl")
     if wheels:
