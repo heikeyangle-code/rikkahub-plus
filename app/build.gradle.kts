@@ -22,7 +22,6 @@ chaquopy {
             install("markdown")
             install("pypdf")
             install("openpyxl")
-            install("python-pptx")
             install("fpdf2")
             install("ebooklib")
             install("markdownify")
