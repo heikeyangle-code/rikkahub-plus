@@ -134,6 +134,7 @@ def create_wheel(pkg_name, version, py_pkg, so_files):
 
     so_files: list of (src_path, dest_filename) tuples.
     The wheel uses android_21_arm64_v8a platform for Chaquopy compatibility.
+    Dist-info directory uses pkg_name (pip package name), not py_pkg (module name).
     """
     wheel_name = f"{pkg_name.replace('-', '_')}-{version}-{PY_TAG}-{ABI_TAG}-{PLAT}.whl"
     wheel_dir = f"/tmp/wheels/{wheel_name.replace('.whl', '')}"
@@ -142,7 +143,7 @@ def create_wheel(pkg_name, version, py_pkg, so_files):
 
     pkg_dir = os.path.join(wheel_dir, py_pkg)
     os.makedirs(pkg_dir, exist_ok=True)
-    os.makedirs(os.path.join(wheel_dir, f"{py_pkg}-{version}.dist-info"), exist_ok=True)
+    os.makedirs(os.path.join(wheel_dir, f"{pkg_name}-{version}.dist-info"), exist_ok=True)
 
     for src, dest_name in so_files:
         if os.path.exists(src):
@@ -154,21 +155,21 @@ def create_wheel(pkg_name, version, py_pkg, so_files):
         with open(init_py, "w") as f:
             f.write(f"# {py_pkg} package\n")
 
-    with open(os.path.join(wheel_dir, f"{py_pkg}-{version}.dist-info", "WHEEL"), "w") as f:
+    with open(os.path.join(wheel_dir, f"{pkg_name}-{version}.dist-info", "WHEEL"), "w") as f:
         f.write(f"""Wheel-Version: 1.0
 Generator: cross-compile (manual)
 Root-Is-Purelib: false
 Tag: {PY_TAG}-{ABI_TAG}-{PLAT}
 """)
 
-    with open(os.path.join(wheel_dir, f"{py_pkg}-{version}.dist-info", "METADATA"), "w") as f:
+    with open(os.path.join(wheel_dir, f"{pkg_name}-{version}.dist-info", "METADATA"), "w") as f:
         f.write(f"""Metadata-Version: 2.1
 Name: {pkg_name}
 Version: {version}
 Summary: Cross-compiled for Android ARM64
 """)
 
-    record_path = os.path.join(wheel_dir, f"{py_pkg}-{version}.dist-info", "RECORD")
+    record_path = os.path.join(wheel_dir, f"{pkg_name}-{version}.dist-info", "RECORD")
     records = []
     for root, dirs, files in os.walk(wheel_dir):
         for fn in files:
@@ -365,8 +366,22 @@ def compile_rust_package(pkg, env):
 
     if result.returncode != 0:
         log(f"maturin build FAILED for {pkg_name}. "
-            f"Skipping cross-compile. The original sdist will be used by Chaquopy.")
-        return False
+            f"Trying PYO3_NO_PYTHON=1 fallback (cross-compile without target Python)...")
+        # Fallback: PYO3_NO_PYTHON skips detecting the host Python's sysconfig,
+        # producing a .so that works when embedded (Android Chaquopy style).
+        result = run(
+            f"cd '{src_dir}' && "
+            f"PYO3_NO_PYTHON=1 "
+            f"CARGO_BUILD_TARGET=aarch64-linux-android "
+            f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
+            f"maturin build --target aarch64-linux-android "
+            f"--release -o /tmp/wheels/ --no-default-features "
+            f"--features pyo3/extension-module 2>&1",
+            check=False, timeout=600)
+        if result.returncode != 0:
+            log(f"PYO3_NO_PYTHON fallback also FAILED for {pkg_name}. "
+                f"Will use original sdist (Chaquo may fail to load on ARM64).")
+            return False
 
     wheels = glob.glob(f"/tmp/wheels/{pkg_name.replace('-', '_')}*.whl")
     if wheels:

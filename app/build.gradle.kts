@@ -54,7 +54,7 @@ chaquopy {
             install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
             install("setuptools")              // setuptools 最新版
             install("hatchling")           // hatchling构建工具, kinwangji需要
-            install(file("offline_pkgs/pydantic_core-2.46.4.tar.gz").absolutePath)  // 本地sdist, 走Chaquo内部编译
+            install(file("offline_pkgs/pydantic_core-2.46.4.tar.gz").absolutePath)  // Rust 扩展, 尝试 PYO3_NO_PYTHON 交叉编译
             install(file("offline_pkgs/pydantic-2.13.4.tar.gz").absolutePath) // arcanite 需要, 纯 Python
             install(file("offline_pkgs/kinwangji-patched.tar.gz").absolutePath)
             // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
