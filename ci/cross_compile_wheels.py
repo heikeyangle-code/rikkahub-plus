@@ -319,52 +319,59 @@ def main():
             so_files = []
             for root, dirs, files in os.walk(src_dir):
                 for f in files:
-                    if f.endswith(".so") and "libc++" not in f:
+                    if f.endswith(".so") and "libc++" not in f and "chaquopy" not in f:
                         src = os.path.join(root, f)
-                        # Rename to proper platform tag if needed
                         name = f.replace("x86_64-linux-gnu", "aarch64-linux-android")
                         name = name.replace("linux_x86_64", "aarch64-linux-android")
                         so_files.append((src, name))
             
             if not so_files:
-                log(f"No .so files found for {pkg_name}, checking...")
-                run(f"find '{src_dir}' -name '*.so' 2>/dev/null", check=False)
+                log(f"No .so files found for {pkg_name}")
                 continue
             
             log(f"Found .so files: {[s for s,_ in so_files]}")
             
-            # Create a tarball (sdist-style) with the ARM64 .so files
-            # Structure: {pkg_name}-{version}/setup.py, {py_pkg}/*.so, {py_pkg}/*.py
-            tarball_root = f"/tmp/tarball/{pkg_name}-{version}"
-            os.makedirs(f"{tarball_root}/{py_pkg}", exist_ok=True)
-            os.makedirs(f"{tarball_root}/{py_pkg}-{version}.dist-info", exist_ok=True)
+            # Instead of creating a new tarball, repack the ORIGINAL sdist with ARM64 .so files
+            # This preserves the original setup.py which knows how to handle precompiled .so
+            # 1. Re-extract original sdist (clean copy)
+            orig_extract = f"/tmp/orig_{pkg_name}_{version}"
+            if os.path.exists(orig_extract):
+                shutil.rmtree(orig_extract)
+            os.makedirs(orig_extract)
+            run(f"tar xfz '{sdist_path}' -C {orig_extract}", check=True)
             
-            # Copy .so files
+            orig_dir = os.path.join(orig_extract, os.listdir(orig_extract)[0])
+            
+            # 2. Delete OLD .so files (x86_64)
+            run(f"find '{orig_dir}' -name '*.so' -delete", check=False)
+            
+            # 3. Copy NEW ARM64 .so files into the original sdist structure
+            # The original sdist has .so at: {pkg_dir}/{subpackage}/_sxtwl.cpython-312-*.so
+            # Find the subpackage directory(ies) by looking for existing .py files
+            copied = 0
             for src, dest_name in so_files:
-                shutil.copy2(src, os.path.join(tarball_root, py_pkg, dest_name))
+                # Try each subdirectory of orig_dir
+                for item in os.listdir(orig_dir):
+                    item_path = os.path.join(orig_dir, item)
+                    if os.path.isdir(item_path) and item[0].isalpha():
+                        # Check if this dir has Python files (it's a Python package)
+                        py_files = [f for f in os.listdir(item_path) if f.endswith('.py')]
+                        if py_files:
+                            dest = os.path.join(item_path, dest_name)
+                            shutil.copy2(src, dest)
+                            log(f"  ARM64 .so placed: {dest}")
+                            copied += 1
+                            break
             
-            # Copy Python files from original source
-            for f in os.listdir(src_dir):
-                if f.endswith('.py') and not f.startswith('_'):
-                    shutil.copy2(os.path.join(src_dir, f), os.path.join(tarball_root, py_pkg, f))
+            if copied == 0:
+                log(f"WARNING: Could not place .so files into original sdist structure")
+                log(f"  orig_dir contents: {os.listdir(orig_dir)}")
+                continue
             
-            # Create setup.py if not exists (for packages that only have .so)
-            if not os.path.exists(f"{tarball_root}/setup.py"):
-                with open(f"{tarball_root}/setup.py", "w") as sf:
-                    sf.write(f'from setuptools import setup, find_packages\n')
-                    sf.write(f'setup(name="{pkg_name}", version="{version}", packages=find_packages())\n')
-            
-            # Also copy any existing setup.py or .py files from the original sdist root
-            if os.path.exists(f"{src_dir}/setup.py"):
-                shutil.copy2(f"{src_dir}/setup.py", f"{tarball_root}/setup.py")
-            for f in os.listdir(src_dir):
-                if f.endswith('.py') or f.endswith('.cfg'):
-                    shutil.copy2(os.path.join(src_dir, f), os.path.join(tarball_root, f))
-            
-            # Create tarball
+            # 4. Repack as the original filename
             tarball_name = f"{pkg_name}-{version}-arm64.tar.gz"
             tarball_path = f"/tmp/{tarball_name}"
-            run(f"cd /tmp/tarball && tar czf '{tarball_path}' '{pkg_name}-{version}'", check=True)
+            run(f"cd '{orig_extract}' && tar czf '{tarball_path}' '{os.listdir(orig_extract)[0]}'", check=True)
             
             # Copy to offline_pkgs
             dest = os.path.join(OFFLINE_PKGS, tarball_name)
