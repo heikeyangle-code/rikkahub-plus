@@ -198,7 +198,7 @@ jobs:
           keyAlias=androiddebugkey
           keyPassword=android
           EOF
-      - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core, ephem)
+      - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core, ephem, timezonefinder)
         run: |
           python3 ci/cross_compile_wheels.py 2>&1
       - name: Build
