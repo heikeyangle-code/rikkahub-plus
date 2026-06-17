@@ -375,8 +375,7 @@ def compile_rust_package(pkg, env):
             f"CARGO_BUILD_TARGET=aarch64-linux-android "
             f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
             f"maturin build --target aarch64-linux-android "
-            f"--release -o /tmp/wheels/ --no-default-features "
-            f"--features pyo3/extension-module 2>&1",
+            f"--release -o /tmp/wheels/ 2>&1",
             check=False, timeout=600)
         if result.returncode != 0:
             log(f"PYO3_NO_PYTHON fallback also FAILED for {pkg_name}. "
