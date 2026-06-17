@@ -347,8 +347,9 @@ def main():
     android_python = download_android_python()
     env = setup_env(ndk_path, android_python)
 
-    # Install Rust target for cross-compilation
+    # Install Rust target & maturin for cross-compilation
     run("rustup target add aarch64-linux-android 2>&1 | tail -1", check=False)
+    run("pip install maturin 2>&1 | tail -3", check=False)
 
     PACKAGES = [
         {"name": "sxtwl", "version": "2.0.6", "py_pkg": "sxtwl", "type": "c",
