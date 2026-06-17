@@ -346,18 +346,18 @@ def main():
             run(f"find '{orig_dir}' -name '*.so' -delete", check=False)
             
             # 3. Copy NEW ARM64 .so files into the original sdist structure
-            # Find the actual Python package dir (has __init__.py, not docs/tests/examples)
             copied = 0
             pkg_dir = None
+            
+            # First, check if the .so should go in a subdirectory (__init__.py-based package)
             for root, dirs, files in os.walk(orig_dir):
                 for f in files:
                     if f == '__init__.py':
                         candidate = root
-                        # Skip if it's in docs, tests, examples
                         parts = os.path.relpath(candidate, orig_dir).split(os.sep)
-                        if any(p in parts for p in ['docs', 'test', 'example', 'demo', 'bench']):
+                        skip_dirs = {'docs', 'test', 'tests', 'example', 'examples', 'demo', 'bench', 'benchmarks'}
+                        if any(p in parts for p in skip_dirs):
                             continue
-                        # Prefer the one that matches the package name
                         basename = os.path.basename(candidate)
                         if basename == py_pkg or basename == pkg_name:
                             pkg_dir = candidate
@@ -365,24 +365,13 @@ def main():
                 if pkg_dir:
                     break
             
+            # If no __init__.py found, it's a single-module package — .so goes at root level
             if not pkg_dir:
-                # Fallback: find any __init__.py dir not in docs/tests/examples
-                for root, dirs, files in os.walk(orig_dir):
-                    for f in files:
-                        if f == '__init__.py':
-                            parts = os.path.relpath(root, orig_dir).split(os.sep)
-                            if not any(p in parts for p in ['docs', 'test', 'example', 'demo', 'bench']):
-                                pkg_dir = root
-                                break
-                    if pkg_dir:
-                        break
+                log("No __init__.py found — single-module package, .so goes at root")
+                pkg_dir = orig_dir
             
-            if not pkg_dir:
-                log(f"WARNING: Could not find Python package dir in {orig_dir}")
-                log(f"  contents: {os.listdir(orig_dir)}")
-                continue
-            
-            # Copy .so files into the found package directory
+            # Copy .so files into the package directory
+            log(f"Target dir for .so: {pkg_dir}")
             for src, dest_name in so_files:
                 dest = os.path.join(pkg_dir, dest_name)
                 shutil.copy2(src, dest)
