@@ -387,18 +387,8 @@ def main():
                 check=False, timeout=600)
             
             if result.returncode != 0:
-                log(f"maturin build FAILED for {pkg_name}")
-                log(result.output if hasattr(result, 'output') else "")
-                # Try pip wheel as fallback
-                result = run(
-                    f"cd '{src_dir}' && "
-                    f"CARGO_BUILD_TARGET=aarch64-linux-android "
-                    f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
-                    f"pip wheel --no-deps . -w /tmp/wheels/ 2>&1",
-                    check=False, timeout=600)
-                if result.returncode != 0:
-                    log(f"pip wheel also FAILED for {pkg_name}")
-                    continue
+                log(f"maturin build FAILED for {pkg_name}. Skipping cross-compile, will use name install.")
+                continue  # Skip, let Gradle resolve from proxy
             
             # Find the generated wheel
             wheels_in_tmp = glob.glob(f"/tmp/wheels/{pkg_name.replace('-', '_')}*.whl")
