@@ -41,6 +41,7 @@ chaquopy {
             install(file("offline_pkgs/pyyaml-6.0.2.tar.gz").absolutePath) // pip download 存为小写 // pyyaml: arcanite 牌阵 YAML 解析 (C扩展有纯Python回退)
             install(file("offline_pkgs/timezonefinder-8.2.4.tar.gz").absolutePath) // timezonefinder: stellium/immanuel 时区查询
             install(file("offline_pkgs/flatbuffers-25.9.23.tar.gz").absolutePath) // flatbuffers: timezonefinder
+            install(file("offline_pkgs/markupsafe-3.0.2.tar.gz").absolutePath) // MarkupSafe: arcanite→jinja2 依赖 (C扩展有纯Python回退)
             install(file("offline_pkgs/kinqimen-patched.tar.gz").absolutePath) // ⭐119 奇门遁甲
             install(file("offline_pkgs/arcanite-stripped.tar.gz").absolutePath) // ⭐78张韦特塔罗+36雷诺曼 牌义引擎
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
