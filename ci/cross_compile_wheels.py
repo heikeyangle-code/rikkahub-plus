@@ -121,8 +121,8 @@ def setup_ndk_env(ndk_path):
         "LD": ld,
         "CFLAGS": "--target=aarch64-linux-android21 -O2 -fPIC",
         "CXXFLAGS": "--target=aarch64-linux-android21 -O2 -fPIC",
-        "LDFLAGS": "--target=aarch64-linux-android21",
-        "LDSHARED": f"{cc} --target=aarch64-linux-android21 -shared",
+        "LDFLAGS": "--target=aarch64-linux-android21 -Wl,--allow-shlib-undefined",
+        "LDSHARED": f"{cc} --target=aarch64-linux-android21 -shared -Wl,--allow-shlib-undefined",
         "_PYTHON_HOST_PLATFORM": "aarch64-linux-android",
         "ANDROID_NDK_HOME": ndk_path,
     })
@@ -355,7 +355,7 @@ def compile_rust_package(pkg, env):
     # Create a symlink if needed
     interp_basename = os.path.basename(py_interp)
     if interp_basename == "python" or interp_basename == f"python{PY_TAG[2:]}":
-        target_name = f"python{PY_TAG[2:]}"
+        target_name = f"python{PY_TAG[2]}.{PY_TAG[3:]}"
         symlink_path = f"/tmp/{target_name}"
         if not os.path.exists(symlink_path):
             try:
