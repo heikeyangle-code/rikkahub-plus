@@ -67,10 +67,6 @@ jobs:
           rm -f "$dir/src/arcanite/cards/update_card_positions.py"
           rm -rf "$dir/src/arcanite/images"
           rm -rf "$dir/examples"
-          # Patch arcanite: pydantic→dataclasses (pydantic-core 无 ARM64 支持)
-          cd "$dir"
-          SRC_DIR=$(pwd) python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_pydantic.py
-          cd -
           # 用 printf 写 __init__.py，避免 YAML 解析 """ 报错
           printf '%%s\n' '"""Arcanite - A Tarot Reading Engine (stripped: no LLM/PDF/images)"""' \
             '__version__ = "0.2.0"' \
