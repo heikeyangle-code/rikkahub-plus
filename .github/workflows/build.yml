@@ -1,220 +1,221 @@
-name: Build APK
-
-on:
-  push:
-    branches: [ master ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Upgrade pip & setuptools (required for git+ packages)
-        run: pip install --upgrade pip setuptools wheel
-      - name: Force full Python reinstall (auto-update all packages)
-        run: rm -rf app/build/python $HOME/.gradle/caches/chaquopy*
-      - name: Pre-install setuptools for build
-        run: pip install --upgrade pip setuptools wheel 2>&1 | tail -3
-      - name: Make offline_pkgs discoverable by pip and install Rust for pydantic-core
-        run: |
-          echo "PIP_FIND_LINKS=file://${GITHUB_WORKSPACE}/app/offline_pkgs" >> $GITHUB_ENV
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          . "$HOME/.cargo/env"
-          rustup target add aarch64-linux-android
-          echo "Rust installed: $(rustc --version)"
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      - name: Download packages missing from Chaquopy proxy
-        run: |
-          pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pydantic-core==2.46.4" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pydantic==2.13.4" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "tarot" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "kinliuren" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "kinqimen" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "kintaiyi" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "taixuanshifa" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "jingjue" -d /tmp/pypi-offline 2>&1 | tail -3
-          # ichingshifa: PyPI 残缺版缺20函数, 从 GitHub 拉完整源码 + 补 setup.py
-          git clone --depth 1 https://github.com/kentang2017/ichingshifa.git /tmp/ichingshifa_src 2>&1 | tail -3
-          cd /tmp/ichingshifa_src
-          printf 'from setuptools import setup, find_packages; setup(name="ichingshifa", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
-          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
-          tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz --exclude=".git" . 2>&1
-          cd /tmp && rm -rf /tmp/ichingshifa_src
-          echo "ichingshifa full tarball ready"
-
-          # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容
-          pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1 | tail -1
-          cd /tmp/pypi-offline
-          sdist=$(ls arcanite-*.tar.gz | head -1)
-          dir="${sdist%.tar.gz}"
-          tar xfz "$sdist" && rm "$sdist"
-          rm -rf "$dir/src/arcanite/interpretation"
-          rm -rf "$dir/src/arcanite/render"
-          rm -rf "$dir/src/arcanite/templates"
-          rm -rf "$dir/src/arcanite/prompts"
-          rm -f "$dir/src/arcanite/cards/update_card_positions.py"
-          rm -rf "$dir/src/arcanite/images"
-          rm -rf "$dir/examples"
-          # 用 printf 写 __init__.py，避免 YAML 解析 """ 报错
-          printf '%%s\n' '"""Arcanite - A Tarot Reading Engine (stripped: no LLM/PDF/images)"""' \
-            '__version__ = "0.2.0"' \
-            'from arcanite.core import (' \
-            '    Card, CardInterpretation, Deck, DeckConfig, DrawnCard,' \
-            '    Orientation, QuestionType, Reading, ReadingConfig,' \
-            '    SpreadDefinition, SpreadLoader,' \
-            ')' \
-            'from arcanite.reading import ReadingEngine, create_reading' \
-            'from arcanite.core.deck import TarotDeck, TarotCard, load_tarot_deck' \
-            > "$dir/src/arcanite/__init__.py"
-          tar czf "/tmp/pypi-offline/arcanite-stripped.tar.gz" "$dir"
-          rm -rf "$dir"
-          cd ${GITHUB_WORKSPACE}
-          echo "arcanite stripped ready"
-
-          # Rename files to match build.gradle.kts expectations (hyphen→underscore, version pin)
-          mkdir -p app/offline_pkgs
-          for f in /tmp/pypi-offline/*.tar.gz; do
-            fname=$(basename "$f")
-            # lunar-python → lunar_python (if any lunar-python files appear)
-            fname="${fname//lunar-python/lunar_python}"
-            cp "$f" "app/offline_pkgs/$fname"
-          done
-          # Rename kin* packages to stable names (strip version numbers)
-          for f in app/offline_pkgs/kinliuren-*.tar.gz; do mv "$f" "app/offline_pkgs/kinliuren-src.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/kinqimen-*.tar.gz; do mv "$f" "app/offline_pkgs/kinqimen-src.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/kintaiyi-*.tar.gz; do mv "$f" "app/offline_pkgs/kintaiyi-src.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/taixuanshifa-*.tar.gz; do mv "$f" "app/offline_pkgs/taixuanshifa-src.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/jingjue-*.tar.gz; do mv "$f" "app/offline_pkgs/jingjue-src.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/ichingshifa-*.tar.gz; do mv "$f" "app/offline_pkgs/ichingshifa-src.tar.gz" 2>/dev/null || true; done
-          echo "Offline packages:" && ls app/offline_pkgs/
-      - name: Patch kinwangji (relax ephem pin)
-        run: |
-          git clone https://github.com/kentang2017/kinwangji.git /tmp/kinwangji_src
-          cd /tmp/kinwangji_src
-          sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' pyproject.toml 2>/dev/null || sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' setup.py 2>/dev/null || true
-          echo "Patched kinwangji:"
-          grep -n 'ephem' pyproject.toml setup.py setup.cfg 2>/dev/null || true
-          cd /tmp && tar czf /tmp/pypi-offline/kinwangji-patched.tar.gz kinwangji_src
-          cp /tmp/pypi-offline/kinwangji-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          echo "Added kinwangji-patched.tar.gz"
-      - name: Patch stellium (relax timezonefinder pin)
-        run: |
-          pip download --no-deps --no-binary :all: stellium -d /tmp/st_patch
-          cd /tmp/st_patch
-          tar xfz stellium-*.tar.gz
-          rm stellium-*.tar.gz
-          cd stellium-*
-          sed -i 's/timezonefinder>=6.5.0/timezonefinder>=3.4.2/' pyproject.toml
-          # Remove deps unavailable on Chaquopy proxy
-          sed -i '/"typst"/d' pyproject.toml
-          sed -i '/"graphviz"/d' pyproject.toml
-          echo "Patched stellium:"
-          grep "timezonefinder" pyproject.toml
-          cd /tmp/st_patch && tar czf /tmp/pypi-offline/stellium-patched.tar.gz stellium-*
-          cp /tmp/pypi-offline/stellium-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/st_patch
-          echo "Added stellium-patched.tar.gz"
-      - name: Patch flatlib (relax pyswisseph pin to match provided version)
-        run: |
-          pip download --no-deps --no-binary :all: flatlib -d /tmp/fl_patch
-          cd /tmp/fl_patch
-          tar xfz flatlib-*.tar.gz
-          rm flatlib-*.tar.gz
-          cd flatlib-*
-          sed -i 's/pyswisseph==2.08.00-1/pyswisseph>=2.10.3/' setup.py
-          grep "pyswisseph" setup.py
-          cd /tmp/fl_patch && tar czf /tmp/pypi-offline/flatlib-patched.tar.gz flatlib-*
-          cp /tmp/pypi-offline/flatlib-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/fl_patch
-          echo "Added flatlib-patched.tar.gz"
-      - name: Patch immanuel (remove scipy/stubs dep, relax timezonefinder pin)
-        run: |
-          pip download --no-deps --no-binary :all: "immanuel==1.5.4" -d /tmp/imm_patch
-          cd /tmp/imm_patch
-          tar xfz immanuel-*.tar.gz
-          rm immanuel-*.tar.gz
-          cd immanuel-*
-          sed -i '/"scipy"/d' pyproject.toml
-          sed -i '/"scipy-stubs"/d' pyproject.toml  
-          sed -i 's/timezonefinder~=5.2/timezonefinder>=3.4.2/' pyproject.toml
-          echo "Patched immanuel deps:"
-          grep -E 'timezonefinder|scipy' pyproject.toml || echo "(all clean)"
-          cd /tmp/imm_patch && tar czf /tmp/pypi-offline/immanuel-patched.tar.gz immanuel-*
-          cp /tmp/pypi-offline/immanuel-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/imm_patch
-          echo "Added immanuel-patched.tar.gz"
-      - name: Patch kerykeion (remove pydantic & scour deps not on Chaquopy proxy)
-        run: |
-          pip download --no-deps --no-binary :all: kerykeion -d /tmp/kerykeion_patch
-          cd /tmp/kerykeion_patch
-          tar xfz kerykeion-*.tar.gz
-          rm kerykeion-*.tar.gz
-          cd kerykeion-*
-          KERYKEION_SRC=$(pwd) python3 ${GITHUB_WORKSPACE}/ci/patch_kerykeion.py
-          grep -E 'pydantic|scour' pyproject.toml || echo "(all deps removed)"
-          cd /tmp/kerykeion_patch && tar czf /tmp/pypi-offline/kerykeion-patched.tar.gz kerykeion-*
-          cp /tmp/pypi-offline/kerykeion-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/kerykeion_patch
-          echo "Added kerykeion-patched.tar.gz"
-      - name: Patch kinqimen (relax ephem pin to match available version)
-        run: |
-          pip download --no-deps --no-binary :all: kinqimen -d /tmp/kq_patch
-          cd /tmp/kq_patch
-          tar xfz kinqimen-*.tar.gz
-          rm kinqimen-*.tar.gz
-          cd kinqimen-*
-          # ephem==4.1.3 is too strict, Chaquopy proxy has 4.1.5
-          sed -i 's/ephem==4.1.3/ephem>=4.1.3/' pyproject.toml 2>/dev/null || sed -i 's/ephem==4.1.3/ephem>=4.1.3/' setup.py 2>/dev/null || echo "ephem pin not found, skipping"
-          echo "Patched kinqimen ephem dep:"
-          grep -n 'ephem' pyproject.toml setup.py setup.cfg 2>/dev/null || echo "(no ephem ref found)"
-          cd /tmp/kq_patch && tar czf /tmp/pypi-offline/kinqimen-patched.tar.gz kinqimen-*
-          cp /tmp/pypi-offline/kinqimen-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/kq_patch
-          echo "Added kinqimen-patched.tar.gz"
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-      - name: Write signing config
-        run: |
-          cat > local.properties << 'EOF'
-          storeFile=app.key
-          storePassword=android
-          keyAlias=androiddebugkey
-          keyPassword=android
-          EOF
-      - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core)
-        run: |
-          python3 ci/cross_compile_wheels.py 2>&1
-      - name: Build
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleRelease -x :web:buildWebUi --no-build-cache --stacktrace 2>&1 | tee build.log
-          exit ${PIPESTATUS[0]}
-      - name: Upload build log
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: build-log
-          path: build.log
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: rikkahub-plus-fresh
-          path: app/build/outputs/apk/release/*arm64-v8a*.apk
+1|name: Build APK
+2|
+3|on:
+4|  push:
+5|    branches: [ master ]
+6|  workflow_dispatch:
+7|
+8|jobs:
+9|  build:
+10|    runs-on: ubuntu-latest
+11|    steps:
+12|      - uses: actions/checkout@v4
+13|        with:
+14|          submodules: true
+15|      - uses: actions/setup-java@v4
+16|        with:
+17|          distribution: 'temurin'
+18|          java-version: '21'
+19|      - uses: actions/setup-python@v5
+20|        with:
+21|          python-version: '3.12'
+22|      - name: Upgrade pip & setuptools (required for git+ packages)
+23|        run: pip install --upgrade pip setuptools wheel
+24|      - name: Force full Python reinstall (auto-update all packages)
+25|        run: rm -rf app/build/python $HOME/.gradle/caches/chaquopy*
+26|      - name: Pre-install setuptools for build
+27|        run: pip install --upgrade pip setuptools wheel 2>&1 | tail -3
+28|      - name: Make offline_pkgs discoverable by pip and install Rust for pydantic-core
+29|        run: |
+30|          echo "PIP_FIND_LINKS=file://${GITHUB_WORKSPACE}/app/offline_pkgs" >> $GITHUB_ENV
+31|          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+32|          . "$HOME/.cargo/env"
+33|          rustup target add aarch64-linux-android
+34|          echo "Rust installed: $(rustc --version)"
+35|          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+36|      - name: Download packages missing from Chaquopy proxy
+37|        run: |
+38|          pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
+39|          pip download --no-deps --no-binary :all: "pydantic-core==2.46.4" -d /tmp/pypi-offline 2>&1 | tail -3
+40|          pip download --no-deps --no-binary :all: "pydantic==2.13.4" -d /tmp/pypi-offline 2>&1 | tail -3
+41|          pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
+42|          pip download --no-deps --no-binary :all: "tarot" -d /tmp/pypi-offline 2>&1 | tail -3
+43|          pip download --no-deps --no-binary :all: "kinliuren" -d /tmp/pypi-offline 2>&1 | tail -3
+44|          pip download --no-deps --no-binary :all: "kinqimen" -d /tmp/pypi-offline 2>&1 | tail -3
+45|          pip download --no-deps --no-binary :all: "kintaiyi" -d /tmp/pypi-offline 2>&1 | tail -3
+46|          pip download --no-deps --no-binary :all: "taixuanshifa" -d /tmp/pypi-offline 2>&1 | tail -3
+47|          pip download --no-deps --no-binary :all: "jingjue" -d /tmp/pypi-offline 2>&1 | tail -3
+48|          # ichingshifa: PyPI 残缺版缺20函数, 从 GitHub 拉完整源码 + 补 setup.py
+49|          git clone --depth 1 https://github.com/kentang2017/ichingshifa.git /tmp/ichingshifa_src 2>&1 | tail -3
+50|          cd /tmp/ichingshifa_src
+51|          printf 'from setuptools import setup, find_packages; setup(name="ichingshifa", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
+52|          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+53|          tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz --exclude=".git" . 2>&1
+54|          cd /tmp && rm -rf /tmp/ichingshifa_src
+55|          echo "ichingshifa full tarball ready"
+56|
+57|          # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容
+58|          pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1 | tail -1
+59|          cd /tmp/pypi-offline
+60|          sdist=$(ls arcanite-*.tar.gz | head -1)
+61|          dir="${sdist%.tar.gz}"
+62|          tar xfz "$sdist" && rm "$sdist"
+63|          rm -rf "$dir/src/arcanite/interpretation"
+64|          rm -rf "$dir/src/arcanite/render"
+65|          rm -rf "$dir/src/arcanite/templates"
+66|          rm -rf "$dir/src/arcanite/prompts"
+67|          rm -f "$dir/src/arcanite/cards/update_card_positions.py"
+68|          rm -rf "$dir/src/arcanite/images"
+69|          rm -rf "$dir/examples"
+70|          # 用 printf 写 __init__.py，避免 YAML 解析 """ 报错
+71|          printf '%s\n' '"""Arcanite - A Tarot Reading Engine (stripped: no LLM/PDF/images)"""' \
+72|            '__version__ = "0.2.0"' \
+73|            'from arcanite.core import (' \
+74|            '    Card, CardInterpretation, Deck, DeckConfig, DrawnCard,' \
+75|            '    Orientation, QuestionType, Reading, ReadingConfig,' \
+76|            '    SpreadDefinition, SpreadLoader,' \
+77|            ')' \
+78|            'from arcanite.reading import ReadingEngine, create_reading' \
+79|            'from arcanite.core.deck import TarotDeck, TarotCard, load_tarot_deck' \
+80|            > "$dir/src/arcanite/__init__.py"
+81|          tar czf "/tmp/pypi-offline/arcanite-stripped.tar.gz" "$dir"
+82|          rm -rf "$dir"
+83|          cd ${GITHUB_WORKSPACE}
+84|          echo "arcanite stripped ready"
+85|
+86|          # Rename files to match build.gradle.kts expectations (hyphen→underscore, version pin)
+87|          mkdir -p app/offline_pkgs
+88|          for f in /tmp/pypi-offline/*.tar.gz; do
+89|            fname=$(basename "$f")
+90|            # lunar-python → lunar_python (if any lunar-python files appear)
+91|            fname="${fname//lunar-python/lunar_python}"
+92|            cp "$f" "app/offline_pkgs/$fname"
+93|          done
+94|          # Rename kin* packages to stable names (strip version numbers)
+95|          for f in app/offline_pkgs/kinliuren-*.tar.gz; do mv "$f" "app/offline_pkgs/kinliuren-src.tar.gz" 2>/dev/null || true; done
+96|          for f in app/offline_pkgs/kinqimen-*.tar.gz; do mv "$f" "app/offline_pkgs/kinqimen-src.tar.gz" 2>/dev/null || true; done
+97|          for f in app/offline_pkgs/kintaiyi-*.tar.gz; do mv "$f" "app/offline_pkgs/kintaiyi-src.tar.gz" 2>/dev/null || true; done
+98|          for f in app/offline_pkgs/taixuanshifa-*.tar.gz; do mv "$f" "app/offline_pkgs/taixuanshifa-src.tar.gz" 2>/dev/null || true; done
+99|          for f in app/offline_pkgs/jingjue-*.tar.gz; do mv "$f" "app/offline_pkgs/jingjue-src.tar.gz" 2>/dev/null || true; done
+100|          for f in app/offline_pkgs/ichingshifa-*.tar.gz; do mv "$f" "app/offline_pkgs/ichingshifa-src.tar.gz" 2>/dev/null || true; done
+101|          echo "Offline packages:" && ls app/offline_pkgs/
+102|      - name: Patch kinwangji (relax ephem pin)
+103|        run: |
+104|          git clone https://github.com/kentang2017/kinwangji.git /tmp/kinwangji_src
+105|          cd /tmp/kinwangji_src
+106|          sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' pyproject.toml 2>/dev/null || sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' setup.py 2>/dev/null || true
+107|          echo "Patched kinwangji:"
+108|          grep -n 'ephem' pyproject.toml setup.py setup.cfg 2>/dev/null || true
+109|          cd /tmp && tar czf /tmp/pypi-offline/kinwangji-patched.tar.gz kinwangji_src
+110|          cp /tmp/pypi-offline/kinwangji-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+111|          echo "Added kinwangji-patched.tar.gz"
+112|      - name: Patch stellium (relax timezonefinder pin)
+113|        run: |
+114|          pip download --no-deps --no-binary :all: stellium -d /tmp/st_patch
+115|          cd /tmp/st_patch
+116|          tar xfz stellium-*.tar.gz
+117|          rm stellium-*.tar.gz
+118|          cd stellium-*
+119|          sed -i 's/timezonefinder>=6.5.0/timezonefinder>=3.4.2/' pyproject.toml
+120|          # Remove deps unavailable on Chaquopy proxy
+121|          sed -i '/"typst"/d' pyproject.toml
+122|          sed -i '/"graphviz"/d' pyproject.toml
+123|          echo "Patched stellium:"
+124|          grep "timezonefinder" pyproject.toml
+125|          cd /tmp/st_patch && tar czf /tmp/pypi-offline/stellium-patched.tar.gz stellium-*
+126|          cp /tmp/pypi-offline/stellium-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+127|          rm -rf /tmp/st_patch
+128|          echo "Added stellium-patched.tar.gz"
+129|      - name: Patch flatlib (relax pyswisseph pin to match provided version)
+130|        run: |
+131|          pip download --no-deps --no-binary :all: flatlib -d /tmp/fl_patch
+132|          cd /tmp/fl_patch
+133|          tar xfz flatlib-*.tar.gz
+134|          rm flatlib-*.tar.gz
+135|          cd flatlib-*
+136|          sed -i 's/pyswisseph==2.08.00-1/pyswisseph>=2.10.3/' setup.py
+137|          grep "pyswisseph" setup.py
+138|          cd /tmp/fl_patch && tar czf /tmp/pypi-offline/flatlib-patched.tar.gz flatlib-*
+139|          cp /tmp/pypi-offline/flatlib-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+140|          rm -rf /tmp/fl_patch
+141|          echo "Added flatlib-patched.tar.gz"
+142|      - name: Patch immanuel (remove scipy/stubs dep, relax timezonefinder pin)
+143|        run: |
+144|          pip download --no-deps --no-binary :all: "immanuel==1.5.4" -d /tmp/imm_patch
+145|          cd /tmp/imm_patch
+146|          tar xfz immanuel-*.tar.gz
+147|          rm immanuel-*.tar.gz
+148|          cd immanuel-*
+149|          sed -i '/"scipy"/d' pyproject.toml
+150|          sed -i '/"scipy-stubs"/d' pyproject.toml  
+151|          sed -i 's/timezonefinder~=5.2/timezonefinder>=3.4.2/' pyproject.toml
+152|          echo "Patched immanuel deps:"
+153|          grep -E 'timezonefinder|scipy' pyproject.toml || echo "(all clean)"
+154|          cd /tmp/imm_patch && tar czf /tmp/pypi-offline/immanuel-patched.tar.gz immanuel-*
+155|          cp /tmp/pypi-offline/immanuel-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+156|          rm -rf /tmp/imm_patch
+157|          echo "Added immanuel-patched.tar.gz"
+158|      - name: Patch kerykeion (remove pydantic & scour deps not on Chaquopy proxy)
+159|        run: |
+160|          pip download --no-deps --no-binary :all: kerykeion -d /tmp/kerykeion_patch
+161|          cd /tmp/kerykeion_patch
+162|          tar xfz kerykeion-*.tar.gz
+163|          rm kerykeion-*.tar.gz
+164|          cd kerykeion-*
+165|          KERYKEION_SRC=$(pwd) python3 ${GITHUB_WORKSPACE}/ci/patch_kerykeion.py
+166|          grep -E 'pydantic|scour' pyproject.toml || echo "(all deps removed)"
+167|          cd /tmp/kerykeion_patch && tar czf /tmp/pypi-offline/kerykeion-patched.tar.gz kerykeion-*
+168|          cp /tmp/pypi-offline/kerykeion-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+169|          rm -rf /tmp/kerykeion_patch
+170|          echo "Added kerykeion-patched.tar.gz"
+171|      - name: Patch kinqimen (relax ephem pin to match available version)
+172|        run: |
+173|          pip download --no-deps --no-binary :all: kinqimen -d /tmp/kq_patch
+174|          cd /tmp/kq_patch
+175|          tar xfz kinqimen-*.tar.gz
+176|          rm kinqimen-*.tar.gz
+177|          cd kinqimen-*
+178|          # ephem==4.1.3 is too strict, Chaquopy proxy has 4.1.5
+179|          sed -i 's/ephem==4.1.3/ephem>=4.1.3/' pyproject.toml 2>/dev/null || sed -i 's/ephem==4.1.3/ephem>=4.1.3/' setup.py 2>/dev/null || echo "ephem pin not found, skipping"
+180|          echo "Patched kinqimen ephem dep:"
+181|          grep -n 'ephem' pyproject.toml setup.py setup.cfg 2>/dev/null || echo "(no ephem ref found)"
+182|          cd /tmp/kq_patch && tar czf /tmp/pypi-offline/kinqimen-patched.tar.gz kinqimen-*
+183|          cp /tmp/pypi-offline/kinqimen-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+184|          rm -rf /tmp/kq_patch
+185|          echo "Added kinqimen-patched.tar.gz"
+186|
+187|      - uses: actions/cache@v4
+188|        with:
+189|          path: |
+190|            ~/.gradle/caches
+191|            ~/.gradle/wrapper
+192|          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+193|      - name: Write signing config
+194|        run: |
+195|          cat > local.properties << 'EOF'
+196|          storeFile=app.key
+197|          storePassword=android
+198|          keyAlias=androiddebugkey
+199|          keyPassword=android
+200|          EOF
+201|      - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core)
+202|        run: |
+203|          python3 ci/cross_compile_wheels.py 2>&1
+204|      - name: Build
+205|        run: |
+206|          chmod +x gradlew
+207|          ./gradlew assembleRelease -x :web:buildWebUi --no-build-cache --stacktrace 2>&1 | tee build.log
+208|          exit ${PIPESTATUS[0]}
+209|      - name: Upload build log
+210|        uses: actions/upload-artifact@v4
+211|        if: failure()
+212|        with:
+213|          name: build-log
+214|          path: build.log
+215|      - name: Upload APK
+216|        uses: actions/upload-artifact@v4
+217|        if: success()
+218|        with:
+219|          name: rikkahub-plus-fresh
+220|          path: app/build/outputs/apk/release/*arm64-v8a*.apk
+221|
