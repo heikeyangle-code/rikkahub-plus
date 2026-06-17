@@ -146,7 +146,7 @@ def setup_ndk_env(ndk_path):
 
 def create_wheel(pkg_name, version, py_pkg, so_files, python_tag="cp312", abi_tag="cp312"):
     """Create a pip-installable .whl file from cross-compiled .so files."""
-    plat = "aarch64-linux-android"
+    plat = "aarch64_linux_android"
     wheel_name = f"{pkg_name.replace('-', '_')}-{version}-{python_tag}-{abi_tag}-{plat}.whl"
     wheel_dir = f"/tmp/wheels/{wheel_name.replace('.whl', '')}"
     
