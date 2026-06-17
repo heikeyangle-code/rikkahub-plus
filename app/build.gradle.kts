@@ -32,8 +32,8 @@ chaquopy {
             install("tabulate")
 
             // === 命理计算引擎 ===
-            // 方案B: 走 Chaquopy 代理预编译 ARM64 wheel, 不走本地源码编译
-            install("lunar-python==1.4.8")
+            // 三个原生包走 Chaquopy 代理预编译 ARM64 wheel
+            install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
             install("sxtwl==2.0.6")
             install("cnlunar")
             install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // ⭐254 周易筮法/六爻
@@ -54,8 +54,8 @@ chaquopy {
             install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
             install("setuptools")              // setuptools 最新版
             install("hatchling")           // hatchling构建工具, kinwangji需要
-            install("pydantic-core==2.46.4")  // arcanite 塔罗引擎需要(pydantic-core), 走代理 ARM64 wheel
-            install("pydantic==2.13.4")       // arcanite 塔罗引擎需要, 走代理 wheel
+            install("pydantic-core==2.46.4")  // arcanite 需要, 走代理 ARM64 wheel
+            install(file("offline_pkgs/pydantic-2.13.4.tar.gz").absolutePath) // arcanite 需要, 纯 Python
             install(file("offline_pkgs/kinwangji-patched.tar.gz").absolutePath)
             // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
             // install("git+https://github.com/kentang2017/kinastro.git")
