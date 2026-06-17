@@ -68,12 +68,12 @@ jobs:
               sed -i 's/sqlite3_detection = True/sqlite3_detection = False/' "$dir/setup.py"
               echo "Patched pyswisseph: swe_detection=False, sqlite3_detection=False"
             fi
-            # sxtwl: 清理预置 egg-info(干扰 pip), 删除 distutils 弃用代码防止 NDK 失效
+            # sxtwl: 清理 egg-info, 保留 distutils import (Chaquopy 需要 hook), 只改 msvc 判断
             if [ "$pkg_name" = "sxtwl" ]; then
               rm -rf "$dir/sxtwl.egg-info"
-              sed -i 's/from distutils import ccompiler//' "$dir/setup.py"
+              # 保留 from distutils import ccompiler — Chaquopy 通过 distutils hook NDK 交叉编译
               sed -i 's/if ccompiler.get_default_compiler() == "msvc":/if platform.system() == "Windows":/' "$dir/setup.py"
-              echo "Patched sxtwl: cleaned egg-info, replaced distutils"
+              echo "Patched sxtwl: cleaned egg-info, kept distutils import"
             fi
             tar czf "/tmp/pypi-offline/${sdist}" "$dir"
             rm -rf "$dir"
@@ -223,9 +223,33 @@ jobs:
           keyAlias=androiddebugkey
           keyPassword=android
           EOF
+      - name: Setup NDK cross-compilation
+        run: |
+          # Find NDK — AGP downloads it to Gradle cache
+          NDK_DIR=$(find ~/.gradle/caches -name "ndk-bundle" -type d 2>/dev/null | head -1)
+          if [ -z "$NDK_DIR" ]; then
+            NDK_DIR=$(find ~/.gradle/caches -path "*/transforms/*/ndk" -type d 2>/dev/null | head -1)
+          fi
+          if [ -z "$NDK_DIR" ]; then
+            NDK_DIR=$(find / -name "aarch64-linux-android21-clang" -type f 2>/dev/null | head -1)
+            if [ -n "$NDK_DIR" ]; then
+              NDK_DIR=$(dirname "$NDK_DIR")
+            fi
+          fi
+          if [ -n "$NDK_DIR" ]; then
+            echo "Found NDK: $NDK_DIR"
+            echo "CC=$NDK_DIR/bin/aarch64-linux-android21-clang" >> $GITHUB_ENV
+            echo "CXX=$NDK_DIR/bin/aarch64-linux-android21-clang++" >> $GITHUB_ENV
+            echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$NDK_DIR/bin/aarch64-linux-android21-clang" >> $GITHUB_ENV
+          else
+            echo "NDK not found pre-build, will be downloaded by AGP during build"
+          fi
       - name: Build
         env:
-          PIP_NO_BINARY: sxtwl,pyswisseph
+          PIP_NO_BINARY: sxtwl,pyswisseph,pydantic-core
+          _PYTHON_HOST_PLATFORM: aarch64-linux-android
+          _ANDROID_TARGET_ARCH: arm64-v8a
+          CARGO_BUILD_TARGET: aarch64-linux-android
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease -x :web:buildWebUi --no-build-cache --stacktrace 2>&1 | tee build.log
