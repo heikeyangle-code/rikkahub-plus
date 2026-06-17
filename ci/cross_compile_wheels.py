@@ -387,6 +387,47 @@ def compile_rust_package(pkg, env):
     rust_env["CARGO_BUILD_TARGET"] = "aarch64-linux-android"
     rust_env["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] = env["CC"]
 
+    # Create a fake Android Python lib dir with sysconfigdata for pyo3-build-config
+    cross_lib_dir = "/tmp/android-cross-python"
+    os.makedirs(cross_lib_dir, exist_ok=True)
+    # Copy the stub libpython3.12.so
+    stub_src = os.path.join(env.get("ANDROID_NDK_HOME", ""),
+                            "toolchains/llvm/prebuilt/linux-x86_64/"
+                            "sysroot/usr/lib/aarch64-linux-android/21/libpython3.12.so")
+    if os.path.exists(stub_src):
+        shutil.copy2(stub_src, os.path.join(cross_lib_dir, "libpython3.12.so"))
+        log(f"Using stub libpython3.12.so for cross-compilation")
+
+    # Create minimal sysconfigdata for aarch64-linux-android
+    # pyo3-build-config reads this to determine compiler/linker flags
+    sysconfig_content = f'''# Auto-generated for Android ARM64 cross-compilation
+build_time_vars = {{
+    "LDSHARED": "{env['CC']} --target=aarch64-linux-android21 -shared -L{cross_lib_dir} -lpython3.12",
+    "BLDSHARED": "{env['CC']} --target=aarch64-linux-android21 -shared -L{cross_lib_dir} -lpython3.12",
+    "LIBS": "-lpython3.12 -ldl -lm",
+    "SYSLIBS": "-lm",
+    "LINKFORSHARED": "-Xlinker -export-dynamic",
+    "INCLUDEPY": "/usr/include/python3.12",
+    "LIBDIR": "{cross_lib_dir}",
+    "INSTSONAME": "libpython3.12.so",
+    "Py_ENABLE_SHARED": 1,
+    "prefix": "/tmp/android-python",
+    "exec_prefix": "/tmp/android-python",
+    "SO": ".so",
+    "EXT_SUFFIX": ".cpython-312-aarch64-linux-android.so",
+    "CC": "{env['CC']}",
+    "CXX": "{env['CXX']}",
+}}
+'''
+    scd_file = os.path.join(cross_lib_dir, "_sysconfigdata__aarch64_linux_android.py")
+    with open(scd_file, 'w') as f:
+        f.write(sysconfig_content)
+    log(f"Created sysconfigdata for cross-compilation: {scd_file}")
+
+    rust_env["PYO3_CROSS_LIB_DIR"] = cross_lib_dir
+    rust_env["PYO3_CROSS_PYTHON_VERSION"] = PY_TAG[2:]  # "312"
+    rust_env["_PYTHON_HOST_PLATFORM"] = "aarch64-linux-android"
+
     log(f"Running maturin build with interpreter: {py_interp}")
     result = run(
         f"cd '{src_dir}' && "
