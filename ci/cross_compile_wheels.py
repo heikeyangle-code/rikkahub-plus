@@ -333,13 +333,44 @@ def main():
             
             log(f"Found .so files: {[s for s,_ in so_files]}")
             
-            # Create wheel
-            wheel_path = create_wheel(pkg_name, version, py_pkg, so_files)
+            # Create a tarball (sdist-style) with the ARM64 .so files
+            # Structure: {pkg_name}-{version}/setup.py, {py_pkg}/*.so, {py_pkg}/*.py
+            tarball_root = f"/tmp/tarball/{pkg_name}-{version}"
+            os.makedirs(f"{tarball_root}/{py_pkg}", exist_ok=True)
+            os.makedirs(f"{tarball_root}/{py_pkg}-{version}.dist-info", exist_ok=True)
+            
+            # Copy .so files
+            for src, dest_name in so_files:
+                shutil.copy2(src, os.path.join(tarball_root, py_pkg, dest_name))
+            
+            # Copy Python files from original source
+            for f in os.listdir(src_dir):
+                if f.endswith('.py') and not f.startswith('_'):
+                    shutil.copy2(os.path.join(src_dir, f), os.path.join(tarball_root, py_pkg, f))
+            
+            # Create setup.py if not exists (for packages that only have .so)
+            if not os.path.exists(f"{tarball_root}/setup.py"):
+                with open(f"{tarball_root}/setup.py", "w") as sf:
+                    sf.write(f'from setuptools import setup, find_packages\n')
+                    sf.write(f'setup(name="{pkg_name}", version="{version}", packages=find_packages())\n')
+            
+            # Also copy any existing setup.py or .py files from the original sdist root
+            if os.path.exists(f"{src_dir}/setup.py"):
+                shutil.copy2(f"{src_dir}/setup.py", f"{tarball_root}/setup.py")
+            for f in os.listdir(src_dir):
+                if f.endswith('.py') or f.endswith('.cfg'):
+                    shutil.copy2(os.path.join(src_dir, f), os.path.join(tarball_root, f))
+            
+            # Create tarball
+            tarball_name = f"{pkg_name}-{version}-arm64.tar.gz"
+            tarball_path = f"/tmp/{tarball_name}"
+            run(f"cd /tmp/tarball && tar czf '{tarball_path}' '{pkg_name}-{version}'", check=True)
             
             # Copy to offline_pkgs
-            dest = os.path.join(OFFLINE_PKGS, os.path.basename(wheel_path))
-            shutil.copy2(wheel_path, dest)
-            log(f"Copied to offline_pkgs: {dest}")
+            dest = os.path.join(OFFLINE_PKGS, tarball_name)
+            shutil.copy2(tarball_path, dest)
+            log(f"ARM64 tarball created: {dest} ({os.path.getsize(dest)} bytes)")
+            shutil.rmtree(f"/tmp/tarball/{pkg_name}-{version}", ignore_errors=True)
             
         elif pkg_type == "rust":
             # Rust package (pydantic-core)
