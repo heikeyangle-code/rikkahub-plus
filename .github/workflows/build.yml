@@ -43,7 +43,7 @@ jobs:
           # 去掉 numpy>=2 依赖 (Chaquo 3.14 无 numpy>=2, 纯Python回退也不需要numpy)
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
-          sed -i "/numpy/d" timezonefinder-*/pyproject.toml timezonefinder-*/setup.cfg 2>/dev/null || true
+          sed -i "/numpy\|h3/d" timezonefinder-*/pyproject.toml timezonefinder-*/setup.cfg 2>/dev/null || true
           tar czf timezonefinder-8.2.4.tar.gz timezonefinder-* && rm -rf timezonefinder-8.2.4
           cd ${GITHUB_WORKSPACE}
           pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
