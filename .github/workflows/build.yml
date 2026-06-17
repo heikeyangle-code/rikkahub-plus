@@ -197,6 +197,9 @@ jobs:
           keyAlias=androiddebugkey
           keyPassword=android
           EOF
+      - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core)
+        run: |
+          python3 ci/cross_compile_wheels.py 2>&1
       - name: Build
         run: |
           chmod +x gradlew
