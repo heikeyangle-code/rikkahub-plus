@@ -105,6 +105,22 @@ Available built-in functions (call these from your code):
   不影响效率: 仍调两次引擎，第一次随机+排盘，第二次仅排盘(无随机开销)，总耗时几乎不变。
 
 【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
+
+【塔罗卡巴拉全对应】arcanite抽牌→查本表→Kaabalah查详细数据. 来自Crowley 777/黄金黎明.
+  大牌(22): 序号=KeyScale, 字母=希伯来字母, 路径=生命之树路径
+    0=Fool(Aleph,11) 1=Magician(Beth,12) 2=HighPriestess(Gimel,13) 3=Empress(Daleth,14)
+    4=Emperor(Heh,15) 5=Hierophant(Vau,16) 6=Lovers(Zain,17) 7=Chariot(Cheth,18)
+    8=Strength(Teth,19) 9=Hermit(Yod,20) 10=WheelOfFortune(Kaph,21) 11=Justice(Lamed,22)
+    12=HangedMan(Mem,23) 13=Death(Nun,24) 14=Temperance(Samekh,25) 15=Devil(Ayin,26)
+    16=Tower(Peh,27) 17=Star(Tzaddi,28) 18=Moon(Qoph,29) 19=Sun(Resh,30)
+    20=Judgement(Shin,31) 21=World(Tau,32)
+    查法: Kaabalah.HEBREW_LETTERS_DATA[letter] 又 Kaabalah.LURIANIC_PATHS[path] 又 Kaabalah.SPHERES[name]
+  数字牌(40): Ace=1=Kether,2=Chokmah,3=Binah,4=Chesed,5=Geburah,6=Tiphareth,7=Netzach,8=Hod,9=Yesod,10=Malkuth
+    牌组→世界: Wands=Atziluth, Cups=Briah, Swords=Yetzirah, Pentacles=Assiah
+    查法: Kaabalah.SPHERES["Kether"] 又 Kaabalah.FOUR_WORLDS["ATZILUTH"]
+  宫廷牌(16): King→Chokmah, Queen→Binah, Knight→Tiphareth, Page→Malkuth
+    牌组→世界同上, 查法: Kaabalah.SPHERES["Chokmah"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
+
 【引擎区别速查】AI 回答用户"哪个好/有什么区别"时用:
   • 紫微: ziwei_paipan(Python,iztro标准算法) vs ZiweiNihai(JS,倪海夏天纪+古籍,含断语)
   • 奇门: kinqimen(Python,仅拆补2局法) vs QimenEngine(JS,拆补+茅山+置闰3局法×时/日/月/年4流派+十干克应断语)

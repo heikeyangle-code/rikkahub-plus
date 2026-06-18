@@ -312,6 +312,7 @@ jobs:
           mkdir -p /tmp/kaabalah_build
           cd /tmp && npm pack kaabalah --pack-destination /tmp/kaabalah_build 2>&1
           cd /tmp/kaabalah_build && tar xzf kaabalah-*.tgz && cd package
+          npm install --production 2>&1 | tail -3
           # Patch: Math.random→crypto (shuffleTarotDeck/shuffleArray 默认RNG用硬件熵)
           sed -i 's/rng = Math\.random/rng = cryptoRandom/g' dist/chunk-M2FTEWY2.js
           sed -i 's/options\.rng ?? Math\.random/options.rng ?? cryptoRandom/g' dist/chunk-M2FTEWY2.js
