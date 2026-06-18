@@ -93,21 +93,24 @@ def create_compiler_wrapper(cc_path, android_python_root):
       - -I/opt/hostedtoolcache/Python/.../x64/include/python3.14  (host headers)
       - -L/opt/hostedtoolcache/Python/.../x64/lib                (host libs)
       - -Wl,--rpath=/opt/hostedtoolcache/Python/.../x64/lib      (host rpath)
+      - -lpython3.14                                               (host libpython)
     
-    These pollute the cross-compiled .so with x86_64 references and
-    broken RPATHs that don't exist on Android. This wrapper filters
-    them out.
+    On embedded Android (Chaquopy), libpython.so does not exist as a separate
+    shared library — Python symbols are resolved by the embedding process.
+    Linking against libpython creates a DT_NEEDED entry that fails at dlopen.
     """
     wrapper_path = "/tmp/compiler-wrapper.sh"
     with open(wrapper_path, "w") as f:
         f.write(f"""#!/bin/bash
-# Cross-compiler wrapper: strips host Python paths from build
+# Cross-compiler wrapper: strips host Python paths + -lpython from build
 ARGS=()
 for arg in "$@"; do
     case "$arg" in
         *hostedtoolcache*) continue ;;
         *--rpath=*)        continue ;;
         *Python*ROOT*)     continue ;;
+        -lpython*)         continue ;;  # embedded Android: no libpython.so
+        -L*[Pp]ython*)     continue ;;  # Python lib dirs (host or cross)
     esac
     ARGS+=("$arg")
 done
@@ -126,6 +129,8 @@ for arg in "$@"; do
         *hostedtoolcache*) continue ;;
         *--rpath=*)        continue ;;
         *Python*ROOT*)     continue ;;
+        -lpython*)         continue ;;  # embedded Android: no libpython.so
+        -L*[Pp]ython*)     continue ;;  # Python lib dirs (host or cross)
     esac
     ARGS+=("$arg")
 done
@@ -167,12 +172,11 @@ def setup_env(ndk_path, android_python_root):
         "AR": ar,
         "CFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
         "CXXFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
-        "LDFLAGS": f"--target=aarch64-linux-android21 -L{py_lib}",
-        "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared -L{py_lib}",
-        "LIBS": f"-lpython{PY_VER}",
+        "LDFLAGS": f"--target=aarch64-linux-android21",
+        "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared",
         "_PYTHON_HOST_PLATFORM": "aarch64-linux-android",
         "ANDROID_NDK_HOME": ndk_path,
-        # PyO3/maturin cross-compilation
+        # PyO3/maturin cross-compilation (Rust build only, handles Android correctly)
         "PYO3_CROSS_LIB_DIR": py_lib,
         "PYO3_CROSS_PYTHON_VERSION": PY_VER,
         "PYO3_CROSS_INCLUDE_DIR": py_include,
@@ -300,14 +304,15 @@ def compile_c_package(pkg, env):
     # Remove prebuilt .so files
     run(f"find '{src_dir}' -name '*.so' -delete", check=False)
 
-    # Cross-compile with NDK + official Android Python headers/lib
-    # Use LIBS for -lpython3.14 instead of LDFLAGS to avoid conflicts
+    # Cross-compile with NDK + official Android Python headers.
+    # NOTE: Do NOT link -lpython — on embedded Android (Chaquopy), libpython.so
+    # does not exist as a separate shared library. Python symbols are resolved
+    # by the embedding process. The compiler wrapper strips -lpython* flags.
     build_cmd = (
         f"cd '{src_dir}' && "
         f"CC='{env['CC']}' CXX='{env['CXX']}' "
         f"CFLAGS='{env['CFLAGS']}' CXXFLAGS='{env['CXXFLAGS']}' "
         f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
-        f"LIBS='{env['LIBS']}' "
         f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
         f"python setup.py build_ext --inplace 2>&1"
     )
@@ -319,7 +324,6 @@ def compile_c_package(pkg, env):
             f"CC='{env['CC']}' CXX='{env['CXX']}' "
             f"CFLAGS='{env['CFLAGS']}' CXXFLAGS='{env['CXXFLAGS']}' "
             f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
-            f"LIBS='{env['LIBS']}' "
             f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
             f"python setup.py build 2>&1",
             check=False, timeout=300)
