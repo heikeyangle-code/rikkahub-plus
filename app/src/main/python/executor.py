@@ -39,12 +39,12 @@ Available built-in functions (call these from your code):
   太乙神数            →  kintaiyi                                             生日必填
 
   【象数易】
-  太玄筮法            →  taixuanshifa                                           无需出生
+  太玄筮法            →  问用户选 taixuanshifa(Python) 或 TaixuanLib(JS,蓍法+骰子+硬币+数字起卦) 或都跑对比   无需出生
   荆诀/先秦占卜       →  jingjue                                                 无需出生
   皇极经世            →  kinwangji                                              生日必填
 
   【六爻/卦象】
-  六爻/周易/卦        →  ichingshifa                ← 梅花易数也可起卦          无需出生（需起卦数）
+  六爻/周易/卦        →  问用户选 ichingshifa(Python,大衍筮法) 或 IchingShifa(JS,6种起卦:大衍+略筮+时间+手动+三数+数组) 或都跑对比   无需出生（需起卦数）
   梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排     无需出生（需起卦数）
 
   【西洋占星】
@@ -62,8 +62,8 @@ Available built-in functions (call these from your code):
   塔罗/雷诺曼         →  arcanite（78张韦特+36雷诺曼，正逆位牌义，牌阵）                         无需出生
 
   【农历/干支/天文】
-  农历/黄历/择日      →  cnlunar                    ← lunar_python             日期即可
-  公历农历转换        →  lunar_python               ← cnlunar                  日期即可
+  农历/黄历/择日      →  cnlunar(Python)            ← lunar_python, Lunar(JS引擎)  日期即可
+  公历农历转换/八字     →  lunar_python(Python)       ← Lunar(JS引擎,可离线算Solar/Lunar/EightChar/DaYun/JieQi)  日期即可
   二十八宿/宿曜       →  Lunar.getTwentyEightMans()  ← pyswisseph, cnlunar      日期/生日均可
   建除十二神/黄道黑道  →  cnlunar                    ← lunar_python            日期即可
   吉神凶神/彭祖百忌    →  cnlunar                                               日期即可
@@ -92,8 +92,11 @@ Available built-in functions (call these from your code):
 
 【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
 【JS 引擎调用】
-  QimenEngine → eval_javascript: QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
-  ZiweiNihai  → eval_javascript: ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
+  QimenEngine    → eval_javascript: QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
+  ZiweiNihai     → eval_javascript: ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
+  IchingShifa    → eval_javascript: IchingShifa.dayan()     或 IchingShifa.lueshifa()  或 IchingShifa.timeQiGua({year:2026,month:6,day:19,hour:14})  或 IchingShifa.manualQiGua("697887")  或 IchingShifa.threeNumberQiGua(12,34,56)  或 IchingShifa.numberArrayQiGua([1,2,3], 5)
+  TaixuanLib     → eval_javascript: TaixuanLib.generate()   或 TaixuanLib.generateByShi()  或 TaixuanLib.generateByDice()  或 TaixuanLib.generateByCoins()  或 TaixuanLib.generateByNumber(5678)
+  Lunar (JS)     → eval_javascript: Lunar.Solar.fromDate(new Date(2026,5,19))  或 Lunar.Lunar.fromDate(d)  或 Lunar.EightChar.fromLunar(lunar)  或 Lunar.DaYun(...)  或 Lunar.JieQi.getJieQi(2026)
   返回 JSON，AI 基于真实数据解读。
 """
 
