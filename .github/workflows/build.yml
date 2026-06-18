@@ -310,6 +310,42 @@ jobs:
           cp horoscope-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Horoscope JS engine compiled: $(wc -c < horoscope-engine.js) bytes"
 
+      - name: Compile Kaabalah JS engine (esoteric — kabbalah/numerology/gematria/ifa/tarot)
+        run: |
+          mkdir -p /tmp/kaabalah_build
+          cd /tmp && npm pack kaabalah --pack-destination /tmp/kaabalah_build 2>&1
+          cd /tmp/kaabalah_build && tar xzf kaabalah-*.tgz && cd package
+          # 只导出纯JS可用部分 (排除WASM依赖的占星 + SVG绘图)
+          cat > kaabalah-entry.mjs << 'ENTRYEOF'
+          export {
+            SPHERES, SPHERES_DATA, FOUR_WORLDS, FOUR_WORLDS_DATA,
+            HEBREW_LETTERS, HEBREW_LETTERS_DATA, LATIN_LETTERS, LATIN_LETTERS_DATA,
+            LURIANIC_PATHS, MELKITZEDEKI_PATHS,
+            TreeOfLife, TreeTopology, TREE_SPHERE_IDS, TREE_PATH_IDS,
+            buildKaabalisticMapData, getCanonicalTree, getTreeLayout, getTreeTopology,
+            getAstrologyTreeMarkers, getGematriaTreeMarkers, getNumerologyTreeMarkers,
+            calculateKaabalisticLifePath, calculateStraightAcrossReductionLifePath,
+            getKaabalisticCorrespondenceTargets,
+            calculateGematria, reverseGematria, GematriaData,
+            calculatePersonalYear, calculatePersonalMonths, calculatePersonalCycles,
+            calculateChallenges, calculateCycles, calculateFibonacciCycle,
+            reduceToSingle, reduceToSingleWithSteps, isMasterNumber, getDateEnergies,
+            MASTER_NUMBERS, NumerologyData,
+            calculateOdu,
+            TAROT_ARKANNUS, TAROT_DECKS, TAROT_SUITS, majorArcana, listTarotDecks,
+            getTarotCardByNumber, getTarotCardProfile, getTarotCardNumber,
+            getTarotCorrespondenceProfile, getTarotArchetype,
+            getTarotRepresentation, getTarotRepresentations, shuffleTarotDeck,
+            listTarotSpreads, listTarotThemeProfiles, listTarotTrees,
+            validateTarotSpreadSelection, resolveTarotImageUrl, getTarotSpread,
+            getTarotThemeProfile
+          } from "./dist/index";
+          ENTRYEOF
+          npx esbuild kaabalah-entry.mjs --bundle --platform=node --format=iife --global-name=Kaabalah --target=es2020 --external:*.wasm --outfile=kaabalah-engine.js 2>&1 | tail -3
+          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
+          cp kaabalah-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "Kaabalah JS engine compiled: $(wc -c < kaabalah-engine.js) bytes"
+
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
           pip download --no-deps --no-binary :all: "PyJHora" -d /tmp/pyjhora_patch

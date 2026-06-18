@@ -59,7 +59,13 @@ Available built-in functions (call these from your code):
   印度占星/吠陀(南印/北印盘)  →  jhora                      ← stellium.visualization.vedic          生日必填
 
   【人类图/塔罗/其他】
-  塔罗/雷诺曼         →  arcanite（78张韦特+36雷诺曼，正逆位牌义，牌阵）                         无需出生
+  塔罗/雷诺曼         →  arcanite(Python,78张韦特+36雷诺曼,正逆位牌义+牌阵,比JS强) ← Kaabalah(JS,仅韦特数据)  无需出生
+
+  【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机)
+  生命灵数/流年/挑战数  →  Kaabalah.calculatePersonalYear(date) 又 calculatePersonalCycles 又 calculateChallenges 又 reduceToSingle  生日即可
+  卡巴拉生命之树       →  Kaabalah.buildKaabalisticMapData() 又 getCanonicalTree() 又 getGematriaTreeMarkers 又 calculateKaabalisticLifePath  生日可选
+  希伯来Gematria      →  Kaabalah.calculateGematria(text) 又 reverseGematria(num)  输入文本/数字
+  非洲Ifá占卜         →  Kaabalah.calculateOdu()                                    无需出生
 
   【农历/干支/天文】
   农历/黄历/择日      →  cnlunar(Python)            ← lunar_python, Lunar(JS引擎)  日期即可
@@ -99,6 +105,16 @@ Available built-in functions (call these from your code):
   不影响效率: 仍调两次引擎，第一次随机+排盘，第二次仅排盘(无随机开销)，总耗时几乎不变。
 
 【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
+【引擎区别速查】AI 回答用户"哪个好/有什么区别"时用:
+  • 紫微: ziwei_paipan(Python,iztro标准算法) vs ZiweiNihai(JS,倪海夏天纪+古籍,含断语)
+  • 奇门: kinqimen(Python,仅拆补2局法) vs QimenEngine(JS,拆补+茅山+置闰3局法×时/日/月/年4流派+十干克应断语)
+  • 六爻: ichingshifa(Python,仅大衍筮法1种) vs IchingShifa(JS,大衍+略筮+时间+手动+三数+数组6种起卦)
+  • 太玄: taixuanshifa(Python,仅蓍法1种) vs TaixuanLib(JS,蓍法+骰子+硬币+数字4种起卦)
+  • 本命盘: kerykeion(Python,SwissEphemeris毫角秒) vs HoroscopeJS(JS,Kepler角分级+7种宫位制可选+10种相位,离线快)
+  • 行星/日食: pyswisseph(Python,最高精) vs Astronomy(JS,VSOP87角秒级,零依赖)
+  • HoroscopeJS不能查日食/升落; Astronomy不能排盘/算宫位; 深析/推运/合盘只有Python(stellium/flatlib/immanuel)
+  • 塔罗: arcanite(Python,78张+36雷诺曼+牌阵) 远强于 Kaabalah(JS,仅韦特基础数据)
+  • 卡巴拉/灵数/Gematria/Ifá: 只有JS Kaabalah (Python侧无)
 【JS 引擎调用】探索: Object.keys(EngineName) 列出所有方法。对照模式→JS先随机→提取关键值→Python同值排盘。
   QimenEngine → eval_javascript: QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
   ZiweiNihai  → eval_javascript: ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
@@ -107,6 +123,7 @@ Available built-in functions (call these from your code):
   Lunar (JS)  → eval_javascript: Lunar.Solar.fromDate(new Date(2026,5,19)) 又 Lunar.Lunar.fromDate(d) 又 Lunar.EightChar.fromLunar(lunar) 又 Lunar.DaYun(...) 又 Lunar.JieQi.getJieQi(2026)
   Astronomy   → eval_javascript: Astronomy.BodyPosition("sun", new Date(2026,5,19,14,0,0)) 又 Astronomy.SearchRiseSet("sun", observer, date) 又 Astronomy.SearchLunarEclipse(date) 又 Astronomy.Seasons(2026) 又 Astronomy.MoonPhase(date)  (零随机,VSOP87精度)
   HoroscopeJS → eval_javascript: new HoroscopeJS.Horoscope({origin:new HoroscopeJS.Origin({year:2026,month:5,day:19,hour:14,minute:0,latitude:39.9,longitude:116.4}),houseSystem:"placidus",zodiac:"tropical"})  (零随机,Kepler精度+7宫位制)
+  Kaabalah    → eval_javascript: Kaabalah.calculatePersonalYear({day:19,month:6,year:2026}) 又 Kaabalah.calculateGematria("shalom") 又 Kaabalah.buildKaabalisticMapData() 又 Kaabalah.calculateKaabalisticLifePath({...}) 又 Kaabalah.shuffleTarotDeck() 又 Kaabalah.calculateOdu()  (零随机,纯JS)
   返回 JSON，AI 基于真实数据解读。
 """
 
