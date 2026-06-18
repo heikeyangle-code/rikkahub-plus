@@ -201,6 +201,19 @@ jobs:
           cp qimen-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Qimen TS engine compiled: $(wc -c < qimen-engine.js) bytes"
 
+      - name: Compile NiHaiXia ZiWei engine (Renhuai123/ziwei-doushu)
+        run: |
+          git clone --depth 1 https://github.com/Renhuai123/ziwei-doushu.git /tmp/ziwei_nhx
+          cd /tmp/ziwei_nhx
+          npm install 2>&1 | tail -3
+          echo 'export { generateChart, getLunarInfo } from "./lib/ziwei/algorithm";' > entry.ts
+          echo 'export * from "./lib/nihai";' >> entry.ts
+          echo 'export * from "./lib/classics";' >> entry.ts
+          npx esbuild entry.ts --bundle --platform=neutral --format=iife --global-name=ZiweiNihai --outfile=ziwei-nihai.js --external:iztro --external:lunar-javascript 2>&1 | tail -3
+          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
+          cp ziwei-nihai.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "NiHaiXia ZiWei engine compiled: $(wc -c < ziwei-nihai.js) bytes"
+
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
           pip download --no-deps --no-binary :all: "PyJHora" -d /tmp/pyjhora_patch

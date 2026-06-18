@@ -30,7 +30,7 @@ Available built-in functions (call these from your code):
   ─────────────────────────────────────────────────────────────────────────────────────────
   【中华正统】
   八字/四柱/大运      →  lunar_python EightChar      ← bazi_china, sxtwl        生日（含时辰）
-  紫微斗数            →  ziwei_paipan.by_solar()    ← by_solar 分步调取         生日（含时辰）
+  紫微斗数            →  ziwei_paipan.by_solar()    ← ZiweiNihai JS (倪海夏天纪)   生日（含时辰）
 
   【奇门三式】
   奇门遁甲            →  kinqimen (Python)         ← QimenEngine JS (7局法+断语)   时家需精确时间
