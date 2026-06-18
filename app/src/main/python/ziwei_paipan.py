@@ -780,7 +780,7 @@ def get_changsheng12(solar_date: str, time_index: int, gender: str,
     five_val = get_five_elements_class(sb['heavenly_stem_of_soul'], sb['earthly_branch_of_soul'])
     start_idx = get_changsheng12_start_index(five_val)
     is_male = (gender == '男')
-    is_yang_year = STEM_YIN_YANG[year_stem] == '阳'
+    is_yang_year = BRANCH_YIN_YANG[year_branch] == '阳'
     is_forward = (is_yang_year and is_male) or (not is_yang_year and not is_male)
     result = [None] * 12
     for i, name in enumerate(CHANGSHENG_12):
@@ -794,7 +794,7 @@ def get_boshi12(solar_date: str, gender: str) -> List[Optional[str]]:
     year_stem, year_branch = get_year_gan_zhi(solar_date)
     lu_idx, _, _, _ = get_lu_yang_tuo_ma_index(year_stem, year_branch)
     is_male = (gender == '男')
-    is_yang_year = STEM_YIN_YANG[year_stem] == '阳'
+    is_yang_year = BRANCH_YIN_YANG[year_branch] == '阳'
     is_forward = (is_yang_year and is_male) or (not is_yang_year and not is_male)
     result = [None] * 12
     for i, name in enumerate(BOSHI_12):
@@ -873,7 +873,7 @@ def get_horoscope(solar_date: str, time_index: int, gender: str,
     """起大限 + 小限 — 1:1 iztro getHoroscope 返回 {decadals, ages}"""
     year_stem, year_branch = get_year_gan_zhi(solar_date)
     is_male = (gender == '男')
-    is_yang_year = STEM_YIN_YANG[year_stem] == '阳'
+    is_yang_year = BRANCH_YIN_YANG[year_branch] == '阳'
     is_forward = (is_yang_year and is_male) or (not is_yang_year and not is_male)
     start_stem = TIGER_RULE[year_stem]
     start_stem_idx = HEAVENLY_STEMS.index(start_stem)
