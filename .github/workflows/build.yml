@@ -197,7 +197,7 @@ jobs:
           cd /tmp/qimen_ts
           echo 'export { generate } from "./src/engine";' > entry.ts
           npm install -g esbuild 2>&1 | tail -1
-          esbuild entry.ts --bundle --platform=neutral --format=iife --global-name=QimenEngine --outfile=qimen-engine.js 2>&1
+          esbuild entry.ts --bundle --platform=neutral --format=iife --global-name=QimenEngine --target=es2020 --outfile=qimen-engine.js 2>&1
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp qimen-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Qimen TS engine compiled: $(wc -c < qimen-engine.js) bytes"
@@ -210,7 +210,7 @@ jobs:
           echo 'export { generateChart, getLunarInfo } from "./lib/ziwei/algorithm";' > entry.ts
           echo 'export * from "./lib/nihai";' >> entry.ts
           echo 'export * from "./lib/classics";' >> entry.ts
-          npx esbuild entry.ts --bundle --platform=neutral --format=iife --global-name=ZiweiNihai --outfile=ziwei-nihai.js --external:iztro --external:lunar-javascript 2>&1 | tail -3
+          npx esbuild entry.ts --bundle --platform=neutral --format=iife --global-name=ZiweiNihai --target=es2020 --outfile=ziwei-nihai.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp ziwei-nihai.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "NiHaiXia ZiWei engine compiled: $(wc -c < ziwei-nihai.js) bytes"
