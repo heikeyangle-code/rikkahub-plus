@@ -127,15 +127,22 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 "Use this tool to run JavaScript for calculations, text processing, or prototyping. 15s timeout, no DOM or network APIs.\n\n" +
                 "When to use:\n" +
                 "- Run JavaScript for calculations, text processing, or prototyping\n" +
-                "- Test JS snippets without a browser\n\n" +
+                "- Test JS snippets without a browser\n" +
+                "- 奇门遁甲: library='qimen', code='QimenEngine.generate({type:\"shijia\",...})'\n" +
+                "- 紫微斗数: library='ziwei-nihai', code='ZiweiNihai.generateChart({solarYear:1990,...})'\n\n" +
                 "When NOT to use:\n" +
                 "- DOM manipulation or network requests (no browser APIs)\n" +
                 "- Heavy computations (15s timeout)\n\n" +
                 "Args:\n" +
+                "- library: (optional) 'qimen' or 'ziwei-nihai' — loads the engine from assets\n" +
                 "- code: JavaScript code to execute (last expression is the result)",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
+                        put("library", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Optional: 'qimen' or 'ziwei-nihai' to load the divination engine before executing code")
+                        })
                         put("code", buildJsonObject {
                             put("type", "string")
                             put("description", "The JavaScript code to execute")
@@ -146,6 +153,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
             },
             execute = {
                 val logs = arrayListOf<String>()
+                val library = it.jsonObject["library"]?.jsonPrimitive?.contentOrNull
                 val code = it.jsonObject["code"]?.jsonPrimitive?.contentOrNull
                 val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
                 try {
@@ -158,6 +166,21 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                                 override fun warn(info: String?) { logs.add("[WARN] $info") }
                                 override fun error(info: String?) { logs.add("[ERROR] $info") }
                             })
+                            // Load engine library if specified
+                            if (library != null) {
+                                val assetName = when (library) {
+                                    "qimen" -> "qimen-engine.js"
+                                    "ziwei-nihai" -> "ziwei-nihai.js"
+                                    else -> null
+                                }
+                                if (assetName != null) {
+                                    val engineCode = context.assets.open(assetName).bufferedReader().readText()
+                                    jsContext.evaluate(engineCode)
+                                    logs.add("[INFO] Loaded JS engine: $library ($engineCode.length bytes)")
+                                } else {
+                                    logs.add("[ERROR] Unknown library: $library (use 'qimen' or 'ziwei-nihai')")
+                                }
+                            }
                             val jsResult = jsContext.evaluate(code)
                             when (jsResult) {
                                 null -> "null"
