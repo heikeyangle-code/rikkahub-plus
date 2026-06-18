@@ -86,6 +86,55 @@ def find_or_install_ndk():
     raise RuntimeError("Failed to install NDK")
 
 
+def create_compiler_wrapper(cc_path, android_python_root):
+    """Create a compiler/linker wrapper that strips host Python paths.
+    
+    The host Python's sysconfig data causes setuptools to add:
+      - -I/opt/hostedtoolcache/Python/.../x64/include/python3.14  (host headers)
+      - -L/opt/hostedtoolcache/Python/.../x64/lib                (host libs)
+      - -Wl,--rpath=/opt/hostedtoolcache/Python/.../x64/lib      (host rpath)
+    
+    These pollute the cross-compiled .so with x86_64 references and
+    broken RPATHs that don't exist on Android. This wrapper filters
+    them out.
+    """
+    wrapper_path = "/tmp/compiler-wrapper.sh"
+    with open(wrapper_path, "w") as f:
+        f.write(f"""#!/bin/bash
+# Cross-compiler wrapper: strips host Python paths from build
+ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        *hostedtoolcache*) continue ;;
+        *--rpath=*)        continue ;;
+        *Python*ROOT*)     continue ;;
+    esac
+    ARGS+=("$arg")
+done
+exec {cc_path} "${{ARGS[@]}}"
+""")
+    os.chmod(wrapper_path, 0o755)
+    log(f"Created compiler wrapper: {wrapper_path}")
+    # Also create a CXX wrapper
+    cxx_path = cc_path.replace("aarch64-linux-android21-clang", "aarch64-linux-android21-clang++")
+    wrapper_cxx = "/tmp/compiler-wrapper++.sh"
+    with open(wrapper_cxx, "w") as f:
+        f.write(f"""#!/bin/bash
+ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        *hostedtoolcache*) continue ;;
+        *--rpath=*)        continue ;;
+        *Python*ROOT*)     continue ;;
+    esac
+    ARGS+=("$arg")
+done
+exec {cxx_path} "${{ARGS[@]}}"
+""")
+    os.chmod(wrapper_cxx, 0o755)
+    return wrapper_path, wrapper_cxx
+
+
 def setup_env(ndk_path, android_python_root):
     """Set up cross-compilation environment using official Android Python."""
     toolchain = os.path.join(ndk_path, "toolchains", "llvm", "prebuilt", "linux-x86_64")
@@ -94,17 +143,33 @@ def setup_env(ndk_path, android_python_root):
     py_prefix = os.path.join(android_python_root, "prefix")
     py_include = os.path.join(py_prefix, "include", f"python{PY_VER}")
     py_lib = os.path.join(py_prefix, "lib")
+    ar = os.path.join(toolchain, "bin", "llvm-ar")
+
+    # Create compiler wrappers that strip host Python paths
+    cc_wrapper, cxx_wrapper = create_compiler_wrapper(cc, android_python_root)
 
     env = os.environ.copy()
+    
+    # CRITICAL: Unset host Python root dirs that cause setuptools to add host paths
+    for var in list(env.keys()):
+        if "PYTHON" in var.upper() and ("ROOT" in var.upper() or "DIR" in var.upper()):
+            if var not in ("PYTHON_HOME",):  # keep PYTHON_HOME if set
+                env.pop(var, None)
+    
+    # Clear LD_LIBRARY_PATH — host Python libs would pollute the link
+    env.pop("LD_LIBRARY_PATH", None)
+    env.pop("LD_RUN_PATH", None)
+    env.pop("PKG_CONFIG_PATH", None)
+
     env.update({
-        "CC": cc,
-        "CXX": cxx,
-        "AR": os.path.join(toolchain, "bin", "llvm-ar"),
-        "LD": os.path.join(toolchain, "bin", "ld.lld"),
+        "CC": cc_wrapper,
+        "CXX": cxx_wrapper,
+        "AR": ar,
         "CFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
         "CXXFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
-        "LDFLAGS": f"--target=aarch64-linux-android21 -L{py_lib} -lpython{PY_VER}",
-        "LDSHARED": f"{cc} --target=aarch64-linux-android21 -shared -L{py_lib} -lpython{PY_VER}",
+        "LDFLAGS": f"--target=aarch64-linux-android21 -L{py_lib}",
+        "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared -L{py_lib}",
+        "LIBS": f"-lpython{PY_VER}",
         "_PYTHON_HOST_PLATFORM": "aarch64-linux-android",
         "ANDROID_NDK_HOME": ndk_path,
         # PyO3/maturin cross-compilation
@@ -117,8 +182,13 @@ def setup_env(ndk_path, android_python_root):
     return env
 
 
-def create_wheel(pkg_name, version, py_pkg, so_files):
-    """Create a .whl with android_21_arm64_v8a platform tag."""
+def create_wheel(pkg_name, version, py_pkg, so_files, py_files=None, init_content=None):
+    """Create a .whl with android_21_arm64_v8a platform tag.
+    
+    Args:
+        py_files: list of (src_path, dest_filename) tuples for .py files to include in the package
+        init_content: if set, use this as __init__.py content instead of default stub
+    """
     wheel_name = f"{pkg_name.replace('-', '_')}-{version}-{PY_TAG}-{ABI_TAG}-{PLAT}.whl"
     wheel_dir = f"/tmp/wheels/{wheel_name.replace('.whl', '')}"
     if os.path.exists(wheel_dir):
@@ -134,8 +204,18 @@ def create_wheel(pkg_name, version, py_pkg, so_files):
             shutil.copy2(src, os.path.join(pkg_dir, dest_name))
             log(f"  Copied {dest_name}")
 
+    # Copy extra .py files (e.g. SWIG wrapper) into the package dir
+    if py_files:
+        for src, dest_name in py_files:
+            if os.path.exists(src):
+                shutil.copy2(src, os.path.join(pkg_dir, dest_name))
+                log(f"  Copied py {dest_name}")
+
     init_py = os.path.join(pkg_dir, "__init__.py")
-    if not os.path.exists(init_py):
+    if init_content:
+        with open(init_py, "w") as f:
+            f.write(init_content)
+    elif not os.path.exists(init_py):
         with open(init_py, "w") as f:
             f.write(f"# {py_pkg} package\n")
 
@@ -210,11 +290,13 @@ def compile_c_package(pkg, env):
     run(f"find '{src_dir}' -name '*.so' -delete", check=False)
 
     # Cross-compile with NDK + official Android Python headers/lib
+    # Use LIBS for -lpython3.14 instead of LDFLAGS to avoid conflicts
     build_cmd = (
         f"cd '{src_dir}' && "
         f"CC='{env['CC']}' CXX='{env['CXX']}' "
         f"CFLAGS='{env['CFLAGS']}' CXXFLAGS='{env['CXXFLAGS']}' "
         f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
+        f"LIBS='{env['LIBS']}' "
         f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
         f"python setup.py build_ext --inplace 2>&1"
     )
@@ -226,6 +308,7 @@ def compile_c_package(pkg, env):
             f"CC='{env['CC']}' CXX='{env['CXX']}' "
             f"CFLAGS='{env['CFLAGS']}' CXXFLAGS='{env['CXXFLAGS']}' "
             f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
+            f"LIBS='{env['LIBS']}' "
             f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
             f"python setup.py build 2>&1",
             check=False, timeout=300)
@@ -247,7 +330,24 @@ def compile_c_package(pkg, env):
         return False
 
     log(f"Found .so: {[s for s, _ in so_files]}")
-    wheel_path = create_wheel(pkg_name, version, py_pkg, so_files)
+
+    # Verify .so is ARM64 architecture
+    for src, _ in so_files:
+        result = run(f"file '{src}'", check=False, capture_output=True)
+        output = result.stdout.decode() if hasattr(result, 'stdout') and result.stdout else ""
+        if "aarch64" in output or "ARM" in output or "ARM64" in output:
+            log(f"  ✅ {os.path.basename(src)}: ARM64")
+        else:
+            log(f"  ⚠️  {os.path.basename(src)}: {output[:100]}")
+
+    # Resolve extra .py files relative to source dir
+    py_file_list = None
+    if pkg.get("extra_py_files"):
+        py_file_list = [(os.path.join(src_dir, f), f) for f in pkg["extra_py_files"]]
+
+    wheel_path = create_wheel(pkg_name, version, py_pkg, so_files,
+                              py_files=py_file_list,
+                              init_content=pkg.get("init_content"))
     dest = os.path.join(OFFLINE_PKGS, os.path.basename(wheel_path))
     shutil.copy2(wheel_path, dest)
     log(f"ARM64 .whl: {dest}")
@@ -354,10 +454,12 @@ def main():
 
     PACKAGES = [
         {"name": "sxtwl", "version": "2.0.6", "py_pkg": "sxtwl", "type": "c",
+         "extra_py_files": ["sxtwl.py"],
+         "init_content": "from .sxtwl import *\n",
          "patches": [
              ("sed -i 's/from distutils import ccompiler//' setup.py", False),
-             ("sed -i 's/if ccompiler.get_default_compiler() == \\\"msvc\\\":/"
-              "if platform.system() == \\\"Windows\\\":/' setup.py", False),
+             ("sed -i 's/if ccompiler.get_default_compiler() == \"msvc\":/"
+              "if platform.system() == \"Windows\":/' setup.py", False),
          ]},
         {"name": "pyswisseph", "version": "2.10.3.2", "py_pkg": "swisseph", "type": "c",
          "patches": [
