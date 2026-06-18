@@ -259,16 +259,13 @@ jobs:
           sed -i 's/Math\.random() < 0\.5/cryptoRandInt(0,1) === 1/g' dist/index.js
           grep -n "Math.random" dist/index.js && echo "WARNING: Math.random still present!" || echo "OK: no Math.random remaining"
           # Patch: expose 4-digit code in createResult return (for dual-engine shared random)
-          # createResult originally returns {gua, timestamp} — add code field
           sed -i 's/return { gua: lookupByCode(code), timestamp: Date.now() };/return { gua: lookupByCode(code), timestamp: Date.now(), code: code.join("") };/g' dist/index.js
           grep "code:" dist/index.js && echo "OK: code field exposed" || echo "WARNING: code field patch failed"
-          # Wrap with IIFE + crypto polyfill
-          echo 'function cryptoRandInt(min,max){var r=new Uint32Array(1);crypto.getRandomValues(r);return min+(r[0]%(max-min+1));}' > taixuan-entry.js
-          echo 'var TaixuanLib = (function(){' >> taixuan-entry.js
-          echo 'var exports = {};' >> taixuan-entry.js
-          cat dist/index.js >> taixuan-entry.js
-          echo 'return exports;})();' >> taixuan-entry.js
-          npx esbuild taixuan-entry.js --format=iife --global-name=TaixuanLib --target=es2020 --outfile=taixuan-engine.js 2>&1 | tail -3
+          # cryptoRandInt polyfill (injected via esbuild banner)
+          echo 'function cryptoRandInt(min,max){var r=new Uint32Array(1);crypto.getRandomValues(r);return min+(r[0]%(max-min+1));}' > /tmp/crypto_polyfill.js
+          # Entry: just re-export everything (esbuild handles IIFE wrapping)
+          echo 'export * from "./dist/index";' > taixuan-entry.mjs
+          npx esbuild taixuan-entry.mjs --bundle --platform=node --format=iife --global-name=TaixuanLib --target=es2020 --banner:js="$(cat /tmp/crypto_polyfill.js)" --outfile=taixuan-engine.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp taixuan-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "TaiXuan JS engine compiled: $(wc -c < taixuan-engine.js) bytes"
