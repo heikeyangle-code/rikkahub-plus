@@ -128,20 +128,19 @@ jobs:
             cp "$f" "app/offline_pkgs/$fname"
           done
           echo "Offline packages:" && ls app/offline_pkgs/
-      - name: Patch PyJHora (fix ephe path → pyswisseph)
+      - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
           pip download --no-deps --no-binary :all: "PyJHora" -d /tmp/pyjhora_patch
           cd /tmp/pyjhora_patch
-          tar xfz PyJHora-*.tar.gz
-          rm PyJHora-*.tar.gz
-          cd PyJHora-*
-          # Fix: don't override pyswisseph's built-in ephe path
-          # PyJHora's const.py calls swe.set_ephe_path() to data/ephe/ which
-          # doesn't exist in the wheel. Point to pyswisseph's ephe instead.
-          sed -i 's|swe.set_ephe_path(_ephe_path)|import swisseph; _ephe_path = os.path.join(os.path.dirname(swisseph.__file__), "ephe"); swe.set_ephe_path(_ephe_path)|' src/jhora/const.py
-          echo "Patched const.py ephe:"
-          grep -A1 "set_ephe_path" src/jhora/const.py
-          cd /tmp/pyjhora_patch && tar czf /tmp/pypi-offline/pyjhora-patched.tar.gz PyJHora-*
+          tar xfz PyJHora-*.tar.gz && rm PyJHora-*.tar.gz
+          SRC_DIR=$(ls -d PyJHora-* | head -1)
+          # PyJHora 自带 data/ephe/ 在 PyPI wheel 里是空的（受100MB限制）
+          # 改为指向 pyswisseph 包内的星历，避免重复打包
+          sed -i 's|swe.set_ephe_path(_ephe_path)|import swisseph; _ephe_path = os.path.join(os.path.dirname(swisseph.__file__), "ephe"); swe.set_ephe_path(_ephe_path)|' "$SRC_DIR/src/jhora/const.py"
+          echo "Patched const.py:"
+          grep -A1 "set_ephe_path" "$SRC_DIR/src/jhora/const.py"
+          cd /tmp/pyjhora_patch
+          tar czf /tmp/pypi-offline/pyjhora-patched.tar.gz "$SRC_DIR"
           cp /tmp/pypi-offline/pyjhora-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
           rm -rf /tmp/pyjhora_patch
           echo "Added pyjhora-patched.tar.gz"
@@ -248,6 +247,14 @@ jobs:
           keyAlias=androiddebugkey
           keyPassword=android
           EOF
+      - name: Download Swiss Ephemeris data (pyswisseph needs ephe/ for planetary calc)
+        run: |
+          mkdir -p /tmp/ephe_cache
+          cd /tmp/ephe_cache
+          for f in seas_18.se1 semo_18.se1 sepl_18.se1 fixstars.cat seasnam.txt sefstars.txt seleapsec.txt seorbel.txt; do
+            [ -f "$f" ] || curl -sL --http1.1 "https://raw.githubusercontent.com/naturalstupid/PyJHora/main/src/jhora/data/ephe/$f" -o "$f"
+          done
+          echo "Ephe files: $(ls -1 | wc -l) ($(du -sh . | cut -f1))"
       - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core, ephem)
         run: |
           python3 ci/cross_compile_wheels.py 2>&1

@@ -304,6 +304,10 @@ def compile_c_package(pkg, env):
     # Remove prebuilt .so files
     run(f"find '{src_dir}' -name '*.so' -delete", check=False)
 
+    # For pyswisseph: copy ephe data from shared CI cache into source tree
+    if pkg_name == "pyswisseph":
+        ensure_ephe_data(src_dir, pkg_name)
+
     # Cross-compile with NDK + official Android Python headers.
     # NOTE: Do NOT link -lpython — on embedded Android (Chaquopy), libpython.so
     # does not exist as a separate shared library. Python symbols are resolved
@@ -465,6 +469,32 @@ def compile_rust_package(pkg, env):
     shutil.copy2(wheel_path, dest)
     log(f"ARM64 .whl from cargo: {dest}")
     return True
+
+
+def ensure_ephe_data(src_dir: str, pkg_name: str) -> None:
+    """Copy Swiss Ephemeris data files into the package source tree.
+    
+    PyPI sdists DO NOT include the ephe/ data files. These are downloaded
+    once in CI to /tmp/ephe_cache/ and copied to both pyswisseph + PyJHora.
+    Core files (seas_18, semo_18, sepl_18) cover 1800-2400 AD.
+    """
+    ephe_dest = os.path.join(src_dir, "swisseph", "ephe")
+    if os.path.isdir(ephe_dest) and os.listdir(ephe_dest):
+        log(f"Ephe data already exists at {ephe_dest}")
+        return
+    
+    ephe_cache = os.environ.get("EPHE_CACHE", "/tmp/ephe_cache")
+    if not os.path.isdir(ephe_cache) or not os.listdir(ephe_cache):
+        log(f"WARNING: {ephe_cache} not found, ephemeris data will be missing!")
+        return
+    
+    os.makedirs(ephe_dest, exist_ok=True)
+    import shutil as _shutil
+    for f in os.listdir(ephe_cache):
+        src = os.path.join(ephe_cache, f)
+        if os.path.isfile(src):
+            _shutil.copy2(src, os.path.join(ephe_dest, f))
+    log(f"Copied {len(os.listdir(ephe_dest))} ephe files from cache")
 
 
 def main():
