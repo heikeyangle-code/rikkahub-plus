@@ -1,62 +1,78 @@
 #!/usr/bin/env python3
-"""Replace numpy in PyJHora with pure-Python equivalents. Zero precision loss."""
+"""Replace ALL numpy in PyJHora+ichingshifa with pure Python. Zero loss."""
+import os, re, sys
+
+ARRAY_SPLIT_HELPER = '''
 def __array_split(lst, n):
     """Pure Python equivalent of np.array_split(lst, n)."""
     k, m = divmod(len(lst), n)
     return [lst[i*k+min(i,m):(i+1)*k+min(i+1,m)] for i in range(n)]
-import os, re, sys
+'''
+
+def _replace_datetime(c):
+    """Replace np.datetime64 with stdlib datetime."""
+    c = re.sub(r'np\.datetime64\(([^)]+)\)', r'date.fromisoformat(\1)', c)
+    c = re.sub(r"np\.datetime_as_string\(([^)]+)\)", r'str(\1)', c)
+    c = re.sub(r'(\w+)\s*-\s*np\.timedelta64\(([^,]+),\s*"D"\)', r'\1 - timedelta(days=int(\2))', c)
+    c = re.sub(r'(\w+)\s*\+\s*np\.timedelta64\(([^,]+),\s*"D"\)', r'\1 + timedelta(days=int(\2))', c)
+    c = re.sub(r'\(([^)]+)\)\s*/\s*np\.timedelta64\(1,\s*"D"\)', r'(\1).days', c)
+    return c
 
 def patch_file(fp):
     with open(fp) as f:
         c = f.read()
-    orig = c
-    
-    # Remove numpy import, add needed stdlib
-    if 'import numpy' in c:
-        needs = []
-        if 'np.datetime64' in c: needs.append('from datetime import date, timedelta')
-        if 'np.floor' in c or 'np.rint' in c or 'np.around' in c: needs.append('import math')
-        repl = '\n'.join(needs) + '\n' if needs else '# numpy removed\n'
-        c = re.sub(r'^\s*import numpy( as np)?\s*$', repl, c, flags=re.MULTILINE)
-    
+    o = c
+
+    dt = 'np.datetime64' in c
+    math_needed = 'np.floor' in c or 'np.rint' in c or 'np.around' in c
+    arr_split = 'np.array_split' in c
+    imports = []
+    if dt: imports.append('from datetime import date, timedelta')
+    if math_needed: imports.append('import math')
+    repl = '\n'.join(imports) if imports else '# numpy removed'
+    c = re.sub(r'^\s*import numpy(\s+as\s+np)?\s*$', repl, c, flags=re.MULTILINE)
+    if arr_split:
+        c = c.replace(repl, repl + ARRAY_SPLIT_HELPER)
+
+    # ── Specific known patterns ──
     # const.py
     c = c.replace(
         "np.where(np.array(house_strengths_of_planets).transpose()==_OWNER_RULER)[1].tolist()",
         "[j for j,col in enumerate(zip(*house_strengths_of_planets)) for i,v in enumerate(col) if v==_OWNER_RULER]"
     )
-    
-    # ashtakavarga.py: column sum
+    # ashtakavarga.py
     c = re.sub(r'np\.asarray\(([^)]+)\)\.sum\(axis=0\)\.tolist\(\)', r'[sum(col) for col in zip(*\1)]', c)
-    # element multiply
     c = re.sub(r'sum\(np\.multiply\(([^,]+),\s*([^)]+)\)\)', r'sum(a*b for a,b in zip(\1,\2))', c)
-    
-    # strength.py: transpose
+    # strength.py: exact patterns from actual code
     c = re.sub(r'np\.array\(([^)]+)\)\.T\.tolist\(\)', r'[list(t) for t in zip(*\1)]', c)
-    c = re.sub(r'np\.array\(([^)]+)\)\.T$', r'list(zip(*\1))', c, flags=re.MULTILINE)
+    c = re.sub(r'np\.array\(([^)]+)\)\.T\b(?![\w.])', r'list(zip(*\1))', c)
     c = re.sub(r'np\.zeros\(\(([^,]+),\s*([^)]+)\)\s*,\s*dtype\s*=\s*float\)', r'[[0.0]*\2 for _ in range(\1)]', c)
-    c = re.sub(r'np\.array\(([^)]+)\)\.tolist\(\)', r'\1  # was np.array().tolist()', c)
-    c = re.sub(r'np\.around\(np\.sum\(([^,]+),0\),(\d+)\)\.tolist\(\)', r'[round(sum(col),\2) for col in zip(*\1)]', c)
-    
-    # floor/rint
-    c = re.sub(r'np\.floor\(([^)]+)\)\.astype\(int\)', r'[[int(math.floor(v)) for v in row] for row in \1]', c)
-    c = re.sub(r'np\.rint\(([^)]+)\)\.astype\(int\)', r'[[int(round(v)) for v in row] for row in \1]', c)
-    
-    # datetime64 replacements
-    c = re.sub(r'np\.datetime64\(([^)]+)\)', r'date.fromisoformat(\1)', c)
-    c = re.sub(r'np\.datetime_as_string\(([^)]+)\)\.split\(\'-\'\)', r'str(\1).split(\'-\')', c)
-    c = re.sub(r'\)\s*/\s*np\.timedelta64\(1,"D"\)', r').days', c)
-    
+    c = re.sub(r'np\.array\(([^)]+)\)\.tolist\(\)', r'\1', c)
+    c = re.sub(r'np\.around\(np\.sum\(([^,]+),\s*0\),\s*(\d+)\)\.tolist\(\)', r'[round(sum(col),\2) for col in zip(*\1)]', c)
+    # strength.py line 886: np.floor(dk * (100.0 / 60.0) + 0.5).astype(int)
+    c = c.replace(
+        "np.floor(dk * (100.0 / 60.0) + 0.5).astype(int)",
+        "[[int(math.floor(v * (100.0/60.0) + 0.5)) for v in row] for row in dk]"
+    )
+    # strength.py line 888: np.rint(dk * (100.0 / 60.0)).astype(int)
+    c = c.replace(
+        "np.rint(dk * (100.0 / 60.0)).astype(int)",
+        "[[int(round(v * (100.0/60.0))) for v in row] for row in dk]"
+    )
+    # datetime
+    c = _replace_datetime(c)
+    # array_split
+    c = re.sub(r'np\.array_split\(([^,]+),\s*(\d+)\)', r'__array_split(\1,\2)', c)
     # misc
-    c = re.sub(r"np\.array_split\(([^,]+),\s*(\d+)\)", r"__array_split(\1,\2)", c)
     c = re.sub(r'np\.copy\(([^)]+)\)', r'\1[:]', c)
-    c = re.sub(r'np\.any\(([^,]+),axis=0\)', r'[any(col) for col in zip(*\1)]', c)
-    c = re.sub(r'np\.nan', 'float("nan")', c)
-    
-    if c != orig:
+    c = re.sub(r'np\.any\(([^,]+),\s*axis\s*=\s*0\)', r'[any(col) for col in zip(*\1)]', c)
+    c = re.sub(r'np\.nan\b', 'float("nan")', c)
+
+    if c != o:
         with open(fp, 'w') as f:
             f.write(c)
-        return 1
-    return 0
+        return True
+    return False
 
 if __name__ == '__main__':
     target = sys.argv[1] if len(sys.argv) > 1 else '.'
@@ -68,10 +84,4 @@ if __name__ == '__main__':
                 if patch_file(os.path.join(root, f)):
                     print(f'  PATCHED {f}')
                     n += 1
-    print(f'Done: {n} files patched')
-
-# Bonus: also patch ichingshifa if present
-def array_split_pure(lst, n):
-    """Pure Python replacement for np.array_split(lst, n)."""
-    k, m = divmod(len(lst), n)
-    return [lst[i*k+min(i,m):(i+1)*k+min(i+1,m)] for i in range(n)]
+    print(f'Done: {n} files')
