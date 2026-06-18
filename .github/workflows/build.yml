@@ -433,7 +433,7 @@ jobs:
           rm kerykeion-*.tar.gz
           cd kerykeion-*
           # Only remove scour (SVG optimizer, not needed). Keep pydantic — we have it.
-          sed -i '/"scour"/d' pyproject.toml
+          sed -i '/scour/d' pyproject.toml
           echo "Patched kerykeion deps (scour removed, pydantic kept):"
           grep -E 'pydantic|scour' pyproject.toml || echo "(clean)"
           cd /tmp/kerykeion_patch && tar czf /tmp/pypi-offline/kerykeion-patched.tar.gz kerykeion-*
