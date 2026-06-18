@@ -179,6 +179,7 @@ class GenerationHandler(
                 appendLine("【塔罗】78张韦特+36张雷诺曼→arcanite(TarotDeck.load) | 正逆位牌义+牌阵")
                 appendLine("【农历天文】黄历/择日/建除/太岁→cnlunar(备:lunar_python) | 公历农历转换→lunar_python(备:cnlunar) | 二十八宿/宿曜→lunar_python.get28Mans(备:pyswisseph,cnlunar) | 吉神凶神/彭祖百忌→cnlunar | 生肖/干支/纳音/闰候→bazi_china(bazi,shengxiao,ganzhi,yue)(备:lunar_python) | 节气/天文→lunar_python(备:cnlunar,pyswisseph)")
                 appendLine("输入要求：八字/紫微/占星/吠陀需生日时辰+性别+经纬度 | 合盘需双人生日 | 黄历/择日/太岁/节气仅需日期 | 六爻/梅花/太玄/荆诀/塔罗无需出生")
+                appendLine("⚠️ JS引擎: QimenEngine(奇门7局法+断语) 和 ZiweiNihai(倪海夏天纪+古籍) 通过 eval_javascript 调用, 语法见 executor.py docstring")
                 appendLine("</mingli_routing>")
             },
             workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",

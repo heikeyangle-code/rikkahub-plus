@@ -91,6 +91,10 @@ Available built-in functions (call these from your code):
   • 无需任何出生 — 六爻(需起卦数)/梅花(需数字)/太玄/荆诀/塔罗
 
 【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
+【JS 引擎调用】
+  QimenEngine → eval_javascript: QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
+  ZiweiNihai  → eval_javascript: ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
+  返回 JSON，AI 基于真实数据解读。
 """
 
 import sys
