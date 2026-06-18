@@ -30,10 +30,10 @@ Available built-in functions (call these from your code):
   ─────────────────────────────────────────────────────────────────────────────────────────
   【中华正统】
   八字/四柱/大运      →  lunar_python EightChar      ← bazi_china, sxtwl        生日（含时辰）
-  紫微斗数            →  ziwei_paipan.by_solar()    ← ZiweiNihai JS (倪海夏天纪)   生日（含时辰）
+  紫微斗数            →  问用户选 ziwei_paipan(Python,iztro标准算法) 或 ZiweiNihai(JS,倪海夏天纪+古籍) 或两者一起对照   生日（含时辰）
 
   【奇门三式】
-  奇门遁甲            →  kinqimen (Python)         ← QimenEngine JS (7局法+断语)   时家需精确时间
+  奇门遁甲            →  问用户选 kinqimen(Python,2局法) 或 QimenEngine(JS,7局法+断语) 或两者一起对照   时家需精确时间
   大六壬              →  kinliuren                                               生日可选
   小六壬(马前课)       →  手算(lunar_python取月日时后掌诀推算)                     无需出生（需月日时）
   太乙神数            →  kintaiyi                                             生日必填
