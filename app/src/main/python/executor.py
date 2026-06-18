@@ -59,12 +59,12 @@ Available built-in functions (call these from your code):
   印度占星/吠陀(南印/北印盘)  →  jhora                      ← stellium.visualization.vedic          生日必填
 
   【人类图/塔罗/其他】
-  塔罗/雷诺曼         →  arcanite(Python,78张韦特+36雷诺曼,正逆位牌义+牌阵,比JS强) ← Kaabalah(JS,仅韦特数据)  无需出生
+  塔罗/韦特           →  问用户选 arcanite(Python,78张+36雷诺曼+牌阵+正逆位) 或 Kaabalah.shuffleTarotDeck(JS,卡巴拉树对应+字母对应) 或对照(不同体系互补)  无需出生
 
-  【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机)
-  生命灵数/流年/挑战数  →  Kaabalah.calculatePersonalYear(date) 又 calculatePersonalCycles 又 calculateChallenges 又 reduceToSingle  生日即可
-  卡巴拉生命之树       →  Kaabalah.buildKaabalisticMapData() 又 getCanonicalTree() 又 getGematriaTreeMarkers 又 calculateKaabalisticLifePath  生日可选
-  希伯来Gematria      →  Kaabalah.calculateGematria(text) 又 reverseGematria(num)  输入文本/数字
+  【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机; 灵数/卡巴拉/Gematria/Ifá Python侧无)
+  生命灵数/流年/挑战数  →  Kaabalah.calculatePersonalYear({day,month,year}) 又 calculatePersonalMonths 又 calculatePersonalCycles 又 calculateChallenges 又 reduceToSingle 又 getDateEnergies  生日即可
+  卡巴拉生命之树       →  Kaabalah.buildKaabalisticMapData() 又 getCanonicalTree() 又 SPHERES 又 LURIANIC_PATHS 又 TreeOfLife 又 getAstrologyTreeMarkers 又 getGematriaTreeMarkers 又 getNumerologyTreeMarkers 又 calculateKaabalisticLifePath  生日可选
+  希伯来Gematria      →  Kaabalah.calculateGematria("shalom") 又 reverseGematria(376) 又 GematriaData 又 HEBREW_LETTERS_DATA  输入文本/数字
   非洲Ifá占卜         →  Kaabalah.calculateOdu()                                    无需出生
 
   【农历/干支/天文】
@@ -113,7 +113,7 @@ Available built-in functions (call these from your code):
   • 本命盘: kerykeion(Python,SwissEphemeris毫角秒) vs HoroscopeJS(JS,Kepler角分级+7种宫位制可选+10种相位,离线快)
   • 行星/日食: pyswisseph(Python,最高精) vs Astronomy(JS,VSOP87角秒级,零依赖)
   • HoroscopeJS不能查日食/升落; Astronomy不能排盘/算宫位; 深析/推运/合盘只有Python(stellium/flatlib/immanuel)
-  • 塔罗: arcanite(Python,78张+36雷诺曼+牌阵) 远强于 Kaabalah(JS,仅韦特基础数据)
+  • 塔罗: arcanite(Python)牌多(78+36)+牌阵多 | Kaabalah(JS)独有卡巴拉生命之树对应(每牌→源质+路径+希伯来字母),两者互补非替代
   • 卡巴拉/灵数/Gematria/Ifá: 只有JS Kaabalah (Python侧无)
 【JS 引擎调用】探索: Object.keys(EngineName) 列出所有方法。对照模式→JS先随机→提取关键值→Python同值排盘。
   QimenEngine → eval_javascript: QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
