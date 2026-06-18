@@ -180,6 +180,7 @@ class GenerationHandler(
                 appendLine("【农历天文】黄历/择日/建除/太岁→cnlunar(备:lunar_python,Lunar-JS) | 公历农历转换/八字→lunar_python(备:cnlunar,Lunar-JS) | 二十八宿/宿曜→lunar_python.get28Mans(备:pyswisseph,cnlunar) | 吉神凶神/彭祖百忌→cnlunar | 生肖/干支/纳音/闰候→bazi_china(bazi,shengxiao,ganzhi,yue)(备:lunar_python) | 节气/天文→lunar_python(备:cnlunar,pyswisseph)")
                 appendLine("输入要求：八字/紫微/占星/吠陀需生日时辰+性别+经纬度 | 合盘需双人生日 | 黄历/择日/太岁/节气仅需日期 | 六爻/梅花/太玄/荆诀/塔罗无需出生")
                 appendLine("⚠️ JS引擎: QimenEngine(奇门7局法+断语) | ZiweiNihai(倪海夏天纪+古籍) | IchingShifa(六爻6种起卦) | TaixuanLib(太玄4种起卦) | Lunar(农历/八字) 均通过 eval_javascript 调用, 语法见 executor.py docstring")
+                appendLine("⚠️ 双引擎对照: 先调JS引擎取一次随机(如IchingShifa.dayan())→提取爻值→喂给Python引擎同一爻值(iching.qigua_manual). 禁止两引擎各自取随机=同一问题起两卦=违易经规矩")
                 appendLine("</mingli_routing>")
             },
             workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",

@@ -90,6 +90,14 @@ Available built-in functions (call these from your code):
   • 仅需日期(不需出生) — 黄历/择日/建除/太岁/节气/农历转换/日食月食
   • 无需任何出生 — 六爻(需起卦数)/梅花(需数字)/太玄/荆诀/塔罗
 
+【双引擎对照规则】⚠️ 易经"初筮告，再三渎"——同一问题只能起一卦。
+  六爻对照: AI 先调 JS IchingShifa.dayan() 取一次随机得爻值如"697887",
+            再调 Python iching.bookgua_details() 或 qigua_manual(年,月,日,时,分,"697887") 用同一爻值排盘,
+            两引擎同一卦各自解盘，AI 对比两套解读。异数起两卦 = 违章。
+  太玄对照: AI 先调 JS TaixuanLib.generate() 得首(含4位编码如2312),
+            再调 Python taixuanshifa 用同编号。或用 TaixuanLib.generateByNumber(N) 统一起数。
+  不影响效率: 仍调两次引擎，第一次随机+排盘，第二次仅排盘(无随机开销)，总耗时几乎不变。
+
 【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
 【JS 引擎调用】
   QimenEngine    → eval_javascript: QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
