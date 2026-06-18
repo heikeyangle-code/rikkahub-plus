@@ -192,11 +192,14 @@ jobs:
         run: |
           git clone https://github.com/kentang2017/kinwangji.git /tmp/kinwangji_src
           cd /tmp/kinwangji_src
+          rm -rf pic app.py data.pkl examples tests  # 只保留 kinwangji/ 核心代码 + jieqi.py wanji.py
           # Relax ephem version pin (Chaquopy has 4.2.1, not 4.1.6)
           sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' pyproject.toml 2>/dev/null || sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' setup.py 2>/dev/null || true
           # Switch from hatchling to setuptools (hatchling is empty stub on Chaquopy proxy)
           sed -i 's/requires = \["hatchling"\]/requires = ["setuptools>=61.0"]/' pyproject.toml
           sed -i 's/build-backend = "hatchling.build"/build-backend = "setuptools.build_meta"/' pyproject.toml
+          printf "[tool.setuptools]\
+packages = [\"kinwangji\"]" >> pyproject.toml
           echo "Patched kinwangji:"
           grep -E 'ephem|build-backend|requires' pyproject.toml | head -3
           cd /tmp && tar czf /tmp/pypi-offline/kinwangji-patched.tar.gz kinwangji_src
