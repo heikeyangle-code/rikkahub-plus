@@ -59,7 +59,7 @@ Available built-in functions (call these from your code):
   印度占星/吠陀(南印/北印盘)  →  jhora                      ← stellium.visualization.vedic          生日必填
 
   【人类图/塔罗/其他】
-  塔罗/韦特           →  问用户选 arcanite(Python,78张韦特(大+小)+36张雷诺曼+多牌阵+正逆位,日常首选) 或 Kaabalah(JS,仅22张大牌+3套牌组,独有卡巴拉对应:每牌→源质/希伯来字母/行星) 或对照(互补)  无需出生
+  塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读) → 查777表→Kaabalah(JS,卡巴拉深层数据:源质/字母/路径); 无需出生
 
   【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机; 灵数/卡巴拉/Gematria/Ifá Python侧无)
   生命灵数/流年/挑战数  →  Kaabalah.calculatePersonalYear({day,month,year}) 又 calculatePersonalMonths 又 calculatePersonalCycles 又 calculateChallenges 又 reduceToSingle 又 getDateEnergies  生日即可
@@ -129,7 +129,7 @@ Available built-in functions (call these from your code):
   • 本命盘: kerykeion(Python,SwissEphemeris毫角秒) vs HoroscopeJS(JS,Kepler角分级+7种宫位制可选+10种相位,离线快)
   • 行星/日食: pyswisseph(Python,最高精) vs Astronomy(JS,VSOP87角秒级,零依赖)
   • HoroscopeJS不能查日食/升落; Astronomy不能排盘/算宫位; 深析/推运/合盘只有Python(stellium/flatlib/immanuel)
-  • 塔罗: arcanite(Python,日常首选)78张(大+小)+36雷诺曼+多牌阵+正逆位 | Kaabalah(JS,22张大牌+3套牌组+卡巴拉对应:每牌→源质+路径+字母+行星) | 都硬件真随机 | 互补:日常抽牌解读用arcanite,神秘学深度对照用Kaabalah
+  • 塔罗: arcanite(Python)78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
   • 卡巴拉/灵数/Gematria/Ifá: 只有JS Kaabalah (Python侧无)
 【JS 引擎调用】探索: Object.keys(EngineName) 列出所有方法。对照模式→JS先随机→提取关键值→Python同值排盘。
   QimenEngine → eval_javascript: QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
