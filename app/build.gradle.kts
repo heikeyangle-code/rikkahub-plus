@@ -27,7 +27,7 @@ chaquopy {
             install("svgwrite")          // kerykeion/stellium SVG星图渲染 (代理有)
             // === 命理计算引擎 ===
             // sxtwl/pyswisseph: 交叉编译 ARM64 .whl, pydantic-core: 本地 sdist
-            install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
+            install(file("offline_pkgs/lunar_python-latest.tar.gz").absolutePath)
             install(file("offline_pkgs/sxtwl-2.0.6-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)
             install("cnlunar")
             install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // ⭐254 周易筮法/六爻
@@ -53,7 +53,7 @@ chaquopy {
             install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
             install("setuptools")              // setuptools 最新版
             install(file("offline_pkgs/pydantic_core-2.46.4-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)  // Rust扩展, 交叉编译ARM64 .whl
-            install(file("offline_pkgs/pydantic-2.13.4.tar.gz").absolutePath) // arcanite 需要, 纯 Python
+            install(file("offline_pkgs/pydantic-latest.tar.gz").absolutePath) // arcanite 需要, 纯 Python, 自动更新
             install(file("offline_pkgs/kinwangji-patched.tar.gz").absolutePath)
             // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
             // install("git+https://github.com/kentang2017/kinastro.git")

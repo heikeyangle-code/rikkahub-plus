@@ -35,13 +35,13 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Download packages missing from Chaquopy proxy
         run: |
-          pip download --no-deps --no-binary :all: "lunar-python==1.4.8" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pydantic-core==2.46.4" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pydantic==2.13.4" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "PyYAML==6.0.2" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "timezonefinder==8.2.4" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "flatbuffers==25.9.23" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "MarkupSafe==3.0.2" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "lunar-python" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "pydantic-core" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "pydantic" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "PyYAML" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "timezonefinder" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "flatbuffers" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "MarkupSafe" -d /tmp/pypi-offline 2>&1 | tail -3
           # 去掉 numpy/h3/cffi 依赖 (CFFI加速模块需要,纯Python回退不需要)
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
@@ -111,7 +111,7 @@ jobs:
           echo "Added meihua-yi-patched.tar.gz (random → secrets)"
 
           # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容
-          pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1
           cd /tmp/pypi-offline
           sdist=$(ls arcanite-*.tar.gz | head -1)
           dir="${sdist%.tar.gz}"
@@ -149,6 +149,13 @@ jobs:
             fname="${fname//lunar-python/lunar_python}"
             cp "$f" "app/offline_pkgs/$fname"
           done
+          # Rename unpinned packages to stable names for build.gradle.kts
+          for f in app/offline_pkgs/pydantic-*.tar.gz; do cp "$f" "app/offline_pkgs/pydantic-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/lunar_python-*.tar.gz; do cp "$f" "app/offline_pkgs/lunar_python-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/timezonefinder-*.tar.gz; do cp "$f" "app/offline_pkgs/timezonefinder-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/flatbuffers-*.tar.gz; do cp "$f" "app/offline_pkgs/flatbuffers-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/markupsafe-*.tar.gz; do cp "$f" "app/offline_pkgs/markupsafe-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/pyyaml-*.tar.gz; do cp "$f" "app/offline_pkgs/pyyaml-latest.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls app/offline_pkgs/
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
@@ -213,7 +220,7 @@ jobs:
           echo "Added flatlib-patched.tar.gz"
       - name: Patch immanuel (remove scipy/stubs dep, relax timezonefinder pin)
         run: |
-          pip download --no-deps --no-binary :all: "immanuel==1.5.4" -d /tmp/imm_patch
+          pip download --no-deps --no-binary :all: "immanuel" -d /tmp/imm_patch
           cd /tmp/imm_patch
           tar xfz immanuel-*.tar.gz
           rm immanuel-*.tar.gz
