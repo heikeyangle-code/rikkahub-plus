@@ -167,6 +167,9 @@ jobs:
             fname=$(basename "$f")
             # lunar-python → lunar_python (if any lunar-python files appear)
             fname="${fname//lunar-python/lunar_python}"
+            fname="${fname//python-dateutil/python_dateutil}"
+            fname="${fname//requests-cache/requests_cache}"
+            fname="${fname//url-normalize/url_normalize}"
             cp "$f" "app/offline_pkgs/$fname"
           done
           for f in /tmp/pypi-offline/*.whl; do fname=$(basename "$f"); cp "$f" "app/offline_pkgs/$fname"; done
