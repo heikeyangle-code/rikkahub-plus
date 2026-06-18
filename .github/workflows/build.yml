@@ -132,8 +132,9 @@ jobs:
         run: |
           pip download --no-deps --no-binary :all: "PyJHora" -d /tmp/pyjhora_patch
           cd /tmp/pyjhora_patch
-          tar xfz PyJHora-*.tar.gz && rm PyJHora-*.tar.gz
-          SRC_DIR=$(ls -d PyJHora-* | head -1)
+          # pip normalizes package name to lowercase: pyjhora-*.tar.gz
+          tar xfz pyjhora-*.tar.gz && rm pyjhora-*.tar.gz
+          SRC_DIR=$(ls -d pyjhora-* | head -1)
           # PyJHora 自带 data/ephe/ 在 PyPI wheel 里是空的（受100MB限制）
           # 改为指向 pyswisseph 包内的星历，避免重复打包
           sed -i 's|swe.set_ephe_path(_ephe_path)|import swisseph; _ephe_path = os.path.join(os.path.dirname(swisseph.__file__), "ephe"); swe.set_ephe_path(_ephe_path)|' "$SRC_DIR/src/jhora/const.py"
