@@ -413,8 +413,8 @@ def get_hour_gan_zhi_by_time(time_str: str) -> int:
 def get_soul_and_body(solar_date: str, time_index: int, fix_leap: bool = True,
                       from_heavenly_stem: str = None, from_earthly_branch: str = None) -> dict:
     month_index = get_lunar_month_index(solar_date, time_index, fix_leap)
-    soul_index = fix_index(month_index - time_index)
-    body_index = fix_index(month_index + time_index)
+    soul_index = fix_index(month_index - fix_index(time_index))
+    body_index = fix_index(month_index + fix_index(time_index))
 
     if from_heavenly_stem and from_earthly_branch:
         soul_index = eb_name_to_palace_index(from_earthly_branch)
@@ -905,7 +905,8 @@ def get_horoscope(solar_date: str, time_index: int, gender: str,
         age_list = []
         for j in range(10):
             age_list.append(12 * j + i + 1)
-        idx = fix_index(age_start + i) if is_forward else fix_index(age_start - i)
+        # 小限方向：男顺女逆 — 1:1 iztro：gender == 'male' ? forward : backward（区别于大限的阳男阴女规则）
+        idx = fix_index(age_start + i) if is_male else fix_index(age_start - i)
         ages[idx] = age_list
     return {'decadals': decadals, 'ages': ages}
 
