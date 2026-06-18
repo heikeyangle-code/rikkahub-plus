@@ -176,7 +176,7 @@ jobs:
           for f in app/offline_pkgs/markupsafe-*.tar.gz; do cp "$f" "app/offline_pkgs/markupsafe-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/pyyaml-*.tar.gz; do cp "$f" "app/offline_pkgs/pyyaml-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/pytz-*.tar.gz; do cp "$f" "app/offline_pkgs/pytz-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/simple_ascii_tables-*.whl; do cp "$f" "app/offline_pkgs/simple_ascii_tables-latest.whl" 2>/dev/null || true; done
+          # simple_ascii_tables: .whl 改名会破坏 PEP 427 命名规范,保持原名 (resolve via fileTree glob in build.gradle.kts)
           for f in app/offline_pkgs/python_dateutil-*.tar.gz; do cp "$f" "app/offline_pkgs/python_dateutil-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/six-*.tar.gz; do cp "$f" "app/offline_pkgs/six-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/geopy-*.tar.gz; do cp "$f" "app/offline_pkgs/geopy-latest.tar.gz" 2>/dev/null || true; done
@@ -216,6 +216,74 @@ jobs:
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp ziwei-nihai.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "NiHaiXia ZiWei engine compiled: $(wc -c < ziwei-nihai.js) bytes"
+
+      - name: Compile IchingShifa JS engine (Coaixy/ichingshifa)
+        run: |
+          git clone --depth 1 https://github.com/Coaixy/ichingshifa.git /tmp/iching_ts
+          cd /tmp/iching_ts
+          npm install 2>&1 | tail -3
+          npm install esbuild typescript 2>&1 | tail -1
+          # Patch Math.random -> crypto.getRandomValues (真随机起卦)
+          echo 'function cryptoRandInt(min,max){var r=new Uint32Array(1);crypto.getRandomValues(r);return min+(r[0]%(max-min+1));}' > ~/crypto_random.js
+          # 3处 patch:
+          # decode.ts:242 Math.floor(Math.random()*5) -> cryptoRandInt(0,4)
+          sed -i 's/Math\.floor(Math\.random() \* 5)/cryptoRandInt(0,4)/g' src/core/decode.ts
+          # divination.ts:63 Math.floor(Math.random()*(max-min+1))
+          sed -i 's/Math\.floor(Math\.random() \* (leftMax - leftMin + 1))/cryptoRandInt(0, leftMax - leftMin)/g' src/core/divination.ts
+          # divination.ts:239 Math.floor(Math.random()*48)
+          sed -i 's/Math\.floor(Math\.random() \* 48)/cryptoRandInt(0, 47)/g' src/core/divination.ts
+          # Verify patch
+          grep -n "Math.random" src/core/*.ts && echo "WARNING: Math.random still present!" || echo "OK: no Math.random remaining"
+          echo 'export * from "./src/index";' > entry.ts
+          cat ~/crypto_random.js >> entry.ts
+          npx esbuild entry.ts --bundle --platform=node --format=iife --global-name=IchingShifa --target=es2020 --outfile=iching-shifa-engine.js 2>&1 | tail -3
+          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
+          cp iching-shifa-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "IchingShifa JS engine compiled: $(wc -c < iching-shifa-engine.js) bytes"
+
+      - name: Compile TaiXuan JS engine (taixuan-lib)
+        run: |
+          pip install --no-deps --no-binary :all: taixuan-lib -d /tmp/taixuan_npm 2>&1 || true
+          cd /tmp && npm pack taixuan-lib --pack-destination /tmp/taixuan_ts 2>&1
+          cd /tmp/taixuan_ts && tar xzf taixuan-lib-*.tgz && cd package
+          # Patch 5处 Math.random -> crypto.getRandomValues
+          # 1. randomDigit(): Math.floor(Math.random()*3)+1 -> cryptoRandInt(1,3)
+          sed -i 's/Math\.floor(Math\.random() \* 3) + 1/cryptoRandInt(1,3)/g' dist/index.js
+          # 2. generateByShi(): Math.floor(Math.random()*48)+1 -> cryptoRandInt(1,48)
+          sed -i 's/Math\.floor(Math\.random() \* 48) + 1/cryptoRandInt(1,48)/g' dist/index.js
+          # 3. generateByDice(): Math.floor(Math.random()*6)+1 -> cryptoRandInt(1,6)
+          sed -i 's/Math\.floor(Math\.random() \* 6) + 1/cryptoRandInt(1,6)/g' dist/index.js
+          # 4-5. generateByCoins(): Math.random()<0.5 -> cryptoRandInt(0,1)===1
+          sed -i 's/Math\.random() < 0\.5/cryptoRandInt(0,1) === 1/g' dist/index.js
+          grep -n "Math.random" dist/index.js && echo "WARNING: Math.random still present!" || echo "OK: no Math.random remaining"
+          # Wrap with IIFE + crypto polyfill
+          echo 'function cryptoRandInt(min,max){var r=new Uint32Array(1);crypto.getRandomValues(r);return min+(r[0]%(max-min+1));}' > taixuan-entry.js
+          echo 'var TaixuanLib = (function(){' >> taixuan-entry.js
+          echo 'var exports = {};' >> taixuan-entry.js
+          cat dist/index.js >> taixuan-entry.js
+          echo 'return exports;})();' >> taixuan-entry.js
+          npx esbuild taixuan-entry.js --format=iife --global-name=TaixuanLib --target=es2020 --outfile=taixuan-engine.js 2>&1 | tail -3
+          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
+          cp taixuan-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "TaiXuan JS engine compiled: $(wc -c < taixuan-engine.js) bytes"
+
+      - name: Compile Lunar standalone JS engine
+        run: |
+          cd /tmp && npm pack lunar-javascript --pack-destination /tmp/lunar_js 2>&1
+          cd /tmp/lunar_js && tar xzf lunar-javascript-*.tgz && cd package
+          # Export common classes
+          echo 'export { Solar, SolarMonth, SolarWeek, SolarYear, SolarSeason, SolarHalfYear } from "./src/Solar";' > lunar-entry.js
+          echo 'export { Lunar, LunarMonth, LunarYear, LunarTime } from "./src/Lunar";' >> lunar-entry.js
+          echo 'export { EightChar } from "./src/EightChar";' >> lunar-entry.js
+          echo 'export { DaYun } from "./src/DaYun";' >> lunar-entry.js
+          echo 'export { LiuNian, LiuYue } from "./src/LiuNian";' >> lunar-entry.js
+          echo 'export { JieQi } from "./src/JieQi";' >> lunar-entry.js
+          echo 'export { NineStar } from "./src/NineStar";' >> lunar-entry.js
+          echo 'export { HolidayUtil } from "./src/HolidayUtil";' >> lunar-entry.js
+          npx esbuild lunar-entry.js --bundle --platform=node --format=iife --global-name=Lunar --target=es2020 --outfile=lunar-engine.js 2>&1 | tail -3
+          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
+          cp lunar-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "Lunar standalone JS engine compiled: $(wc -c < lunar-engine.js) bytes"
 
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
