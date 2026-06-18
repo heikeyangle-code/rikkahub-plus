@@ -123,8 +123,8 @@ jobs:
           rm -f "$dir/src/arcanite/cards/update_card_positions.py"
           rm -rf "$dir/src/arcanite/images"
           rm -rf "$dir/examples"
-          # 真随机: random → secrets (塔罗抽牌)
-          find "$dir/src/arcanite/core" -name "*.py" -exec sed -i -e 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' -e 's/\brandom\.choice(/secrets.choice(/g' -e 's/\bimport random\b/import secrets/' -e 's/, random,/, secrets,/g' {} \;
+          # 真随机: random.Random(seed) → secrets.SystemRandom() (seed=None 时走硬件熵)
+          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_random.py "$dir/src/arcanite/core/deck.py"
           # 用 printf 写 __init__.py，避免 YAML 解析 """ 报错
           printf '%s\n' '"""Arcanite - A Tarot Reading Engine (stripped: no LLM/PDF/images)"""' \
             '__version__ = "0.2.0"' \
