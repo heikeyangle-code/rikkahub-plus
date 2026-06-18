@@ -196,8 +196,8 @@ jobs:
           git clone --depth 1 https://github.com/perfhelf/bigfishmarquis-qimen.git /tmp/qimen_ts
           cd /tmp/qimen_ts
           echo 'export { generate } from "./src/engine";' > entry.ts
-          npm install -g esbuild 2>&1 | tail -1
-          esbuild entry.ts --bundle --platform=neutral --format=iife --global-name=QimenEngine --target=es2020 --outfile=qimen-engine.js 2>&1
+          npm install esbuild typescript 2>&1 | tail -3
+          npx esbuild entry.ts --bundle --platform=neutral --format=iife --global-name=QimenEngine --target=es2020 --outfile=qimen-engine.js 2>&1
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp qimen-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Qimen TS engine compiled: $(wc -c < qimen-engine.js) bytes"
@@ -207,6 +207,7 @@ jobs:
           git clone --depth 1 https://github.com/Renhuai123/ziwei-doushu.git /tmp/ziwei_nhx
           cd /tmp/ziwei_nhx
           npm install 2>&1 | tail -3
+          npm install esbuild typescript 2>&1 | tail -3
           echo 'export { generateChart, getLunarInfo } from "./lib/ziwei/algorithm";' > entry.ts
           echo 'export * from "./lib/nihai";' >> entry.ts
           echo 'export * from "./lib/classics";' >> entry.ts
