@@ -206,11 +206,12 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/Renhuai123/ziwei-doushu.git /tmp/ziwei_nhx
           cd /tmp/ziwei_nhx
-          npm install 2>&1 | tail -3
-          npm install esbuild typescript lunar-typescript 2>&1 | tail -3
-          echo 'export { generateChart, getLunarInfo } from "./lib/ziwei/algorithm";' > entry.ts
-          echo 'export * from "./lib/nihai";' >> entry.ts
+          npm install esbuild typescript 2>&1 | tail -1
+          # 只打包 倪海厦解读 + 古籍数据 (计算由 Python ziwei_paipan 完成)
+          echo 'export * from "./lib/nihai";' > entry.ts
           echo 'export * from "./lib/classics";' >> entry.ts
+          echo 'export { SIHUA_MAP, PATTERNS } from "./lib/ziwei/patterns";' >> entry.ts 2>/dev/null || true
+          echo 'export { STEMS, BRANCHES } from "./lib/ziwei/constants";' >> entry.ts
           npx esbuild entry.ts --bundle --platform=neutral --format=iife --global-name=ZiweiNihai --target=es2020 --outfile=ziwei-nihai.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp ziwei-nihai.js ${GITHUB_WORKSPACE}/app/src/main/assets/
