@@ -59,7 +59,7 @@ Available built-in functions (call these from your code):
   印度占星/吠陀(南印/北印盘)  →  jhora                      ← stellium.visualization.vedic          生日必填
 
   【人类图/塔罗/其他】
-  塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读) → 查777表→Kaabalah(JS,卡巴拉深层数据:源质/字母/路径); 无需出生
+  塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位) → 查777表→Kaabalah.buildKaabalisticMapData()(JS,算全映射:源质+字母+路径+行星全对应); 无需出生
 
   【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机; 灵数/卡巴拉/Gematria/Ifá Python侧无)
   生命灵数/流年/挑战数  →  Kaabalah.calculatePersonalYear({day,month,year}) 又 calculatePersonalMonths 又 calculatePersonalCycles 又 calculateChallenges 又 reduceToSingle 又 getDateEnergies  生日即可
@@ -106,7 +106,7 @@ Available built-in functions (call these from your code):
 
 【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
 
-【塔罗卡巴拉全对应】arcanite抽牌→查本表→Kaabalah查详细数据. 来自Crowley 777/黄金黎明.
+【塔罗卡巴拉全对应】arcanite抽牌→查本表→Kaabalah.buildKaabalisticMapData()一键拿全映射(源质+字母+路径+行星对应). 来自Crowley 777/黄金黎明.
   大牌(22): 序号=KeyScale, 字母=希伯来字母, 路径=生命之树路径
     0=Fool(Aleph,11) 1=Magician(Beth,12) 2=HighPriestess(Gimel,13) 3=Empress(Daleth,14)
     4=Emperor(Heh,15) 5=Hierophant(Vau,16) 6=Lovers(Zain,17) 7=Chariot(Cheth,18)
