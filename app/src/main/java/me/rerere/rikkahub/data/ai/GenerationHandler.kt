@@ -176,11 +176,11 @@ class GenerationHandler(
                 appendLine("【六爻/卦】六爻/周易→问用户选ichingshifa(Python,大衍筮法)或IchingShifa(JS,6种:大衍+略筮+时间+手动+三数+数组)或都跑 | 梅花易数→meihua_yi(需数字,备:ichingshifa起卦)")
                 appendLine("【西洋占星】本命盘→问用户选kerykeion(Python,SwissEphemeris毫角秒)或HoroscopeJS(JS,Kepler+7宫位制)或都跑 | 行星/日食→pyswisseph(备:Astronomy-JS,VSOP87角秒) | 深析/推运/合盘→仅Python(stellium/flatlib/immanuel) | 注:HoroscopeJS不带日食,Astronomy不带排盘 | 星盘SVG→render_astrology_svg()")
                 appendLine("【印度吠陀】南印/北印盘→jhora(备:stellium.visualization.vedic)")
-                appendLine("【塔罗】问用户选arcanite(Python,78张+36雷诺曼+牌阵)或Kaabalah.shuffleTarotDeck(JS,卡巴拉树对应+字母对应)或对照(互补) | 塔罗无需出生")
+                appendLine("【塔罗】arcanite(Python,78张+36雷诺曼+牌阵,洗牌抽牌解读) | 深度:抽牌后查777表→Kaabalah.SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS_DATA取卡巴拉对应 | 塔罗无需出生")
                 appendLine("【灵数/卡巴拉】生命灵数/流年/挑战数→Kaabalah.calculatePersonalYear等(JS,零随机) | 卡巴拉生命之树→Kaabalah.buildKaabalisticMapData | Gematria→Kaabalah.calculateGematria | Ifá→Kaabalah.calculateOdu (仅JS,Python无)")
                 appendLine("【农历天文】黄历/择日/建除/太岁→cnlunar(备:lunar_python,Lunar-JS) | 公历农历转换/八字→lunar_python(备:cnlunar,Lunar-JS) | 二十八宿/宿曜→lunar_python.get28Mans(备:pyswisseph,cnlunar) | 吉神凶神/彭祖百忌→cnlunar | 生肖/干支/纳音/闰候→bazi_china(bazi,shengxiao,ganzhi,yue)(备:lunar_python) | 节气/天文→lunar_python(备:cnlunar,pyswisseph)")
                 appendLine("输入要求：八字/紫微/占星/吠陀需生日时辰+性别+经纬度 | 合盘需双人生日 | 黄历/择日/太岁/节气仅需日期 | 六爻/梅花/太玄/荆诀/塔罗无需出生")
-                appendLine("⚠️ JS引擎: QimenEngine(奇门) | ZiweiNihai(紫微) | IchingShifa(六爻) | TaixuanLib(太玄) | Lunar(农历) | Astronomy(行星/日月食) | HoroscopeJS(本命盘) | Kaabalah(灵数/卡巴拉/Gematria/Ifá/塔罗) 均通过 eval_javascript 调用, 探索: Object.keys(EngineName)")
+                appendLine("⚠️ JS引擎: QimenEngine(奇门) | ZiweiNihai(紫微) | IchingShifa(六爻) | TaixuanLib(太玄) | Lunar(农历) | Astronomy(行星/日月食) | HoroscopeJS(本命盘) | Kaabalah(卡巴拉数据+灵数+Gematria+Ifá) 均通过 eval_javascript 调用, 探索: Object.keys(EngineName)")
                 appendLine("⚠️ 双引擎对照: 六爻→JS dayan()取爻值→Python qigua_manual(同爻值) | 太玄→JS generate()取{code}→Python pan_from_code(code) | 禁止两引擎各自取随机=同一问题起两卦=违易经规矩")
                 appendLine("</mingli_routing>")
             },
