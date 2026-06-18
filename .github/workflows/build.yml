@@ -276,15 +276,11 @@ jobs:
           cd /tmp && npm pack lunar-javascript --pack-destination /tmp/lunar_js 2>&1
           cd /tmp/lunar_js && tar xzf lunar-javascript-*.tgz && cd package
           # Export common classes
-          echo 'export { Solar, SolarMonth, SolarWeek, SolarYear, SolarSeason, SolarHalfYear } from "./src/Solar";' > lunar-entry.js
-          echo 'export { Lunar, LunarMonth, LunarYear, LunarTime } from "./src/Lunar";' >> lunar-entry.js
-          echo 'export { EightChar } from "./src/EightChar";' >> lunar-entry.js
-          echo 'export { DaYun } from "./src/DaYun";' >> lunar-entry.js
-          echo 'export { LiuNian, LiuYue } from "./src/LiuNian";' >> lunar-entry.js
-          echo 'export { JieQi } from "./src/JieQi";' >> lunar-entry.js
-          echo 'export { NineStar } from "./src/NineStar";' >> lunar-entry.js
-          echo 'export { HolidayUtil } from "./src/HolidayUtil";' >> lunar-entry.js
-          npx esbuild lunar-entry.js --bundle --platform=node --format=iife --global-name=Lunar --target=es2020 --outfile=lunar-engine.js 2>&1 | tail -3
+          # lunar-javascript 是 CommonJS 单文件, 从 index.js 导出即可
+          echo 'module.exports = require("./index");' > lunar-entry.cjs
+          # 或者用 esbuild 处理 CJS→ESM
+          npx esbuild lunar-entry.cjs --bundle --platform=node --format=iife --global-name=Lunar --target=es2020 --outfile=lunar-engine.js 2>&1 | tail -3
+          echo "Lunar esbuild done"
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp lunar-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Lunar standalone JS engine compiled: $(wc -c < lunar-engine.js) bytes"
