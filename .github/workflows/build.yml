@@ -42,18 +42,6 @@ jobs:
           pip download --no-deps --no-binary :all: "timezonefinder" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "flatbuffers" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "MarkupSafe" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pytz" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "simple-ascii-tables" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "python-dateutil" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "six" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "geopy" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "geographiclib" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "requests-cache" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "attrs" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "cattrs" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "platformdirs" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "url-normalize" -d /tmp/pypi-offline 2>&1 | tail -1
-          pip download --no-deps --no-binary :all: "urllib3" -d /tmp/pypi-offline 2>&1 | tail -1
           # 去掉 numpy/h3/cffi 依赖 (CFFI加速模块需要,纯Python回退不需要)
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
@@ -175,13 +163,13 @@ jobs:
           for f in app/offline_pkgs/python_dateutil-*.tar.gz; do cp "$f" "app/offline_pkgs/python_dateutil-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/six-*.tar.gz; do cp "$f" "app/offline_pkgs/six-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/geopy-*.tar.gz; do cp "$f" "app/offline_pkgs/geopy-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/geographiclib-*.tar.gz; do cp "$f" "app/offline_pkgs/geographiclib-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/requests_cache-*.tar.gz; do cp "$f" "app/offline_pkgs/requests_cache-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/attrs-*.tar.gz; do cp "$f" "app/offline_pkgs/attrs-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/cattrs-*.tar.gz; do cp "$f" "app/offline_pkgs/cattrs-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/platformdirs-*.tar.gz; do cp "$f" "app/offline_pkgs/platformdirs-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/url_normalize-*.tar.gz; do cp "$f" "app/offline_pkgs/url_normalize-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/urllib3-*.tar.gz; do cp "$f" "app/offline_pkgs/urllib3-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/geographiclib-*.tar.gz; do cp "$f" "app/offline_pkgs/geographiclib-latest.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls app/offline_pkgs/
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
@@ -212,8 +200,7 @@ jobs:
           # Switch from hatchling to setuptools (hatchling is empty stub on Chaquopy proxy)
           sed -i 's/requires = \["hatchling"\]/requires = ["setuptools>=61.0"]/' pyproject.toml
           sed -i 's/build-backend = "hatchling.build"/build-backend = "setuptools.build_meta"/' pyproject.toml
-          printf "[tool.setuptools]\
-packages = [\"kinwangji\"]" >> pyproject.toml
+          printf '[tool.setuptools]\npackages = ["kinwangji"]' >> pyproject.toml
           echo "Patched kinwangji:"
           grep -E 'ephem|build-backend|requires' pyproject.toml | head -3
           cd /tmp && tar czf /tmp/pypi-offline/kinwangji-patched.tar.gz kinwangji_src
