@@ -33,7 +33,7 @@ Available built-in functions (call these from your code):
   紫微斗数            →  ziwei_paipan.by_solar()    ← by_solar 分步调取         生日（含时辰）
 
   【奇门三式】
-  奇门遁甲            →  kinqimen                   ← 日家/时家/刻家不同用法    时家需精确时间
+  奇门遁甲            →  kinqimen (Python)         ← QimenEngine JS (7局法+断语)   时家需精确时间
   大六壬              →  kinliuren                                               生日可选
   小六壬(马前课)       →  手算(lunar_python取月日时后掌诀推算)                     无需出生（需月日时）
   太乙神数            →  kintaiyi                                             生日必填

@@ -171,7 +171,7 @@ class GenerationHandler(
                 appendLine("<mingli_routing>")
                 appendLine("命理/玄学一律走 execute_python。各术数首选库（详细路由见 executor.py docstring）：")
                 appendLine("【中华正统】八字/四柱/大运→lunar_python.EightChar(备:bazi_china,sxtwl)  紫微斗数→ziwei_paipan.by_solar()")
-                appendLine("【奇门三式】奇门遁甲→kinqimen(日家/时家/刻家) | 大六壬→kinliuren | 太乙神数→kintaiyi | 皇极经世→kinwangji | 小六壬→手算(lunar_python取月日时→掌诀)")
+                appendLine("【奇门三式】奇门遁甲→kinqimen(Python)或QimenEngine(JS,7局法) | 大六壬→kinliuren | 太乙神数→kintaiyi | 皇极经世→kinwangji | 小六壬→手算(lunar_python取月日时→掌诀)")
                 appendLine("【象数易】太玄筮法→taixuanshifa | 荆诀→jingjue")
                 appendLine("【六爻/卦】六爻/周易→ichingshifa(需起卦数,备:梅花也可起卦) | 梅花易数→meihua_yi(需数字,备:ichingshifa起卦)")
                 appendLine("【西洋占星】本命盘/星座→kerykeion | 深析/中点/相位/格局→stellium(备:kerykeion) | 日返/月返/回归盘→stellium.returns(备:flatlib) | 合盘/推运/比较盘→immanuel(备:kerykeion synastry) | 日食月食/行星升降→pyswisseph | 星盘SVG→render_astrology_svg()")

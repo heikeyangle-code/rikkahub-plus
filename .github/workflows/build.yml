@@ -190,6 +190,17 @@ jobs:
           for f in app/offline_pkgs/proces-*.tar.gz; do cp "$f" "app/offline_pkgs/proces-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/jinja2-*.tar.gz; do cp "$f" "app/offline_pkgs/jinja2-latest.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls app/offline_pkgs/
+      - name: Compile QiMen TS engine (bigfishmarquis-qimen)
+        run: |
+          git clone --depth 1 https://github.com/perfhelf/bigfishmarquis-qimen.git /tmp/qimen_ts
+          cd /tmp/qimen_ts
+          echo 'export { generate } from "./src/engine";' > entry.ts
+          npm install -g esbuild 2>&1 | tail -1
+          esbuild entry.ts --bundle --platform=neutral --format=iife --global-name=QimenEngine --outfile=qimen-engine.js 2>&1
+          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
+          cp qimen-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "Qimen TS engine compiled: $(wc -c < qimen-engine.js) bytes"
+
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
           pip download --no-deps --no-binary :all: "PyJHora" -d /tmp/pyjhora_patch
