@@ -107,7 +107,7 @@ jobs:
           sed -i 's/^import random$/import secrets/' "$SRC/meihua_yi/engine.py"
           sed -i 's/random\.choice(/secrets.choice(/g' "$SRC/meihua_yi/engine.py"
           tar czf /tmp/pypi-offline/meihua-yi-patched.tar.gz "$SRC"
-          rm -rf /tmp/meihua_patch
+          cd /tmp && rm -rf /tmp/meihua_patch
           echo "Added meihua-yi-patched.tar.gz (random → secrets)"
 
           # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容
