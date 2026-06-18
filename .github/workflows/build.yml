@@ -42,6 +42,12 @@ jobs:
           pip download --no-deps --no-binary :all: "timezonefinder" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "flatbuffers" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "MarkupSafe" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "pytz" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "simple-ascii-tables" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "python-dateutil" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "six" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "geopy" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "geographiclib" -d /tmp/pypi-offline 2>&1 | tail -1
           # 去掉 numpy/h3/cffi 依赖 (CFFI加速模块需要,纯Python回退不需要)
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
@@ -156,6 +162,12 @@ jobs:
           for f in app/offline_pkgs/flatbuffers-*.tar.gz; do cp "$f" "app/offline_pkgs/flatbuffers-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/markupsafe-*.tar.gz; do cp "$f" "app/offline_pkgs/markupsafe-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/pyyaml-*.tar.gz; do cp "$f" "app/offline_pkgs/pyyaml-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/pytz-*.tar.gz; do cp "$f" "app/offline_pkgs/pytz-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/simple_ascii_tables-*.tar.gz; do cp "$f" "app/offline_pkgs/simple_ascii_tables-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/python_dateutil-*.tar.gz; do cp "$f" "app/offline_pkgs/python_dateutil-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/six-*.tar.gz; do cp "$f" "app/offline_pkgs/six-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/geopy-*.tar.gz; do cp "$f" "app/offline_pkgs/geopy-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/geographiclib-*.tar.gz; do cp "$f" "app/offline_pkgs/geographiclib-latest.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls app/offline_pkgs/
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
@@ -169,6 +181,8 @@ jobs:
           sed -i 's|swe.set_ephe_path(_ephe_path)|import swisseph; _ephe_path = os.path.join(os.path.dirname(swisseph.__file__), "ephe"); swe.set_ephe_path(_ephe_path)|' "$SRC_DIR/src/jhora/const.py"
           echo "Patched const.py:"
           grep -A1 "set_ephe_path" "$SRC_DIR/src/jhora/const.py"
+          # 纯 Python 替换 numpy 依赖 (Android 嵌入场景无法安装 numpy C 扩展)
+          python3 ${GITHUB_WORKSPACE}/ci/patch_pyjhora_numpy.py "$SRC_DIR/src/jhora/"
           cd /tmp/pyjhora_patch
           tar czf /tmp/pypi-offline/pyjhora-patched.tar.gz "$SRC_DIR"
           cp /tmp/pypi-offline/pyjhora-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
@@ -236,7 +250,7 @@ jobs:
           echo "Added immanuel-patched.tar.gz"
       - name: Patch kerykeion (remove scour dep only — keep pydantic, we have it now)
         run: |
-          pip download --no-deps --no-binary :all: kerykeion -d /tmp/kerykeion_patch
+          pip download --no-deps --no-binary :all: kerykeion==5.9.0 -d /tmp/kerykeion_patch
           cd /tmp/kerykeion_patch
           tar xfz kerykeion-*.tar.gz
           rm kerykeion-*.tar.gz
