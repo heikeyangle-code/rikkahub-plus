@@ -57,7 +57,7 @@ chaquopy {
             install(file("offline_pkgs/kinwangji-patched.tar.gz").absolutePath)
             // 纯 Python 依赖 — kerykeion/stellium/immanuel 运行时必需
             install(file("offline_pkgs/pytz-latest.tar.gz").absolutePath)      // kerykeion+stellium 时区处理
-            install(file("offline_pkgs/simple_ascii_tables-latest.tar.gz").absolutePath) // kerykeion 表格渲染
+            install(file("offline_pkgs/simple_ascii_tables-latest.whl").absolutePath) // kerykeion 表格渲染
             install(file("offline_pkgs/python_dateutil-latest.tar.gz").absolutePath) // stellium+immanuel 日期计算
             install(file("offline_pkgs/six-latest.tar.gz").absolutePath)       // python-dateutil 依赖
             install(file("offline_pkgs/geopy-latest.tar.gz").absolutePath)     // stellium 城市→经纬度

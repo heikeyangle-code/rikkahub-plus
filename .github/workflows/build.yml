@@ -43,7 +43,7 @@ jobs:
           pip download --no-deps --no-binary :all: "flatbuffers" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "MarkupSafe" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pytz" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "simple-ascii-tables" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps "simple-ascii-tables" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "python-dateutil" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "six" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "geopy" -d /tmp/pypi-offline 2>&1 | tail -3
@@ -167,6 +167,7 @@ jobs:
             fname="${fname//lunar-python/lunar_python}"
             cp "$f" "app/offline_pkgs/$fname"
           done
+          for f in /tmp/pypi-offline/*.whl; do fname=$(basename "$f"); cp "$f" "app/offline_pkgs/$fname"; done
           # Rename unpinned packages to stable names for build.gradle.kts
           for f in app/offline_pkgs/pydantic-*.tar.gz; do cp "$f" "app/offline_pkgs/pydantic-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/lunar_python-*.tar.gz; do cp "$f" "app/offline_pkgs/lunar_python-latest.tar.gz" 2>/dev/null || true; done
@@ -175,7 +176,7 @@ jobs:
           for f in app/offline_pkgs/markupsafe-*.tar.gz; do cp "$f" "app/offline_pkgs/markupsafe-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/pyyaml-*.tar.gz; do cp "$f" "app/offline_pkgs/pyyaml-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/pytz-*.tar.gz; do cp "$f" "app/offline_pkgs/pytz-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/simple_ascii_tables-*.tar.gz; do cp "$f" "app/offline_pkgs/simple_ascii_tables-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/simple_ascii_tables-*.whl; do cp "$f" "app/offline_pkgs/simple_ascii_tables-latest.whl" 2>/dev/null || true; done
           for f in app/offline_pkgs/python_dateutil-*.tar.gz; do cp "$f" "app/offline_pkgs/python_dateutil-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/six-*.tar.gz; do cp "$f" "app/offline_pkgs/six-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/geopy-*.tar.gz; do cp "$f" "app/offline_pkgs/geopy-latest.tar.gz" 2>/dev/null || true; done
