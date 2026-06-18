@@ -172,7 +172,7 @@ class GenerationHandler(
                 appendLine("命理/玄学一律走 execute_python。各术数首选库（详细路由见 executor.py docstring）：")
                 appendLine("【中华正统】八字/四柱/大运→lunar_python.EightChar(备:bazi_china,sxtwl)  紫微斗数→问用户选ziwei_paipan(标准)或ZiweiNihai(倪海夏天纪)或都跑对照")
                 appendLine("【奇门三式】奇门遁甲→问用户选kinqimen(2局法)或QimenEngine(7局法+断语)或都跑对照 | 大六壬→kinliuren | 太乙神数→kintaiyi | 皇极经世→kinwangji | 小六壬→手算(lunar_python取月日时→掌诀)")
-                appendLine("【象数易】太玄筮法→问用户选taixuanshifa(Python)或TaixuanLib(JS,4种起卦:蓍法+骰子+硬币+数字)或都跑 | 荆诀→jingjue")
+                appendLine("【象数易】太玄筮法→问用户选taixuanshifa(Python)或TaixuanLib(JS,4种起卦)或对照(JS取code→Python pan_from_code) | 荆诀→jingjue")
                 appendLine("【六爻/卦】六爻/周易→问用户选ichingshifa(Python,大衍筮法)或IchingShifa(JS,6种:大衍+略筮+时间+手动+三数+数组)或都跑 | 梅花易数→meihua_yi(需数字,备:ichingshifa起卦)")
                 appendLine("【西洋占星】本命盘/星座→kerykeion | 深析/中点/相位/格局→stellium(备:kerykeion) | 日返/月返/回归盘→stellium.returns(备:flatlib) | 合盘/推运/比较盘→immanuel(备:kerykeion synastry) | 日食月食/行星升降→pyswisseph | 星盘SVG→render_astrology_svg()")
                 appendLine("【印度吠陀】南印/北印盘→jhora(备:stellium.visualization.vedic)")
@@ -180,7 +180,7 @@ class GenerationHandler(
                 appendLine("【农历天文】黄历/择日/建除/太岁→cnlunar(备:lunar_python,Lunar-JS) | 公历农历转换/八字→lunar_python(备:cnlunar,Lunar-JS) | 二十八宿/宿曜→lunar_python.get28Mans(备:pyswisseph,cnlunar) | 吉神凶神/彭祖百忌→cnlunar | 生肖/干支/纳音/闰候→bazi_china(bazi,shengxiao,ganzhi,yue)(备:lunar_python) | 节气/天文→lunar_python(备:cnlunar,pyswisseph)")
                 appendLine("输入要求：八字/紫微/占星/吠陀需生日时辰+性别+经纬度 | 合盘需双人生日 | 黄历/择日/太岁/节气仅需日期 | 六爻/梅花/太玄/荆诀/塔罗无需出生")
                 appendLine("⚠️ JS引擎: QimenEngine(奇门7局法+断语) | ZiweiNihai(倪海夏天纪+古籍) | IchingShifa(六爻6种起卦) | TaixuanLib(太玄4种起卦) | Lunar(农历/八字) 均通过 eval_javascript 调用, 语法见 executor.py docstring")
-                appendLine("⚠️ 双引擎对照: 先调JS引擎取一次随机(如IchingShifa.dayan())→提取爻值→喂给Python引擎同一爻值(iching.qigua_manual). 禁止两引擎各自取随机=同一问题起两卦=违易经规矩")
+                appendLine("⚠️ 双引擎对照: 六爻→JS dayan()取爻值→Python qigua_manual(同爻值) | 太玄→JS generate()取{code}→Python pan_from_code(code) | 禁止两引擎各自取随机=同一问题起两卦=违易经规矩")
                 appendLine("</mingli_routing>")
             },
             workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",

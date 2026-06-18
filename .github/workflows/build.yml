@@ -102,6 +102,8 @@ jobs:
           # 真随机: random → secrets
           sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' taixuanshifa.py
           sed -i 's/import random, pickle,/import secrets, pickle,/' taixuanshifa.py
+          python3 ${GITHUB_WORKSPACE}/ci/patch_taixuanshifa_inject.py taixuanshifa.py
+          grep "pan_from_code" taixuanshifa.py && echo "OK: pan_from_code injected" || echo "FAIL: injection missed"
           tar czf /tmp/pypi-offline/taixuanshifa-src.tar.gz --exclude=".git" .
           cd /tmp && rm -rf /tmp/taixuanshifa_src
 
@@ -243,7 +245,7 @@ jobs:
 
       - name: Compile TaiXuan JS engine (taixuan-lib)
         run: |
-          pip install --no-deps --no-binary :all: taixuan-lib -d /tmp/taixuan_npm 2>&1 || true
+          mkdir -p /tmp/taixuan_ts
           cd /tmp && npm pack taixuan-lib --pack-destination /tmp/taixuan_ts 2>&1
           cd /tmp/taixuan_ts && tar xzf taixuan-lib-*.tgz && cd package
           # Patch 5处 Math.random -> crypto.getRandomValues
@@ -256,6 +258,10 @@ jobs:
           # 4-5. generateByCoins(): Math.random()<0.5 -> cryptoRandInt(0,1)===1
           sed -i 's/Math\.random() < 0\.5/cryptoRandInt(0,1) === 1/g' dist/index.js
           grep -n "Math.random" dist/index.js && echo "WARNING: Math.random still present!" || echo "OK: no Math.random remaining"
+          # Patch: expose 4-digit code in createResult return (for dual-engine shared random)
+          # createResult originally returns {gua, timestamp} — add code field
+          sed -i 's/return { gua: lookupByCode(code), timestamp: Date.now() };/return { gua: lookupByCode(code), timestamp: Date.now(), code: code.join("") };/g' dist/index.js
+          grep "code:" dist/index.js && echo "OK: code field exposed" || echo "WARNING: code field patch failed"
           # Wrap with IIFE + crypto polyfill
           echo 'function cryptoRandInt(min,max){var r=new Uint32Array(1);crypto.getRandomValues(r);return min+(r[0]%(max-min+1));}' > taixuan-entry.js
           echo 'var TaixuanLib = (function(){' >> taixuan-entry.js

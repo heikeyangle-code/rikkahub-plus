@@ -39,12 +39,12 @@ Available built-in functions (call these from your code):
   太乙神数            →  kintaiyi                                             生日必填
 
   【象数易】
-  太玄筮法            →  问用户选 taixuanshifa(Python) 或 TaixuanLib(JS,蓍法+骰子+硬币+数字起卦) 或都跑对比   无需出生
+  太玄筮法            →  问用户选 taixuanshifa(Python) 或 TaixuanLib(JS,4种起卦) 或对照(JS取随机得code→Python pan_from_code(code))   无需出生
   荆诀/先秦占卜       →  jingjue                                                 无需出生
   皇极经世            →  kinwangji                                              生日必填
 
   【六爻/卦象】
-  六爻/周易/卦        →  问用户选 ichingshifa(Python,大衍筮法) 或 IchingShifa(JS,6种起卦:大衍+略筮+时间+手动+三数+数组) 或都跑对比   无需出生（需起卦数）
+  六爻/周易/卦        →  问用户选 ichingshifa(Python,大衍筮法) 或 IchingShifa(JS,6种起卦) 或对照(JS取随机→同爻值喂Python qigua_manual)   无需出生（需起卦数）
   梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排     无需出生（需起卦数）
 
   【西洋占星】
@@ -94,17 +94,17 @@ Available built-in functions (call these from your code):
   六爻对照: AI 先调 JS IchingShifa.dayan() 取一次随机得爻值如"697887",
             再调 Python iching.bookgua_details() 或 qigua_manual(年,月,日,时,分,"697887") 用同一爻值排盘,
             两引擎同一卦各自解盘，AI 对比两套解读。异数起两卦 = 违章。
-  太玄对照: AI 先调 JS TaixuanLib.generate() 得首(含4位编码如2312),
-            再调 Python taixuanshifa 用同编号。或用 TaixuanLib.generateByNumber(N) 统一起数。
+  太玄对照: AI 先调 JS TaixuanLib.generate() 得 {code:"2312",gua:{...}},
+            再调 Python Taixuan(y,m,d,h).pan_from_code("2312") 同首排盘。
   不影响效率: 仍调两次引擎，第一次随机+排盘，第二次仅排盘(无随机开销)，总耗时几乎不变。
 
 【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
-【JS 引擎调用】
-  QimenEngine    → eval_javascript: QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
-  ZiweiNihai     → eval_javascript: ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
-  IchingShifa    → eval_javascript: IchingShifa.dayan()     或 IchingShifa.lueshifa()  或 IchingShifa.timeQiGua({year:2026,month:6,day:19,hour:14})  或 IchingShifa.manualQiGua("697887")  或 IchingShifa.threeNumberQiGua(12,34,56)  或 IchingShifa.numberArrayQiGua([1,2,3], 5)
-  TaixuanLib     → eval_javascript: TaixuanLib.generate()   或 TaixuanLib.generateByShi()  或 TaixuanLib.generateByDice()  或 TaixuanLib.generateByCoins()  或 TaixuanLib.generateByNumber(5678)
-  Lunar (JS)     → eval_javascript: Lunar.Solar.fromDate(new Date(2026,5,19))  或 Lunar.Lunar.fromDate(d)  或 Lunar.EightChar.fromLunar(lunar)  或 Lunar.DaYun(...)  或 Lunar.JieQi.getJieQi(2026)
+【JS 引擎调用】探索: Object.keys(EngineName) 列出所有方法。对照模式→JS先随机→提取关键值→Python同值排盘。
+  QimenEngine → eval_javascript: QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
+  ZiweiNihai  → eval_javascript: ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
+  IchingShifa → eval_javascript: IchingShifa.dayan() 又 lueshifa() 又 timeQiGua({...}) 又 manualQiGua("697887") 又 threeNumberQiGua(a,b,c) 又 numberArrayQiGua(arr,idx); decodePan(yao,{year,month,day,hour})排盘
+  TaixuanLib  → eval_javascript: TaixuanLib.generate() 又 generateByShi() 又 generateByDice() 又 generateByCoins() 又 generateByNumber(5678); 返回{code:"2312",gua:{...}}
+  Lunar (JS)  → eval_javascript: Lunar.Solar.fromDate(new Date(2026,5,19)) 又 Lunar.Lunar.fromDate(d) 又 Lunar.EightChar.fromLunar(lunar) 又 Lunar.DaYun(...) 又 Lunar.JieQi.getJieQi(2026)
   返回 JSON，AI 基于真实数据解读。
 """
 
