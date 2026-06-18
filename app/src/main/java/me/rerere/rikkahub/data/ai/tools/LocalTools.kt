@@ -134,14 +134,14 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 "- DOM manipulation or network requests (no browser APIs)\n" +
                 "- Heavy computations (15s timeout)\n\n" +
                 "Args:\n" +
-                "- library: (optional) 'qimen' or 'ziwei-nihai' — loads the engine from assets\n" +
+                "- library: (optional) asset filename without .js — loads from assets before executing code\n" +
                 "- code: JavaScript code to execute (last expression is the result)",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
                         put("library", buildJsonObject {
                             put("type", "string")
-                            put("description", "Optional: 'qimen' or 'ziwei-nihai' to load the divination engine before executing code")
+                            put("description", "Optional: asset filename (e.g. 'qimen-engine') to load before executing code")
                         })
                         put("code", buildJsonObject {
                             put("type", "string")
@@ -168,17 +168,12 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                             })
                             // Load engine library if specified
                             if (library != null) {
-                                val assetName = when (library) {
-                                    "qimen" -> "qimen-engine.js"
-                                    "ziwei-nihai" -> "ziwei-nihai.js"
-                                    else -> null
-                                }
-                                if (assetName != null) {
-                                    val engineCode = context.assets.open(assetName).bufferedReader().readText()
+                                try {
+                                    val engineCode = context.assets.open("$library.js").bufferedReader().readText()
                                     jsContext.evaluate(engineCode)
-                                    logs.add("[INFO] Loaded JS engine: $library ($engineCode.length bytes)")
-                                } else {
-                                    logs.add("[ERROR] Unknown library: $library (use 'qimen' or 'ziwei-nihai')")
+                                    logs.add("[INFO] Loaded JS engine: $library.js (${engineCode.length} bytes)")
+                                } catch (e: java.io.IOException) {
+                                    logs.add("[ERROR] JS engine not found in assets: $library.js")
                                 }
                             }
                             val jsResult = jsContext.evaluate(code)
