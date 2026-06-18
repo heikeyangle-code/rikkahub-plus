@@ -62,6 +62,12 @@ chaquopy {
             install(file("offline_pkgs/six-latest.tar.gz").absolutePath)       // python-dateutil 依赖
             install(file("offline_pkgs/geopy-latest.tar.gz").absolutePath)     // stellium 城市→经纬度
             install(file("offline_pkgs/geographiclib-latest.tar.gz").absolutePath) // geopy 依赖
+            install(file("offline_pkgs/requests_cache-latest.tar.gz").absolutePath) // kerykeion 地名缓存
+            install(file("offline_pkgs/attrs-latest.tar.gz").absolutePath)
+            install(file("offline_pkgs/cattrs-latest.tar.gz").absolutePath)
+            install(file("offline_pkgs/platformdirs-latest.tar.gz").absolutePath)
+            install(file("offline_pkgs/url_normalize-latest.tar.gz").absolutePath)
+            install(file("offline_pkgs/urllib3-latest.tar.gz").absolutePath) // requests/requests-cache 底层 HTTP
             // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
             // install("git+https://github.com/kentang2017/kinastro.git")
         }

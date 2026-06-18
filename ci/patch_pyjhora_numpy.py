@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """Replace numpy in PyJHora with pure-Python equivalents. Zero precision loss."""
+def __array_split(lst, n):
+    """Pure Python equivalent of np.array_split(lst, n)."""
+    k, m = divmod(len(lst), n)
+    return [lst[i*k+min(i,m):(i+1)*k+min(i+1,m)] for i in range(n)]
 import os, re, sys
 
 def patch_file(fp):
@@ -43,6 +47,7 @@ def patch_file(fp):
     c = re.sub(r'\)\s*/\s*np\.timedelta64\(1,"D"\)', r').days', c)
     
     # misc
+    c = re.sub(r"np\.array_split\(([^,]+),\s*(\d+)\)", r"__array_split(\1,\2)", c)
     c = re.sub(r'np\.copy\(([^)]+)\)', r'\1[:]', c)
     c = re.sub(r'np\.any\(([^,]+),axis=0\)', r'[any(col) for col in zip(*\1)]', c)
     c = re.sub(r'np\.nan', 'float("nan")', c)
@@ -64,3 +69,9 @@ if __name__ == '__main__':
                     print(f'  PATCHED {f}')
                     n += 1
     print(f'Done: {n} files patched')
+
+# Bonus: also patch ichingshifa if present
+def array_split_pure(lst, n):
+    """Pure Python replacement for np.array_split(lst, n)."""
+    k, m = divmod(len(lst), n)
+    return [lst[i*k+min(i,m):(i+1)*k+min(i+1,m)] for i in range(n)]

@@ -48,6 +48,12 @@ jobs:
           pip download --no-deps --no-binary :all: "six" -d /tmp/pypi-offline 2>&1 | tail -1
           pip download --no-deps --no-binary :all: "geopy" -d /tmp/pypi-offline 2>&1 | tail -1
           pip download --no-deps --no-binary :all: "geographiclib" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "requests-cache" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "attrs" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "cattrs" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "platformdirs" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "url-normalize" -d /tmp/pypi-offline 2>&1 | tail -1
+          pip download --no-deps --no-binary :all: "urllib3" -d /tmp/pypi-offline 2>&1 | tail -1
           # 去掉 numpy/h3/cffi 依赖 (CFFI加速模块需要,纯Python回退不需要)
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
@@ -62,6 +68,8 @@ jobs:
           # 真随机: random → secrets (SystemRandom uses OS entropy)
           sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' src/ichingshifa/ichingshifa.py
           sed -i 's/import pickle, random,/import pickle, secrets,/' src/ichingshifa/ichingshifa.py
+          # 纯 Python 替换 numpy (np.array_split)
+          python3 ${GITHUB_WORKSPACE}/ci/patch_pyjhora_numpy.py /tmp/ichingshifa_src/src/
           tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz --exclude=".git" . 2>&1
           cd /tmp && rm -rf /tmp/ichingshifa_src
           echo "ichingshifa full tarball ready"
@@ -167,6 +175,12 @@ jobs:
           for f in app/offline_pkgs/python_dateutil-*.tar.gz; do cp "$f" "app/offline_pkgs/python_dateutil-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/six-*.tar.gz; do cp "$f" "app/offline_pkgs/six-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/geopy-*.tar.gz; do cp "$f" "app/offline_pkgs/geopy-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/requests_cache-*.tar.gz; do cp "$f" "app/offline_pkgs/requests_cache-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/attrs-*.tar.gz; do cp "$f" "app/offline_pkgs/attrs-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/cattrs-*.tar.gz; do cp "$f" "app/offline_pkgs/cattrs-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/platformdirs-*.tar.gz; do cp "$f" "app/offline_pkgs/platformdirs-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/url_normalize-*.tar.gz; do cp "$f" "app/offline_pkgs/url_normalize-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/urllib3-*.tar.gz; do cp "$f" "app/offline_pkgs/urllib3-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/geographiclib-*.tar.gz; do cp "$f" "app/offline_pkgs/geographiclib-latest.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls app/offline_pkgs/
       - name: Patch PyJHora (ephe path → pyswisseph)
