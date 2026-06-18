@@ -68,6 +68,8 @@ chaquopy {
             install(file("offline_pkgs/platformdirs-latest.tar.gz").absolutePath)
             install(file("offline_pkgs/url_normalize-latest.tar.gz").absolutePath)
             install(file("offline_pkgs/urllib3-latest.tar.gz").absolutePath) // requests/requests-cache 底层 HTTP
+            install(file("offline_pkgs/cn2an-latest.tar.gz").absolutePath) // ichingshifa 中文数字转换
+            install(file("offline_pkgs/proces-latest.tar.gz").absolutePath) // cn2an 依赖
             // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
             // install("git+https://github.com/kentang2017/kinastro.git")
         }

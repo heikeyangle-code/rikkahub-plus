@@ -65,6 +65,7 @@ jobs:
           # kinliuren (大六壬): PyPI空壳, GitHub克隆+注入setup.py
           git clone --depth 1 https://github.com/kentang2017/kinliuren.git /tmp/kinliuren_src 2>&1 | tail -1
           cd /tmp/kinliuren_src
+          python3 -c "import sys; data=open(sys.argv[1],'rb').read(); open(sys.argv[1],'wb').write(data.replace(b'\xef\xbb\xbf', b''))" src/kinliuren/__init__.py
           printf 'from setuptools import setup, find_packages; setup(name="kinliuren", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           tar czf /tmp/pypi-offline/kinliuren-src.tar.gz --exclude=".git" .
@@ -170,6 +171,8 @@ jobs:
           for f in app/offline_pkgs/platformdirs-*.tar.gz; do cp "$f" "app/offline_pkgs/platformdirs-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/url_normalize-*.tar.gz; do cp "$f" "app/offline_pkgs/url_normalize-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/urllib3-*.tar.gz; do cp "$f" "app/offline_pkgs/urllib3-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/cn2an-*.tar.gz; do cp "$f" "app/offline_pkgs/cn2an-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/proces-*.tar.gz; do cp "$f" "app/offline_pkgs/proces-latest.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls app/offline_pkgs/
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
@@ -272,7 +275,7 @@ jobs:
           # kinqimen (奇门遁甲): PyPI空壳, GitHub克隆+注入setup.py — Repo根目录 .py 文件 (无 src/)
           git clone --depth 1 https://github.com/kentang2017/kinqimen.git /tmp/kinqimen_src 2>&1 | tail -1
           cd /tmp/kinqimen_src
-          printf 'from setuptools import setup; setup(name="kinqimen", version="0.1", py_modules=["kinqimen", "jieqi", "config", "cerebras_client"], include_package_data=True)' > setup.py
+          printf 'from setuptools import setup; setup(name="kinqimen", version="0.1", py_modules=["kinqimen", "jieqi", "config", "cerebras_client", "angan"], include_package_data=True)' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           # Relax ephem version pin
           sed -i 's/ephem==4.1.3/ephem>=4.1.3/' setup.py 2>/dev/null || echo "ephem pin not in setup.py"
