@@ -76,10 +76,10 @@ jobs:
           tar czf /tmp/pypi-offline/kintaiyi-src.tar.gz --exclude=".git" .
           cd /tmp && rm -rf /tmp/kintaiyi_src
 
-          # taixuanshifa (太玄筮法): PyPI空壳, GitHub克隆+注入setup.py
+          # taixuanshifa (太玄筮法): PyPI空壳, GitHub克隆+注入setup.py (根目录.py, 非src/)
           git clone --depth 1 https://github.com/kentang2017/taixuanshifa.git /tmp/taixuanshifa_src 2>&1 | tail -1
           cd /tmp/taixuanshifa_src
-          printf 'from setuptools import setup, find_packages; setup(name="taixuanshifa", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
+          printf 'from setuptools import setup; setup(name="taixuanshifa", version="0.1", py_modules=["taixuanshifa", "app"])' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           # 真随机: random → secrets
           sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' taixuanshifa.py
@@ -104,7 +104,7 @@ jobs:
           cd /tmp/meihua_patch
           tar xfz meihua_yi-*.tar.gz && rm meihua_yi-*.tar.gz
           SRC=$(ls -d meihua_yi-* | head -1)
-          sed -i 's/import random/import secrets/' "$SRC/meihua_yi/engine.py"
+          sed -i 's/^import random$/import secrets/' "$SRC/meihua_yi/engine.py"
           sed -i 's/random\.choice(/secrets.choice(/g' "$SRC/meihua_yi/engine.py"
           tar czf /tmp/pypi-offline/meihua-yi-patched.tar.gz "$SRC"
           rm -rf /tmp/meihua_patch
