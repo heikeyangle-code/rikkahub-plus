@@ -120,82 +120,152 @@ sealed class LocalToolOption {
 }
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {
+    // ── Persistent JS engine ──
+    private val jsContextLock = Any()
+    @Volatile private var jsContext: QuickJSContext? = null
+    private val loadedLibraries = mutableSetOf<String>()
+
+    private fun getOrCreateJSContext(): QuickJSContext {
+        if (jsContext == null) {
+            synchronized(jsContextLock) {
+                if (jsContext == null) {
+                    jsContext = QuickJSContext.create()
+                }
+            }
+        }
+        return jsContext!!
+    }
+
+    private fun resetJSContext() {
+        synchronized(jsContextLock) {
+            jsContext?.destroy()
+            jsContext = null
+            loadedLibraries.clear()
+        }
+    }
+
     val javascriptTool by lazy {
         Tool(
             name = "eval_javascript",
-            description = "Execute JavaScript code using QuickJS engine (ES2020).\n\n" +
-                "Use this tool to run JavaScript for calculations, text processing, or prototyping. 15s timeout, no DOM or network APIs.\n\n" +
+            description = "Execute JavaScript code using QuickJS engine (ES2020, persistent context).\n\n" +
+                "The JS context persists between calls — libraries loaded via action='load' stay available.\n" +
+                "Use this tool for calculations, text processing, or divination engines.\n\n" +
                 "When to use:\n" +
                 "- Run JavaScript for calculations, text processing, or prototyping\n" +
-                "- Test JS snippets without a browser\n" +
-                "- 奇门遁甲: library='qimen', code='QimenEngine.generate({type:\"shijia\",...})'\n" +
-                "- 紫微斗数: library='ziwei-nihai', code='ZiweiNihai.generateChart({solarYear:1990,...})'\n\n" +
-                "When NOT to use:\n" +
-                "- DOM manipulation or network requests (no browser APIs)\n" +
-                "- Heavy computations (15s timeout)\n\n" +
+                "- Load a JS engine: action='load', library='qimen-engine' (loads once, cached)\n" +
+                "- Call engine: action='eval', code='QimenEngine.generate({...})'\n" +
+                "- Reset context: action='reset' (clears all loaded libraries)\n\n" +
                 "Args:\n" +
-                "- library: (optional) asset filename without .js — loads from assets before executing code\n" +
-                "- code: JavaScript code to execute (last expression is the result)",
+                "- action: 'eval' (default) | 'load' | 'reset'\n" +
+                "- library: asset filename without .js (for action='load') — loads once, cached\n" +
+                "- function: (optional) call a global function by name with JSON args\n" +
+                "- code: JavaScript code to execute (for action='eval')\n" +
+                "- timeout: (optional) seconds, default 30, max 60",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
+                        put("action", buildJsonObject {
+                            put("type", "string")
+                            put("enum", kotlinx.serialization.json.buildJsonArray {
+                                add("eval"); add("load"); add("reset")
+                            })
+                            put("description", "Action: eval (execute code), load (pre-load library), reset (clear context)")
+                        })
                         put("library", buildJsonObject {
                             put("type", "string")
-                            put("description", "Optional: asset filename (e.g. 'qimen-engine') to load before executing code")
+                            put("description", "Asset filename without .js (for action='load')")
+                        })
+                        put("function", buildJsonObject {
+                            put("type", "string")
+                            put("description", "Call a global function by name. Use 'args' to pass JSON array.")
+                        })
+                        put("args", buildJsonObject {
+                            put("type", "array")
+                            put("description", "JSON array of arguments for function call")
                         })
                         put("code", buildJsonObject {
                             put("type", "string")
-                            put("description", "The JavaScript code to execute")
+                            put("description", "JavaScript code to execute (for action='eval')")
                         })
-                    },
-                    required = listOf("code")
+                        put("timeout", buildJsonObject {
+                            put("type", "integer")
+                            put("description", "Timeout in seconds (default 30, max 60)")
+                        })
+                    }
                 )
             },
             execute = {
                 val logs = arrayListOf<String>()
+                val action = it.jsonObject["action"]?.jsonPrimitive?.contentOrNull ?: "eval"
                 val library = it.jsonObject["library"]?.jsonPrimitive?.contentOrNull
                 val code = it.jsonObject["code"]?.jsonPrimitive?.contentOrNull
+                val funcName = it.jsonObject["function"]?.jsonPrimitive?.contentOrNull
+                val rawArgs = it.jsonObject["args"]?.jsonObject
+                val timeoutSec = (it.jsonObject["timeout"]?.jsonPrimitive?.contentOrNull ?: "30").toLongOrNull() ?: 30L
+                val safeTimeout = minOf(timeoutSec, 60L)
+
                 val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
                 try {
                     val future = executor.submit<String> {
-                        val jsContext = QuickJSContext.create()
-                        try {
-                            jsContext.setConsole(object : QuickJSContext.Console {
-                                override fun log(info: String?) { logs.add("[LOG] $info") }
-                                override fun info(info: String?) { logs.add("[INFO] $info") }
-                                override fun warn(info: String?) { logs.add("[WARN] $info") }
-                                override fun error(info: String?) { logs.add("[ERROR] $info") }
-                            })
-                            // Load engine library if specified
-                            if (library != null) {
-                                try {
-                                    val engineCode = context.assets.open("$library.js").bufferedReader().readText()
-                                    jsContext.evaluate(engineCode)
-                                    logs.add("[INFO] Loaded JS engine: $library.js (${engineCode.length} bytes)")
-                                } catch (e: java.io.IOException) {
-                                    logs.add("[ERROR] JS engine not found in assets: $library.js")
+                        when (action) {
+                            "reset" -> {
+                                resetJSContext()
+                                logs.add("[INFO] JS context reset — all libraries cleared")
+                                "ok"
+                            }
+                            "load" -> {
+                                val lib = library ?: throw IllegalArgumentException("library is required for action='load'")
+                                val ctx = getOrCreateJSContext()
+                                if (lib !in loadedLibraries) {
+                                    val engineCode = context.assets.open("$lib.js").bufferedReader().readText()
+                                    ctx.evaluate(engineCode)
+                                    loadedLibraries.add(lib)
+                                    logs.add("[INFO] Loaded: $lib.js (${engineCode.length} bytes) — cached for subsequent calls")
+                                } else {
+                                    logs.add("[INFO] $lib.js already loaded (cached)")
+                                }
+                                "loaded"
+                            }
+                            else -> {
+                                val ctx = getOrCreateJSContext()
+                                // Execute code if provided
+                                if (!code.isNullOrBlank()) {
+                                    logs.add("[INFO] exec: ${code.take(100)}...")
+                                    ctx.evaluate(code)
+                                }
+                                // Call function if specified, evaluate code otherwise
+                                val jsResult = if (funcName != null) {
+                                    val argsJson = rawArgs?.toString() ?: "[]"
+                                    ctx.evaluate("$funcName.apply(null, $argsJson)")
+                                } else if (!code.isNullOrBlank()) {
+                                    null  // result already captured in evaluate
+                                } else {
+                                    null
+                                }
+                                // Get the last expression result
+                                val finalResult = if (funcName != null) jsResult else {
+                                    // Re-evaluate to capture result
+                                    val lastExpr = code?.lines()?.lastOrNull()?.trim()
+                                    if (lastExpr != null && !lastExpr.startsWith("//")) {
+                                        ctx.evaluate("($lastExpr)")
+                                    } else null
+                                }
+                                when (finalResult) {
+                                    null -> "ok"
+                                    is QuickJSObject -> finalResult.stringify()
+                                    else -> finalResult.toString()
                                 }
                             }
-                            val jsResult = jsContext.evaluate(code)
-                            when (jsResult) {
-                                null -> "null"
-                                is QuickJSObject -> jsResult.stringify()
-                                else -> jsResult.toString()
-                            }
-                        } finally {
-                            jsContext.destroy()
                         }
                     }
-                    val resultStr = future.get(15, java.util.concurrent.TimeUnit.SECONDS)
+                    val resultStr = future.get(safeTimeout, java.util.concurrent.TimeUnit.SECONDS)
                     val payload = buildJsonObject {
-                        if (logs.isNotEmpty()) {
-                            put("logs", JsonPrimitive(logs.joinToString("\n")))
-                        }
+                        if (logs.isNotEmpty()) put("logs", JsonPrimitive(logs.joinToString("\n")))
                         put("result", JsonPrimitive(resultStr))
                     }
                     listOf(UIMessagePart.Text(payload.toString()))
                 } catch (e: java.util.concurrent.TimeoutException) {
-                    error("JavaScript execution timed out after 15 seconds")
+                    error("JavaScript execution timed out after ${safeTimeout}s")
                 } finally {
                     executor.shutdownNow()
                 }
