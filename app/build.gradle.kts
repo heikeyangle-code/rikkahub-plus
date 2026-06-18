@@ -24,7 +24,7 @@ chaquopy {
             install("openpyxl")
             install("markdownify")
             install("tabulate")
-            install(file("offline_pkgs/svgwrite-sdist.tar.gz").absolutePath) // kerykeion/stellium SVG星图渲染
+            install("svgwrite")          // kerykeion/stellium SVG星图渲染 (代理有)
             // === 命理计算引擎 ===
             // sxtwl/pyswisseph: 交叉编译 ARM64 .whl, pydantic-core: 本地 sdist
             install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
@@ -49,7 +49,7 @@ chaquopy {
             install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)
             install(file("offline_pkgs/flatlib-patched.tar.gz").absolutePath) // ⭐386 传统占星 已patch pyswisseph版本
             install("meihua-yi")           // ⭐1  梅花易数起卦（纯Python）
-            install("PyJHora")             // ⭐188 印度占星(吠陀)全套
+            install(file("offline_pkgs/pyjhora-patched.tar.gz").absolutePath) // ⭐188 印度占星(吠陀) — ephe指向pyswisseph
             install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
             install("setuptools")              // setuptools 最新版
             install(file("offline_pkgs/pydantic_core-2.46.4-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)  // Rust扩展, 交叉编译ARM64 .whl

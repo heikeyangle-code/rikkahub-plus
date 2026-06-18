@@ -42,7 +42,6 @@ jobs:
           pip download --no-deps --no-binary :all: "timezonefinder==8.2.4" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "flatbuffers==25.9.23" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "MarkupSafe==3.0.2" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "svgwrite" -d /tmp/pypi-offline 2>&1 | tail -1
           # 去掉 numpy/h3/cffi 依赖 (CFFI加速模块需要,纯Python回退不需要)
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
@@ -128,9 +127,24 @@ jobs:
             fname="${fname//lunar-python/lunar_python}"
             cp "$f" "app/offline_pkgs/$fname"
           done
-          # svgwrite: rename versioned sdist to stable name for build.gradle.kts
-          for f in app/offline_pkgs/svgwrite-*.tar.gz; do cp "$f" "app/offline_pkgs/svgwrite-sdist.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls app/offline_pkgs/
+      - name: Patch PyJHora (fix ephe path → pyswisseph)
+        run: |
+          pip download --no-deps --no-binary :all: "PyJHora" -d /tmp/pyjhora_patch
+          cd /tmp/pyjhora_patch
+          tar xfz PyJHora-*.tar.gz
+          rm PyJHora-*.tar.gz
+          cd PyJHora-*
+          # Fix: don't override pyswisseph's built-in ephe path
+          # PyJHora's const.py calls swe.set_ephe_path() to data/ephe/ which
+          # doesn't exist in the wheel. Point to pyswisseph's ephe instead.
+          sed -i 's|swe.set_ephe_path(_ephe_path)|import swisseph; _ephe_path = os.path.join(os.path.dirname(swisseph.__file__), "ephe"); swe.set_ephe_path(_ephe_path)|' src/jhora/const.py
+          echo "Patched const.py ephe:"
+          grep -A1 "set_ephe_path" src/jhora/const.py
+          cd /tmp/pyjhora_patch && tar czf /tmp/pypi-offline/pyjhora-patched.tar.gz PyJHora-*
+          cp /tmp/pypi-offline/pyjhora-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
+          rm -rf /tmp/pyjhora_patch
+          echo "Added pyjhora-patched.tar.gz"
       - name: Patch kinwangji (use setuptools + relax ephem pin)
         run: |
           git clone https://github.com/kentang2017/kinwangji.git /tmp/kinwangji_src
