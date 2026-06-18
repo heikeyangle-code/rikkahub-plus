@@ -48,11 +48,11 @@ Available built-in functions (call these from your code):
   梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排     无需出生（需起卦数）
 
   【西洋占星】
-  西洋占星/星座/本命盘 →  kerykeion                                             生日必填（需经纬度）
-  占星深析(中点/阿拉伯点/相位模式/格局)  →  stellium                   ← kerykeion                生日必填
+  西洋占星/星座/本命盘 →  问用户选 kerykeion(Python,SwissEphemeris最高精度) 或 HoroscopeJS(JS,Kepler+7种宫位制+10种相位) 或都跑   生日必填（需经纬度）
+  占星深析(中点/阿拉伯点/相位模式/格局)  →  stellium                   ← kerykeion                 生日必填
   日返/月返/回归盘     →  stellium.returns.builder.ReturnBuilder  ← flatlib                 生日必填
   合盘/推运/比较盘     →  immanuel                   ← kerykeion synastry      双人生日必填
-  日食月食/行星升降     →  pyswisseph                                            日期即可
+  日食月食/行星升降/升落时间 →  pyswisseph(Python)          ← Astronomy(JS,VSOP87)         日期即可
   🌟 生成星盘SVG图   →  render_astrology_svg()                              生日必填（需经纬度）
 
   【印度/吠陀】
@@ -105,6 +105,8 @@ Available built-in functions (call these from your code):
   IchingShifa → eval_javascript: IchingShifa.dayan() 又 lueshifa() 又 timeQiGua({...}) 又 manualQiGua("697887") 又 threeNumberQiGua(a,b,c) 又 numberArrayQiGua(arr,idx); decodePan(yao,{year,month,day,hour})排盘
   TaixuanLib  → eval_javascript: TaixuanLib.generate() 又 generateByShi() 又 generateByDice() 又 generateByCoins() 又 generateByNumber(5678); 返回{code:"2312",gua:{...}}
   Lunar (JS)  → eval_javascript: Lunar.Solar.fromDate(new Date(2026,5,19)) 又 Lunar.Lunar.fromDate(d) 又 Lunar.EightChar.fromLunar(lunar) 又 Lunar.DaYun(...) 又 Lunar.JieQi.getJieQi(2026)
+  Astronomy   → eval_javascript: Astronomy.BodyPosition("sun", new Date(2026,5,19,14,0,0)) 又 Astronomy.SearchRiseSet("sun", observer, date) 又 Astronomy.SearchLunarEclipse(date) 又 Astronomy.Seasons(2026) 又 Astronomy.MoonPhase(date)  (零随机,VSOP87精度)
+  HoroscopeJS → eval_javascript: new HoroscopeJS.Horoscope({origin:new HoroscopeJS.Origin({year:2026,month:5,day:19,hour:14,minute:0,latitude:39.9,longitude:116.4}),houseSystem:"placidus",zodiac:"tropical"})  (零随机,Kepler精度+7宫位制)
   返回 JSON，AI 基于真实数据解读。
 """
 

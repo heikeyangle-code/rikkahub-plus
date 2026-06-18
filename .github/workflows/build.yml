@@ -288,6 +288,28 @@ jobs:
           cp lunar-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Lunar standalone JS engine compiled: $(wc -c < lunar-engine.js) bytes"
 
+      - name: Compile Astronomy JS engine (astronomy-engine, VSOP87)
+        run: |
+          mkdir -p /tmp/astronomy_build
+          cd /tmp && npm pack astronomy-engine --pack-destination /tmp/astronomy_build 2>&1
+          cd /tmp/astronomy_build && tar xzf astronomy-engine-*.tgz && cd package
+          echo 'export * from "./astronomy.js";' > astro-entry.mjs
+          npx esbuild astro-entry.mjs --bundle --platform=node --format=iife --global-name=Astronomy --target=es2020 --outfile=astronomy-engine.js 2>&1 | tail -3
+          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
+          cp astronomy-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "Astronomy JS engine compiled: $(wc -c < astronomy-engine.js) bytes"
+
+      - name: Compile Horoscope JS engine (CircularNatalHoroscopeJS)
+        run: |
+          mkdir -p /tmp/horoscope_build
+          cd /tmp && npm pack circular-natal-horoscope-js --pack-destination /tmp/horoscope_build 2>&1
+          cd /tmp/horoscope_build && tar xzf circular-natal-horoscope-js-*.tgz && cd package
+          echo 'export * from "./dist/index";' > horoscope-entry.mjs
+          npx esbuild horoscope-entry.mjs --bundle --platform=node --format=iife --global-name=HoroscopeJS --target=es2020 --outfile=horoscope-engine.js 2>&1 | tail -3
+          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
+          cp horoscope-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "Horoscope JS engine compiled: $(wc -c < horoscope-engine.js) bytes"
+
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
           pip download --no-deps --no-binary :all: "PyJHora" -d /tmp/pyjhora_patch
