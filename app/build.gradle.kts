@@ -48,7 +48,7 @@ chaquopy {
             install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
             install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)
             install(file("offline_pkgs/flatlib-patched.tar.gz").absolutePath) // ⭐386 传统占星 已patch pyswisseph版本
-            install("meihua-yi")           // ⭐1  梅花易数起卦（纯Python）
+            install(file("offline_pkgs/meihua-yi-patched.tar.gz").absolutePath) // ⭐1  梅花易数 (random→secrets 真随机起卦)
             install(file("offline_pkgs/pyjhora-patched.tar.gz").absolutePath) // ⭐188 印度占星(吠陀) — ephe指向pyswisseph
             install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
             install("setuptools")              // setuptools 最新版

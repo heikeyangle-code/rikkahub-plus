@@ -53,6 +53,9 @@ jobs:
           cd /tmp/ichingshifa_src
           printf 'from setuptools import setup, find_packages; setup(name="ichingshifa", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+          # 真随机: random → secrets (SystemRandom uses OS entropy)
+          sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' src/ichingshifa/ichingshifa.py
+          sed -i 's/import pickle, random,/import pickle, secrets,/' src/ichingshifa/ichingshifa.py
           tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz --exclude=".git" . 2>&1
           cd /tmp && rm -rf /tmp/ichingshifa_src
           echo "ichingshifa full tarball ready"
@@ -78,6 +81,9 @@ jobs:
           cd /tmp/taixuanshifa_src
           printf 'from setuptools import setup, find_packages; setup(name="taixuanshifa", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+          # 真随机: random → secrets
+          sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' taixuanshifa.py
+          sed -i 's/import random, pickle,/import secrets, pickle,/' taixuanshifa.py
           tar czf /tmp/pypi-offline/taixuanshifa-src.tar.gz --exclude=".git" .
           cd /tmp && rm -rf /tmp/taixuanshifa_src
 
@@ -86,9 +92,23 @@ jobs:
           cd /tmp/jingjue_src
           printf 'from setuptools import setup; setup(name="jingjue", version="0.1", py_modules=["jingjue"])' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+          # 真随机: random → secrets
+          _random_to_secrets() { sed -i -e 's/random\.sample(/secrets.SystemRandom().sample(/g' -e 's/random\.choice(/secrets.choice(/g' -e 's/\bimport random\b/import secrets/' -e 's/, random,/, secrets,/g' "$1"; }
+          _random_to_secrets "jingjue.py"
           tar czf /tmp/pypi-offline/jingjue-src.tar.gz --exclude=".git" .
           cd /tmp && rm -rf /tmp/jingjue_src
           echo "4 kentang2017 packages cloned from GitHub"
+
+          # meihua-yi: 梅花易数, 铜钱起卦用真随机
+          pip download --no-deps --no-binary :all: "meihua-yi" -d /tmp/meihua_patch
+          cd /tmp/meihua_patch
+          tar xfz meihua_yi-*.tar.gz && rm meihua_yi-*.tar.gz
+          SRC=$(ls -d meihua_yi-* | head -1)
+          sed -i 's/import random/import secrets/' "$SRC/meihua_yi/engine.py"
+          sed -i 's/random\.choice(/secrets.choice(/g' "$SRC/meihua_yi/engine.py"
+          tar czf /tmp/pypi-offline/meihua-yi-patched.tar.gz "$SRC"
+          rm -rf /tmp/meihua_patch
+          echo "Added meihua-yi-patched.tar.gz (random → secrets)"
 
           # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容
           pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1 | tail -1
@@ -103,6 +123,8 @@ jobs:
           rm -f "$dir/src/arcanite/cards/update_card_positions.py"
           rm -rf "$dir/src/arcanite/images"
           rm -rf "$dir/examples"
+          # 真随机: random → secrets (塔罗抽牌)
+          find "$dir/src/arcanite/core" -name "*.py" -exec sed -i -e 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' -e 's/\brandom\.choice(/secrets.choice(/g' -e 's/\bimport random\b/import secrets/' -e 's/, random,/, secrets,/g' {} \;
           # 用 printf 写 __init__.py，避免 YAML 解析 """ 报错
           printf '%s\n' '"""Arcanite - A Tarot Reading Engine (stripped: no LLM/PDF/images)"""' \
             '__version__ = "0.2.0"' \
