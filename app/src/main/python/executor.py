@@ -18,49 +18,78 @@ Available built-in functions (call these from your code):
   update_setting(key, value)                     - Change global app setting
   get_app_info()                                 - App version & paths
 
-*** 命理排盘路由 ***
+*** 命理排盘规则 ***
 
-原则：排盘走真实库计算，不虚构数据。初次使用 dir() 自探索完整API。
-底层依赖：ephem(kinqimen/kinwangji), pydantic-core(kerykeion), timezonefinder(kerykeion/immanuel), flatbuffers(flatlib), sxtwl(bazi备选)
+【核心原则】每次排盘都走真实 Python 库计算，模型不虚构任何数据。
 
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ 分类      │ 用户问                     │ 首选库               │ 备选                            │ 输入                       │
-  ├───────────┼────────────────────────────┼───────────────────────┼────────────────────────────────┼────────────────────────────┤
-  │ 中华正统  │ 八字/四柱/大运             │ lunar_python.EightChar│ bazi_china,sxtwl(寿星)        │ 生日+时辰+性别             │
-  │           │ 紫微斗数                    │ ziwei_paipan.by_solar │ —                              │ 生日+时辰+性别             │
-  ├───────────┼────────────────────────────┼───────────────────────┼────────────────────────────────┼────────────────────────────┤
-  │ 奇门三式  │ 奇门遁甲                    │ kinqimen              │ 日家/时家/刻家                │ 时家需精确时间             │
-  │           │ 大六壬                      │ kinliuren             │ —                              │ 生日可选                   │
-  │           │ 小六壬(马前课)              │ 手算(lunar_python取月日时→掌诀)│ —                      │ 需月日时，无需出生         │
-  │           │ 太乙神数                    │ kintaiyi              │ —                              │ 生日必填                   │
-  ├───────────┼────────────────────────────┼───────────────────────┼────────────────────────────────┼────────────────────────────┤
-  │ 象数易    │ 太玄筮法/荆诀              │ taixuanshifa/jingjue  │ —                              │ 无需出生                   │
-  │           │ 皇极经世                    │ kinwangji             │ —                              │ 生日必填                   │
-  ├───────────┼────────────────────────────┼───────────────────────┼────────────────────────────────┼────────────────────────────┤
-  │ 六爻/卦象 │ 六爻/周易/卦               │ ichingshifa           │ 梅花也可起卦                   │ 需起卦数，无需出生         │
-  │           │ 梅花易数                    │ meihua_yi             │ ichingshifa起卦                │ 需数字，无需出生           │
-  ├───────────┼────────────────────────────┼───────────────────────┼────────────────────────────────┼────────────────────────────┤
-  │ 西洋占星  │ 本命盘/星座                 │ kerykeion             │ —                              │ 生日必填+经纬度            │
-  │           │ 深析/中点/相位/格局        │ stellium              │ kerykeion                      │ 生日必填+经纬度            │
-  │           │ 日返/月返/回归盘            │ stellium.returns      │ flatlib                        │ 生日必填+经纬度            │
-  │           │ 合盘/推运/比较盘            │ immanuel              │ kerykeion synastry             │ 双人生日必填+经纬度        │
-  │           │ 日食月食/行星升降           │ pyswisseph            │ —                              │ 日期即可                   │
-  │           │ 🌟 星盘SVG图                │ render_astrology_svg()│ —                              │ 生日必填+经纬度            │
-  ├───────────┼────────────────────────────┼───────────────────────┼────────────────────────────────┼────────────────────────────┤
-  │ 印度/吠陀 │ 吠陀占星(南印/北印盘)      │ jhora                 │ stellium.visualization.vedic   │ 生日必填+经纬度            │
-  ├───────────┼────────────────────────────┼───────────────────────┼────────────────────────────────┼────────────────────────────┤
-  │ 塔罗/其他 │ 塔罗(78韦特+36雷诺曼)      │ arcanite              │ 正逆位牌义+牌阵                │ 无需出生                   │
-  ├───────────┼────────────────────────────┼───────────────────────┼────────────────────────────────┼────────────────────────────┤
-  │ 农历/天文 │ 黄历/择日/建除/太岁        │ cnlunar               │ lunar_python                   │ 日期即可                   │
-  │           │ 公历农历转换                │ lunar_python          │ cnlunar                        │ 日期即可                   │
-  │           │ 二十八宿/宿曜               │ lunar_python.get28Mans│ pyswisseph,cnlunar             │ 日期即可                   │
-  │           │ 吉神凶神/彭祖百忌           │ cnlunar               │ —                              │ 日期即可                   │
-  │           │ 生肖/干支/纳音/闰候         │ bazi_china子模块      │ lunar_python                   │ 生日可选                   │
-  │           │ 节气/天文                   │ lunar_python          │ cnlunar,pyswisseph             │ 日期即可                   │
-  └───────────┴────────────────────────────┴───────────────────────┴────────────────────────────────┴────────────────────────────┘
+【排盘路由】需要完整命理分析时用。
+输入要求列：生日=公历日期+时辰+性别，日期=只要日期年月日。
 
-输入速查：八字/紫微/占星/吠陀/皇极需生日时辰+性别；合盘需双人生日；黄历/择日/太岁/节气/农历转换仅需日期；六爻/梅花/太玄/荆诀/塔罗无需出生。
-输出：排盘结果用 print() 输出文字，模型基于真实数据解读。
+  用户问             →  首选                        ← 也能用这些               输入要求
+  ─────────────────────────────────────────────────────────────────────────────────────────
+  【中华正统】
+  八字/四柱/大运      →  lunar_python EightChar      ← bazi_china, sxtwl        生日（含时辰）
+  紫微斗数            →  ziwei_paipan.by_solar()    ← by_solar 分步调取         生日（含时辰）
+
+  【奇门三式】
+  奇门遁甲            →  kinqimen                   ← 日家/时家/刻家不同用法    时家需精确时间
+  大六壬              →  kinliuren                                               生日可选
+  小六壬(马前课)       →  手算(lunar_python取月日时后掌诀推算)                     无需出生（需月日时）
+  太乙神数            →  kintaiyi                                             生日必填
+
+  【象数易】
+  太玄筮法            →  taixuanshifa                                           无需出生
+  荆诀/先秦占卜       →  jingjue                                                 无需出生
+  皇极经世            →  kinwangji                                              生日必填
+
+  【六爻/卦象】
+  六爻/周易/卦        →  ichingshifa                ← 梅花易数也可起卦          无需出生（需起卦数）
+  梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排     无需出生（需起卦数）
+
+  【西洋占星】
+  西洋占星/星座/本命盘 →  kerykeion                                             生日必填（需经纬度）
+  占星深析(中点/阿拉伯点/相位模式/格局)  →  stellium                   ← kerykeion                生日必填
+  日返/月返/回归盘     →  stellium.returns.builder.ReturnBuilder  ← flatlib                 生日必填
+  合盘/推运/比较盘     →  immanuel                   ← kerykeion synastry      双人生日必填
+  日食月食/行星升降     →  pyswisseph                                            日期即可
+  🌟 生成星盘SVG图   →  render_astrology_svg()                              生日必填（需经纬度）
+
+  【印度/吠陀】
+  印度占星/吠陀(南印/北印盘)  →  jhora                      ← stellium.visualization.vedic          生日必填
+
+  【人类图/塔罗/其他】
+  塔罗/雷诺曼         →  arcanite（78张韦特+36雷诺曼，正逆位牌义，牌阵）                         无需出生
+
+  【农历/干支/天文】
+  农历/黄历/择日      →  cnlunar                    ← lunar_python             日期即可
+  公历农历转换        →  lunar_python               ← cnlunar                  日期即可
+  二十八宿/宿曜       →  Lunar.getTwentyEightMans()  ← pyswisseph, cnlunar      日期/生日均可
+  建除十二神/黄道黑道  →  cnlunar                    ← lunar_python            日期即可
+  吉神凶神/彭祖百忌    →  cnlunar                                               日期即可
+  值年太岁/本命太岁    →  cnlunar/lunar_python        ←                         日期即可
+  生肖/干支/闰候      →  bazi_china 子模块           ← lunar_python            生日可选
+  节气和天文          →  lunar_python               ← cnlunar, pyswisseph      日期即可
+
+【查询路由】只查单项数据不排盘时用。每个库有很多方法，AI 用 dir() / help() 自探索完整 API：
+  pyswisseph (80+)    →  import swisseph as swe; print([f for f in dir(swe) if f[0].islower()])
+  lunar_python (215+) →  l = Lunar.fromYmd(2026,6,16); print(dir(l))
+  cnlunar             →  import cnlunar; print(dir(cnlunar.LunarDate))
+  ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
+  meihua_yi           →  from meihua_yi import book; print(dir(book))        # 梅花起卦查询
+  arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system=\"tarot\"); cards=d.draw(3); [print(c.card_name,c.orientation.value) for c in cards]
+  kinqimen            →  import kinqimen; print(dir(kinqimen))              # 查局
+  kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
+  taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
+  不局限于示例，每个库的全部方法都可调。
+
+【输入说明】不是所有排盘都需要生日：
+  • 需生日(含时辰) — 八字/紫微/占星/吠陀/皇极
+  • 需生日(不含时辰也可) — 生肖/大六壬/二十八宿
+  • 需双人生日 — 合盘/比较盘
+  • 仅需日期(不需出生) — 黄历/择日/建除/太岁/节气/农历转换/日食月食
+  • 无需任何出生 — 六爻(需起卦数)/梅花(需数字)/太玄/荆诀/塔罗
+
+【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
 """
 
 import sys
