@@ -355,10 +355,16 @@ def compile_c_package(pkg, env):
         else:
             log(f"  ⚠️  {os.path.basename(src)}: {output[:100]}")
 
-    # Resolve extra .py files relative to source dir
+    # Resolve extra .py files relative to source dir.
+    # Supports both plain strings (src==dest) and (src_subpath, dest_name) tuples.
     py_file_list = None
     if pkg.get("extra_py_files"):
-        py_file_list = [(os.path.join(src_dir, f), f) for f in pkg["extra_py_files"]]
+        py_file_list = []
+        for f in pkg["extra_py_files"]:
+            if isinstance(f, tuple):
+                py_file_list.append((os.path.join(src_dir, f[0]), f[1]))
+            else:
+                py_file_list.append((os.path.join(src_dir, f), f))
 
     # Resolve data directories relative to source dir
     data_dir_list = None
@@ -494,7 +500,7 @@ def main():
         {"name": "pydantic-core", "version": "2.46.4", "py_pkg": "pydantic_core", "type": "rust"},
         {"name": "ephem", "version": "4.2.1", "py_pkg": "ephem", "type": "c",
          "patches": [],
-         "extra_py_files": ["ephem/__init__.py"],
+         "extra_py_files": [("ephem/__init__.py", "__init__.py")],
         },
     ]
 
