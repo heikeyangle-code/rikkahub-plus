@@ -272,6 +272,7 @@ jobs:
 
       - name: Compile Lunar standalone JS engine
         run: |
+          mkdir -p /tmp/lunar_js
           cd /tmp && npm pack lunar-javascript --pack-destination /tmp/lunar_js 2>&1
           cd /tmp/lunar_js && tar xzf lunar-javascript-*.tgz && cd package
           # Export common classes
