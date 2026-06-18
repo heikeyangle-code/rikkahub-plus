@@ -173,6 +173,7 @@ jobs:
           for f in app/offline_pkgs/urllib3-*.tar.gz; do cp "$f" "app/offline_pkgs/urllib3-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/cn2an-*.tar.gz; do cp "$f" "app/offline_pkgs/cn2an-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/proces-*.tar.gz; do cp "$f" "app/offline_pkgs/proces-latest.tar.gz" 2>/dev/null || true; done
+          for f in app/offline_pkgs/jinja2-*.tar.gz; do cp "$f" "app/offline_pkgs/jinja2-latest.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls app/offline_pkgs/
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
