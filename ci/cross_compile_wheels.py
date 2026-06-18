@@ -182,12 +182,13 @@ def setup_env(ndk_path, android_python_root):
     return env
 
 
-def create_wheel(pkg_name, version, py_pkg, so_files, py_files=None, init_content=None):
+def create_wheel(pkg_name, version, py_pkg, so_files, py_files=None, init_content=None, data_dirs=None):
     """Create a .whl with android_21_arm64_v8a platform tag.
     
     Args:
         py_files: list of (src_path, dest_filename) tuples for .py files to include in the package
         init_content: if set, use this as __init__.py content instead of default stub
+        data_dirs: list of (src_dir, dest_name) tuples for whole directories to copy into the package
     """
     wheel_name = f"{pkg_name.replace('-', '_')}-{version}-{PY_TAG}-{ABI_TAG}-{PLAT}.whl"
     wheel_dir = f"/tmp/wheels/{wheel_name.replace('.whl', '')}"
@@ -210,6 +211,16 @@ def create_wheel(pkg_name, version, py_pkg, so_files, py_files=None, init_conten
             if os.path.exists(src):
                 shutil.copy2(src, os.path.join(pkg_dir, dest_name))
                 log(f"  Copied py {dest_name}")
+
+    # Copy data directories (e.g. Swiss Ephemeris ephe/ files)
+    if data_dirs:
+        for src_dir, dest_name in data_dirs:
+            if os.path.isdir(src_dir):
+                dest_path = os.path.join(pkg_dir, dest_name)
+                if os.path.exists(dest_path):
+                    shutil.rmtree(dest_path)
+                shutil.copytree(src_dir, dest_path)
+                log(f"  Copied dir {dest_name} ({len(os.listdir(dest_path))} files)")
 
     init_py = os.path.join(pkg_dir, "__init__.py")
     if init_content:
@@ -345,9 +356,15 @@ def compile_c_package(pkg, env):
     if pkg.get("extra_py_files"):
         py_file_list = [(os.path.join(src_dir, f), f) for f in pkg["extra_py_files"]]
 
+    # Resolve data directories relative to source dir
+    data_dir_list = None
+    if pkg.get("data_dirs"):
+        data_dir_list = [(os.path.join(src_dir, d[0]), d[1]) for d in pkg["data_dirs"]]
+
     wheel_path = create_wheel(pkg_name, version, py_pkg, so_files,
                               py_files=py_file_list,
-                              init_content=pkg.get("init_content"))
+                              init_content=pkg.get("init_content"),
+                              data_dirs=data_dir_list)
     dest = os.path.join(OFFLINE_PKGS, os.path.basename(wheel_path))
     shutil.copy2(wheel_path, dest)
     log(f"ARM64 .whl: {dest}")
@@ -465,10 +482,16 @@ def main():
          "patches": [
              ("sed -i 's/swe_detection = True/swe_detection = False/' setup.py", True),
              ("sed -i 's/sqlite3_detection = True/sqlite3_detection = False/' setup.py", True),
-         ]},
+         ],
+         "extra_py_files": ["swisseph/swisseph.py"],
+         "data_dirs": [("swisseph/ephe", "ephe")],
+         "init_content": "from .swisseph import *\n",
+        },
         {"name": "pydantic-core", "version": "2.46.4", "py_pkg": "pydantic_core", "type": "rust"},
         {"name": "ephem", "version": "4.2.1", "py_pkg": "ephem", "type": "c",
-         "patches": []},
+         "patches": [],
+         "extra_py_files": ["ephem/__init__.py"],
+        },
     ]
 
     for pkg in PACKAGES:

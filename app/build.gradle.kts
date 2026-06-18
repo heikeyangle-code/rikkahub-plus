@@ -24,6 +24,7 @@ chaquopy {
             install("openpyxl")
             install("markdownify")
             install("tabulate")
+            install(file("offline_pkgs/svgwrite-sdist.tar.gz").absolutePath) // kerykeion/stellium SVG星图渲染
             // === 命理计算引擎 ===
             // sxtwl/pyswisseph: 交叉编译 ARM64 .whl, pydantic-core: 本地 sdist
             install(file("offline_pkgs/lunar_python-1.4.8.tar.gz").absolutePath)
@@ -51,8 +52,7 @@ chaquopy {
             install("PyJHora")             // ⭐188 印度占星(吠陀)全套
             install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
             install("setuptools")              // setuptools 最新版
-            install("hatchling")           // hatchling构建工具, kinwangji需要
-            install(file("offline_pkgs/pydantic_core-2.46.4.tar.gz").absolutePath)  // Rust 扩展, 尝试 PYO3_NO_PYTHON 交叉编译
+            install(file("offline_pkgs/pydantic_core-2.46.4-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)  // Rust扩展, 交叉编译ARM64 .whl
             install(file("offline_pkgs/pydantic-2.13.4.tar.gz").absolutePath) // arcanite 需要, 纯 Python
             install(file("offline_pkgs/kinwangji-patched.tar.gz").absolutePath)
             // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过

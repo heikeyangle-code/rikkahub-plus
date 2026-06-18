@@ -42,19 +42,13 @@ jobs:
           pip download --no-deps --no-binary :all: "timezonefinder==8.2.4" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "flatbuffers==25.9.23" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "MarkupSafe==3.0.2" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "svgwrite" -d /tmp/pypi-offline 2>&1 | tail -1
           # 去掉 numpy/h3/cffi 依赖 (CFFI加速模块需要,纯Python回退不需要)
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
           python3 ${GITHUB_WORKSPACE}/ci/patch_timezonefinder.py timezonefinder-*/
           tar czf timezonefinder-8.2.4.tar.gz timezonefinder-* && rm -rf timezonefinder-8.2.4
           cd ${GITHUB_WORKSPACE}
-          pip download --no-deps --no-binary :all: "scour" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "tarot" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "kinliuren" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "kinqimen" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "kintaiyi" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "taixuanshifa" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "jingjue" -d /tmp/pypi-offline 2>&1 | tail -3
           # ichingshifa: PyPI 残缺版缺20函数, 从 GitHub 拉完整源码 + 补 setup.py
           git clone --depth 1 https://github.com/kentang2017/ichingshifa.git /tmp/ichingshifa_src 2>&1 | tail -3
           cd /tmp/ichingshifa_src
@@ -63,6 +57,39 @@ jobs:
           tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz --exclude=".git" . 2>&1
           cd /tmp && rm -rf /tmp/ichingshifa_src
           echo "ichingshifa full tarball ready"
+
+          # kinliuren (大六壬): PyPI空壳, GitHub克隆+注入setup.py
+          git clone --depth 1 https://github.com/kentang2017/kinliuren.git /tmp/kinliuren_src 2>&1 | tail -1
+          cd /tmp/kinliuren_src
+          printf 'from setuptools import setup, find_packages; setup(name="kinliuren", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
+          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+          tar czf /tmp/pypi-offline/kinliuren-src.tar.gz --exclude=".git" .
+          cd /tmp && rm -rf /tmp/kinliuren_src
+
+          # kintaiyi (太乙神数): PyPI空壳, GitHub克隆+注入setup.py
+          git clone --depth 1 https://github.com/kentang2017/kintaiyi.git /tmp/kintaiyi_src 2>&1 | tail -1
+          cd /tmp/kintaiyi_src
+          printf 'from setuptools import setup, find_packages; setup(name="kintaiyi", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
+          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+          tar czf /tmp/pypi-offline/kintaiyi-src.tar.gz --exclude=".git" .
+          cd /tmp && rm -rf /tmp/kintaiyi_src
+
+          # taixuanshifa (太玄筮法): PyPI空壳, GitHub克隆+注入setup.py
+          git clone --depth 1 https://github.com/kentang2017/taixuanshifa.git /tmp/taixuanshifa_src 2>&1 | tail -1
+          cd /tmp/taixuanshifa_src
+          printf 'from setuptools import setup, find_packages; setup(name="taixuanshifa", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
+          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+          tar czf /tmp/pypi-offline/taixuanshifa-src.tar.gz --exclude=".git" .
+          cd /tmp && rm -rf /tmp/taixuanshifa_src
+
+          # jingjue (荆诀/北大简先秦占卜): PyPI空壳, GitHub克隆+注入setup.py (根目录.py, 非src/)
+          git clone --depth 1 https://github.com/kentang2017/jingjue.git /tmp/jingjue_src 2>&1 | tail -1
+          cd /tmp/jingjue_src
+          printf 'from setuptools import setup; setup(name="jingjue", version="0.1", py_modules=["jingjue"])' > setup.py
+          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+          tar czf /tmp/pypi-offline/jingjue-src.tar.gz --exclude=".git" .
+          cd /tmp && rm -rf /tmp/jingjue_src
+          echo "4 kentang2017 packages cloned from GitHub"
 
           # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容
           pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1 | tail -1
@@ -101,21 +128,20 @@ jobs:
             fname="${fname//lunar-python/lunar_python}"
             cp "$f" "app/offline_pkgs/$fname"
           done
-          # Rename kin* packages to stable names (strip version numbers)
-          for f in app/offline_pkgs/kinliuren-*.tar.gz; do mv "$f" "app/offline_pkgs/kinliuren-src.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/kinqimen-*.tar.gz; do mv "$f" "app/offline_pkgs/kinqimen-src.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/kintaiyi-*.tar.gz; do mv "$f" "app/offline_pkgs/kintaiyi-src.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/taixuanshifa-*.tar.gz; do mv "$f" "app/offline_pkgs/taixuanshifa-src.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/jingjue-*.tar.gz; do mv "$f" "app/offline_pkgs/jingjue-src.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/ichingshifa-*.tar.gz; do mv "$f" "app/offline_pkgs/ichingshifa-src.tar.gz" 2>/dev/null || true; done
+          # svgwrite: rename versioned sdist to stable name for build.gradle.kts
+          for f in app/offline_pkgs/svgwrite-*.tar.gz; do cp "$f" "app/offline_pkgs/svgwrite-sdist.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls app/offline_pkgs/
-      - name: Patch kinwangji (relax ephem pin)
+      - name: Patch kinwangji (use setuptools + relax ephem pin)
         run: |
           git clone https://github.com/kentang2017/kinwangji.git /tmp/kinwangji_src
           cd /tmp/kinwangji_src
+          # Relax ephem version pin (Chaquopy has 4.2.1, not 4.1.6)
           sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' pyproject.toml 2>/dev/null || sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' setup.py 2>/dev/null || true
+          # Switch from hatchling to setuptools (hatchling is empty stub on Chaquopy proxy)
+          sed -i 's/requires = \["hatchling"\]/requires = ["setuptools>=61.0"]/' pyproject.toml
+          sed -i 's/build-backend = "hatchling.build"/build-backend = "setuptools.build_meta"/' pyproject.toml
           echo "Patched kinwangji:"
-          grep -n 'ephem' pyproject.toml setup.py setup.cfg 2>/dev/null || true
+          grep -E 'ephem|build-backend|requires' pyproject.toml | head -3
           cd /tmp && tar czf /tmp/pypi-offline/kinwangji-patched.tar.gz kinwangji_src
           cp /tmp/pypi-offline/kinwangji-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
           echo "Added kinwangji-patched.tar.gz"
@@ -178,21 +204,21 @@ jobs:
           cp /tmp/pypi-offline/kerykeion-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
           rm -rf /tmp/kerykeion_patch
           echo "Added kerykeion-patched.tar.gz"
-      - name: Patch kinqimen (relax ephem pin to match available version)
+      - name: Patch kinqimen (GitHub clone + relax ephem pin)
         run: |
-          pip download --no-deps --no-binary :all: kinqimen -d /tmp/kq_patch
-          cd /tmp/kq_patch
-          tar xfz kinqimen-*.tar.gz
-          rm kinqimen-*.tar.gz
-          cd kinqimen-*
-          # ephem==4.1.3 is too strict, Chaquopy proxy has 4.1.5
-          sed -i 's/ephem==4.1.3/ephem>=4.1.3/' pyproject.toml 2>/dev/null || sed -i 's/ephem==4.1.3/ephem>=4.1.3/' setup.py 2>/dev/null || echo "ephem pin not found, skipping"
-          echo "Patched kinqimen ephem dep:"
-          grep -n 'ephem' pyproject.toml setup.py setup.cfg 2>/dev/null || echo "(no ephem ref found)"
-          cd /tmp/kq_patch && tar czf /tmp/pypi-offline/kinqimen-patched.tar.gz kinqimen-*
+          # kinqimen (奇门遁甲): PyPI空壳, GitHub克隆+注入setup.py+放宽ephem版本
+          git clone --depth 1 https://github.com/kentang2017/kinqimen.git /tmp/kinqimen_src 2>&1 | tail -1
+          cd /tmp/kinqimen_src
+          printf 'from setuptools import setup, find_packages; setup(name="kinqimen", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
+          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+          # Relax ephem version pin
+          sed -i 's/ephem==4.1.3/ephem>=4.1.3/' setup.py 2>/dev/null || echo "ephem pin not in setup.py"
+          echo "Patched kinqimen:"
+          grep -E 'ephem' setup.py pyproject.toml 2>/dev/null || echo "(no ephem ref)"
+          cd /tmp && tar czf /tmp/pypi-offline/kinqimen-patched.tar.gz kinqimen_src
           cp /tmp/pypi-offline/kinqimen-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/kq_patch
-          echo "Added kinqimen-patched.tar.gz"
+          rm -rf /tmp/kinqimen_src
+          echo "Added kinqimen-patched.tar.gz from GitHub source"
 
       - uses: actions/cache@v4
         with:
