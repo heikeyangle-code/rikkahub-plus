@@ -351,6 +351,17 @@ jobs:
           cp caelus-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Caelus JS engine compiled: $(wc -c < caelus-engine.js) bytes"
 
+      - name: Compile NatalEngine JS (natalengine — 西洋占星+印度吠陀+Human Design, 依赖astronomy-engine)
+        run: |
+          mkdir -p /tmp/natalengine_build
+          cd /tmp && npm pack natalengine --pack-destination /tmp/natalengine_build 2>&1
+          cd /tmp/natalengine_build && tar xzf natalengine-*.tgz && cd package
+          echo 'export * from "./src/index.js";' > natalentry.mjs
+          npx esbuild natalentry.mjs --bundle --platform=node --format=iife --global-name=NatalEngine --target=es2020 --tree-shaking=false --outfile=natalengine-engine.js 2>&1 | tail -3
+          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
+          cp natalengine-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "NatalEngine JS engine compiled: $(wc -c < natalengine-engine.js) bytes"
+
       - name: Compile Iztro JS engine (SylarLong/iztro ⭐3841 — 紫微斗数权威引擎)
         run: |
           mkdir -p /tmp/iztro_build

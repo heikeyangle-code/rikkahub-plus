@@ -305,7 +305,7 @@ val jsEngines = listOf(
     "qimen-engine.js", "ziwei-nihai.js", "iching-shifa-engine.js",
     "taixuan-engine.js", "lunar-engine.js", "astronomy-engine.js",
     "horoscope-engine.js", "kaabalah-engine.js", "caelus-engine.js",
-    "iztro-engine.js"
+    "iztro-engine.js", "natalengine-engine.js"
 )
 tasks.register("checkJsEngines") {
     doLast {

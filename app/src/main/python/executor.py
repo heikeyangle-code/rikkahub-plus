@@ -46,12 +46,16 @@ Available built-in functions (call these from your code):
   梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排     无需出生（需起卦数）
 
   【西洋占星】 (Python C扩展不可用,仅JS)
-  西洋占星/星座/本命盘 →  HoroscopeJS(JS,Kepler+7种宫位制+10种相位,离线快)                             生日必填（需经纬度）
-  西洋占星深析/推运    →  Caelus(JS,29工具:natal_chart/transits/synastry/returns/progressions/composite/sky_events/lots等)  生日必填（需经纬度）
+  西洋占星/星座/本命盘 →  NatalEngine.calculateAstrology(date,utcHour,utcMin,lat,lng) → {bigThree, planets, houses, aspects, elements...}  生日必填（需经纬度）
+  西洋占星合盘/兼容    →  NatalEngine.compareAstrology(chartA,chartB) → {overallScore, aspectHarmony...}  双人生日必填
   日食月食/行星升降    →  Astronomy(JS,VSOP87,零依赖)                                      日期即可
+  备选: HoroscopeJS(JS,本命盘图表) Caelus(JS,原始行星位置,231函数)
 
   【印度/吠陀】 (仅JS)
-  印度占星/吠陀        →  Caelus(JS,nakshatras/dasha/vargas/yogas/dignities等)                      生日必填
+  印度占星/吠陀        →  NatalEngine.calculateVedic(date,utcHour,utcMin,lat,lng) → {moonSign, planets: [{siderealLon, nakshatra, pada, rashi}], dasha...}  生日必填（需经纬度）
+
+  【人类图/Human Design】
+  人类图               →  NatalEngine.calculateHumanDesign(date,utcHour,utcMin) → {type, authority, profile, centers, channels, gates...}  生日必填（无需经纬度）
 
   【人类图/塔罗/其他】
   塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位) → 查777表→Kaabalah.buildKaabalisticMapData()(JS,算全映射:源质+字母+路径+行星全对应); 无需出生
@@ -122,11 +126,12 @@ Available built-in functions (call these from your code):
   • 奇门: QimenEngine(JS,7局法×4流派+断语) — Python侧C扩展已删,仅JS
   • 六爻: ichingshifa(Python,大衍1种) vs IchingShifa(JS,6种起卦)
   • 太玄: taixuanshifa(Python,蓍法1种) vs TaixuanLib(JS,4种起卦)
-  • 西洋占星: HoroscopeJS(JS,本命盘) vs Caelus(JS,29工具全链路). Python C扩展全删
-  • 印度吠陀: Caelus(JS). Python侧全删
+  • 西洋占星: NatalEngine(JS,本命盘+合盘,已解读) — 首选. HoroscopeJS(JS,图表) Caelus(JS,原始位置,231函数)为备选
+  • 印度吠陀: NatalEngine(JS,Lahiri岁差+27星宿+大运). Caelus(JS)为备选
+  • 人类图: NatalEngine(JS,类型/权威/通道/闸门) — 唯一
   • 塔罗: arcanite(Python)78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
   • 卡巴拉/灵数/Gematria/Ifá: JS Kaabalah (Python侧无)
-【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine(西洋+吠陀) | iztro-engine(紫微⭐3841原版)
+【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine | iztro-engine | natalengine-engine(西洋+吠陀+人类图)
   QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
   ZiweiNihai  → eval_javascript(library='ziwei-nihai', code='ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
   IchingShifa → eval_javascript(library='iching-shifa-engine', code='IchingShifa.dayan() 又 lueshifa() 又 timeQiGua({...}) 又 manualQiGua("697887") 又 threeNumberQiGua(a,b,c) 又 numberArrayQiGua(arr,idx); decodePan(yao,{year,month,day,hour})排盘
@@ -135,7 +140,8 @@ Available built-in functions (call these from your code):
   Astronomy   → eval_javascript(library='astronomy-engine', code='Astronomy.BodyPosition("sun", new Date(2026,5,19,14,0,0)) 又 Astronomy.SearchRiseSet("sun", observer, date) 又 Astronomy.SearchLunarEclipse(date) 又 Astronomy.Seasons(2026) 又 Astronomy.MoonPhase(date)  (零随机,VSOP87精度)
   HoroscopeJS → eval_javascript(library='horoscope-engine', code='new HoroscopeJS.Horoscope({origin:new HoroscopeJS.Origin({year:2026,month:5,day:19,hour:14,minute:0,latitude:39.9,longitude:116.4}),houseSystem:"placidus",zodiac:"tropical"})  (零随机,Kepler精度+7宫位制)
   Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calculateGematria("shalom") 又 Kaabalah.buildKaabalisticMapData() 又 Kaabalah.calculateKaabalisticLifePath(...) 又 Kaabalah.calculatePersonalYear(new Date(...)) 又 Kaabalah.calculateOdu()  (零随机,纯JS; 塔罗走arcanite+777表)
-  Caelus(西洋+吠陀) → eval_javascript(library='caelus-engine', code='var e=new Caelus.Engine(Caelus.embeddedData),jd=Caelus.julianDay(y,m,d,h,mi,s); e.longitude(\"sun\",jd) 又 e.houses(\"placidus\",jd,lat,lng) 又 e.positions(jd,lat,lng) → {sun, moon, houses...} 又 Caelus.chartBrief(ctx) 又 Caelus.transits(e,jd0,jd1) 又 Caelus.synastry(e1,e2) 又 Caelus.solarReturn(e,jd) 又 Caelus.progressions(e,jd) 又 Caelus.nakshatras(e,jd) 又 Caelus.dasha(e,jd) 又 Caelus.vargas(e,jd) 又 Caelus.yogas(e,jd) 又 Caelus.dignities(e,jd) 又 Caelus.lots(e,jd) 又 Caelus.profections(e,jd) 又 Caelus.firdaria(e,jd) 又 Caelus.directions(e,jd)  (零依赖VSOP87D,231函数,先new Engine)
+  Caelus(西洋+吠陀) → eval_javascript(...)  (零依赖VSOP87D,231函数,先new Engine)
+  NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-engine', code='NatalEngine.calculateAstrology(\\\"1990-06-15\\\",14.5,0,40.7,-74.0)') 返回 {bigThree:\"Gemini Sun...\", planets:[{sign,house,aspects}], houses:{ascendant,midheaven...}}; 吠陀: NatalEngine.calculateVedic(date,utcH,utcM,lat,lng) → {moonSign, planets:[{siderealLon,nakshatra,pada,rashi}], dasha}; 人类图: NatalEngine.calculateHumanDesign(date,utcH,utcM) → {type,authority,profile,centers,channels,gates}; 合盘: NatalEngine.compareAstrology(chartA,chartB)  (纯JS,基于astronomy-engine VSOP87,已解读输出)
   Iztro(紫微⭐3841) → eval_javascript(library='iztro-engine', code='Iztro.astro.bySolar(\"1990-6-15\",7,\"male\")') 返回 FunctionalAstrolabe 含 .palaces[12] .palace(i) .surroundedPalaces(i).have([\"紫微\"]) .horoscope(date,timeIndex) .soul .body .fiveElementsClass .sign .zodiac; 配置: Iztro.astro.config({dayDivide:\"forward\",yearDivide:\"normal\",algorithm:\"default\"}); 农历盘: Iztro.astro.byLunar(\"1990-5-23\",7,\"male\",false)  (零随机,纯确定性算法)
   返回 JSON，AI 基于真实数据解读。
 """
