@@ -35,7 +35,7 @@ Available built-in functions (call these from your code):
   【奇门三式】
   奇门遁甲            →  问用户选 kinqimen(Python,2局法) 或 QimenEngine(JS,7局法+断语) 或两者一起对照   时家需精确时间
   大六壬              →  kinliuren                                               生日可选
-  小六壬(马前课)       →  手算(lunar_python取月日时后掌诀推算)                     无需出生（需月日时）
+  小六壬(马前课)       →  lunar_python取月日时→掌诀推算(大安留连速喜赤口小吉空亡6掌诀)                    无需出生（需月日时）
   太乙神数            →  kintaiyi                                             生日必填
 
   【象数易】
@@ -53,7 +53,7 @@ Available built-in functions (call these from your code):
   日返/月返/回归盘     →  stellium.returns.builder.ReturnBuilder  ← flatlib                 生日必填
   合盘/推运/比较盘     →  immanuel                   ← kerykeion synastry      双人生日必填
   日食月食/行星升降/升落时间 →  pyswisseph(Python)          ← Astronomy(JS,VSOP87)         日期即可
-  🌟 生成星盘SVG图   →  render_astrology_svg()                              生日必填（需经纬度）
+  🌟 生成星盘SVG图   →  render_astrology_svg(name,year,month,day,hour,minute,lat=39.9,lng=116.4,city="北京",chart_type="Natal",theme=None) → str  生日必填（需经纬度）
 
   【印度/吠陀】
   印度占星/吠陀(南印/北印盘)  →  jhora                      ← stellium.visualization.vedic          生日必填
@@ -96,7 +96,7 @@ Available built-in functions (call these from your code):
   • 仅需日期(不需出生) — 黄历/择日/建除/太岁/节气/农历转换/日食月食
   • 无需任何出生 — 六爻(需起卦数)/梅花(需数字)/太玄/荆诀/塔罗
 
-【双引擎对照规则】⚠️ 易经"初筮告，再三渎"——同一问题只能起一卦。
+【双引擎对照规则】⚠️ 易经"初筮告，再三渎"——同一问题只能起一卦。调用前先 dir() 确认函数存在。
   六爻对照: AI 先调 JS IchingShifa.dayan() 取一次随机得爻值如"697887",
             再调 Python iching.bookgua_details() 或 qigua_manual(年,月,日,时,分,"697887") 用同一爻值排盘,
             两引擎同一卦各自解盘，AI 对比两套解读。异数起两卦 = 违章。
