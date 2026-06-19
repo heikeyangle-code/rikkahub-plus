@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -546,6 +547,19 @@ class ChatService(
                 startGenerationForeground(senderName, conversationId.toString())
             }
 
+            // 监听前后台切换：一切后台立即启动 FG Service 保活
+            val fgJob: Job? = if (settings.displaySetting.enableNotificationOnMessageGeneration) {
+                appScope.launch {
+                    isForeground.drop(1).collect { foreground ->
+                        if (!foreground) {
+                            startGenerationForeground(senderName, conversationId.toString())
+                        } else {
+                            stopGenerationForeground()
+                        }
+                    }
+                }
+            } else null
+
             generationHandler.generateText(
                 settings = settings,
                 model = model,
@@ -823,6 +837,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                 },
             ).onCompletion {
                 // 取消 Live Update 通知 + 前台服务
+                fgJob?.cancel()
                 cancelLiveUpdateNotification(conversationId)
                 stopGenerationForeground()
 
