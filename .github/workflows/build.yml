@@ -367,10 +367,11 @@ jobs:
           mkdir -p /tmp/iztro_build
           cd /tmp && npm pack iztro --pack-destination /tmp/iztro_build 2>&1
           cd /tmp/iztro_build && tar xzf iztro-*.tgz && cd package
+          # iztro 内部依赖 lunar-lite(27KB,农历转换), esbuild打包时需内联
+          npm install lunar-lite 2>&1 | tail -1
           # iztro 是 CJS 模块, lib/index.js 导出 { astro, star, data, util }
-          # 直接 re-export 给 esbuild 打包成 IIFE
           echo 'module.exports = require("./lib/index");' > iztro-entry.cjs
-          npx esbuild iztro-entry.cjs --bundle --platform=node --format=iife --global-name=Iztro --target=es2020 --tree-shaking=false --external:lunar-lite --outfile=iztro-engine.js 2>&1 | tail -3
+          npx esbuild iztro-entry.cjs --bundle --platform=node --format=iife --global-name=Iztro --target=es2020 --tree-shaking=false --outfile=iztro-engine.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp iztro-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Iztro JS engine compiled: $(wc -c < iztro-engine.js) bytes"
