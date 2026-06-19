@@ -133,9 +133,16 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                     jsContext = QuickJSContext.create()
                     // Inject crypto polyfill — QuickJS has no browser/Node crypto object
                     // Used by iching-shifa (dayan/lueshifa) and taixuan-engine (generate/coins/dice/shi)
+                    // Engines call cryptoRandInt(min,max) (injected by CI esbuild banner) which
+                    // uses new Uint32Array(1) + crypto.getRandomValues(r).
+                    // Must fill all 4 bytes of Uint32 elements, not just byte-per-element.
                     jsContext!!.evaluate(
                         "if(typeof crypto==='undefined'){crypto={getRandomValues:function(a){" +
-                        "for(var i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256);return a}}};"
+                        "for(var i=0;i<a.length;i++){" +
+                        "a[i]=(a instanceof Uint32Array)?" +
+                        "((Math.floor(Math.random()*256)|(Math.floor(Math.random()*256)<<8)|" +
+                        "(Math.floor(Math.random()*256)<<16)|(Math.floor(Math.random()*256)<<24))>>>0):" +
+                        "Math.floor(Math.random()*256)}}};}"
                     )
                     // Inject console polyfill — iztro (ziwei-nihai dependency) calls
                     // console.error during module load. QuickJS wrapper's native console
