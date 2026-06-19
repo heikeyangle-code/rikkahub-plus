@@ -78,9 +78,11 @@ jobs:
           python3 ${GITHUB_WORKSPACE}/ci/patch_ichingshifa_ephem.py ichingshifa/ichingshifa.py
           # 纯 Python 替换 numpy (np.array_split)
           python3 ${GITHUB_WORKSPACE}/ci/patch_pyjhora_numpy.py /tmp/ichingshifa_src/ichingshifa/
+          # jieqi.py: 重写为 lunar_python 实现 (ephem C扩展已删, Sun+Ecliptic+Equatorial全依赖ephem)
+          python3 ${GITHUB_WORKSPACE}/ci/patch_ichingshifa_jieqi.py ichingshifa/jieqi.py
           tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz --exclude=".git" . 2>&1
           cd /tmp && rm -rf /tmp/ichingshifa_src
-          echo "ichingshifa full tarball ready (__init__ + ephem.Date patched)"
+          echo "ichingshifa full tarball ready (__init__ + ephem.Date patched + jieqi→lunar_python)"
 
           # kinliuren (大六壬): GitHub克隆,纯Python零依赖(146KB)
           git clone --depth 1 https://github.com/kentang2017/kinliuren.git /tmp/kinliuren_src 2>&1 | tail -1
