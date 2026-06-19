@@ -369,21 +369,6 @@ jobs:
           cp caelus-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Caelus JS engine compiled: $(wc -c < caelus-engine.js) bytes"
 
-      - name: Compile Liuren JS engine (大六壬 — LiuRen TypeScript Library)
-        run: |
-          mkdir -p /tmp/liuren_build
-          cd /tmp && npm pack liuren-ts-lib tyme4ts --pack-destination /tmp/liuren_build 2>&1
-          cd /tmp/liuren_build
-          for f in liuren-ts-lib-*.tgz tyme4ts-*.tgz; do tar xzf "$f"; done
-          # Create entry re-exporting everything
-          cat > liuren-entry.mjs << 'ENTRYEOF'
-          export * from "./package/dist/cjs/index.js";
-          ENTRYEOF
-          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
-          npx esbuild liuren-entry.mjs --bundle --platform=node --format=iife --global-name=Liuren --target=es2020 --outfile=liuren-engine.js 2>&1 | tail -3
-          cp liuren-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
-          echo "Liuren JS engine compiled: $(wc -c < liuren-engine.js) bytes"
-
       - name: Patch PyJHora (ephe path → pyswisseph)
         run: |
           pip download --no-deps --no-binary :all: "PyJHora" -d /tmp/pyjhora_patch

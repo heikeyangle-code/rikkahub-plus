@@ -327,7 +327,7 @@ dependencies {
 val jsEngines = listOf(
     "qimen-engine.js", "ziwei-nihai.js", "iching-shifa-engine.js",
     "taixuan-engine.js", "lunar-engine.js", "astronomy-engine.js",
-    "horoscope-engine.js", "kaabalah-engine.js", "caelus-engine.js", "liuren-engine.js"
+    "horoscope-engine.js", "kaabalah-engine.js", "caelus-engine.js"
 )
 tasks.register("checkJsEngines") {
     doLast {
