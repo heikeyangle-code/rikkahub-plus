@@ -81,7 +81,7 @@ jobs:
           # ichingshifa: PyPI 残缺版缺20函数, 从 GitHub 拉完整源码 + 补 setup.py
           git clone --depth 1 https://github.com/kentang2017/ichingshifa.git /tmp/ichingshifa_src 2>&1 | tail -3
           cd /tmp/ichingshifa_src
-          printf 'from setuptools import setup, find_packages; setup(name="ichingshifa", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
+          printf 'from setuptools import setup; setup(name="ichingshifa", version="0.1", packages=["ichingshifa"], package_dir={"ichingshifa": "src/ichingshifa"}, include_package_data=True)' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           # 真随机: random → secrets (SystemRandom uses OS entropy)
           sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' src/ichingshifa/ichingshifa.py
@@ -96,7 +96,7 @@ jobs:
           git clone --depth 1 https://github.com/kentang2017/kinliuren.git /tmp/kinliuren_src 2>&1 | tail -1
           cd /tmp/kinliuren_src
           python3 -c "import sys; data=open(sys.argv[1],'rb').read(); open(sys.argv[1],'wb').write(data.replace(b'\xef\xbb\xbf', b''))" src/kinliuren/__init__.py
-          printf 'from setuptools import setup, find_packages; setup(name="kinliuren", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
+          printf 'from setuptools import setup; setup(name="kinliuren", version="0.1", packages=["kinliuren"], package_dir={"kinliuren": "src/kinliuren"}, include_package_data=True)' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           tar czf /tmp/pypi-offline/kinliuren-src.tar.gz --exclude=".git" .
           cd /tmp && rm -rf /tmp/kinliuren_src
@@ -104,7 +104,7 @@ jobs:
           # kintaiyi (太乙神数): PyPI空壳, GitHub克隆+注入setup.py
           git clone --depth 1 https://github.com/kentang2017/kintaiyi.git /tmp/kintaiyi_src 2>&1 | tail -1
           cd /tmp/kintaiyi_src
-          printf 'from setuptools import setup, find_packages; setup(name="kintaiyi", version="0.1", packages=find_packages("src"), package_dir={"": "src"}, include_package_data=True)' > setup.py
+          printf 'from setuptools import setup; setup(name="kintaiyi", version="0.1", packages=["kintaiyi"], package_dir={"kintaiyi": "src/kintaiyi"}, include_package_data=True)' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           tar czf /tmp/pypi-offline/kintaiyi-src.tar.gz --exclude=".git" .
           cd /tmp && rm -rf /tmp/kintaiyi_src

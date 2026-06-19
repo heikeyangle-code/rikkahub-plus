@@ -170,8 +170,8 @@ def setup_env(ndk_path, android_python_root):
         "CC": cc_wrapper,
         "CXX": cxx_wrapper,
         "AR": ar,
-        "CFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
-        "CXXFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
+        "CFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include} -DPy_LIMITED_API=0x030e0000",
+        "CXXFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include} -DPy_LIMITED_API=0x030e0000",
         "LDFLAGS": f"--target=aarch64-linux-android21",
         "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared",
         "_PYTHON_HOST_PLATFORM": "aarch64-linux-android",
@@ -412,16 +412,17 @@ def compile_rust_package(pkg, env):
     # Ensure maturin is installed
     run("pip install maturin 2>&1 | tail -3", check=False)
 
-    # Try maturin first
-    log("Trying maturin with PYO3_CROSS_LIB_DIR...")
+    # Try maturin first with abi3 mode (no Python interpreter needed)
+    # PYO3_NO_PYTHON=1 + abi3 produces a stable-ABI .so that works across Python versions
+    log("Trying maturin with PYO3_NO_PYTHON=1 (abi3 mode, no cross-Python needed)...")
+    env['PYO3_NO_PYTHON'] = '1'
     result = run(
         f"cd '{src_dir}' && "
         f"CARGO_BUILD_TARGET=aarch64-linux-android "
         f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
-        f"PYO3_CROSS_LIB_DIR='{env['PYO3_CROSS_LIB_DIR']}' "
-        f"PYO3_CROSS_PYTHON_VERSION='{env['PYO3_CROSS_PYTHON_VERSION']}' "
+        f"PYO3_NO_PYTHON=1 "
         f"maturin build --target aarch64-linux-android "
-        f"--release -o /tmp/wheels/ 2>&1",
+        f"--release --features abi3-py38 -o /tmp/wheels/ 2>&1",
         check=False, timeout=600)
 
     if result.returncode == 0:
