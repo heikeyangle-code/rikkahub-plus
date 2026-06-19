@@ -75,7 +75,7 @@ jobs:
           sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' ichingshifa/ichingshifa.py
           sed -i 's/import pickle, random,/import pickle, secrets,/' ichingshifa/ichingshifa.py
           # ephem.Date → 纯Python: ephem 是已删C扩展, 只用到 Date() 解析日期字符串
-          sed -i 's/from ephem import Date/from datetime import datetime as _dt\ndef Date(s): d=_dt.strptime(str(s),"%Y\/%m\/%d"); return d.timestamp()\/86400.0+2440587.5/' ichingshifa/ichingshifa.py
+          sed -i 's/from ephem import Date/from datetime import datetime as _dt\ndef Date(s):\\n    if isinstance(s,(int,float)): return float(s)\\n    d=_dt.strptime(str(s),"%Y\/%m\/%d %H:%M:%S.%f")\\n    return d.timestamp()\/86400.0+2440587.5/' ichingshifa/ichingshifa.py
           # 纯 Python 替换 numpy (np.array_split)
           python3 ${GITHUB_WORKSPACE}/ci/patch_pyjhora_numpy.py /tmp/ichingshifa_src/ichingshifa/
           tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz --exclude=".git" . 2>&1
