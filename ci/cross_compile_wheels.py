@@ -60,7 +60,7 @@ def download_android_python():
     tf = tarfile.open(fileobj=io.BytesIO(data))
     tf.extractall(dest)
     log(f"Extracted to {dest}")
-    return dest
+    return {"root": dest, "type": "python.org"}
 
 
 def find_or_install_ndk():
