@@ -320,3 +320,26 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+
+// ── JS engine assets check ──
+// CI 通过 .github/workflows/build.yml 的 esbuild 步骤生成这些文件。
+// 本地开发时文件可能不存在，打印明确提示，不阻断构建。
+val jsEngines = listOf(
+    "qimen-engine.js", "ziwei-nihai-engine.js", "iching-shifa-engine.js",
+    "taixuan-engine.js", "lunar-engine.js", "astronomy-engine.js",
+    "horoscope-engine.js", "kaabalah-engine.js"
+)
+tasks.register("checkJsEngines") {
+    doLast {
+        val assetsDir = layout.projectDirectory.dir("src/main/assets")
+        val missing = jsEngines.filter { !assetsDir.file(it).asFile.exists() }
+        if (missing.isNotEmpty()) {
+            logger.warn("⚠️  Missing JS engines (${missing.size}/${jsEngines.size}): ${missing.joinToString(", ")}")
+            logger.warn("    CI builds these via esbuild from npm packages. Local eval_javascript tool will fail until APK is built by CI.")
+            logger.warn("    To build locally: install npm + esbuild, then run CI steps manually or download prebuilt files from CI artifacts.")
+        } else {
+            logger.lifecycle("✅ All ${jsEngines.size} JS engines present in assets/")
+        }
+    }
+}
+tasks.named("preBuild") { dependsOn("checkJsEngines") }

@@ -121,6 +121,7 @@ sealed class LocalToolOption {
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {
     // ── Persistent JS engine ──
+    private val jsExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val jsContextLock = Any()
     @Volatile private var jsContext: QuickJSContext? = null
     private val loadedLibraries = mutableSetOf<String>()
@@ -155,6 +156,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 "- Load a JS engine: action='load', library='qimen-engine' (loads once, cached)\n" +
                 "- Call engine: action='eval', code='QimenEngine.generate({...})'\n" +
                 "- Reset context: action='reset' (clears all loaded libraries)\n\n" +
+                "Available JS engines (action='load', library=...):\n" +
+                "  qimen-engine (QiMen) | ziwei-nihai-engine (ZiweiNihai) | iching-shifa-engine (IchingShifa) | taixuan-engine (TaixuanLib)\n" +
+                "  lunar-engine (Lunar) | astronomy-engine (Astronomy) | horoscope-engine (HoroscopeJS) | kaabalah-engine (Kaabalah)\n\n" +
                 "Args:\n" +
                 "- action: 'eval' (default) | 'load' | 'reset'\n" +
                 "- library: asset filename without .js (for action='load') — loads once, cached\n" +
@@ -204,9 +208,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 val timeoutSec = (it.jsonObject["timeout"]?.jsonPrimitive?.contentOrNull ?: "30").toLongOrNull() ?: 30L
                 val safeTimeout = minOf(timeoutSec, 60L)
 
-                val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+                var future: java.util.concurrent.Future<String>? = null
                 try {
-                    val future = executor.submit<String> {
+                    future = jsExecutor.submit<String> {
                         when (action) {
                             "reset" -> {
                                 resetJSContext()
@@ -258,16 +262,15 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                             }
                         }
                     }
-                    val resultStr = future.get(safeTimeout, java.util.concurrent.TimeUnit.SECONDS)
+                    val resultStr = future!!.get(safeTimeout, java.util.concurrent.TimeUnit.SECONDS)
                     val payload = buildJsonObject {
                         if (logs.isNotEmpty()) put("logs", JsonPrimitive(logs.joinToString("\n")))
                         put("result", JsonPrimitive(resultStr))
                     }
                     listOf(UIMessagePart.Text(payload.toString()))
                 } catch (e: java.util.concurrent.TimeoutException) {
+                    future?.cancel(true)
                     error("JavaScript execution timed out after ${safeTimeout}s")
-                } finally {
-                    executor.shutdownNow()
                 }
             }
         )
