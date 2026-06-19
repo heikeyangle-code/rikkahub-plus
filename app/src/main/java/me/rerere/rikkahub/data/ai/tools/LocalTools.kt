@@ -7,11 +7,13 @@ import com.whl.quickjs.wrapper.QuickJSObject
 import java.security.SecureRandom
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -148,9 +150,14 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                         "for(var i=0;i<a.length;i++)a[i]=__hardwareRandU32();return a}};"
                     )
 
-                    // ── Console no-op — bypasses wrapper's native stdout check ──
+                    // ── Console wired to tool logs via JS array ──
+                    // After eval, __console_logs is extracted and cleared
                     jsContext!!.evaluate(
-                        "console={log:function(){},error:function(){},warn:function(){},info:function(){}};"
+                        "var __console_logs=[];" +
+                        "console={log:function(){for(var i=0;i<arguments.length;i++)__console_logs.push(String(arguments[i]))}," +
+                        "error:function(){for(var i=0;i<arguments.length;i++)__console_logs.push('[ERROR] '+String(arguments[i]))}," +
+                        "warn:function(){for(var i=0;i<arguments.length;i++)__console_logs.push('[WARN] '+String(arguments[i]))}," +
+                        "info:function(){for(var i=0;i<arguments.length;i++)__console_logs.push('[INFO] '+String(arguments[i]))}};"
                     )
                 }
             }
@@ -226,7 +233,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 val library = it.jsonObject["library"]?.jsonPrimitive?.contentOrNull
                 val code = it.jsonObject["code"]?.jsonPrimitive?.contentOrNull
                 val funcName = it.jsonObject["function"]?.jsonPrimitive?.contentOrNull
-                val rawArgs = it.jsonObject["args"]?.jsonObject
+                val rawArgs = it.jsonObject["args"]?.toString() // works for both arrays and objects
                 val timeoutSec = (it.jsonObject["timeout"]?.jsonPrimitive?.contentOrNull ?: "30").toLongOrNull() ?: 30L
                 val safeTimeout = minOf(timeoutSec, 60L)
 
@@ -254,34 +261,35 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                             }
                             else -> {
                                 val ctx = getOrCreateJSContext()
-                                // Execute code if provided
-                                if (!code.isNullOrBlank()) {
-                                    logs.add("[INFO] exec: ${code.take(100)}...")
+                                // Execute code — QuickJS evaluate() returns last expression value
+                                val codeResult = if (!code.isNullOrBlank()) {
+                                    logs.add("[INFO] eval: ${code.take(100)}...")
                                     ctx.evaluate(code)
-                                }
-                                // Call function if specified, evaluate code otherwise
-                                val jsResult = if (funcName != null) {
-                                    val argsJson = rawArgs?.toString() ?: "[]"
-                                    ctx.evaluate("$funcName.apply(null, $argsJson)")
-                                } else if (!code.isNullOrBlank()) {
-                                    null  // result already captured in evaluate
-                                } else {
-                                    null
-                                }
-                                // Get the last expression result
-                                val finalResult = if (funcName != null) jsResult else {
-                                    // Re-evaluate to capture result — take only last expression after final ;
-                                    val lastExpr = code?.lines()?.lastOrNull()?.trim()
-                                        ?.substringAfterLast(';')?.trim()
-                                    if (!lastExpr.isNullOrBlank() && !lastExpr.startsWith("//")) {
-                                        ctx.evaluate("($lastExpr)")
-                                    } else null
-                                }
-                                when (finalResult) {
+                                } else null
+
+                                // Call function if specified (with safe arg binding)
+                                val funcResult = if (funcName != null) {
+                                    val argsJson = rawArgs ?: "[]"
+                                    // Bind args via temp global to avoid string escaping in eval
+                                    ctx.evaluate("__js_args = $argsJson")
+                                    ctx.evaluate("$funcName.apply(null, __js_args)")
+                                } else null
+
+                                val finalResult = funcResult ?: codeResult
+                                val resultStr = when (finalResult) {
                                     null -> "ok"
                                     is QuickJSObject -> finalResult.stringify()
                                     else -> finalResult.toString()
                                 }
+                                // Extract console.log output from JS array
+                                try {
+                                    val jsLogs = ctx.evaluate("var _l=__console_logs;__console_logs=[];JSON.stringify(_l)")
+                                    if (jsLogs is String && jsLogs != "[]") {
+                                        val arr = kotlinx.serialization.json.Json.parseToJsonElement(jsLogs).jsonArray
+                                        arr.forEach { logs.add("[js] ${it.jsonPrimitive.content}") }
+                                    }
+                                } catch (_: Exception) { /* console extraction best-effort */ }
+                                resultStr
                             }
                         }
                     }
@@ -297,10 +305,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 } catch (e: Exception) {
                     future?.cancel(true)
                     val msg = e.message ?: e.toString()
-                    try {
-                        jsExecutor.submit { resetJSContext() }.get(5, java.util.concurrent.TimeUnit.SECONDS)
-                    } catch (_: Exception) {}
-                    error("JavaScript error (context auto-reset): $msg")
+                    error("JavaScript error: $msg")
                 }
             }
         )
