@@ -57,7 +57,7 @@ Available built-in functions (call these from your code):
   【人类图/Human Design】
   人类图               →  NatalEngine.calculateHumanDesign(date,utcHour,utcMin) → {type, authority, profile, centers, channels, gates...}  生日必填（无需经纬度）
 
-  【塔罗/雷曼/其他】
+  【塔罗/雷诺曼/其他】
   塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位), 规则见下
                          【抽牌即含9层数据, 勿只给简单解读, 按用户场景取对应层】
                          1.core_meanings      正位(upright)+逆位(reversed)核心含义(各6组关键词+详细解读)
@@ -70,7 +70,7 @@ Available built-in functions (call these from your code):
                          8.meditation_focus   冥想指引
                          9.card_relationships 6种牌间关系: amplifies(增幅) | challenges(挑战) | clarifies(澄清) | similar_energy(同类) | opposite_energy(对立) | learning_sequence(学习序列)
                          搭配: 深度→查777表→Kaabalah.buildKaabalisticMapData()(JS,全映射:源质+字母+路径+行星)
-  雷曼/雷诺曼         →  arcanite(system="lenormand") 36张; 数据层:
+  雷诺曼         →  arcanite(system="lenormand") 36张; 数据层:
                          core(keywords/charge/category/topics) | timing(thematic/duration/season/speed/direction)
                          as_person(牌的人物性格描述) | modifier_behavior(type/as_modifier/as_modified,修饰牌联动规则)
                          playing_card(对应扑克牌,如9♥) | topic_contexts(love/career/health/finances/spiritual)
@@ -103,7 +103,7 @@ Available built-in functions (call these from your code):
   meihua_yi           →  from meihua_yi import book; print(dir(book))        # 梅花起卦查询
   arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(3); [print(c.card_name,c.orientation.value) for c in cards]
                        深度数据: [d.get_card(c.card_id)._data[k] for c in cards for k in ["core_meanings","symbols","question_contexts","position_interpretations","elemental_correspondences","affirmations","journaling_prompts","meditation_focus","card_relationships"]]
-                       雷曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(5); [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
+                       雷诺曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(5); [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
