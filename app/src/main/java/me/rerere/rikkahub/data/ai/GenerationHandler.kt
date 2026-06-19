@@ -171,7 +171,7 @@ class GenerationHandler(
                 appendLine("<mingli_routing>")
                 appendLine("命理/玄学一律走 execute_python。各术数首选库（详细路由见 executor.py docstring）：")
                 appendLine("【中华正统】八字/四柱/大运→lunar_python.EightChar(备:bazi_china)  紫微斗数→问用户选Iztro(⭐3841原版JS,权威基准)或ziwei_paipan(Python port)或ZiweiNihai(倪海夏天纪)或多方对照")
-                appendLine("【奇门三式】奇门遁甲→QimenEngine(JS,7局法×4流派+断语) | 大六壬→kinliuren | 太乙神数→(不可用) | 小六壬→lunar_python取月日时→掌诀推算(大安留连速喜赤口小吉空亡)")
+                appendLine("【奇门三式】奇门遁甲→QimenEngine(JS,7局法×4流派+断语) | 大六壬→kinliuren | 小六壬→lunar_python取月日时→掌诀推算(大安留连速喜赤口小吉空亡)")
                 appendLine("【象数易】太玄筮法→问用户选taixuanshifa(Python)或TaixuanLib(JS,4种起卦)或对照(JS取code→Python pan_from_code) | 荆诀→jingjue")
                 appendLine("【六爻/卦】六爻/周易→问用户选ichingshifa(Python,大衍筮法)或IchingShifa(JS,6种)或对照 | 梅花易数→meihua_yi")
                 appendLine("【西洋占星】HoroscopeJS(JS,本命盘Kepler+7宫位制) | Caelus(JS,29工具全链路:natal_chart/transits/synastry/returns/composite等) | 日食月食→Astronomy(JS,VSOP87) | Python C扩展全删")

@@ -36,7 +36,6 @@ Available built-in functions (call these from your code):
   奇门遁甲            →  QimenEngine(JS,7局法+断语,拆补+茅山+置闰×时/日/月/年4流派+十干克应)                 时家需精确时间
   大六壬              →  kinliuren                                               生日可选
   小六壬(马前课)       →  lunar_python取月日时→掌诀推算(大安留连速喜赤口小吉空亡6掌诀)                    无需出生（需月日时）
-  太乙神数            →  (不可用: kintaiyi依赖ephem/numpy/kerykeion/astropy已全删)                     —
 
   【象数易】
   太玄筮法            →  问用户选 taixuanshifa(Python) 或 TaixuanLib(JS,4种起卦) 或对照(JS取随机得code→Python pan_from_code(code))   无需出生
