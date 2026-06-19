@@ -3,7 +3,7 @@
 import os, re, sys
 
 ARRAY_SPLIT_HELPER = '''
-def __array_split(lst, n):
+def _array_split(lst, n):
     """Pure Python equivalent of np.array_split(lst, n)."""
     k, m = divmod(len(lst), n)
     return [lst[i*k+min(i,m):(i+1)*k+min(i+1,m)] for i in range(n)]
@@ -62,7 +62,7 @@ def patch_file(fp):
     c = c.replace("np.rint(dk * (100.0 / 60.0)).astype(int)",
         "[[int(round(v * (100.0/60.0))) for v in row] for row in dk]")
     c = _replace_datetime(c)
-    c = re.sub(r'np\.array_split\(([^,]+),\s*(\d+)\)', r'__array_split(\1,\2)', c)
+    c = re.sub(r'np\.array_split\(([^,]+),\s*(\d+)\)', r'_array_split(\1,\2)', c)
     c = re.sub(r'np\.copy\(([^)]+)\)', r'\1[:]', c)
     c = re.sub(r'np\.any\(([^,]+),\s*axis\s*=\s*0\)', r'[any(col) for col in zip(*\1)]', c)
     c = re.sub(r'np\.nan\b', 'float("nan")', c)
