@@ -678,7 +678,7 @@
   <string name="setting_display_page_show_datetime_in_message_title">Show Date and Time in Message</string>
   <string name="setting_display_page_show_line_numbers_desc">Display line numbers in code blocks</string>
   <string name="setting_display_page_show_line_numbers_title">Show Line Numbers</string>
-  <string name="setting_display_page_enable_text_color_desc">Colorize quotes, italics, and underline text</string>
+  <string name="setting_display_page_enable_text_color_desc">Colorize quotes and italics text</string>
   <string name="setting_display_page_enable_text_color_title">Text Coloring</string>
   <string name="setting_display_page_text_color_quote_title">Quote Color</string>
   <string name="setting_display_page_text_color_italics_title">Italics Color</string>
