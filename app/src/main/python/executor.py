@@ -57,8 +57,25 @@ Available built-in functions (call these from your code):
   【人类图/Human Design】
   人类图               →  NatalEngine.calculateHumanDesign(date,utcHour,utcMin) → {type, authority, profile, centers, channels, gates...}  生日必填（无需经纬度）
 
-  【人类图/塔罗/其他】
-  塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位) → 查777表→Kaabalah.buildKaabalisticMapData()(JS,算全映射:源质+字母+路径+行星全对应); 无需出生
+  【塔罗/雷曼/其他】
+  塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位), 规则见下
+                         【抽牌即含9层数据, 勿只给简单解读, 按用户场景取对应层】
+                         1.core_meanings      正位(upright)+逆位(reversed)核心含义(各6组关键词+详细解读)
+                         2.position_interpretations 7种牌位: temporal_positions(过去现在未来) | challenge_and_growth(挑战成长) | guidance_and_action(行动建议) | emotional_and_internal(情感内在) | external_influences(外部影响) | outcome_and_result(结果) | relationships(人际关系)
+                         3.question_contexts  5种场景: love(爱情) | career(事业) | spiritual(灵性) | financial(财务) | health(健康) — 每个含3种解读(关键词/详细/建议)
+                         4.elemental_correspondences 10项: element元素 | zodiac星座 | hebrew_letter希伯来字母 | numerology灵数 | planet行星 | season季节 | time_of_day时辰 | colors颜色 | crystals水晶 | herbs草药
+                         5.symbols            牌面符号逐个解读(每牌5-8个符号)
+                         6.affirmations       4条肯定语
+                         7.journaling_prompts 4条日记提示
+                         8.meditation_focus   冥想指引
+                         9.card_relationships 6种牌间关系: amplifies(增幅) | challenges(挑战) | clarifies(澄清) | similar_energy(同类) | opposite_energy(对立) | learning_sequence(学习序列)
+                         搭配: 深度→查777表→Kaabalah.buildKaabalisticMapData()(JS,全映射:源质+字母+路径+行星)
+  雷曼/雷诺曼         →  arcanite(system=\\\"lenormand\\\") 36张; 数据层:
+                         core(keywords/charge/category/topics) | timing(速度/季节/时长/方向)
+                         topic_contexts(love/career/health/finances/spiritual) | line_reading(首牌/中牌/末牌)
+                         combination_grammar(配牌语法+正/负/人物/物件牌联动) | combinations(16组固定组合)
+                         grand_tableau(大桌牌阵:宫位/近征象/远征象/对角). 同样读card.core/card.timing等字段
+                         无需出生
 
   【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机; 灵数/卡巴拉/Gematria/Ifá Python侧无)
   生命灵数/流年/挑战数  →  Kaabalah.calculatePersonalYear({day,month,year}) 又 calculatePersonalMonths 又 calculatePersonalCycles 又 calculateChallenges 又 reduceToSingle 又 getDateEnergies  生日即可
