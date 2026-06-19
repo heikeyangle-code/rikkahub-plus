@@ -101,8 +101,8 @@ Available built-in functions (call these from your code):
     ganzhi.Zhi[:12]          → ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']
     datas.shengxiaos[zhi]    → 该地支的生肖名 (如datas.shengxiaos['子']→'鼠')
     shengxiao.output(des,key)→ 打印生肖合/冲/刑/害关系 (shengxiao.py CLI工具)
-    sizi.summarys            → 120项四柱解盘字典 (按干支索引)
-    yue.months[ganzhi_str]  → 流月详解 (如yue.months['甲寅']→正月甲木详解, 键为干支月柱)
+    sizi.summarys            → 120项四柱解盘字典 (ai自己探索sizi.summarys.keys()查看可用键)
+    yue.months[月柱]         → 流月详解 (键为月柱干支如'甲寅', 从lunar_python EightChar.getMonth()取值)
   注: bazi.py(2549行)是CLI工具(argparse入口),非库API; 八字排盘直接用 lunar_python.EightChar
   节气和天文          →  lunar_python               ← cnlunar                  日期即可
 
