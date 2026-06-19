@@ -270,9 +270,10 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                                 }
                                 // Get the last expression result
                                 val finalResult = if (funcName != null) jsResult else {
-                                    // Re-evaluate to capture result
+                                    // Re-evaluate to capture result — take only last expression after final ;
                                     val lastExpr = code?.lines()?.lastOrNull()?.trim()
-                                    if (lastExpr != null && !lastExpr.startsWith("//")) {
+                                        ?.substringAfterLast(';')?.trim()
+                                    if (!lastExpr.isNullOrBlank() && !lastExpr.startsWith("//")) {
                                         ctx.evaluate("($lastExpr)")
                                     } else null
                                 }
