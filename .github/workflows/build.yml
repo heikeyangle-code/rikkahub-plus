@@ -94,18 +94,21 @@ jobs:
           cd /tmp && rm -rf /tmp/kinliuren_src
           echo "kinliuren from GitHub ready (146KB, __init__ fixed)"
 
-          # taixuanshifa (太玄筮法): PyPI空壳, GitHub克隆+注入setup.py (根目录.py, 非src/)
+          # taixuanshifa (太玄筮法): PyPI空壳, GitHub克隆+注入setup.py
+          # Fix: 用packages代替py_modules, data/自动随包部署 (py_modules不处理package_data)
           git clone --depth 1 https://github.com/kentang2017/taixuanshifa.git /tmp/taixuanshifa_src 2>&1 | tail -1
           cd /tmp/taixuanshifa_src
-          printf 'from setuptools import setup; setup(name="taixuanshifa", version="0.1", py_modules=["taixuanshifa","app","__init__"], package_data={"": ["data/*"]})' > setup.py
+          mkdir -p taixuanshifa && mv taixuanshifa.py taixuanshifa/__init__.py && mv app.py taixuanshifa/ 2>/dev/null || true
+          mv data taixuanshifa/data
+          printf 'from setuptools import setup; setup(name="taixuanshifa", version="0.1", packages=["taixuanshifa"], package_data={"taixuanshifa": ["data/*"]})' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           # 真随机: random → secrets
-          sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' taixuanshifa.py
-          sed -i 's/import random, pickle,/import secrets, pickle,/' taixuanshifa.py
-          # Fix: __file__ → pkgutil.get_data for Android compat (Chaquopy .imy virtual FS)
-          sed -i 's|root = os.path.abspath(os.path.dirname(__file__))|root = os.path.dirname(os.path.abspath(__file__))|' taixuanshifa.py
-          python3 ${GITHUB_WORKSPACE}/ci/patch_taixuanshifa_inject.py taixuanshifa.py
-          grep "pan_from_code" taixuanshifa.py && echo "OK: pan_from_code injected" || echo "FAIL: injection missed"
+          sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' taixuanshifa/__init__.py
+          sed -i 's/import random, pickle,/import secrets, pickle,/' taixuanshifa/__init__.py
+          # Fix: __file__ 路径适配新包结构
+          sed -i 's|root = os.path.abspath(os.path.dirname(__file__))|root = os.path.dirname(os.path.abspath(__file__))|' taixuanshifa/__init__.py
+          python3 ${GITHUB_WORKSPACE}/ci/patch_taixuanshifa_inject.py taixuanshifa/__init__.py
+          grep "pan_from_code" taixuanshifa/__init__.py && echo "OK: pan_from_code injected" || echo "FAIL: injection missed"
           tar czf /tmp/pypi-offline/taixuanshifa-src.tar.gz --exclude=".git" .
           cd /tmp && rm -rf /tmp/taixuanshifa_src
 
@@ -151,6 +154,8 @@ jobs:
           python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_pydantic_v1.py "$dir/src/arcanite/core/models.py"
           # pydantic metadata: 改 dependency 声明避免 pip 解析冲突 (sed 避 yaml colon)
           sed -i 's/"pydantic>=2.0"/"pydantic<2.0"/' "$dir/pyproject.toml"
+          # Lenormand card_id/id 兼容: 塔罗用card_id, 雷诺曼用id (字段名不同, 都需支持)
+          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_lenormand.py "$dir/src/arcanite/core/deck.py"
           # Fix: preserve original __init__.py structure, only strip broken imports (render/prompts/images)
           # Instead of full rewrite, keep original and just comment out unavailable subpackages
           if [ -f "$dir/src/arcanite/__init__.py" ]; then

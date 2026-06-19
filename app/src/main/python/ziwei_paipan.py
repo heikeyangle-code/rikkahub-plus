@@ -986,6 +986,8 @@ def by_solar(solar_date: str, time_index: int, gender: str, fix_leap: bool = Tru
     通过阳历日期排紫微斗数命盘
     1:1 对照 iztro bySolar
     """
+    # 性别归一化：接受 '男'/'女' 或 'male'/'female'/'M'/'F'
+    gender = '男' if gender in ('男', 'male', 'M', 'm') else '女'
     result = AstrolabeResult()
     result.solar_date = solar_date
     result.time_index = time_index
