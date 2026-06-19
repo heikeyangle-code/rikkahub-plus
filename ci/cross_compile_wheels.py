@@ -545,6 +545,21 @@ def main():
         for p in PACKAGES:
             if p["name"] in f:
                 log(f"  {f} ({os.path.getsize(os.path.join(OFFLINE_PKGS, f))} bytes)")
+
+    # ── Copy libc++_shared.so to APK jniLibs ──
+    # Cross-compiled .so files link against libc++_shared.so (NDK C++ runtime).
+    # Chaquopy doesn't auto-bundle it for locally-built wheels, so Android's
+    # dynamic linker fails with "library not found" at import time.
+    toolchain = os.path.join(ndk_path, "toolchains", "llvm", "prebuilt", "linux-x86_64")
+    libcxx_src = os.path.join(toolchain, "sysroot", "usr", "lib", "aarch64-linux-android", "libc++_shared.so")
+    jni_libs_dir = os.path.join(WORKSPACE, "app", "src", "main", "jniLibs", "arm64-v8a")
+    os.makedirs(jni_libs_dir, exist_ok=True)
+    shutil.copy2(libcxx_src, os.path.join(jni_libs_dir, "libc++_shared.so"))
+    log(f"\n✅ Copied libc++_shared.so to {jni_libs_dir}")
+    for so in os.listdir(jni_libs_dir):
+        path = os.path.join(jni_libs_dir, so)
+        log(f"   {so} ({os.path.getsize(path)} bytes)")
+
     log("\nDone!")
 
 

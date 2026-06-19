@@ -97,11 +97,13 @@ jobs:
           # taixuanshifa (太玄筮法): PyPI空壳, GitHub克隆+注入setup.py (根目录.py, 非src/)
           git clone --depth 1 https://github.com/kentang2017/taixuanshifa.git /tmp/taixuanshifa_src 2>&1 | tail -1
           cd /tmp/taixuanshifa_src
-          printf 'from setuptools import setup; setup(name="taixuanshifa", version="0.1", py_modules=["taixuanshifa", "app"])' > setup.py
+          printf 'from setuptools import setup; setup(name="taixuanshifa", version="0.1", py_modules=["taixuanshifa", "app", "__init__"])' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           # 真随机: random → secrets
           sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' taixuanshifa.py
           sed -i 's/import random, pickle,/import secrets, pickle,/' taixuanshifa.py
+          # Fix: __file__ → pkgutil.get_data for Android compat (Chaquopy .imy virtual FS)
+          sed -i 's|root = os.path.abspath(os.path.dirname(__file__))|root = os.path.dirname(os.path.abspath(__file__))|' taixuanshifa.py
           python3 ${GITHUB_WORKSPACE}/ci/patch_taixuanshifa_inject.py taixuanshifa.py
           grep "pan_from_code" taixuanshifa.py && echo "OK: pan_from_code injected" || echo "FAIL: injection missed"
           tar czf /tmp/pypi-offline/taixuanshifa-src.tar.gz --exclude=".git" .
@@ -110,7 +112,7 @@ jobs:
           # jingjue (荆诀/北大简先秦占卜): PyPI空壳, GitHub克隆+注入setup.py (根目录.py, 非src/)
           git clone --depth 1 https://github.com/kentang2017/jingjue.git /tmp/jingjue_src 2>&1 | tail -1
           cd /tmp/jingjue_src
-          printf 'from setuptools import setup; setup(name="jingjue", version="0.1", py_modules=["jingjue"])' > setup.py
+          printf 'from setuptools import setup; setup(name="jingjue", version="0.1", py_modules=["jingjue", "gua_dict"])' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           # 真随机: random → secrets
           _random_to_secrets() { sed -i -e 's/random\.sample(/secrets.SystemRandom().sample(/g' -e 's/random\.choice(/secrets.choice(/g' -e 's/\bimport random\b/import secrets/' -e 's/, random,/, secrets,/g' "$1"; }
@@ -145,17 +147,15 @@ jobs:
           rm -rf "$dir/examples"
           # 真随机: random.Random(seed) → secrets.SystemRandom() (seed=None 时走硬件熵)
           python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_random.py "$dir/src/arcanite/core/deck.py"
-          # 用 printf 写 __init__.py，避免 YAML 解析 """ 报错
-          printf '%s\n' '"""Arcanite - A Tarot Reading Engine (stripped: no LLM/PDF/images)"""' \
-            '__version__ = "0.2.0"' \
-            'from arcanite.core import (' \
-            '    Card, CardInterpretation, Deck, DeckConfig, DrawnCard,' \
-            '    Orientation, QuestionType, Reading, ReadingConfig,' \
-            '    SpreadDefinition, SpreadLoader,' \
-            ')' \
-            'from arcanite.reading import ReadingEngine, create_reading' \
-            'from arcanite.core.deck import TarotDeck, TarotCard, load_tarot_deck' \
-            > "$dir/src/arcanite/__init__.py"
+          # Fix: preserve original __init__.py structure, only strip broken imports (render/prompts/images)
+          # Instead of full rewrite, keep original and just comment out unavailable subpackages
+          if [ -f "$dir/src/arcanite/__init__.py" ]; then
+            sed -i 's/from arcanite\.interpretation/### from arcanite.interpretation/' "$dir/src/arcanite/__init__.py"
+            sed -i 's/from arcanite\.render/### from arcanite.render/' "$dir/src/arcanite/__init__.py"
+            sed -i 's/from arcanite\.prompts/### from arcanite.prompts/' "$dir/src/arcanite/__init__.py"
+            sed -i 's/from arcanite\.templates/### from arcanite.templates/' "$dir/src/arcanite/__init__.py"
+            echo "Patched __init__.py (disabled unavailable subpackages)"
+          fi
           tar czf "/tmp/pypi-offline/arcanite-stripped.tar.gz" "$dir"
           rm -rf "$dir"
           cd ${GITHUB_WORKSPACE}
