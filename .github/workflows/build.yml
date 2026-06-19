@@ -367,7 +367,7 @@ jobs:
           mkdir -p /tmp/iztro_build
           cd /tmp && npm pack iztro --pack-destination /tmp/iztro_build 2>&1
           cd /tmp/iztro_build && tar xzf iztro-*.tgz && cd package
-          # iztro 内部依赖 lunar-lite(27KB,农历转换), esbuild打包时需内联
+          # iztro 核心9个模块依赖 lunar-lite(农历转换), 必须安装
           npm install lunar-lite 2>&1 | tail -1
           # iztro 是 CJS 模块, lib/index.js 导出 { astro, star, data, util }
           echo 'module.exports = require("./lib/index");' > iztro-entry.cjs
