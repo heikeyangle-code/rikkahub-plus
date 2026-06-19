@@ -296,7 +296,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 } catch (e: Exception) {
                     future?.cancel(true)
                     val msg = e.message ?: e.toString()
-                    resetJSContext()
+                    try {
+                        jsExecutor.submit { resetJSContext() }.get(5, java.util.concurrent.TimeUnit.SECONDS)
+                    } catch (_: Exception) {}
                     error("JavaScript error (context auto-reset): $msg")
                 }
             }
