@@ -290,10 +290,11 @@ private fun ChatListNormal(
                 }
             }
 
-            // 生成中持续跟滚，除非用户手动滑走了
+            // 生成中持续跟滚，除非用户手动滑走了（用瞬间滚动避免反复取消动画卡顿）
             LaunchedEffect(conversationUpdated.messageNodes.lastIndex) {
-                if (loadingState && !userScrolledAway && !state.isScrollInProgress) {
-                    state.animateScrollToItem(conversationUpdated.messageNodes.lastIndex)
+                val idx = conversationUpdated.messageNodes.lastIndex
+                if (idx >= 0 && loadingState && !userScrolledAway && !state.isScrollInProgress) {
+                    state.scrollToItem(idx)
                 }
             }
 
