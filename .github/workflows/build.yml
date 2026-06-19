@@ -320,7 +320,7 @@ jobs:
           cd /tmp && npm pack circular-natal-horoscope-js --pack-destination /tmp/horoscope_build 2>&1
           cd /tmp/horoscope_build && tar xzf circular-natal-horoscope-js-*.tgz && cd package
           echo 'export * from "./dist/index";' > horoscope-entry.mjs
-          npx esbuild horoscope-entry.mjs --bundle --platform=node --format=iife --global-name=HoroscopeJS --target=es2020 --tree-shaking=false --outfile=horoscope-engine.js 2>&1 | tail -3
+          npx esbuild horoscope-entry.mjs --bundle --platform=node --format=iife --global-name=HoroscopeJS --target=es2020 --tree-shaking=true --outfile=horoscope-engine.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp horoscope-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Horoscope JS engine compiled: $(wc -c < horoscope-engine.js) bytes"
@@ -365,9 +365,10 @@ jobs:
           cd /tmp && npm pack caelus --pack-destination /tmp/caelus_build 2>&1
           cd /tmp/caelus_build && tar xzf caelus-*.tgz && cd package
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
-          # Find the ESM entry — caelus is pure TS, zero deps, 97KB
-          # Use the data-embedded entry for self-contained bundle
-          npx esbuild dist/src/index.js --bundle --platform=node --format=iife --global-name=Caelus --target=es2020 --tree-shaking=false --outfile=caelus-engine.js 2>&1 | tail -3
+          # data-embedded.js is NOT re-exported by index.js — create custom entry
+          echo 'export * from "./dist/src/index.js";' > caelus-entry.mjs
+          echo 'export { embeddedData } from "./dist/src/data-embedded.js";' >> caelus-entry.mjs
+          npx esbuild caelus-entry.mjs --bundle --platform=node --format=iife --global-name=Caelus --target=es2020 --tree-shaking=false --outfile=caelus-engine.js 2>&1 | tail -3
           cp caelus-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Caelus JS engine compiled: $(wc -c < caelus-engine.js) bytes"
 
