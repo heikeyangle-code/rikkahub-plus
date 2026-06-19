@@ -69,7 +69,7 @@ jobs:
           mv src/ichingshifa ./ichingshifa && rm -rf src
           # Fix empty __init__.py (original is 1-byte newline → no exports)
           printf 'from .ichingshifa import *\nfrom .d import *\nfrom .jieqi import *\n' > ichingshifa/__init__.py
-          printf 'from setuptools import setup; setup(name="ichingshifa", version="0.1", packages=["ichingshifa"])' > setup.py
+          printf 'from setuptools import setup; setup(name="ichingshifa", version="0.1", packages=["ichingshifa"], package_data={"ichingshifa": ["*.pkl"]})' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           # 真随机: random → secrets (SystemRandom uses OS entropy)
           sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' ichingshifa/ichingshifa.py
