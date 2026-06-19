@@ -94,15 +94,9 @@ jobs:
           cd /tmp && rm -rf /tmp/ichingshifa_src
           echo "ichingshifa full tarball ready"
 
-          # kinliuren (大六壬): PyPI空壳, GitHub克隆+注入setup.py
-          git clone --depth 1 https://github.com/kentang2017/kinliuren.git /tmp/kinliuren_src 2>&1 | tail -1
-          cd /tmp/kinliuren_src
-          mv src/kinliuren ./kinliuren && rm -rf src
-          python3 -c "import sys; data=open(sys.argv[1],'rb').read(); open(sys.argv[1],'wb').write(data.replace(b'\xef\xbb\xbf', b''))" kinliuren/__init__.py
-          printf 'from setuptools import setup; setup(name="kinliuren", version="0.1", packages=["kinliuren"])' > setup.py
-          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
-          tar czf /tmp/pypi-offline/kinliuren-src.tar.gz --exclude=".git" .
-          cd /tmp && rm -rf /tmp/kinliuren_src
+          # kinliuren (大六壬): PyPI完整版1939行(纯Python零依赖), 不用GitHub空壳
+          pip download --no-deps --no-binary :all: kinliuren==0.1.2.9 -d /tmp/pypi-offline 2>&1 | tail -1
+          echo "kinliuren 0.1.2.9 from PyPI ready"
 
           # kintaiyi (太乙神数): PyPI空壳, GitHub克隆+注入setup.py
           git clone --depth 1 https://github.com/kentang2017/kintaiyi.git /tmp/kintaiyi_src 2>&1 | tail -1

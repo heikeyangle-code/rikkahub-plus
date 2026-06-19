@@ -31,7 +31,7 @@ chaquopy {
             install(file("offline_pkgs/sxtwl-2.0.6-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)
             install("cnlunar")
             install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // ⭐254 周易筮法/六爻
-            install(file("offline_pkgs/kinliuren-src.tar.gz").absolutePath) // 大六壬
+            install(file("offline_pkgs/kinliuren-0.1.2.9.tar.gz").absolutePath) // 大六壬
             install(file("offline_pkgs/kintaiyi-src.tar.gz").absolutePath) // 太乙神数
             install(file("offline_pkgs/taixuanshifa-src.tar.gz").absolutePath) // ⭐10 太玄筮法
             install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // ⭐6 荆诀（北大简先秦占卜）
