@@ -149,6 +149,8 @@ jobs:
           python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_random.py "$dir/src/arcanite/core/deck.py"
           # pydantic v2→v1: 降级 models.py 以消除 pydantic_core Rust C扩展依赖
           python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_pydantic_v1.py "$dir/src/arcanite/core/models.py"
+          # pydantic metadata: 改 dependency 声明避免 pip 解析冲突 (sed 避 yaml colon)
+          sed -i 's/"pydantic>=2.0"/"pydantic<2.0"/' "$dir/pyproject.toml"
           # Fix: preserve original __init__.py structure, only strip broken imports (render/prompts/images)
           # Instead of full rewrite, keep original and just comment out unavailable subpackages
           if [ -f "$dir/src/arcanite/__init__.py" ]; then
