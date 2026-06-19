@@ -38,16 +38,7 @@ jobs:
           pip download --no-deps --no-binary :all: "lunar-python" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pydantic<2.0" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "PyYAML" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "timezonefinder" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "flatbuffers" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "MarkupSafe" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pytz" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps "simple-ascii-tables" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "python-dateutil" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "six" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "geopy" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "geographiclib" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "requests-cache" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "attrs" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "cattrs" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "platformdirs" -d /tmp/pypi-offline 2>&1 | tail -3
@@ -71,36 +62,45 @@ jobs:
             echo "Patched $pkg: C extension disabled (pure Python fallback)"
             cd ${GITHUB_WORKSPACE}
           done
-          # 去掉 numpy/h3/cffi 依赖 (CFFI加速模块需要,纯Python回退不需要)
-          cd /tmp/pypi-offline
-          tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
-          python3 ${GITHUB_WORKSPACE}/ci/patch_timezonefinder.py timezonefinder-*/
-          tar czf timezonefinder-8.2.4.tar.gz timezonefinder-* && rm -rf timezonefinder-8.2.4
-          cd ${GITHUB_WORKSPACE}
-          # ichingshifa: PyPI 残缺版缺20函数, 从 GitHub 拉完整源码 + 补 setup.py
+          # ichingshifa: PyPI 残缺版, GitHub克隆+补__init__.py+替换ephem.Date
           git clone --depth 1 https://github.com/kentang2017/ichingshifa.git /tmp/ichingshifa_src 2>&1 | tail -3
           cd /tmp/ichingshifa_src
           # Flatten: mv src/ichingshifa → ./ichingshifa (Chaquopy pip install broken with package_dir)
           mv src/ichingshifa ./ichingshifa && rm -rf src
+          # Fix empty __init__.py (original is 1-byte newline → no exports)
+          printf 'from .ichingshifa import *\nfrom .d import *\nfrom .jieqi import *\n' > ichingshifa/__init__.py
           printf 'from setuptools import setup; setup(name="ichingshifa", version="0.1", packages=["ichingshifa"])' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           # 真随机: random → secrets (SystemRandom uses OS entropy)
           sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' ichingshifa/ichingshifa.py
           sed -i 's/import pickle, random,/import pickle, secrets,/' ichingshifa/ichingshifa.py
+          # ephem.Date → 纯Python: ephem 是已删C扩展, 只用到 Date() 解析日期字符串
+          sed -i 's/from ephem import Date/from datetime import datetime as _dt\ndef Date(s): d=_dt.strptime(str(s),"%Y\/%m\/%d"); return d.timestamp()\/86400.0+2440587.5/' ichingshifa/ichingshifa.py
           # 纯 Python 替换 numpy (np.array_split)
           python3 ${GITHUB_WORKSPACE}/ci/patch_pyjhora_numpy.py /tmp/ichingshifa_src/ichingshifa/
           tar czf /tmp/pypi-offline/ichingshifa-src.tar.gz --exclude=".git" . 2>&1
           cd /tmp && rm -rf /tmp/ichingshifa_src
-          echo "ichingshifa full tarball ready"
+          echo "ichingshifa full tarball ready (__init__ + ephem.Date patched)"
 
-          # kinliuren (大六壬): PyPI完整版1939行(纯Python零依赖), 不用GitHub空壳
-          pip download --no-deps --no-binary :all: kinliuren==0.1.2.9 -d /tmp/pypi-offline 2>&1 | tail -1
-          echo "kinliuren 0.1.2.9 from PyPI ready"
+          # kinliuren (大六壬): GitHub克隆,纯Python零依赖(146KB)
+          git clone --depth 1 https://github.com/kentang2017/kinliuren.git /tmp/kinliuren_src 2>&1 | tail -1
+          cd /tmp/kinliuren_src
+          mv src/kinliuren ./kinliuren && rm -rf src
+          # Fix empty __init__.py (original is 3-byte → no exports)
+          printf 'from .kinliuren import *\n' > kinliuren/__init__.py
+          printf 'from setuptools import setup; setup(name="kinliuren", version="0.1", packages=["kinliuren"])' > setup.py
+          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+          tar czf /tmp/pypi-offline/kinliuren-0.1.2.9.tar.gz --exclude=".git" .
+          cd /tmp && rm -rf /tmp/kinliuren_src
+          echo "kinliuren from GitHub ready (146KB, __init__ fixed)"
 
-          # kintaiyi (太乙神数): PyPI空壳, GitHub克隆+注入setup.py
+          # kintaiyi (太乙神数): 依赖ephem+numpy+kerykeion+astropy(全删) → 暂不可用
+          # 从GitHub克隆+打包,安装后可import但排盘函数会因缺依赖而失败
           git clone --depth 1 https://github.com/kentang2017/kintaiyi.git /tmp/kintaiyi_src 2>&1 | tail -1
           cd /tmp/kintaiyi_src
           mv src/kintaiyi ./kintaiyi && rm -rf src
+          # Write __init__.py without heavy dep imports
+          printf '"""kintaiyi - 太乙神数 (当前不可用: 缺ephem/numpy/kerykeion/astropy)"""\n__all__ = ["kintaiyi","config","jieqi","chart"]\n' > kintaiyi/__init__.py
           printf 'from setuptools import setup; setup(name="kintaiyi", version="0.1", packages=["kintaiyi"])' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           tar czf /tmp/pypi-offline/kintaiyi-src.tar.gz --exclude=".git" .
@@ -109,7 +109,7 @@ jobs:
           # taixuanshifa (太玄筮法): PyPI空壳, GitHub克隆+注入setup.py (根目录.py, 非src/)
           git clone --depth 1 https://github.com/kentang2017/taixuanshifa.git /tmp/taixuanshifa_src 2>&1 | tail -1
           cd /tmp/taixuanshifa_src
-          printf 'from setuptools import setup; setup(name="taixuanshifa", version="0.1", py_modules=["taixuanshifa", "app", "__init__"])' > setup.py
+          printf 'from setuptools import setup; setup(name="taixuanshifa", version="0.1", py_modules=["taixuanshifa","app","__init__"], package_data={"": ["data/*"]})' > setup.py
           printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
           # 真随机: random → secrets
           sed -i 's/\brandom\.sample(/secrets.SystemRandom().sample(/g' taixuanshifa.py
@@ -190,16 +190,9 @@ jobs:
           # Rename unpinned packages to stable names for build.gradle.kts
           for f in app/offline_pkgs/pydantic-*.tar.gz; do cp "$f" "app/offline_pkgs/pydantic-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/lunar_python-*.tar.gz; do cp "$f" "app/offline_pkgs/lunar_python-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/timezonefinder-*.tar.gz; do cp "$f" "app/offline_pkgs/timezonefinder-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/flatbuffers-*.tar.gz; do cp "$f" "app/offline_pkgs/flatbuffers-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/markupsafe-*.tar.gz; do cp "$f" "app/offline_pkgs/markupsafe-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/pyyaml-*.tar.gz; do cp "$f" "app/offline_pkgs/pyyaml-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/pytz-*.tar.gz; do cp "$f" "app/offline_pkgs/pytz-latest.tar.gz" 2>/dev/null || true; done
           # simple_ascii_tables: .whl 改名会破坏 PEP 427 命名规范,保持原名 (resolve via fileTree glob in build.gradle.kts)
-          for f in app/offline_pkgs/python_dateutil-*.tar.gz; do cp "$f" "app/offline_pkgs/python_dateutil-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/six-*.tar.gz; do cp "$f" "app/offline_pkgs/six-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/geopy-*.tar.gz; do cp "$f" "app/offline_pkgs/geopy-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/geographiclib-*.tar.gz; do cp "$f" "app/offline_pkgs/geographiclib-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/requests_cache-*.tar.gz; do cp "$f" "app/offline_pkgs/requests_cache-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/attrs-*.tar.gz; do cp "$f" "app/offline_pkgs/attrs-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/cattrs-*.tar.gz; do cp "$f" "app/offline_pkgs/cattrs-latest.tar.gz" 2>/dev/null || true; done
@@ -384,124 +377,6 @@ jobs:
           cp iztro-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Iztro JS engine compiled: $(wc -c < iztro-engine.js) bytes"
 
-      - name: Patch PyJHora (ephe path → pyswisseph)
-        run: |
-          pip download --no-deps --no-binary :all: "PyJHora" -d /tmp/pyjhora_patch
-          cd /tmp/pyjhora_patch
-          # pip normalizes package name to lowercase: pyjhora-*.tar.gz
-          tar xfz pyjhora-*.tar.gz && rm pyjhora-*.tar.gz
-          SRC_DIR=$(ls -d pyjhora-* | head -1)
-          # PyJHora 自带 data/ephe/ 在 PyPI wheel 里是空的（受100MB限制）
-          # 改为指向 pyswisseph 包内的星历，避免重复打包
-          sed -i 's|swe.set_ephe_path(_ephe_path)|import swisseph; _ephe_path = os.path.join(os.path.dirname(swisseph.__file__), "ephe"); swe.set_ephe_path(_ephe_path)|' "$SRC_DIR/src/jhora/const.py"
-          echo "Patched const.py:"
-          grep -A1 "set_ephe_path" "$SRC_DIR/src/jhora/const.py"
-          # 纯 Python 替换 numpy 依赖 (Android 嵌入场景无法安装 numpy C 扩展)
-          python3 ${GITHUB_WORKSPACE}/ci/patch_pyjhora_numpy.py "$SRC_DIR/src/jhora/"
-          cd /tmp/pyjhora_patch
-          tar czf /tmp/pypi-offline/pyjhora-patched.tar.gz "$SRC_DIR"
-          cp /tmp/pypi-offline/pyjhora-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/pyjhora_patch
-          echo "Added pyjhora-patched.tar.gz"
-      - name: Patch kinwangji (use setuptools + relax ephem pin)
-        run: |
-          git clone https://github.com/kentang2017/kinwangji.git /tmp/kinwangji_src
-          cd /tmp/kinwangji_src
-          rm -rf pic app.py data.pkl examples tests  # 只保留 kinwangji/ 核心代码 + jieqi.py wanji.py
-          # Relax ephem version pin (Chaquopy has 4.2.1, not 4.1.6)
-          sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' pyproject.toml 2>/dev/null || sed -i 's/ephem>=4.1.6/ephem>=4.1.5/' setup.py 2>/dev/null || true
-          # Switch from hatchling to setuptools (hatchling is empty stub on Chaquopy proxy)
-          sed -i 's/requires = \["hatchling"\]/requires = ["setuptools>=61.0"]/' pyproject.toml
-          sed -i 's/build-backend = "hatchling.build"/build-backend = "setuptools.build_meta"/' pyproject.toml
-          printf '[tool.setuptools]\npackages = ["kinwangji"]' >> pyproject.toml
-          echo "Patched kinwangji:"
-          grep -E 'ephem|build-backend|requires' pyproject.toml | head -3
-          cd /tmp && tar czf /tmp/pypi-offline/kinwangji-patched.tar.gz kinwangji_src
-          cp /tmp/pypi-offline/kinwangji-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          echo "Added kinwangji-patched.tar.gz"
-      - name: Patch stellium (relax timezonefinder pin)
-        run: |
-          pip download --no-deps --no-binary :all: stellium -d /tmp/st_patch
-          cd /tmp/st_patch
-          tar xfz stellium-*.tar.gz
-          rm stellium-*.tar.gz
-          cd stellium-*
-          sed -i 's/timezonefinder>=6.5.0/timezonefinder>=3.4.2/' pyproject.toml
-          # Remove deps unavailable on Chaquopy proxy
-          sed -i '/"typst"/d' pyproject.toml
-          sed -i '/"graphviz"/d' pyproject.toml
-          echo "Patched stellium:"
-          grep "timezonefinder" pyproject.toml
-          cd /tmp/st_patch && tar czf /tmp/pypi-offline/stellium-patched.tar.gz stellium-*
-          cp /tmp/pypi-offline/stellium-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/st_patch
-          echo "Added stellium-patched.tar.gz"
-      - name: Patch flatlib (relax pyswisseph pin to match provided version)
-        run: |
-          pip download --no-deps --no-binary :all: flatlib -d /tmp/fl_patch
-          cd /tmp/fl_patch
-          tar xfz flatlib-*.tar.gz
-          rm flatlib-*.tar.gz
-          cd flatlib-*
-          sed -i 's/pyswisseph==2.08.00-1/pyswisseph>=2.10.3/' setup.py
-          grep "pyswisseph" setup.py
-          cd /tmp/fl_patch && tar czf /tmp/pypi-offline/flatlib-patched.tar.gz flatlib-*
-          cp /tmp/pypi-offline/flatlib-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/fl_patch
-          echo "Added flatlib-patched.tar.gz"
-      - name: Patch immanuel (remove scipy/stubs dep, relax timezonefinder pin)
-        run: |
-          pip download --no-deps --no-binary :all: "immanuel" -d /tmp/imm_patch
-          cd /tmp/imm_patch
-          tar xfz immanuel-*.tar.gz
-          rm immanuel-*.tar.gz
-          cd immanuel-*
-          sed -i '/"scipy"/d' pyproject.toml
-          sed -i '/"scipy-stubs"/d' pyproject.toml  
-          sed -i 's/timezonefinder~=5.2/timezonefinder>=3.4.2/' pyproject.toml
-          echo "Patched immanuel deps:"
-          grep -E 'timezonefinder|scipy' pyproject.toml || echo "(all clean)"
-          cd /tmp/imm_patch && tar czf /tmp/pypi-offline/immanuel-patched.tar.gz immanuel-*
-          cp /tmp/pypi-offline/immanuel-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/imm_patch
-          echo "Added immanuel-patched.tar.gz"
-      - name: Patch kerykeion (remove scour dep only — keep pydantic, we have it now)
-        run: |
-          pip download --no-deps --no-binary :all: kerykeion==5.9.0 -d /tmp/kerykeion_patch
-          cd /tmp/kerykeion_patch
-          tar xfz kerykeion-*.tar.gz
-          rm kerykeion-*.tar.gz
-          cd kerykeion-*
-          # Only remove scour (SVG optimizer, not needed). Keep pydantic — we have it.
-          sed -i '/scour/d' pyproject.toml
-          echo "Patched kerykeion deps (scour removed, pydantic kept):"
-          grep -E 'pydantic|scour' pyproject.toml || echo "(clean)"
-          cd /tmp/kerykeion_patch && tar czf /tmp/pypi-offline/kerykeion-patched.tar.gz kerykeion-*
-          cp /tmp/pypi-offline/kerykeion-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/kerykeion_patch
-          echo "Added kerykeion-patched.tar.gz"
-      - name: Patch kinqimen (GitHub clone + relax ephem pin)
-        run: |
-          # kinqimen (奇门遁甲): PyPI空壳, GitHub克隆+注入setup.py — Repo根目录 .py 文件 (无 src/)
-          git clone --depth 1 https://github.com/kentang2017/kinqimen.git /tmp/kinqimen_src 2>&1 | tail -1
-          cd /tmp/kinqimen_src
-          printf 'from setuptools import setup; setup(name="kinqimen", version="0.1", py_modules=["kinqimen", "jieqi", "config", "cerebras_client", "angan"], include_package_data=True)' > setup.py
-          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
-          # Relax ephem version pin
-          sed -i 's/ephem==4.1.3/ephem>=4.1.3/' setup.py 2>/dev/null || echo "ephem pin not in setup.py"
-          echo "Patched kinqimen:"
-          grep -E 'ephem' setup.py pyproject.toml 2>/dev/null || echo "(no ephem ref)"
-          cd /tmp && tar czf /tmp/pypi-offline/kinqimen-patched.tar.gz kinqimen_src
-          cp /tmp/pypi-offline/kinqimen-patched.tar.gz ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          rm -rf /tmp/kinqimen_src
-          echo "Added kinqimen-patched.tar.gz from GitHub source"
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
       - name: Write signing config
         run: |
           cat > local.properties << 'EOF'
@@ -510,22 +385,11 @@ jobs:
           keyAlias=androiddebugkey
           keyPassword=android
           EOF
-      - name: Download Swiss Ephemeris data (pyswisseph needs ephe/ for planetary calc)
-        run: |
-          mkdir -p /tmp/ephe_cache
-          cd /tmp/ephe_cache
-          for f in seas_18.se1 semo_18.se1 sepl_18.se1 fixstars.cat seasnam.txt sefstars.txt seleapsec.txt seorbel.txt; do
-            [ -f "$f" ] || curl -sL --http1.1 "https://raw.githubusercontent.com/naturalstupid/PyJHora/main/src/jhora/data/ephe/$f" -o "$f"
-          done
-          echo "Ephe files: $(ls -1 | wc -l) ($(du -sh . | cut -f1))"
       - name: Extract Chaquopy Python target (for ABI-compatible cross-compile)
         run: |
           chmod +x gradlew
           ./gradlew :app:extractReleasePython --no-daemon 2>&1 | tail -10
           ls -la app/build/python/env/release/include/python3.14/ 2>/dev/null && echo "✅ Chaquopy Python headers available" || echo "⚠️ Chaquopy headers not found, will fall back to python.org"
-      - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core, ephem)
-        run: |
-          python3 ci/cross_compile_wheels.py 2>&1
       - name: Build
         run: |
           chmod +x gradlew
