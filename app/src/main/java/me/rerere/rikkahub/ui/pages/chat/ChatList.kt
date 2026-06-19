@@ -279,15 +279,27 @@ private fun ChatListNormal(
     ) {
         // 自动滚动到底部
         if (settings.displaySetting.enableAutoScroll) {
-            LaunchedEffect(state) {
-                snapshotFlow { state.layoutInfo.visibleItemsInfo }.collect { visibleItemsInfo ->
-                    // println("is bottom = ${visibleItemsInfo.isAtBottom()}, scroll = ${state.isScrollInProgress}, can_scroll = ${state.canScrollForward}, loading = $loading")
-                    if (!state.isScrollInProgress && loadingState) {
-                        if (visibleItemsInfo.isAtBottom()) {
-                            state.requestScrollToItem(conversationUpdated.messageNodes.lastIndex + 10)
-                            // Log.i(TAG, "ChatList: scroll to ${conversationUpdated.messageNodes.lastIndex}")
-                        }
-                    }
+            var userScrolledAway by remember { mutableStateOf(false) }
+
+            // 生成开始/结束时滚到底部，开始生成时重置手动滚动标记
+            LaunchedEffect(loadingState) {
+                if (loadingState) {
+                    userScrolledAway = false
+                }
+                state.animateScrollToItem(conversationUpdated.messageNodes.lastIndex)
+            }
+
+            // 生成中持续跟滚，除非用户手动滑走了
+            LaunchedEffect(conversationUpdated.messageNodes.lastIndex) {
+                if (loadingState && !userScrolledAway && !state.isScrollInProgress) {
+                    state.animateScrollToItem(conversationUpdated.messageNodes.lastIndex)
+                }
+            }
+
+            // 生成中检测用户手动上滑——任何滑动都算
+            LaunchedEffect(state.isScrollInProgress) {
+                if (loadingState && state.isScrollInProgress) {
+                    userScrolledAway = true
                 }
             }
         }
