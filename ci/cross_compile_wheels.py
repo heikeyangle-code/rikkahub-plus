@@ -17,6 +17,9 @@ ANDROID_PYTHON_URL = (
     f"https://www.python.org/ftp/python/{PY_VER}.3/"
     f"python-{PY_VER}.3-aarch64-linux-android.tar.gz"
 )
+# Chaquopy extracts its target to app/build/python/env/release/ during Gradle build.
+# Using Chaquopy's headers fixes ABI incompatibility (PyFloat_Type etc.).
+CHAQUOPY_PYTHON_PATH = os.path.join("app", "build", "python", "env", "release")
 
 WORKSPACE = os.environ.get("GITHUB_WORKSPACE", os.getcwd())
 OFFLINE_PKGS = os.path.join(WORKSPACE, "app", "offline_pkgs")
@@ -33,11 +36,19 @@ def run(cmd, **kwargs):
 
 
 def download_android_python():
-    """Download the official Android Python build from python.org."""
+    """Use Chaquopy's Python target if available, else download from python.org."""
+    # Prefer Chaquopy's own Python (ABI-compatible, fixes PyFloat_Type etc.)
+    chaq_include = os.path.join(WORKSPACE, CHAQUOPY_PYTHON_PATH, "include", f"python{PY_VER}")
+    chaq_lib = os.path.join(WORKSPACE, CHAQUOPY_PYTHON_PATH, "lib", f"libpython{PY_VER}.so")
+    if os.path.isdir(chaq_include):
+        log(f"Using Chaquopy Python target at {os.path.join(WORKSPACE, CHAQUOPY_PYTHON_PATH)}")
+        return {"root": os.path.join(WORKSPACE, CHAQUOPY_PYTHON_PATH), "type": "chaquopy"}
+
+    # Fallback: python.org Android Python
     dest = "/tmp/android-python"
     if os.path.exists(os.path.join(dest, "prefix", "lib", f"libpython{PY_VER}.so")):
         log(f"Android Python already at {dest}")
-        return dest
+        return {"root": dest, "type": "python.org"}
 
     log(f"Downloading Android Python {PY_VER} from python.org...")
     import urllib.request
@@ -140,18 +151,27 @@ exec {cxx_path} "${{ARGS[@]}}"
     return wrapper_path, wrapper_cxx
 
 
-def setup_env(ndk_path, android_python_root):
-    """Set up cross-compilation environment using official Android Python."""
+def setup_env(ndk_path, android_python):
+    """Set up cross-compilation environment using Chaquopy or python.org Python."""
     toolchain = os.path.join(ndk_path, "toolchains", "llvm", "prebuilt", "linux-x86_64")
     cc = os.path.join(toolchain, "bin", "aarch64-linux-android21-clang")
     cxx = os.path.join(toolchain, "bin", "aarch64-linux-android21-clang++")
-    py_prefix = os.path.join(android_python_root, "prefix")
-    py_include = os.path.join(py_prefix, "include", f"python{PY_VER}")
-    py_lib = os.path.join(py_prefix, "lib")
     ar = os.path.join(toolchain, "bin", "llvm-ar")
 
+    root = android_python["root"]
+    if android_python.get("type") == "chaquopy":
+        # Chaquopy target: app/build/python/env/release/
+        py_include = os.path.join(root, "include", f"python{PY_VER}")
+        py_lib = os.path.join(root, "lib")
+        log("Using Chaquopy Python headers (ABI-compatible)")
+    else:
+        # python.org: /tmp/android-python/prefix/
+        py_include = os.path.join(root, "prefix", "include", f"python{PY_VER}")
+        py_lib = os.path.join(root, "prefix", "lib")
+        log("Using python.org Android Python headers (may have ABI issues)")
+
     # Create compiler wrappers that strip host Python paths
-    cc_wrapper, cxx_wrapper = create_compiler_wrapper(cc, android_python_root)
+    cc_wrapper, cxx_wrapper = create_compiler_wrapper(cc, android_python)
 
     env = os.environ.copy()
     

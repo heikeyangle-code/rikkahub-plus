@@ -522,6 +522,11 @@ jobs:
             [ -f "$f" ] || curl -sL --http1.1 "https://raw.githubusercontent.com/naturalstupid/PyJHora/main/src/jhora/data/ephe/$f" -o "$f"
           done
           echo "Ephe files: $(ls -1 | wc -l) ($(du -sh . | cut -f1))"
+      - name: Extract Chaquopy Python target (for ABI-compatible cross-compile)
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:extractReleasePython --no-daemon 2>&1 | tail -10
+          ls -la app/build/python/env/release/include/python3.14/ 2>/dev/null && echo "✅ Chaquopy Python headers available" || echo "⚠️ Chaquopy headers not found, will fall back to python.org"
       - name: Cross-compile ARM64 wheels (sxtwl, pyswisseph, pydantic-core, ephem)
         run: |
           python3 ci/cross_compile_wheels.py 2>&1
