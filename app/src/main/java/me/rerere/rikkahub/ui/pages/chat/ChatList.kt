@@ -285,7 +285,8 @@ private fun ChatListNormal(
             LaunchedEffect(loadingState) {
                 if (loadingState) {
                     userScrolledAway = false
-                    state.animateScrollToItem(conversationUpdated.messageNodes.lastIndex)
+                    val idx = conversationUpdated.messageNodes.lastIndex
+                    if (idx >= 0) state.animateScrollToItem(idx)
                 }
             }
 
