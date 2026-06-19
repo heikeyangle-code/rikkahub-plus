@@ -442,7 +442,7 @@ def compile_rust_package(pkg, env):
         f"CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER='{env['CC']}' "
         f"PYO3_NO_PYTHON=1 "
         f"maturin build --target aarch64-linux-android "
-        f"--release --features abi3-py38 -o /tmp/wheels/ 2>&1",
+        f"--release -o /tmp/wheels/ 2>&1",
         check=False, timeout=600)
 
     if result.returncode == 0:
