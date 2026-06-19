@@ -93,7 +93,17 @@ Available built-in functions (call these from your code):
   建除十二神/黄道黑道  →  cnlunar                    ← lunar_python            日期即可
   吉神凶神/彭祖百忌    →  cnlunar                                               日期即可
   值年太岁/本命太岁    →  cnlunar/lunar_python        ←                         日期即可
-  生肖/干支/闰候      →  bazi_china 子模块           ← lunar_python            生日可选
+  生肖/干支/合婚/神煞   →  bazi_china                ← lunar_python            生日可选
+  bazi_china 是纯 Python 静态库(无pip,源码在app/src/main/python/bazi_china/)。调法:
+    import sys; sys.path.insert(0, 'app/src/main/python')
+    from bazi_china import ganzhi, datas, shengxiao, sizi, yue
+    ganzhi.Gan[:10]          → ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸']
+    ganzhi.Zhi[:12]          → ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']
+    datas.shengxiaos[zhi]    → 该地支的生肖名 (如datas.shengxiaos['子']→'鼠')
+    shengxiao.output(des,key)→ 打印生肖合/冲/刑/害关系 (shengxiao.py CLI工具)
+    sizi.summarys            → 120项四柱解盘字典 (按干支索引)
+    yue.months[ganzhi_str]  → 流月详解 (如yue.months['甲寅']→正月甲木详解, 键为干支月柱)
+  注: bazi.py(2549行)是CLI工具(argparse入口),非库API; 八字排盘直接用 lunar_python.EightChar
   节气和天文          →  lunar_python               ← cnlunar                  日期即可
 
 【查询路由】只查单项数据不排盘时用。每个库有很多方法，AI 用 dir() / help() 自探索完整 API：

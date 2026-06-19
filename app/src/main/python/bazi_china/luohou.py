@@ -6,7 +6,7 @@
 # CreateDate: 2019-2-21
 
 import argparse
-import sxtwl
+from ._sxtwl_stub import _init_indexes, _fromSolar as fromSolar
 import time
 import datetime
 import collections
@@ -15,9 +15,10 @@ from lunar_python import Lunar
 from colorama import init
 
 from .ganzhi import Gan, Zhi, ymc, rmc, zhi_time, jis, zhi_atts, get_jizhu, datouxiu, xiaotouxiu
+_init_indexes(Gan, Zhi)
 
 def get_hou(d, xiazhi, dongzhi):
-    cal_day = sxtwl.fromSolar(d.year, d.month, d.day)
+    cal_day = fromSolar(d.year, d.month, d.day)
     lunar = Lunar.fromYmd(cal_day.getLunarYear(), cal_day.getLunarMonth(), cal_day.getLunarDay())
     ba = lunar.getEightChar()
     yun = ba.getYun(1)
@@ -185,7 +186,7 @@ if __name__ == '__main__':
     else:
         d = datetime.datetime.today()
     
-    cal_day = sxtwl.fromSolar(d.year, d.month, d.day)
+    cal_day = fromSolar(d.year, d.month, d.day)
     yTG = cal_day.getYearGZ()
     mTG = cal_day.getMonthGZ()
     dTG  = cal_day.getDayGZ()
