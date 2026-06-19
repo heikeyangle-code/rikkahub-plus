@@ -179,7 +179,8 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 "- Reset context: action='reset' (clears all loaded libraries)\n\n" +
                 "Available JS engines (action='load', library=...):\n" +
                 "  qimen-engine (QiMen) | ziwei-nihai (ZiweiNihai) | iching-shifa-engine (IchingShifa) | taixuan-engine (TaixuanLib)\n" +
-                "  lunar-engine (Lunar) | astronomy-engine (Astronomy) | horoscope-engine (HoroscopeJS) | kaabalah-engine (Kaabalah)\n\n" +
+                "  lunar-engine (Lunar) | astronomy-engine (Astronomy) | horoscope-engine (HoroscopeJS) | kaabalah-engine (Kaabalah)\n" +
+                "  caelus-engine (Caelus: Western+Vedic astrology) | liuren-engine (Liuren: 大六壬)\n\n" +
                 "Args:\n" +
                 "- action: 'eval' (default) | 'load' | 'reset'\n" +
                 "- library: asset filename without .js (for action='load') — loads once, cached\n" +

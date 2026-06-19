@@ -131,7 +131,7 @@ Available built-in functions (call these from your code):
   • HoroscopeJS不能查日食/升落; Astronomy不能排盘/算宫位; 深析/推运/合盘只有Python(stellium/flatlib/immanuel)
   • 塔罗: arcanite(Python)78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
   • 卡巴拉/灵数/Gematria/Ifá: 只有JS Kaabalah (Python侧无)
-【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine
+【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine(西洋+吠陀) | liuren-engine(大六壬)
   QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
   ZiweiNihai  → eval_javascript(library='ziwei-nihai', code='ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
   IchingShifa → eval_javascript(library='iching-shifa-engine', code='IchingShifa.dayan() 又 lueshifa() 又 timeQiGua({...}) 又 manualQiGua("697887") 又 threeNumberQiGua(a,b,c) 又 numberArrayQiGua(arr,idx); decodePan(yao,{year,month,day,hour})排盘
@@ -140,6 +140,8 @@ Available built-in functions (call these from your code):
   Astronomy   → eval_javascript(library='astronomy-engine', code='Astronomy.BodyPosition("sun", new Date(2026,5,19,14,0,0)) 又 Astronomy.SearchRiseSet("sun", observer, date) 又 Astronomy.SearchLunarEclipse(date) 又 Astronomy.Seasons(2026) 又 Astronomy.MoonPhase(date)  (零随机,VSOP87精度)
   HoroscopeJS → eval_javascript(library='horoscope-engine', code='new HoroscopeJS.Horoscope({origin:new HoroscopeJS.Origin({year:2026,month:5,day:19,hour:14,minute:0,latitude:39.9,longitude:116.4}),houseSystem:"placidus",zodiac:"tropical"})  (零随机,Kepler精度+7宫位制)
   Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calculateGematria("shalom") 又 Kaabalah.buildKaabalisticMapData() 又 Kaabalah.calculateKaabalisticLifePath(...) 又 Kaabalah.calculatePersonalYear(new Date(...)) 又 Kaabalah.calculateOdu()  (零随机,纯JS; 塔罗走arcanite+777表)
+  Caelus(西洋+吠陀) → eval_javascript(library='caelus-engine', code='Caelus.natal_chart(date,lat,lon) 又 transits(...) 又 synastry(a,b) 又 returns(...) 又 progressions(...) 又 composite(a,b) 又 sky_events(...) 又 nakshatras(...) 又 dasha(...) 又 vargas(...) 又 yogas(...) 又 dignities(...) 又 lots(...) 又 profections(...) 又 firdaria(...) 又 releasing(...) 又 directions(...)  (零依赖VSOP87D,与Swiss Ephemeris对齐,29工具)
+  Liuren(大六壬) → eval_javascript(library='liuren-engine', code='Liuren.getLiuRenByDate(new Date(...)) 又 getLiuRenBySiZhu(year,month,day,hour) 又 getNianMing(date,gender)  (天地盘+四课+三传+遁干+神煞+贵人+建除,基于tyme4ts)
   返回 JSON，AI 基于真实数据解读。
 """
 
