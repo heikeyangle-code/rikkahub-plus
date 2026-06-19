@@ -36,7 +36,6 @@ jobs:
       - name: Download packages missing from Chaquopy proxy
         run: |
           pip download --no-deps --no-binary :all: "lunar-python" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pydantic-core" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pydantic<2.0" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "PyYAML" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "timezonefinder" -d /tmp/pypi-offline 2>&1 | tail -3

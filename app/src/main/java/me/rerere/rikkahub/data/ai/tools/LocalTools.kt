@@ -293,6 +293,11 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 } catch (e: java.util.concurrent.TimeoutException) {
                     future?.cancel(true)
                     error("JavaScript execution timed out after ${safeTimeout}s")
+                } catch (e: Exception) {
+                    future?.cancel(true)
+                    val msg = e.message ?: e.toString()
+                    resetJSContext()
+                    error("JavaScript error (context auto-reset): $msg")
                 }
             }
         )
