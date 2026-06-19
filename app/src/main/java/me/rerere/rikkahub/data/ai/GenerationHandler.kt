@@ -173,7 +173,7 @@ class GenerationHandler(
                 appendLine("【中华正统】八字/四柱/大运→lunar_python.EightChar(备:bazi_china)  紫微斗数→问用户选Iztro(⭐3841原版JS,权威基准)或ziwei_paipan(Python port)或ZiweiNihai(倪海夏天纪)或多方对照")
                 appendLine("【奇门三式】奇门遁甲→QimenEngine(JS,7局法×4流派+断语) | 大六壬→kinliuren | 小六壬→lunar_python取月日时→掌诀推算(大安留连速喜赤口小吉空亡)")
                 appendLine("【象数易】太玄筮法→问用户选taixuanshifa(Python)或TaixuanLib(JS,4种起卦)或对照(JS取code→Python pan_from_code) | 荆诀→jingjue")
-                appendLine("【六爻/卦】六爻/周易→问用户选ichingshifa(Python,大衍筮法)或IchingShifa(JS,6种)或对照 | 梅花易数→meihua_yi")
+                appendLine("【六爻/卦】六爻/周易→问用户选ichingshifa(Python,大衍筮法)或IchingShifa(JS,6种)或对照 | 梅花易数→meihua_yi(备:ichingshifa)")
                 appendLine("【西洋占星】NatalEngine(JS,本命盘+合盘,已解读输出bigThree/行星/宫位/相位/元素) — 首选 | 备选:HoroscopeJS(JS,图表) Caelus(JS,原始行星位置) | 日食月食→Astronomy(JS,VSOP87) | Python C扩展全删")
                 appendLine("【印度吠陀】NatalEngine(JS,Lahiri岁差+27星宿+pada+Rashi+大运) — 首选 | 备选:Caelus(JS)")
                 appendLine("【人类图】NatalEngine(JS,类型/权威/能量中心/通道/闸门/人生角色) — 唯一")

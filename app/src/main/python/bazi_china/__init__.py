@@ -1,4 +1,4 @@
 # bazi_china - 中国八字/干支/生肖/历法工具包
 # 子模块: bazi, common, convert, ganzhi, luohou, shengxiao, sizi, yue, datas
 
-from . import bazi, common, ganzhi, datas, sizi, yue, shengxiao
+from . import bazi, common, convert, ganzhi, datas, luohou, shengxiao, sizi, yue
