@@ -30,7 +30,7 @@ Available built-in functions (call these from your code):
   ─────────────────────────────────────────────────────────────────────────────────────────
   【中华正统】
   八字/四柱/大运      →  lunar_python EightChar      ← bazi_china, sxtwl        生日（含时辰）
-  紫微斗数            →  问用户选 ziwei_paipan(Python,iztro标准算法) 或 ZiweiNihai(JS,倪海夏天纪+古籍) 或两者一起对照   生日（含时辰）
+  紫微斗数            →  问用户选 Iztro(JS,iztro⭐3841原版,权威基准) 或 ziwei_paipan(Python,iztro标准算法port) 或 ZiweiNihai(JS,倪海夏天纪+古籍) 或多个一起对照   生日（含时辰）
 
   【奇门三式】
   奇门遁甲            →  问用户选 kinqimen(Python,2局法) 或 QimenEngine(JS,7局法+断语) 或两者一起对照   时家需精确时间
@@ -102,6 +102,10 @@ Available built-in functions (call these from your code):
             两引擎同一卦各自解盘，AI 对比两套解读。异数起两卦 = 违章。
   太玄对照: AI 先调 JS TaixuanLib.generate() 得 {code:"2312",gua:{...}},
             再调 Python Taixuan(y,m,d,h).pan_from_code("2312") 同首排盘。
+  紫微对照: 纯确定性算法，同一输入→同一天干地支=同一命盘。AI 可同时调
+            Iztro.astro.bySolar(date,timeIndex,gender) + ziwei_paipan.by_solar(date,timeIndex,gender)
+            两引擎各自排盘（无需随机连线），对比命宫/身宫/五行局/主星位置是否一致，
+            不一致处即为日历层差异（闰月/节气/干支计算）。ZiweiNihai 则因流派不同不可直接对比位置。
   不影响效率: 仍调两次引擎，第一次随机+排盘，第二次仅排盘(无随机开销)，总耗时几乎不变。
 
 【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
@@ -122,7 +126,7 @@ Available built-in functions (call these from your code):
     牌组→世界同上, 查法: Kaabalah.SPHERES["Chokmah"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
 
 【引擎区别速查】AI 回答用户"哪个好/有什么区别"时用:
-  • 紫微: ziwei_paipan(Python,iztro标准算法) vs ZiweiNihai(JS,倪海夏天纪+古籍,含断语)
+  • 紫微: ziwei_paipan(Python,iztro标准算法port) vs Iztro(JS,iztro⭐3841原版) vs ZiweiNihai(JS,倪海夏天纪+古籍). 三方对照优先 Iztro 为权威基准
   • 奇门: kinqimen(Python,仅拆补2局法) vs QimenEngine(JS,拆补+茅山+置闰3局法×时/日/月/年4流派+十干克应断语)
   • 六爻: ichingshifa(Python,仅大衍筮法1种) vs IchingShifa(JS,大衍+略筮+时间+手动+三数+数组6种起卦)
   • 太玄: taixuanshifa(Python,仅蓍法1种) vs TaixuanLib(JS,蓍法+骰子+硬币+数字4种起卦)
@@ -131,7 +135,7 @@ Available built-in functions (call these from your code):
   • HoroscopeJS不能查日食/升落; Astronomy不能排盘/算宫位; 深析/推运/合盘只有Python(stellium/flatlib/immanuel)
   • 塔罗: arcanite(Python)78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
   • 卡巴拉/灵数/Gematria/Ifá: 只有JS Kaabalah (Python侧无)
-【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine(西洋+吠陀)
+【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine(西洋+吠陀) | iztro-engine(紫微⭐3841原版)
   QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
   ZiweiNihai  → eval_javascript(library='ziwei-nihai', code='ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
   IchingShifa → eval_javascript(library='iching-shifa-engine', code='IchingShifa.dayan() 又 lueshifa() 又 timeQiGua({...}) 又 manualQiGua("697887") 又 threeNumberQiGua(a,b,c) 又 numberArrayQiGua(arr,idx); decodePan(yao,{year,month,day,hour})排盘
@@ -141,6 +145,7 @@ Available built-in functions (call these from your code):
   HoroscopeJS → eval_javascript(library='horoscope-engine', code='new HoroscopeJS.Horoscope({origin:new HoroscopeJS.Origin({year:2026,month:5,day:19,hour:14,minute:0,latitude:39.9,longitude:116.4}),houseSystem:"placidus",zodiac:"tropical"})  (零随机,Kepler精度+7宫位制)
   Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calculateGematria("shalom") 又 Kaabalah.buildKaabalisticMapData() 又 Kaabalah.calculateKaabalisticLifePath(...) 又 Kaabalah.calculatePersonalYear(new Date(...)) 又 Kaabalah.calculateOdu()  (零随机,纯JS; 塔罗走arcanite+777表)
   Caelus(西洋+吠陀) → eval_javascript(library='caelus-engine', code='Caelus.natal_chart(date,lat,lon) 又 transits(...) 又 synastry(a,b) 又 returns(...) 又 progressions(...) 又 composite(a,b) 又 sky_events(...) 又 nakshatras(...) 又 dasha(...) 又 vargas(...) 又 yogas(...) 又 dignities(...) 又 lots(...) 又 profections(...) 又 firdaria(...) 又 releasing(...) 又 directions(...)  (零依赖VSOP87D,与Swiss Ephemeris对齐,29工具)
+  Iztro(紫微⭐3841) → eval_javascript(library='iztro-engine', code='Iztro.astro.bySolar(\"1990-6-15\",7,\"male\")') 返回 FunctionalAstrolabe 含 .palaces[12] .palace(i) .surroundedPalaces(i).have([\"紫微\"]) .horoscope(date,timeIndex) .soul .body .fiveElementsClass .sign .zodiac; 配置: Iztro.astro.config({dayDivide:\"forward\",yearDivide:\"normal\",algorithm:\"default\"}); 农历盘: Iztro.astro.byLunar(\"1990-5-23\",7,\"male\",false)  (零随机,纯确定性算法)
   返回 JSON，AI 基于真实数据解读。
 """
 
