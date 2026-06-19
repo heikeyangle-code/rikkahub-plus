@@ -57,6 +57,21 @@ jobs:
           pip download --no-deps --no-binary :all: "jinja2" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "cn2an" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "proces" -d /tmp/pypi-offline 2>&1 | tail -3
+          # Strip C extensions from PyYAML & MarkupSafe — sdist compiles on x86_64 CI runner,
+          # producing x86_64 .so files that can't load on ARM64 devices.
+          # Both have pure-Python fallbacks; force those by removing ext_modules.
+          for pkg in PyYAML MarkupSafe; do
+            cd /tmp/pypi-offline
+            tarball=$(ls ${pkg}-*.tar.gz 2>/dev/null | head -1)
+            [ -z "$tarball" ] && continue
+            tar xfz "$tarball" && rm "$tarball"
+            srcdir=$(ls -d ${pkg}-* | head -1)
+            sed -i 's/ext_modules=\[/ext_modules=\[\]  # /' "$srcdir/setup.py" 2>/dev/null || true
+            sed -i 's/\[tool.setuptools.ext-modules\]/### [tool.setuptools.ext-modules]/' "$srcdir/pyproject.toml" 2>/dev/null || true
+            tar czf "$tarball" "$srcdir" && rm -rf "$srcdir"
+            echo "Patched $pkg: C extension disabled (pure Python fallback)"
+            cd ${GITHUB_WORKSPACE}
+          done
           # 去掉 numpy/h3/cffi 依赖 (CFFI加速模块需要,纯Python回退不需要)
           cd /tmp/pypi-offline
           tar xfz timezonefinder-*.tar.gz && rm timezonefinder-*.tar.gz
