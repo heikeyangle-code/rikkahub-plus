@@ -70,11 +70,14 @@ Available built-in functions (call these from your code):
                          8.meditation_focus   冥想指引
                          9.card_relationships 6种牌间关系: amplifies(增幅) | challenges(挑战) | clarifies(澄清) | similar_energy(同类) | opposite_energy(对立) | learning_sequence(学习序列)
                          搭配: 深度→查777表→Kaabalah.buildKaabalisticMapData()(JS,全映射:源质+字母+路径+行星)
-  雷曼/雷诺曼         →  arcanite(system=\\\"lenormand\\\") 36张; 数据层:
-                         core(keywords/charge/category/topics) | timing(速度/季节/时长/方向)
-                         topic_contexts(love/career/health/finances/spiritual) | line_reading(首牌/中牌/末牌)
-                         combination_grammar(配牌语法+正/负/人物/物件牌联动) | combinations(16组固定组合)
-                         grand_tableau(大桌牌阵:宫位/近征象/远征象/对角). 访问: d.get_card(c.card_id)._data[\\\"core\\\"] 等字段
+  雷曼/雷诺曼         →  arcanite(system="lenormand") 36张; 数据层:
+                         core(keywords/charge/category/topics) | timing(thematic/duration/season/speed/direction)
+                         as_person(牌的人物性格描述) | modifier_behavior(type/as_modifier/as_modified,修饰牌联动规则)
+                         playing_card(对应扑克牌,如9♥) | topic_contexts(love/career/health/finances/spiritual)
+                         line_reading(as_first/as_middle/as_last) | combination_grammar(7种配牌语法)
+                         combinations(16组固定组合,含with/with_number/category/as_first/as_second)
+                         grand_tableau(as_house/near_significator/far_from_significator/diagonal_or_corner)
+                         访问: d.get_card(c.card_id)._data["core"] 等字段; 同样可读 _data["as_person"] _data["modifier_behavior"]等
                          无需出生
 
   【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机; 灵数/卡巴拉/Gematria/Ifá Python侧无)
@@ -98,7 +101,7 @@ Available built-in functions (call these from your code):
   cnlunar             →  import cnlunar; print(dir(cnlunar.LunarDate))
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import book; print(dir(book))        # 梅花起卦查询
-  arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system=\\\"tarot\\\"); cards=d.draw(3); 深度:[d.get_card(c.card_id)._data[k] for c in cards for k in [\\\"core_meanings\\\",\\\"symbols\\\",\\\"question_contexts\\\",\\\"position_interpretations\\\",\\\"elemental_correspondences\\\",\\\"affirmations\\\",\\\"journaling_prompts\\\",\\\"meditation_focus\\\",\\\"card_relationships\\\"]]\n                      雷曼: d=TarotDeck.load(system=\\\"lenormand\\\"); cards=d.draw(5); [d.get_card(c.card_id)._data[k] for k in [\\\"core\\\",\\\"timing\\\",\\\"topic_contexts\\\",\\\"line_reading\\\",\\\"combinations\\\",\\\"grand_tableau\\\"]]
+  arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system=\"tarot\"); cards=d.draw(3); [print(c.card_name,c.orientation.value) for c in cards]
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
