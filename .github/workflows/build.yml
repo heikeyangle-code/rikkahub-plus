@@ -174,7 +174,7 @@ jobs:
             fname="${fname//url-normalize/url_normalize}"
             cp "$f" "app/offline_pkgs/$fname"
           done
-          for f in /tmp/pypi-offline/*.whl; do fname=$(basename "$f"); cp "$f" "app/offline_pkgs/$fname"; done
+          # No .whl files (all C extensions deleted) — skip
           # Rename unpinned packages to stable names for build.gradle.kts
           for f in app/offline_pkgs/pydantic-*.tar.gz; do cp "$f" "app/offline_pkgs/pydantic-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/lunar_python-*.tar.gz; do cp "$f" "app/offline_pkgs/lunar_python-latest.tar.gz" 2>/dev/null || true; done
