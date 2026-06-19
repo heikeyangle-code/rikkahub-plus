@@ -24,55 +24,32 @@ chaquopy {
             install("openpyxl")
             install("markdownify")
             install("tabulate")
-            install("svgwrite")          // kerykeion/stellium SVG星图渲染 (代理有)
-            // === 命理计算引擎 ===
-            // sxtwl/pyswisseph: 交叉编译 ARM64 .whl, pydantic-core: 本地 sdist
+            // === 命理计算引擎 (全纯Python, 已删 sxtwl/pyswisseph/ephem 三个C扩展及其下游库) ===
             install(file("offline_pkgs/lunar_python-latest.tar.gz").absolutePath)
-            install(file("offline_pkgs/sxtwl-2.0.6-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)
             install("cnlunar")
-            install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // ⭐254 周易筮法/六爻
+            install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // 周易筮法/六爻
             install(file("offline_pkgs/kinliuren-0.1.2.9.tar.gz").absolutePath) // 大六壬
             install(file("offline_pkgs/kintaiyi-src.tar.gz").absolutePath) // 太乙神数
-            install(file("offline_pkgs/taixuanshifa-src.tar.gz").absolutePath) // ⭐10 太玄筮法
-            install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // ⭐6 荆诀（北大简先秦占卜）
-            install("bidict")            // bazi_china(ganzhi/datas/common/bazi) 所需
-            install("colorama")           // china-testing/bazi 所需
-            install(file("offline_pkgs/pyswisseph-2.10.3.2-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)
-            install(file("offline_pkgs/ephem-4.2.1-cp314-cp314-android_21_arm64_v8a.whl").absolutePath) // ephem: 高精度天文计算, kinqimen/kinwangji 依赖
-            install(file("offline_pkgs/pyyaml-latest.tar.gz").absolutePath) // pip download 存为小写 // pyyaml: arcanite 牌阵 YAML 解析 (C扩展有纯Python回退)
-            install(file("offline_pkgs/timezonefinder-latest.tar.gz").absolutePath) // timezonefinder: stellium/immanuel 时区查询
-            install(file("offline_pkgs/flatbuffers-latest.tar.gz").absolutePath) // flatbuffers: timezonefinder
-            install(file("offline_pkgs/markupsafe-latest.tar.gz").absolutePath) // MarkupSafe: arcanite→jinja2 依赖 (C扩展有纯Python回退)
-            install(file("offline_pkgs/kinqimen-patched.tar.gz").absolutePath) // ⭐119 奇门遁甲
-            install(file("offline_pkgs/arcanite-stripped.tar.gz").absolutePath) // ⭐78张韦特塔罗+36雷诺曼 牌义引擎
-            install(file("offline_pkgs/kerykeion-patched.tar.gz").absolutePath) // ⭐655 西洋占星
-            install(file("offline_pkgs/stellium-patched.tar.gz").absolutePath)
-            install(file("offline_pkgs/flatlib-patched.tar.gz").absolutePath) // ⭐386 传统占星 已patch pyswisseph版本
-            install(file("offline_pkgs/meihua-yi-patched.tar.gz").absolutePath) // ⭐1  梅花易数 (random→secrets 真随机起卦)
-            install(file("offline_pkgs/pyjhora-patched.tar.gz").absolutePath) // ⭐188 印度占星(吠陀) — ephe指向pyswisseph
-            install(file("offline_pkgs/immanuel-patched.tar.gz").absolutePath) // ⭐109 西洋占星合盘+推运
-            install("setuptools")              // setuptools 最新版
-            install(file("offline_pkgs/pydantic_core-2.46.4-cp314-cp314-android_21_arm64_v8a.whl").absolutePath)  // Rust扩展, 交叉编译ARM64 .whl
-            install(file("offline_pkgs/pydantic-latest.tar.gz").absolutePath) // arcanite 需要, 纯 Python, 自动更新
-            install(file("offline_pkgs/kinwangji-patched.tar.gz").absolutePath)
-            // 纯 Python 依赖 — kerykeion/stellium/immanuel 运行时必需
-            install(file("offline_pkgs/pytz-latest.tar.gz").absolutePath)      // kerykeion+stellium 时区处理
-            install("simple-ascii-tables")  // kerykeion 表格渲染 (Chaquopy 从 offline_pkgs find-links 找)
-            install(file("offline_pkgs/python_dateutil-latest.tar.gz").absolutePath) // stellium+immanuel 日期计算
-            install(file("offline_pkgs/six-latest.tar.gz").absolutePath)       // python-dateutil 依赖
-            install(file("offline_pkgs/geopy-latest.tar.gz").absolutePath)     // stellium 城市→经纬度
-            install(file("offline_pkgs/geographiclib-latest.tar.gz").absolutePath) // geopy 依赖
-            install(file("offline_pkgs/requests_cache-latest.tar.gz").absolutePath) // kerykeion 地名缓存
+            install(file("offline_pkgs/taixuanshifa-src.tar.gz").absolutePath) // 太玄筮法
+            install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // 荆诀
+            install("bidict")            // bazi_china 所需
+            install("colorama")           // bazi_china 所需
+            install(file("offline_pkgs/meihua-yi-patched.tar.gz").absolutePath) // 梅花易数
+            install(file("offline_pkgs/arcanite-pydantic-v1.tar.gz").absolutePath) // 塔罗(已降级pydantic v1,零C扩展)
+            install("setuptools")
+            // arcanite 依赖链 (纯Python, 零C扩展)
+            install(file("offline_pkgs/pydantic-latest.tar.gz").absolutePath)
+            install(file("offline_pkgs/pyyaml-latest.tar.gz").absolutePath)
+            install(file("offline_pkgs/markupsafe-latest.tar.gz").absolutePath)
+            install(file("offline_pkgs/jinja2-latest.tar.gz").absolutePath)
+            // 共享依赖
             install(file("offline_pkgs/attrs-latest.tar.gz").absolutePath)
             install(file("offline_pkgs/cattrs-latest.tar.gz").absolutePath)
             install(file("offline_pkgs/platformdirs-latest.tar.gz").absolutePath)
             install(file("offline_pkgs/url_normalize-latest.tar.gz").absolutePath)
-            install(file("offline_pkgs/urllib3-latest.tar.gz").absolutePath) // requests/requests-cache 底层 HTTP
-            install(file("offline_pkgs/cn2an-latest.tar.gz").absolutePath) // ichingshifa 中文数字转换
+            install(file("offline_pkgs/urllib3-latest.tar.gz").absolutePath)
+            install(file("offline_pkgs/cn2an-latest.tar.gz").absolutePath) // ichingshifa 中文数字
             install(file("offline_pkgs/proces-latest.tar.gz").absolutePath) // cn2an 依赖
-            install(file("offline_pkgs/jinja2-latest.tar.gz").absolutePath) // arcanite 牌阵合成模板引擎
-            // kinastro（88种体系,31MB）: setuptools._legacy 与新版不兼容, 跳过
-            // install("git+https://github.com/kentang2017/kinastro.git")
         }
     }
 }

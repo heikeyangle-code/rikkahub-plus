@@ -37,7 +37,7 @@ jobs:
         run: |
           pip download --no-deps --no-binary :all: "lunar-python" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "pydantic-core" -d /tmp/pypi-offline 2>&1 | tail -3
-          pip download --no-deps --no-binary :all: "pydantic" -d /tmp/pypi-offline 2>&1 | tail -3
+          pip download --no-deps --no-binary :all: "pydantic<2.0" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "PyYAML" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "timezonefinder" -d /tmp/pypi-offline 2>&1 | tail -3
           pip download --no-deps --no-binary :all: "flatbuffers" -d /tmp/pypi-offline 2>&1 | tail -3
@@ -145,7 +145,7 @@ jobs:
           cd /tmp && rm -rf /tmp/meihua_patch
           echo "Added meihua-yi-patched.tar.gz (random → secrets)"
 
-          # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容
+          # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容 + pydantic v2→v1 patch
           pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1
           cd /tmp/pypi-offline
           sdist=$(ls arcanite-*.tar.gz | head -1)
@@ -160,6 +160,8 @@ jobs:
           rm -rf "$dir/examples"
           # 真随机: random.Random(seed) → secrets.SystemRandom() (seed=None 时走硬件熵)
           python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_random.py "$dir/src/arcanite/core/deck.py"
+          # pydantic v2→v1: 降级 models.py 以消除 pydantic_core Rust C扩展依赖
+          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_pydantic_v1.py "$dir/src/arcanite/core/models.py"
           # Fix: preserve original __init__.py structure, only strip broken imports (render/prompts/images)
           # Instead of full rewrite, keep original and just comment out unavailable subpackages
           if [ -f "$dir/src/arcanite/__init__.py" ]; then
@@ -169,10 +171,10 @@ jobs:
             sed -i 's/from arcanite\.templates/### from arcanite.templates/' "$dir/src/arcanite/__init__.py"
             echo "Patched __init__.py (disabled unavailable subpackages)"
           fi
-          tar czf "/tmp/pypi-offline/arcanite-stripped.tar.gz" "$dir"
+          tar czf "/tmp/pypi-offline/arcanite-pydantic-v1.tar.gz" "$dir"
           rm -rf "$dir"
           cd ${GITHUB_WORKSPACE}
-          echo "arcanite stripped ready"
+          echo "arcanite pydantic-v1 ready"
 
           # Rename files to match build.gradle.kts expectations (hyphen→underscore, version pin)
           mkdir -p app/offline_pkgs

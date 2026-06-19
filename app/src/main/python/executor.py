@@ -29,11 +29,11 @@ Available built-in functions (call these from your code):
   用户问             →  首选                        ← 也能用这些               输入要求
   ─────────────────────────────────────────────────────────────────────────────────────────
   【中华正统】
-  八字/四柱/大运      →  lunar_python EightChar      ← bazi_china, sxtwl        生日（含时辰）
+  八字/四柱/大运      →  lunar_python EightChar      ← bazi_china               生日（含时辰）
   紫微斗数            →  问用户选 Iztro(JS,iztro⭐3841原版,权威基准) 或 ziwei_paipan(Python,iztro标准算法port) 或 ZiweiNihai(JS,倪海夏天纪+古籍) 或多个一起对照   生日（含时辰）
 
   【奇门三式】
-  奇门遁甲            →  问用户选 kinqimen(Python,2局法) 或 QimenEngine(JS,7局法+断语) 或两者一起对照   时家需精确时间
+  奇门遁甲            →  QimenEngine(JS,7局法+断语,拆补+茅山+置闰×时/日/月/年4流派+十干克应)                 时家需精确时间
   大六壬              →  kinliuren                                               生日可选
   小六壬(马前课)       →  lunar_python取月日时→掌诀推算(大安留连速喜赤口小吉空亡6掌诀)                    无需出生（需月日时）
   太乙神数            →  kintaiyi                                             生日必填
@@ -41,22 +41,18 @@ Available built-in functions (call these from your code):
   【象数易】
   太玄筮法            →  问用户选 taixuanshifa(Python) 或 TaixuanLib(JS,4种起卦) 或对照(JS取随机得code→Python pan_from_code(code))   无需出生
   荆诀/先秦占卜       →  jingjue                                                 无需出生
-  皇极经世            →  kinwangji                                              生日必填
 
   【六爻/卦象】
   六爻/周易/卦        →  问用户选 ichingshifa(Python,大衍筮法) 或 IchingShifa(JS,6种起卦) 或对照(JS取随机→同爻值喂Python qigua_manual)   无需出生（需起卦数）
   梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排     无需出生（需起卦数）
 
-  【西洋占星】
-  西洋占星/星座/本命盘 →  问用户选 kerykeion(Python,SwissEphemeris最高精度) 或 HoroscopeJS(JS,Kepler+7种宫位制+10种相位) 或都跑   生日必填（需经纬度）
-  占星深析(中点/阿拉伯点/相位模式/格局)  →  stellium                   ← kerykeion                 生日必填
-  日返/月返/回归盘     →  stellium.returns.builder.ReturnBuilder  ← flatlib                 生日必填
-  合盘/推运/比较盘     →  immanuel                   ← kerykeion synastry      双人生日必填
-  日食月食/行星升降/升落时间 →  pyswisseph(Python)          ← Astronomy(JS,VSOP87)         日期即可
-  🌟 生成星盘SVG图   →  render_astrology_svg(name,year,month,day,hour,minute,lat=39.9,lng=116.4,city="北京",chart_type="Natal",theme=None) → str  生日必填（需经纬度）
+  【西洋占星】 (Python C扩展不可用,仅JS)
+  西洋占星/星座/本命盘 →  HoroscopeJS(JS,Kepler+7种宫位制+10种相位,离线快)                             生日必填（需经纬度）
+  西洋占星深析/推运    →  Caelus(JS,29工具:natal_chart/transits/synastry/returns/progressions/composite/sky_events/lots等)  生日必填（需经纬度）
+  日食月食/行星升降    →  Astronomy(JS,VSOP87,零依赖)                                      日期即可
 
-  【印度/吠陀】
-  印度占星/吠陀(南印/北印盘)  →  jhora                      ← stellium.visualization.vedic          生日必填
+  【印度/吠陀】 (仅JS)
+  印度占星/吠陀        →  Caelus(JS,nakshatras/dasha/vargas/yogas/dignities等)                      生日必填
 
   【人类图/塔罗/其他】
   塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位) → 查777表→Kaabalah.buildKaabalisticMapData()(JS,算全映射:源质+字母+路径+行星全对应); 无需出生
@@ -70,30 +66,27 @@ Available built-in functions (call these from your code):
   【农历/干支/天文】
   农历/黄历/择日      →  cnlunar(Python)            ← lunar_python, Lunar(JS引擎)  日期即可
   公历农历转换/八字     →  lunar_python(Python)       ← Lunar(JS引擎,可离线算Solar/Lunar/EightChar/DaYun/JieQi)  日期即可
-  二十八宿/宿曜       →  Lunar.getTwentyEightMans()  ← pyswisseph, cnlunar      日期/生日均可
+  二十八宿/宿曜       →  Lunar.getTwentyEightMans()  ← cnlunar                  日期/生日均可
   建除十二神/黄道黑道  →  cnlunar                    ← lunar_python            日期即可
   吉神凶神/彭祖百忌    →  cnlunar                                               日期即可
   值年太岁/本命太岁    →  cnlunar/lunar_python        ←                         日期即可
   生肖/干支/闰候      →  bazi_china 子模块           ← lunar_python            生日可选
-  节气和天文          →  lunar_python               ← cnlunar, pyswisseph      日期即可
+  节气和天文          →  lunar_python               ← cnlunar                  日期即可
 
 【查询路由】只查单项数据不排盘时用。每个库有很多方法，AI 用 dir() / help() 自探索完整 API：
-  pyswisseph (80+)    →  import swisseph as swe; print([f for f in dir(swe) if f[0].islower()])
   lunar_python (215+) →  l = Lunar.fromYmd(2026,6,16); print(dir(l))
   cnlunar             →  import cnlunar; print(dir(cnlunar.LunarDate))
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import book; print(dir(book))        # 梅花起卦查询
   arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system=\"tarot\"); cards=d.draw(3); [print(c.card_name,c.orientation.value) for c in cards]
-  kinqimen            →  import kinqimen; print(dir(kinqimen))              # 查局
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
 
 【输入说明】不是所有排盘都需要生日：
-  • 需生日(含时辰) — 八字/紫微/占星/吠陀/皇极
+  • 需生日(含时辰) — 八字/紫微
   • 需生日(不含时辰也可) — 生肖/大六壬/二十八宿
-  • 需双人生日 — 合盘/比较盘
-  • 仅需日期(不需出生) — 黄历/择日/建除/太岁/节气/农历转换/日食月食
+  • 仅需日期(不需出生) — 黄历/择日/建除/太岁/节气/农历转换
   • 无需任何出生 — 六爻(需起卦数)/梅花(需数字)/太玄/荆诀/塔罗
 
 【双引擎对照规则】⚠️ 易经"初筮告，再三渎"——同一问题只能起一卦。调用前先 dir() 确认函数存在。
@@ -126,15 +119,14 @@ Available built-in functions (call these from your code):
     牌组→世界同上, 查法: Kaabalah.SPHERES["Chokmah"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
 
 【引擎区别速查】AI 回答用户"哪个好/有什么区别"时用:
-  • 紫微: ziwei_paipan(Python,iztro标准算法port) vs Iztro(JS,iztro⭐3841原版) vs ZiweiNihai(JS,倪海夏天纪+古籍). 三方对照优先 Iztro 为权威基准
-  • 奇门: kinqimen(Python,仅拆补2局法) vs QimenEngine(JS,拆补+茅山+置闰3局法×时/日/月/年4流派+十干克应断语)
-  • 六爻: ichingshifa(Python,仅大衍筮法1种) vs IchingShifa(JS,大衍+略筮+时间+手动+三数+数组6种起卦)
-  • 太玄: taixuanshifa(Python,仅蓍法1种) vs TaixuanLib(JS,蓍法+骰子+硬币+数字4种起卦)
-  • 本命盘: kerykeion(Python,SwissEphemeris毫角秒) vs HoroscopeJS(JS,Kepler角分级+7种宫位制可选+10种相位,离线快)
-  • 行星/日食: pyswisseph(Python,最高精) vs Astronomy(JS,VSOP87角秒级,零依赖)
-  • HoroscopeJS不能查日食/升落; Astronomy不能排盘/算宫位; 深析/推运/合盘只有Python(stellium/flatlib/immanuel)
+  • 紫微: ziwei_paipan(Python,iztro port) vs Iztro(JS,⭐3841原版) vs ZiweiNihai(JS,倪海厦+古籍)
+  • 奇门: QimenEngine(JS,7局法×4流派+断语) — Python侧C扩展已删,仅JS
+  • 六爻: ichingshifa(Python,大衍1种) vs IchingShifa(JS,6种起卦)
+  • 太玄: taixuanshifa(Python,蓍法1种) vs TaixuanLib(JS,4种起卦)
+  • 西洋占星: HoroscopeJS(JS,本命盘) vs Caelus(JS,29工具全链路). Python C扩展全删
+  • 印度吠陀: Caelus(JS). Python侧全删
   • 塔罗: arcanite(Python)78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
-  • 卡巴拉/灵数/Gematria/Ifá: 只有JS Kaabalah (Python侧无)
+  • 卡巴拉/灵数/Gematria/Ifá: JS Kaabalah (Python侧无)
 【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine(西洋+吠陀) | iztro-engine(紫微⭐3841原版)
   QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
   ZiweiNihai  → eval_javascript(library='ziwei-nihai', code='ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
@@ -266,52 +258,6 @@ def update_setting(key, value):
         except Exception as e:
             return f"Bridge error: {e}"
     return "Bridge not available"
-
-
-# ============================================================
-# 渲染函数 — AI 排完盘后调用，生成可视化 SVG 图表
-# ============================================================
-
-def render_astrology_svg(name, year, month, day, hour, minute,
-                          lat=39.9, lng=116.4, city="", tz_str="Asia/Shanghai",
-                          chart_type="Natal", theme=None) -> str:
-    """
-    生成西洋占星星盘 SVG 文件。
-
-    参数：
-        chart_type: Natal(本命) Synastry(合盘) Composite Transit SolarReturn LunarReturn
-        theme: 留空则随机选择(推荐) / light / dark / classic / strawberry / dark-high-contrast / black-and-white
-
-    用法：
-        # 本命盘（随机主题）
-        render_astrology_svg("张三", 1990,6,15, 14,30, lat=39.9,lng=116.4, city="北京")
-
-        # 合盘（双人）
-        render_astrology_svg("张三&李四", 1990,6,15, 14,30, chart_type="Composite",
-            lat=39.9,lng=116.4, city="北京")
-
-        # 指定主题
-        render_astrology_svg(..., theme="strawberry", chart_type="Natal")
-
-    返回：SVG 文件路径（executor 自动检测并传回 App 显示）
-    """
-    import secrets
-    from kerykeion import AstrologicalSubject, KerykeionChartSVG
-
-    themes = ["light", "dark", "dark-high-contrast", "classic", "strawberry", "black-and-white"]
-    if theme is None:
-        theme = secrets.choice(themes)
-
-    sub = AstrologicalSubject(
-        name=name, year=year, month=month, day=day,
-        hour=hour, minute=minute, city=city,
-        lat=lat, lng=lng, tz_str=tz_str,
-    )
-    chart = KerykeionChartSVG(sub, chart_type=chart_type, theme=theme)
-    filename = f"{name}_{chart_type}.svg"
-    chart.save_svg(filename)
-    print(f"✨ 星盘图已生成：{filename}（主题：{theme}）")
-    return filename
 
 
 # ============================================================
