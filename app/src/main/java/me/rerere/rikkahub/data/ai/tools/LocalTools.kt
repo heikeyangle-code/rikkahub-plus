@@ -131,6 +131,19 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
             synchronized(jsContextLock) {
                 if (jsContext == null) {
                     jsContext = QuickJSContext.create()
+                    // Inject crypto polyfill — QuickJS has no browser/Node crypto object
+                    // Used by iching-shifa (dayan/lueshifa) and taixuan-engine (generate/coins/dice/shi)
+                    jsContext!!.evaluate(
+                        "if(typeof crypto==='undefined'){crypto={getRandomValues:function(a){" +
+                        "for(var i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256);return a}}};"
+                    )
+                    // Inject console polyfill — iztro (ziwei-nihai dependency) calls
+                    // console.error in its i18n module at load time, which crashes QuickJS
+                    // if no stdout is configured
+                    jsContext!!.evaluate(
+                        "if(typeof console==='undefined'||typeof console.log!=='function'){" +
+                        "console={log:function(){},error:function(){},warn:function(){},info:function(){}}};"
+                    )
                 }
             }
         }
