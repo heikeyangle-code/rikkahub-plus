@@ -47,7 +47,7 @@ Available built-in functions (call these from your code):
 
   【西洋占星】 (仅JS) — 三层互补:
   Astronomy(JS,VSOP87)              → 行星精确位置+日月食+升降+月相  (底层星历)
-  NatalEngine(主力) → 本命盘解读+合盘+吠陀+人类图  (唯一带文本输出)
+  NatalEngine(主力) → 本命盘解读+合盘+吠陀  (唯一带文本输出)
   Caelus(JS,231函数)               → 12宫位制+赤纬相位+格局检测+行星尊贵+推运+合盘细节+福点  (NatalEngine没有的它全补,具体函数名用dir()自探索)
   合盘: NatalEngine.compareAstrology + Caelus composite/synastry/davison
   备选: HoroscopeJS(底层宫位,已被Caelus覆盖)
