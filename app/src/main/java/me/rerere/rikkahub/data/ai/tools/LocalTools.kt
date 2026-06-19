@@ -138,11 +138,11 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                         "for(var i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256);return a}}};"
                     )
                     // Inject console polyfill — iztro (ziwei-nihai dependency) calls
-                    // console.error in its i18n module at load time, which crashes QuickJS
-                    // if no stdout is configured
+                    // console.error during module load. QuickJS wrapper's native console
+                    // throws if stdout isn't configured via Java callback. Force-replace
+                    // with no-op JS console to bypass the native check entirely.
                     jsContext!!.evaluate(
-                        "if(typeof console==='undefined'||typeof console.log!=='function'){" +
-                        "console={log:function(){},error:function(){},warn:function(){},info:function(){}}};"
+                        "console={log:function(){},error:function(){},warn:function(){},info:function(){}};"
                     )
                 }
             }
