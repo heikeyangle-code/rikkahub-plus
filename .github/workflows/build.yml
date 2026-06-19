@@ -365,6 +365,7 @@ jobs:
 
       - name: Compile Caelus JS engine (Western + Vedic astrology — zero-dependency VSOP87D)
         run: |
+          mkdir -p /tmp/caelus_build
           cd /tmp && npm pack caelus --pack-destination /tmp/caelus_build 2>&1
           cd /tmp/caelus_build && tar xzf caelus-*.tgz && cd package
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
@@ -376,6 +377,7 @@ jobs:
 
       - name: Compile Liuren JS engine (大六壬 — LiuRen TypeScript Library)
         run: |
+          mkdir -p /tmp/liuren_build
           cd /tmp && npm pack liuren-ts-lib tyme4ts --pack-destination /tmp/liuren_build 2>&1
           cd /tmp/liuren_build
           for f in liuren-ts-lib-*.tgz tyme4ts-*.tgz; do tar xzf "$f"; done
