@@ -74,7 +74,7 @@ Available built-in functions (call these from your code):
                          core(keywords/charge/category/topics) | timing(速度/季节/时长/方向)
                          topic_contexts(love/career/health/finances/spiritual) | line_reading(首牌/中牌/末牌)
                          combination_grammar(配牌语法+正/负/人物/物件牌联动) | combinations(16组固定组合)
-                         grand_tableau(大桌牌阵:宫位/近征象/远征象/对角). 同样读card.core/card.timing等字段
+                         grand_tableau(大桌牌阵:宫位/近征象/远征象/对角). 访问: d.get_card(c.card_id)._data[\\\"core\\\"] 等字段
                          无需出生
 
   【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机; 灵数/卡巴拉/Gematria/Ifá Python侧无)
@@ -98,7 +98,7 @@ Available built-in functions (call these from your code):
   cnlunar             →  import cnlunar; print(dir(cnlunar.LunarDate))
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import book; print(dir(book))        # 梅花起卦查询
-  arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system=\"tarot\"); cards=d.draw(3); [print(c.card_name,c.orientation.value) for c in cards]
+  arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system=\\\"tarot\\\"); cards=d.draw(3); 深度:[d.get_card(c.card_id)._data[k] for c in cards for k in [\\\"core_meanings\\\",\\\"symbols\\\",\\\"question_contexts\\\",\\\"position_interpretations\\\",\\\"elemental_correspondences\\\",\\\"affirmations\\\",\\\"journaling_prompts\\\",\\\"meditation_focus\\\",\\\"card_relationships\\\"]]\n                      雷曼: d=TarotDeck.load(system=\\\"lenormand\\\"); cards=d.draw(5); [d.get_card(c.card_id)._data[k] for k in [\\\"core\\\",\\\"timing\\\",\\\"topic_contexts\\\",\\\"line_reading\\\",\\\"combinations\\\",\\\"grand_tableau\\\"]]
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
