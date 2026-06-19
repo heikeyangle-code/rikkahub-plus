@@ -217,10 +217,10 @@ jobs:
           echo 'export { generateChart, getLunarInfo } from "./lib/ziwei/algorithm";' > entry.ts
           echo 'export * from "./lib/nihai";' >> entry.ts
           echo 'export * from "./lib/classics";' >> entry.ts
-          npx esbuild entry.ts --bundle --platform=node --format=iife --global-name=ZiweiNihai --target=es2020 --outfile=ziwei-nihai-engine.js 2>&1 | tail -3
+          npx esbuild entry.ts --bundle --platform=node --format=iife --global-name=ZiweiNihai --target=es2020 --outfile=ziwei-nihai.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
-          cp ziwei-nihai-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
-          echo "NiHaiXia ZiWei engine compiled: $(wc -c < ziwei-nihai-engine.js) bytes"
+          cp ziwei-nihai.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "NiHaiXia ZiWei engine compiled: $(wc -c < ziwei-nihai.js) bytes"
 
       - name: Compile IchingShifa JS engine (Coaixy/ichingshifa)
         run: |

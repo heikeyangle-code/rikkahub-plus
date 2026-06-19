@@ -325,7 +325,7 @@ dependencies {
 // CI 通过 .github/workflows/build.yml 的 esbuild 步骤生成这些文件。
 // 本地开发时文件可能不存在，打印明确提示，不阻断构建。
 val jsEngines = listOf(
-    "qimen-engine.js", "ziwei-nihai-engine.js", "iching-shifa-engine.js",
+    "qimen-engine.js", "ziwei-nihai.js", "iching-shifa-engine.js",
     "taixuan-engine.js", "lunar-engine.js", "astronomy-engine.js",
     "horoscope-engine.js", "kaabalah-engine.js"
 )
