@@ -45,15 +45,16 @@ Available built-in functions (call these from your code):
   六爻/周易/卦        →  问用户选 ichingshifa(Python,大衍筮法) 或 IchingShifa(JS,6种起卦) 或对照(JS取随机→同爻值喂Python qigua_manual)   无需出生（需起卦数）
   梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排     无需出生（需起卦数）
 
-  【西洋占星】 (Python C扩展不可用,仅JS) — NatalEngine作主力解读, 以下互补不替代:
-  西洋占星/星座/本命盘 →  NatalEngine.calculateAstrology(date,utcHour,utcMin,lat,lng) → {bigThree, planets, houses, aspects, elements...}  生日必填（需经纬度）
-  西洋占星合盘/兼容    →  NatalEngine.compareAstrology(chartA,chartB) → {overallScore, aspectHarmony...}  双人生日必填
-  日食月食/行星升降    →  Astronomy(JS,VSOP87,128函数) — 精确天文事件,NatalEngine不覆盖                            日期即可
-  占星图表/宫位制     →  HoroscopeJS(JS,7种宫位制+图表数据) — 用户要可视化或特定宫位制时用
-  原始行星位置        →  Caelus(JS,VSOP87D,231函数) — 查单个行星精确位置/速度时用
-
-  【印度/吠陀】 (仅JS)
-  印度占星/吠陀        →  NatalEngine.calculateVedic(date,utcHour,utcMin,lat,lng) → {moonSign, planets: [{siderealLon, nakshatra, pada, rashi}], dasha...}  生日必填（需经纬度）
+  【西洋占星】 (仅JS) — 三层互补:
+  Astronomy(JS,VSOP87)              → 行星精确位置+日月食+升降+月相  (底层星历)
+  NatalEngine.calculateAstrology()  → 解读+SVG+合盘  (主力)
+  Caelus(JS,231函数)               → 12宫位制+赤纬相位+格局检测+行星尊贵+推运+合盘细节+福点  (NatalEngine没有的它全补)
+  合盘: NatalEngine.compareAstrology + Caelus composite/synastry/davison
+  备选: HoroscopeJS(底层宫位,已被Caelus覆盖)
+  【印度/吠陀】 (仅JS) — 二层互补:
+  NatalEngine.calculateVedic()  → Rasi+27星宿+Dasha大运+解读  (主力)
+  Caelus(JS)                   → Yoga检测+分盘+Ashtottari大运+尊贵+互容  (NatalEngine没有的)
+  Astronomy(JS)                → 精确行星位置  (底层星历)
 
   【人类图/Human Design】
   人类图               →  NatalEngine.calculateHumanDesign(date,utcHour,utcMin) → {type, authority, profile, centers, channels, gates...}  生日必填（无需经纬度）
@@ -159,8 +160,8 @@ Available built-in functions (call these from your code):
   • 奇门: QimenEngine(JS,7局法×4流派+断语) — Python侧C扩展已删,仅JS
   • 六爻: ichingshifa(Python,大衍1种) vs IchingShifa(JS,6种起卦)
   • 太玄: taixuanshifa(Python,蓍法1种) vs TaixuanLib(JS,4种起卦)
-  • 西洋占星: NatalEngine(JS,本命盘+合盘,已解读) — 主力解读. HoroscopeJS(JS,图表)→可视化/宫位制 Caelus(JS,231函数)→原始行星位置 Astronomy(JS)→日食月食/行星升降 为互补非替代
-  • 印度吠陀: NatalEngine(JS,Lahiri岁差+27星宿+大运). Caelus(JS)为备选
+  • 西洋占星: Astronomy(星历)→NatalEngine(解读+SVG)→Caelus(12宫位+格局+尊贵+推运) 三层互补
+  • 印度吠陀: NatalEngine(Rasi+Dasha+解读)+Caelus(Yoga+分盘+互容) 二层互补
   • 人类图: NatalEngine(JS,类型/权威/通道/闸门) — 唯一
   • 塔罗: arcanite(Python)78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
   • 卡巴拉/灵数/Gematria/Ifá: JS Kaabalah (Python侧无)
