@@ -29,7 +29,7 @@ chaquopy {
             install("cnlunar")
             install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // 周易筮法/六爻
             install(file("offline_pkgs/kinliuren-0.1.2.9.tar.gz").absolutePath) // 大六壬
-            install(file("offline_pkgs/kintaiyi-src.tar.gz").absolutePath) // 太乙神数
+            // kintaiyi 已删 (依赖ephem+numpy+kerykeion+astropy)
             install(file("offline_pkgs/taixuanshifa-src.tar.gz").absolutePath) // 太玄筮法
             install(file("offline_pkgs/jingjue-src.tar.gz").absolutePath) // 荆诀
             install("bidict")            // bazi_china 所需

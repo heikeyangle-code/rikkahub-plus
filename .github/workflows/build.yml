@@ -94,18 +94,6 @@ jobs:
           cd /tmp && rm -rf /tmp/kinliuren_src
           echo "kinliuren from GitHub ready (146KB, __init__ fixed)"
 
-          # kintaiyi (太乙神数): 依赖ephem+numpy+kerykeion+astropy(全删) → 暂不可用
-          # 从GitHub克隆+打包,安装后可import但排盘函数会因缺依赖而失败
-          git clone --depth 1 https://github.com/kentang2017/kintaiyi.git /tmp/kintaiyi_src 2>&1 | tail -1
-          cd /tmp/kintaiyi_src
-          mv src/kintaiyi ./kintaiyi && rm -rf src
-          # Write __init__.py without heavy dep imports
-          printf '"""kintaiyi - 太乙神数 (当前不可用: 缺ephem/numpy/kerykeion/astropy)"""\n__all__ = ["kintaiyi","config","jieqi","chart"]\n' > kintaiyi/__init__.py
-          printf 'from setuptools import setup; setup(name="kintaiyi", version="0.1", packages=["kintaiyi"])' > setup.py
-          printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
-          tar czf /tmp/pypi-offline/kintaiyi-src.tar.gz --exclude=".git" .
-          cd /tmp && rm -rf /tmp/kintaiyi_src
-
           # taixuanshifa (太玄筮法): PyPI空壳, GitHub克隆+注入setup.py (根目录.py, 非src/)
           git clone --depth 1 https://github.com/kentang2017/taixuanshifa.git /tmp/taixuanshifa_src 2>&1 | tail -1
           cd /tmp/taixuanshifa_src
