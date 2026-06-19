@@ -181,7 +181,6 @@ jobs:
           for f in app/offline_pkgs/markupsafe-*.tar.gz; do cp "$f" "app/offline_pkgs/markupsafe-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/pyyaml-*.tar.gz; do cp "$f" "app/offline_pkgs/pyyaml-latest.tar.gz" 2>/dev/null || true; done
           # simple_ascii_tables: .whl 改名会破坏 PEP 427 命名规范,保持原名 (resolve via fileTree glob in build.gradle.kts)
-          for f in app/offline_pkgs/requests_cache-*.tar.gz; do cp "$f" "app/offline_pkgs/requests_cache-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/attrs-*.tar.gz; do cp "$f" "app/offline_pkgs/attrs-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/cattrs-*.tar.gz; do cp "$f" "app/offline_pkgs/cattrs-latest.tar.gz" 2>/dev/null || true; done
           for f in app/offline_pkgs/platformdirs-*.tar.gz; do cp "$f" "app/offline_pkgs/platformdirs-latest.tar.gz" 2>/dev/null || true; done
