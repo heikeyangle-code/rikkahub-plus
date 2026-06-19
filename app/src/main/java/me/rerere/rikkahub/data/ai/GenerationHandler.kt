@@ -174,7 +174,7 @@ class GenerationHandler(
                 appendLine("【奇门三式】奇门遁甲→QimenEngine(JS,7局法×4流派+断语) | 大六壬→kinliuren | 小六壬→lunar_python取月日时→掌诀推算(大安留连速喜赤口小吉空亡)")
                 appendLine("【象数易】太玄筮法→问用户选taixuanshifa(Python)或TaixuanLib(JS,4种起卦)或对照(JS取code→Python pan_from_code) | 荆诀→jingjue")
                 appendLine("【六爻/卦】六爻/周易→问用户选ichingshifa(Python,大衍筮法)或IchingShifa(JS,6种)或对照 | 梅花易数→meihua_yi(备:ichingshifa)")
-                appendLine("【西洋占星】Astronomy(VSOP87星历)→NatalEngine(解读+SVG)→Caelus(12宫位+格局+尊贵+推运) 三层互补 | 备选:HoroscopeJS已被Caelus覆盖 | Python C扩展全删")
+                appendLine("【西洋占星】Astronomy(VSOP87星历)→NatalEngine(解读)→Caelus(12宫位+格局+尊贵+推运) 三层互补 | 备选:HoroscopeJS已被Caelus覆盖 | Python C扩展全删")
                 appendLine("【印度吠陀】NatalEngine(Rasi+Dasha+解读)+Caelus(Yoga+分盘+互容) 二层互补 | Astronomy(VSOP87底层星历)")
                 appendLine("【人类图】NatalEngine(JS,类型/权威/能量中心/通道/闸门/人生角色) — 唯一")
                 appendLine("【塔罗】arcanite(Python,78张+牌阵+正逆位,洗牌抽牌) | _data[core_meanings/position_interpretations/question_contexts/elemental_correspondences/symbols/affirmations/journaling_prompts/meditation_focus/card_relationships] 共9层 | 深度→777表→Kaabalah | 无需出生")

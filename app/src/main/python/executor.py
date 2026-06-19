@@ -47,7 +47,7 @@ Available built-in functions (call these from your code):
 
   【西洋占星】 (仅JS) — 三层互补:
   Astronomy(JS,VSOP87)              → 行星精确位置+日月食+升降+月相  (底层星历)
-  NatalEngine.calculateAstrology()  → 解读+SVG+合盘  (主力)
+  NatalEngine.calculateAstrology()  → 解读(人话报告)+合盘  (主力,唯一带文本输出的)
   Caelus(JS,231函数)               → 12宫位制+赤纬相位+格局检测+行星尊贵+推运+合盘细节+福点  (NatalEngine没有的它全补,具体函数名用dir()自探索)
   合盘: NatalEngine.compareAstrology + Caelus composite/synastry/davison
   备选: HoroscopeJS(底层宫位,已被Caelus覆盖)
@@ -160,7 +160,7 @@ Available built-in functions (call these from your code):
   • 奇门: QimenEngine(JS,7局法×4流派+断语) — Python侧C扩展已删,仅JS
   • 六爻: ichingshifa(Python,大衍1种) vs IchingShifa(JS,6种起卦)
   • 太玄: taixuanshifa(Python,蓍法1种) vs TaixuanLib(JS,4种起卦)
-  • 西洋占星: Astronomy(星历)→NatalEngine(解读+SVG)→Caelus(12宫位+格局+尊贵+推运) 三层互补
+  • 西洋占星: Astronomy(星历)→NatalEngine(解读)→Caelus(12宫位+格局+尊贵+推运) 三层互补
   • 印度吠陀: NatalEngine(Rasi+Dasha+解读)+Caelus(Yoga+分盘+互容) 二层互补
   • 人类图: NatalEngine(JS,类型/权威/通道/闸门) — 唯一
   • 塔罗: arcanite(Python)78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
