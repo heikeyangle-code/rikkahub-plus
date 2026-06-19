@@ -1,8 +1,10 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import android.content.Context
+import com.whl.quickjs.wrapper.JSCallFunction
 import com.whl.quickjs.wrapper.QuickJSContext
 import com.whl.quickjs.wrapper.QuickJSObject
+import java.security.SecureRandom
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNull
@@ -131,23 +133,22 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
             synchronized(jsContextLock) {
                 if (jsContext == null) {
                     jsContext = QuickJSContext.create()
-                    // Inject crypto polyfill — QuickJS has no browser/Node crypto object
-                    // Used by iching-shifa (dayan/lueshifa) and taixuan-engine (generate/coins/dice/shi)
-                    // Engines call cryptoRandInt(min,max) (injected by CI esbuild banner) which
-                    // uses new Uint32Array(1) + crypto.getRandomValues(r).
-                    // Must fill all 4 bytes of Uint32 elements, not just byte-per-element.
+
+                    // ── Hardware true random via SecureRandom → JS bridge ──
+                    val sr = SecureRandom()
+                    jsContext!!.globalObject.setProperty("__hardwareRandU32", JSCallFunction {
+                        val b = ByteArray(4); sr.nextBytes(b)
+                        (b[0].toInt() and 0xFF) or
+                        ((b[1].toInt() and 0xFF) shl 8) or
+                        ((b[2].toInt() and 0xFF) shl 16) or
+                        ((b[3].toInt() and 0xFF) shl 24)
+                    })
                     jsContext!!.evaluate(
-                        "if(typeof crypto==='undefined'){crypto={getRandomValues:function(a){" +
-                        "for(var i=0;i<a.length;i++){" +
-                        "a[i]=(a instanceof Uint32Array)?" +
-                        "((Math.floor(Math.random()*256)|(Math.floor(Math.random()*256)<<8)|" +
-                        "(Math.floor(Math.random()*256)<<16)|(Math.floor(Math.random()*256)<<24))>>>0):" +
-                        "Math.floor(Math.random()*256)}}};}"
+                        "crypto={getRandomValues:function(a){" +
+                        "for(var i=0;i<a.length;i++)a[i]=__hardwareRandU32();return a}};"
                     )
-                    // Inject console polyfill — iztro (ziwei-nihai dependency) calls
-                    // console.error during module load. QuickJS wrapper's native console
-                    // throws if stdout isn't configured via Java callback. Force-replace
-                    // with no-op JS console to bypass the native check entirely.
+
+                    // ── Console no-op — bypasses wrapper's native stdout check ──
                     jsContext!!.evaluate(
                         "console={log:function(){},error:function(){},warn:function(){},info:function(){}};"
                     )
