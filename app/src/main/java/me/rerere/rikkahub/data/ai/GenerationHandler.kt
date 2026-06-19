@@ -179,7 +179,7 @@ class GenerationHandler(
                 appendLine("【人类图】NatalEngine(JS,类型/权威/能量中心/通道/闸门/人生角色) — 唯一")
                 appendLine("【塔罗】arcanite(Python,78张+牌阵+正逆位,洗牌抽牌) | _data[core_meanings/position_interpretations/question_contexts/elemental_correspondences/symbols/affirmations/journaling_prompts/meditation_focus/card_relationships] 共9层 | 深度→777表→Kaabalah | 无需出生")
                 appendLine("【雷诺曼】arcanite(system=\"lenormand\",36张+牌阵+正逆位) | _data[core/timing/as_person/modifier_behavior/playing_card/topic_contexts/line_reading/combination_grammar/combinations/grand_tableau] 共10字段 | 无需出生")
-                appendLine("【灵数/卡巴拉】生命灵数/流年/挑战数→Kaabalah(JS,零随机) | 卡巴拉生命之树→Kaabalah.buildKaabalisticMapData | Gematria→Kaabalah.calculateGematria | Ifá→Kaabalah.calculateOdu (仅JS)")
+                appendLine("【灵数/卡巴拉】生命灵数/流年/挑战数→Kaabalah(JS,零随机,日期类函数必须传new Date对象不可传{year,month,day}) | 卡巴拉生命之树→Kaabalah.buildKaabalisticMapData | Gematria→Kaabalah.calculateGematria | Ifá→Kaabalah.calculateOdu (仅JS)")
                 appendLine("【农历天文】黄历/择日/建除/太岁→cnlunar(备:lunar_python,Lunar(JS)) | 公历农历转换/八字→lunar_python | 二十八宿→Lunar.getTwentyEightMans() | 吉神凶神/彭祖百忌→cnlunar | 生肖/干支→bazi_china | 节气→lunar_python")
                 appendLine("输入要求：八字/紫微需生日时辰+性别 | 西洋占星/吠陀需生日+经纬度 | 人类图需生日(无需经纬度) | 黄历/择日/太岁/节气仅需日期 | 六爻/梅花/太玄/荆诀/塔罗无需出生")
                 appendLine("⚠️ JS引擎通过 eval_javascript 调用。首次需 load: action='load', library='<库名>'（库名见 executor.py 路由表）。11库: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine(西洋+吠陀占星) | iztro-engine(紫微⭐3841) | natalengine-engine(西洋+吠陀+人类图)")

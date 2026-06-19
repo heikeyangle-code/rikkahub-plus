@@ -81,8 +81,8 @@ Available built-in functions (call these from your code):
                          无需出生
 
   【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机; 灵数/卡巴拉/Gematria/Ifá Python侧无)
-  生命灵数/流年/挑战数  →  Kaabalah.calculatePersonalYear({day,month,year}) 又 calculatePersonalMonths 又 calculatePersonalCycles 又 calculateChallenges 又 reduceToSingle 又 getDateEnergies  生日即可
-  卡巴拉生命之树       →  Kaabalah.buildKaabalisticMapData() 又 getCanonicalTree() 又 SPHERES 又 LURIANIC_PATHS 又 TreeOfLife 又 getAstrologyTreeMarkers 又 getGematriaTreeMarkers 又 getNumerologyTreeMarkers 又 calculateKaabalisticLifePath  生日可选
+  生命灵数/流年/挑战数  →  Kaabalah.calculatePersonalYear(new Date(year,month-1,day)) 又 calculatePersonalMonths 又 calculatePersonalCycles 又 calculateChallenges 又 reduceToSingle 又 getDateEnergies  生日即可
+  卡巴拉生命之树       →  Kaabalah.buildKaabalisticMapData() 又 getCanonicalTree() 又 SPHERES 又 LURIANIC_PATHS 又 TreeOfLife 又 getAstrologyTreeMarkers 又 getGematriaTreeMarkers 又 getNumerologyTreeMarkers 又 calculateKaabalisticLifePath(new Date(Date.UTC(y,m-1,d)))  需Date对象,不可传{year,month,day}
   希伯来Gematria      →  Kaabalah.calculateGematria("shalom") 又 reverseGematria(376) 又 GematriaData 又 HEBREW_LETTERS_DATA  输入文本/数字
   非洲Ifá占卜         →  Kaabalah.calculateOdu()                                    无需出生
 
@@ -171,9 +171,9 @@ Available built-in functions (call these from your code):
   Lunar (JS)  → eval_javascript(library='lunar-engine', code='Lunar.Solar.fromDate(new Date(2026,5,19)) 又 Lunar.Lunar.fromDate(d) 又 Lunar.EightChar.fromLunar(lunar) 又 Lunar.DaYun(...) 又 Lunar.JieQi.getJieQi(2026)
   Astronomy   → eval_javascript(library='astronomy-engine', code='Astronomy.BodyPosition("sun", new Date(2026,5,19,14,0,0)) 又 Astronomy.SearchRiseSet("sun", observer, date) 又 Astronomy.SearchLunarEclipse(date) 又 Astronomy.Seasons(2026) 又 Astronomy.MoonPhase(date)  (零随机,VSOP87精度)
   HoroscopeJS → eval_javascript(library='horoscope-engine', code='new HoroscopeJS.Horoscope({origin:new HoroscopeJS.Origin({year:2026,month:5,day:19,hour:14,minute:0,latitude:39.9,longitude:116.4}),houseSystem:"placidus",zodiac:"tropical"})  (零随机,Kepler精度+7宫位制)
-  Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calculateGematria("shalom") 又 Kaabalah.buildKaabalisticMapData() 又 Kaabalah.calculateKaabalisticLifePath(...) 又 Kaabalah.calculatePersonalYear(new Date(...)) 又 Kaabalah.calculateOdu()  (零随机,纯JS; 塔罗走arcanite+777表)
-  Caelus(西洋+吠陀) → eval_javascript(...)  (零依赖VSOP87D,231函数,先new Engine)
-  NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-engine', code='NatalEngine.calculateAstrology(\\\"1990-06-15\\\",14.5,0,40.7,-74.0)') 返回 {bigThree:\"Gemini Sun...\", planets:[{sign,house,aspects}], houses:{ascendant,midheaven...}}; 吠陀: NatalEngine.calculateVedic(date,utcH,utcM,lat,lng) → {moonSign, planets:[{siderealLon,nakshatra,pada,rashi}], dasha}; 人类图: NatalEngine.calculateHumanDesign(date,utcH,utcM) → {type,authority,profile,centers,channels,gates}; 合盘: NatalEngine.compareAstrology(chartA,chartB)  (纯JS,基于astronomy-engine VSOP87,已解读输出)
+  Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calculateGematria("shalom") 又 Kaabalah.buildKaabalisticMapData() 又 Kaabalah.calculateKaabalisticLifePath(new Date(Date.UTC(...))) 又 Kaabalah.calculatePersonalYear(new Date(...)) 又 Kaabalah.calculateOdu()  (零随机,纯JS; 塔罗走arcanite+777表)
+  Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=new Caelus.Engine(); e.getBirthChart({year:1990,month:6,day:15,hour:14,minute:30,latitude:25.0330,longitude:121.5654,timezone:8})")  (零依赖VSOP87D,231函数,先new Engine)
+  NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-engine', code='NatalEngine.calculateAstrology("1990-06-15",14.5,0,40.7,-74.0)') 返回 {bigThree:\"Gemini Sun...\", planets:[{sign,house,aspects}], houses:{ascendant,midheaven...}}; 吠陀: NatalEngine.calculateVedic(date,utcH,utcM,lat,lng) → {moonSign, planets:[{siderealLon,nakshatra,pada,rashi}], dasha}; 人类图: NatalEngine.calculateHumanDesign(date,utcH,utcM) → {type,authority,profile,centers,channels,gates}; 合盘: NatalEngine.compareAstrology(chartA,chartB)  (纯JS,基于astronomy-engine VSOP87,已解读输出)
   Iztro(紫微⭐3841) → eval_javascript(library='iztro-engine', code='Iztro.astro.bySolar(\"1990-6-15\",7,\"male\")') 返回 FunctionalAstrolabe 含 .palaces[12] .palace(i) .surroundedPalaces(i).have([\"紫微\"]) .horoscope(date,timeIndex) .soul .body .fiveElementsClass .sign .zodiac; 配置: Iztro.astro.config({dayDivide:\"forward\",yearDivide:\"normal\",algorithm:\"default\"}); 农历盘: Iztro.astro.byLunar(\"1990-5-23\",7,\"male\",false)  (零随机,纯确定性算法)
   返回 JSON，AI 基于真实数据解读。
 """
