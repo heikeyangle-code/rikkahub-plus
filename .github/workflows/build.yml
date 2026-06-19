@@ -215,7 +215,7 @@ jobs:
           cd /tmp/qimen_ts
           echo 'export { generateQimenChart as generate } from "./src/engine";' > entry.ts
           npm install esbuild typescript lunar-typescript 2>&1 | tail -3
-          npx esbuild entry.ts --bundle --platform=node --format=iife --global-name=QimenEngine --target=es2020 --outfile=qimen-engine.js 2>&1
+          npx esbuild entry.ts --bundle --platform=node --format=iife --global-name=QimenEngine --target=es2020 --tree-shaking=false --outfile=qimen-engine.js 2>&1
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp qimen-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Qimen TS engine compiled: $(wc -c < qimen-engine.js) bytes"
@@ -230,7 +230,7 @@ jobs:
           echo 'export { generateChart, getLunarInfo } from "./lib/ziwei/algorithm";' > entry.ts
           echo 'export * from "./lib/nihai";' >> entry.ts
           echo 'export * from "./lib/classics";' >> entry.ts
-          npx esbuild entry.ts --bundle --platform=node --format=iife --global-name=ZiweiNihai --target=es2020 --outfile=ziwei-nihai.js 2>&1 | tail -3
+          npx esbuild entry.ts --bundle --platform=node --format=iife --global-name=ZiweiNihai --target=es2020 --tree-shaking=false --outfile=ziwei-nihai.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp ziwei-nihai.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "NiHaiXia ZiWei engine compiled: $(wc -c < ziwei-nihai.js) bytes"
@@ -254,7 +254,7 @@ jobs:
           grep -n "Math.random" src/core/*.ts && echo "WARNING: Math.random still present!" || echo "OK: no Math.random remaining"
           echo 'export * from "./src/index";' > entry.ts
           cat ~/crypto_random.js >> entry.ts
-          npx esbuild entry.ts --bundle --platform=node --format=iife --global-name=IchingShifa --target=es2020 --outfile=iching-shifa-engine.js 2>&1 | tail -3
+          npx esbuild entry.ts --bundle --platform=node --format=iife --global-name=IchingShifa --target=es2020 --tree-shaking=false --banner:js="function cryptoRandInt(min,max){var r=new Uint32Array(1);crypto.getRandomValues(r);return min+(r[0]%(max-min+1));}" --outfile=iching-shifa-engine.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp iching-shifa-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "IchingShifa JS engine compiled: $(wc -c < iching-shifa-engine.js) bytes"
@@ -281,7 +281,7 @@ jobs:
           echo 'function cryptoRandInt(min,max){var r=new Uint32Array(1);crypto.getRandomValues(r);return min+(r[0]%(max-min+1));}' > /tmp/crypto_polyfill.js
           # Entry: just re-export everything (esbuild handles IIFE wrapping)
           echo 'export * from "./dist/index";' > taixuan-entry.mjs
-          npx esbuild taixuan-entry.mjs --bundle --platform=node --format=iife --global-name=TaixuanLib --target=es2020 --banner:js="$(cat /tmp/crypto_polyfill.js)" --outfile=taixuan-engine.js 2>&1 | tail -3
+          npx esbuild taixuan-entry.mjs --bundle --platform=node --format=iife --global-name=TaixuanLib --target=es2020 --tree-shaking=false --banner:js="$(cat /tmp/crypto_polyfill.js)" --outfile=taixuan-engine.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp taixuan-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "TaiXuan JS engine compiled: $(wc -c < taixuan-engine.js) bytes"
@@ -295,7 +295,7 @@ jobs:
           # lunar-javascript 是 CommonJS 单文件, 从 index.js 导出即可
           echo 'module.exports = require("./index");' > lunar-entry.cjs
           # 或者用 esbuild 处理 CJS→ESM
-          npx esbuild lunar-entry.cjs --bundle --platform=node --format=iife --global-name=Lunar --target=es2020 --outfile=lunar-engine.js 2>&1 | tail -3
+          npx esbuild lunar-entry.cjs --bundle --platform=node --format=iife --global-name=Lunar --target=es2020 --tree-shaking=false --outfile=lunar-engine.js 2>&1 | tail -3
           echo "Lunar esbuild done"
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp lunar-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
@@ -307,7 +307,7 @@ jobs:
           cd /tmp && npm pack astronomy-engine --pack-destination /tmp/astronomy_build 2>&1
           cd /tmp/astronomy_build && tar xzf astronomy-engine-*.tgz && cd package
           echo 'export * from "./astronomy.js";' > astro-entry.mjs
-          npx esbuild astro-entry.mjs --bundle --platform=node --format=iife --global-name=Astronomy --target=es2020 --outfile=astronomy-engine.js 2>&1 | tail -3
+          npx esbuild astro-entry.mjs --bundle --platform=node --format=iife --global-name=Astronomy --target=es2020 --tree-shaking=false --outfile=astronomy-engine.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp astronomy-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Astronomy JS engine compiled: $(wc -c < astronomy-engine.js) bytes"
@@ -318,7 +318,7 @@ jobs:
           cd /tmp && npm pack circular-natal-horoscope-js --pack-destination /tmp/horoscope_build 2>&1
           cd /tmp/horoscope_build && tar xzf circular-natal-horoscope-js-*.tgz && cd package
           echo 'export * from "./dist/index";' > horoscope-entry.mjs
-          npx esbuild horoscope-entry.mjs --bundle --platform=node --format=iife --global-name=HoroscopeJS --target=es2020 --outfile=horoscope-engine.js 2>&1 | tail -3
+          npx esbuild horoscope-entry.mjs --bundle --platform=node --format=iife --global-name=HoroscopeJS --target=es2020 --tree-shaking=false --outfile=horoscope-engine.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp horoscope-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Horoscope JS engine compiled: $(wc -c < horoscope-engine.js) bytes"
@@ -365,7 +365,7 @@ jobs:
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           # Find the ESM entry — caelus is pure TS, zero deps, 97KB
           # Use the data-embedded entry for self-contained bundle
-          npx esbuild dist/src/index.js --bundle --platform=node --format=iife --global-name=Caelus --target=es2020 --outfile=caelus-engine.js 2>&1 | tail -3
+          npx esbuild dist/src/index.js --bundle --platform=node --format=iife --global-name=Caelus --target=es2020 --tree-shaking=false --outfile=caelus-engine.js 2>&1 | tail -3
           cp caelus-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Caelus JS engine compiled: $(wc -c < caelus-engine.js) bytes"
 
