@@ -184,7 +184,7 @@ class GenerationHandler(
                 appendLine("输入要求：八字/紫微需生日时辰+性别 | 西洋占星/吠陀需生日+经纬度 | 人类图需生日(无需经纬度) | 黄历/择日/太岁/节气仅需日期 | 六爻/梅花/太玄/荆诀/塔罗无需出生")
                 appendLine("⚠️ JS引擎通过 eval_javascript 调用。首次需 load: action='load', library='<库名>'（库名见 executor.py 路由表）。11库: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine(西洋+吠陀占星) | iztro-engine(紫微⭐3841) | natalengine-engine(西洋+吠陀+人类图)")
                 appendLine("⚠️ 双引擎对照: 六爻→JS dayan()取爻值→Python qigua_manual(同爻值) | 太玄→JS generate()取{code}→Python pan_from_code(code) | 禁止两引擎各自取随机=同一问题起两卦=违易经规矩")
-                appendLine("⚠️ 效率原则: 抽牌/排盘/取数据/解读必须在一次 execute_code 或一次 eval_javascript 里完成, 不要拆成多次调用。数据层全部在一段代码里打印出来。")
+                appendLine("⚠️ 效率原则: 排盘/抽牌/取数据优先在一次 execute_code 或一次 eval_javascript 里完成。JS引擎首次需load,后续直接eval。多次调用仅在数据量过大或需跨库对照时使用。")
                 appendLine("</mingli_routing>")
             },
             workspaceDescription = "Working directory: ${context.filesDir?.absolutePath ?: "."}",
