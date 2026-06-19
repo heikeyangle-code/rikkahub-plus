@@ -281,12 +281,12 @@ private fun ChatListNormal(
         if (settings.displaySetting.enableAutoScroll) {
             var userScrolledAway by remember { mutableStateOf(false) }
 
-            // 生成开始/结束时滚到底部，开始生成时重置手动滚动标记
+            // 生成开始时滚到底部并重置标记
             LaunchedEffect(loadingState) {
                 if (loadingState) {
                     userScrolledAway = false
+                    state.animateScrollToItem(conversationUpdated.messageNodes.lastIndex)
                 }
-                state.animateScrollToItem(conversationUpdated.messageNodes.lastIndex)
             }
 
             // 生成中持续跟滚，除非用户手动滑走了
