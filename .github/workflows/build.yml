@@ -356,6 +356,8 @@ jobs:
           mkdir -p /tmp/natalengine_build
           cd /tmp && npm pack natalengine --pack-destination /tmp/natalengine_build 2>&1
           cd /tmp/natalengine_build && tar xzf natalengine-*.tgz && cd package
+          # natalengine 依赖 astronomy-engine(我们已有,需安装让esbuild内联)
+          npm install astronomy-engine 2>&1 | tail -1
           echo 'export * from "./src/index.js";' > natalentry.mjs
           npx esbuild natalentry.mjs --bundle --platform=node --format=iife --global-name=NatalEngine --target=es2020 --tree-shaking=false --outfile=natalengine-engine.js 2>&1 | tail -3
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
