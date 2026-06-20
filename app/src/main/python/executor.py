@@ -116,6 +116,7 @@ Available built-in functions (call these from your code):
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import engine; print(dir(engine))        # 梅花起卦查询
   arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(3); [print(c.card_name,c.orientation.value) for c in cards]
+                       ⚠️ 抽牌结果+深度数据的**全部内容**必须在回复正文中展示，不能依赖工具输出。工具只用于取数据，用户看到的是你的回复正文
                        深度数据: [d.get_card(c.card_id)._data[k] for c in cards for k in ["core_meanings","symbols","question_contexts","position_interpretations","elemental_correspondences","affirmations","journaling_prompts","meditation_focus","card_relationships"]]
                        雷诺曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(5); [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
