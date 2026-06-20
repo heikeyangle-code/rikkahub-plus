@@ -174,6 +174,15 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
         }
     }
 
+    /** Abandon current JS context WITHOUT calling destroy() — safe when native code
+     *  might still be running on a stuck thread (after timeout). GC cleans up later. */
+    private fun abandonJSContext() {
+        synchronized(jsContextLock) {
+            jsContext = null
+            loadedLibraries.clear()
+        }
+    }
+
     val javascriptTool by lazy {
         Tool(
             name = "eval_javascript",
@@ -266,7 +275,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                             else -> {
                                 // If previous execution timed out, nuke the stuck context
                                 if (contextDirty) {
-                                    resetJSContext()
+                                    abandonJSContext()  // no destroy() — native code may still run
                                     contextDirty = false
                                     logs.add("[WARN] JS context was reset — previous execution had timed out and corrupted the runtime. Libraries need reloading.")
                                 }
