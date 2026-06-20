@@ -80,7 +80,8 @@ Available built-in functions (call these from your code):
                          line_reading(as_first/as_middle/as_last) | combination_grammar(7种配牌语法)
                          combinations(16组固定组合,含with/with_number/category/as_first/as_second)
                          grand_tableau(as_house/near_significator/far_from_significator/diagonal_or_corner)
-                         访问: d.get_card(c.card_id)._data["core"] 等字段; 同样可读 _data["as_person"] _data["modifier_behavior"]等
+                         访问: d.get_card(c.card_id).get_core() / get_timing() / get_as_person() / get_modifier_behavior() / get_playing_card() / get_topic_contexts() / get_line_reading() / get_combination_grammar() / get_combinations() / get_grand_tableau() — 语义getter, 禁止 _data 裸访问
+                         组合: card.get_combination_with("the_clover", position="left") → 自动含方向+语法回退
                          无需出生
 
   【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机; 灵数/卡巴拉/Gematria/Ifá Python侧无)
@@ -144,8 +145,11 @@ Available built-in functions (call these from your code):
                          【反思问题】1条
                          【一句话箴言】1条
 
-                       雷诺曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(N); [print(c.card_id,c.card_name) for c in cards]
-                       深度: [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
+                       雷诺曼: d=LenormandDeck.load(); items=d.draw_with_data(N)
+                       [print(item.card_id,item.card_name) for item in items]
+                       深度: [item.get_core() for item in items] — 一步直接调语义getter
+                       组合链: item_A.get_combination_with(item_B.card_id, position="left")
+                       统计: d.analyze_draw(items) → 正逆位分布+全正/全逆检测
 
                        【雷诺曼输出】雷诺曼=现实事件模拟器
                          【问题】
@@ -168,8 +172,9 @@ Available built-in functions (call these from your code):
                        【牌阵】
                          from arcanite.core.spread import list_spreads, load_spread
                          list_spreads() → 塔罗11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
-                         load_spread('celtic-cross') → SpreadDefinition(positions=[{name,description,rag_mapping},...]) 按位置数决定draw(N)
-                         雷诺曼: get_spread_registry(system="lenormand").list_spreads() → line-3(3张) / line-5(5张)
+                         list_spreads(system="lenormand") → 雷诺曼: line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张) / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张) / astrological-houses(12张) / relationship(5张关系)
+                         load_spread(spread_id, system="lenormand") → SpreadDefinition(positions=...) 按位置数决定draw(N)
+                         Grand Tableau: 4×9网格,36宫role=house,sig=false(男人/女人牌游走),mirror=35-index动态算 row=pos.index//9 col=pos.index%9 → 骑士跳(|Δrow|=2&|Δcol|=1或反之) 对角线(|Δrow|==|Δcol|) 邻近(|Δrow|+|Δcol|≤2) | 镜像: pos.mirror_target | 指示牌: pos.is_significator
                          牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
                        【模式扩展】(塔罗/雷诺曼共享)
                          默认: 塔罗=故事叙事 | 雷诺曼=事件链
@@ -234,11 +239,20 @@ Available built-in functions (call these from your code):
   Astronomy   → eval_javascript(library='astronomy-engine', code='Astronomy.BodyPosition("sun", new Date(2026,5,19,14,0,0)) 又 Astronomy.SearchRiseSet("sun", observer, date) 又 Astronomy.SearchLunarEclipse(date) 又 Astronomy.Seasons(2026) 又 Astronomy.MoonPhase(date)  (零随机,VSOP87精度)
   HoroscopeJS → eval_javascript(library='horoscope-engine', code='new HoroscopeJS.Horoscope({origin:new HoroscopeJS.Origin({year:2026,month:5,day:19,hour:14,minute:0,latitude:39.9,longitude:116.4}),houseSystem:"placidus",zodiac:"tropical"})  (零随机,Kepler精度+7宫位制)
   Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calculateGematria("shalom") 又 Kaabalah.buildKaabalisticMapData() 又 Kaabalah.calculateKaabalisticLifePath(new Date(Date.UTC(...))) 又 Kaabalah.calculatePersonalYear(new Date(...)) 又 Kaabalah.calculateOdu()  (零随机,纯JS; 塔罗走arcanite+777表)
-  Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=new Caelus.Engine(); e.getBirthChart({year:1990,month:6,day:15,hour:14,minute:30,latitude:25.0330,longitude:121.5654,timezone:8})")  (零依赖VSOP87D,231函数,先new Engine)
+  Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=new Caelus.Engine(Caelus.embeddedData); e.getBirthChart({year:1990,month:6,day:15,hour:14,minute:30,latitude:25.0330,longitude:121.5654,timezone:8})")  (零依赖VSOP87D,231函数,先new Engine)
   NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-engine', code='NatalEngine.calculateAstrology("1990-06-15",14.5,0,40.7,-74.0)') 返回 {bigThree:\"Gemini Sun...\", planets:[{sign,house,aspects}], houses:{ascendant,midheaven...}}; 吠陀: NatalEngine.calculateVedic(date,utcH,utcM,lat,lng) → {moonSign, planets:[{siderealLon,nakshatra,pada,rashi}], dasha}; 人类图: NatalEngine.calculateHumanDesign(date,utcH,utcM) → {type,authority,profile,centers,channels,gates}; 合盘: NatalEngine.compareAstrology(chartA,chartB)  (纯JS,基于astronomy-engine VSOP87,已解读输出)
   Iztro(紫微⭐3841) → eval_javascript(library='iztro-engine', code='Iztro.astro.bySolar(\"1990-6-15\",7,\"male\")') 返回 FunctionalAstrolabe 含 .palaces[12] .palace(i) .surroundedPalaces(i).have([\"紫微\"]) .horoscope(date,timeIndex) .soul .body .fiveElementsClass .sign .zodiac; 配置: Iztro.astro.config({dayDivide:\"forward\",yearDivide:\"normal\",algorithm:\"default\"}); 农历盘: Iztro.astro.byLunar(\"1990-5-23\",7,\"male\",false)  (零随机,纯确定性算法)
   返回 JSON，AI 基于真实数据解读。
 """
+
+# ── Chaquopy fix: executor replaces random.Random.__init__ with restored_init
+# but doesn't inject random._traced_calls. secrets.SystemRandom() (used by
+# arcanite, jingjue, taixuanshifa, ichingshifa, meihua_yi) hits:
+#   AttributeError: module 'random' has no attribute '_traced_calls'
+# This runs before any imports that touch random/secrets.
+import random as _random
+if not hasattr(_random, '_traced_calls'):
+    _random._traced_calls = []
 
 import sys
 import json

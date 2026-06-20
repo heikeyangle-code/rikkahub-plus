@@ -164,6 +164,32 @@ jobs:
           python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_lenormand.py "$dir/src/arcanite/core/deck.py"
           # LenormandCard + LenormandDeck + load_lenormand_deck() (10 semantic getters)
           python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_lenormand_deck.py "$dir/src/arcanite/core/deck.py"
+          # Lenormand __init__ exports + lenormand/ subpackage (fix ImportError + ModuleNotFoundError)
+          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_lenormand_init.py "$dir/src/arcanite/core/__init__.py" "$dir/src/arcanite"
+          # SpreadPosition 4 optional fields: index, key, is_significator, mirror_target
+          python3 ${GITHUB_WORKSPACE}/ci/patch_spread_position_fields.py "$dir/src/arcanite/core/models.py" "$dir/src/arcanite/core/spread.py"
+          # Spread system parameter: list_spreads(system=) + load_spread(id, system=) (fix TypeError + KeyError)
+          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_spread.py "$dir/src/arcanite/core/spread.py"
+          # DrawnCard proxy: _deck_ref + TarotCard methods (get_affirmations etc.) on DrawnCard
+          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_drawncard_proxy.py "$dir/src/arcanite/core/models.py" "$dir/src/arcanite/core/deck.py"
+          # Grand Tableau spread: register 36 houses as formal spread in lenormand-spreads.json
+          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_grand_tableau.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
+          # line-7 spread: 7-card extended linear reading
+          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_line7.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
+          # line-9 spread: 9-card full linear reading
+          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_line9.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
+          # 3x3 Box spread: 9-card grid (mind/action/foundation)
+          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_box3x3.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
+          # Cross spread: 5-card center+left+right+bottom+top
+          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_cross.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
+          # Astrological Houses: 12-card 4x3 grid
+          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_houses12.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
+          # Relationship spread: 5-card querent+other+dynamic+friction+trajectory
+          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_relationship.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
+          # Enhance line-3: add index/key/is_significator/mirror_target
+          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_enhance_line3.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
+          # Enhance line-5: add index/key/is_significator/mirror_target
+          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_enhance_line5.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
           # Fix: preserve original __init__.py structure, only strip broken imports (render/prompts/images)
           # Instead of full rewrite, keep original and just comment out unavailable subpackages
           if [ -f "$dir/src/arcanite/__init__.py" ]; then

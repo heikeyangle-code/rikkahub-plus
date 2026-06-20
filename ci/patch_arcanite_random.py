@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Patch arcanite deck.py: random.Random(seed) → secrets.SystemRandom() when seed is None.
+"""Patch arcanite deck.py: random.Random(seed) → secrets.SystemRandom() always.
 
-When seed=None (default), arcanite uses Mersenne Twister (pseudo-random).
-This swaps to secrets.SystemRandom() (OS entropy, true random).
-When seed is explicitly provided, uses deterministic random.Random(seed)
-for reproducible shuffles.
+All shuffle/draw operations use hardware entropy (/dev/urandom).
+No pseudorandom fallback — seed parameter is ignored for randomness.
 """
 import sys, os
 
@@ -19,13 +17,13 @@ content = content.replace(
     "import random\nimport secrets"
 )
 
-# 2. Replace random.Random(seed) → ternary for true random when seed is None
+# 2. Replace random.Random(seed) → always secrets.SystemRandom()
 content = content.replace(
     "rng = random.Random(seed)",
-    "rng = secrets.SystemRandom() if seed is None else random.Random(seed)"
+    "rng = secrets.SystemRandom()  # always hardware entropy (/dev/urandom)"
 )
 
 with open(deck_py, "w") as f:
     f.write(content)
 
-print(f"Patched {deck_py}: random.Random → secrets.SystemRandom (when seed=None)")
+print(f"Patched {deck_py}: random.Random → secrets.SystemRandom() (always hardware entropy)")

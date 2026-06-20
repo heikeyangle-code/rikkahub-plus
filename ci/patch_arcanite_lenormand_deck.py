@@ -111,8 +111,133 @@ class LenormandCard:
         diagonal_or_corner."""
         return self._data.get("grand_tableau", {})
 
+    def get_combination_with(self, card_id: str, position: str | None = None) -> dict[str, Any]:
+        """Find combination with another card by ID.
+
+        Args:
+            card_id: Target card ID (e.g. 'the_clover')
+            position: 'left' (this card is Card A, left of target),
+                      'right' (this card is Card B, right of target),
+                      None (return raw entry with as_first/as_second)
+
+        Returns:
+            dict with interpretation or empty dict. Auto-falls back to
+            combination_grammar when no preset combination exists.
+        """
+        for combo in self.get_combinations():
+            if combo.get('with') == card_id:
+                if position == 'left':
+                    return {'interpretation': combo.get('as_first', ''),
+                            'direction': 'A→B', 'source': 'preset'}
+                elif position == 'right':
+                    return {'interpretation': combo.get('as_second', ''),
+                            'direction': 'B→A', 'source': 'preset'}
+                return combo
+        # Fallback to combination_grammar
+        return self._grammar_fallback(card_id, position)
+
+    def _grammar_fallback(self, card_id: str, position: str | None = None) -> dict[str, Any]:
+        """Fallback to combination_grammar when no preset combination exists.
+
+        Uses grammar rules (as_card_a, as_card_b, with_positive_card, etc.)
+        to generate a structured interpretation.
+        """
+        grammar = self.get_combination_grammar()
+        if not grammar:
+            return {}
+        if position == 'left':
+            return {'interpretation': grammar.get('as_card_a', ''),
+                    'direction': 'A→B', 'source': 'grammar'}
+        elif position == 'right':
+            return {'interpretation': grammar.get('as_card_b', ''),
+                    'direction': 'B→A', 'source': 'grammar'}
+        # No position specified — return the full grammar structure
+        return {'interpretation': grammar.get('description', ''),
+                'as_card_a': grammar.get('as_card_a', ''),
+                'as_card_b': grammar.get('as_card_b', ''),
+                'with_positive': grammar.get('with_positive_card', ''),
+                'with_negative': grammar.get('with_negative_card', ''),
+                'with_person': grammar.get('with_person_card', ''),
+                'with_object': grammar.get('with_object_card', ''),
+                'direction': 'unspecified', 'source': 'grammar'}
+
     def __repr__(self) -> str:
         return f"LenormandCard({self.card_name!r})"
+
+
+class LenormandDrawnCard:
+    """A drawn card that transparently proxies both DrawnCard fields and LenormandCard methods.
+
+    Eliminates the two-step draw() -> get_card() dance. Access DrawnCard
+    fields (card_id, card_name, orientation) and LenormandCard semantic
+    methods (get_core(), get_combination_with(), etc.) from the SAME object.
+    """
+
+    def __init__(self, drawn: Any, card: Any):
+        self._drawn = drawn
+        self._card = card
+
+    # ── DrawnCard fields (passthrough) ────────────────────────────────────
+    @property
+    def card_id(self) -> str:
+        return self._drawn.card_id
+
+    @property
+    def card_name(self) -> str:
+        return self._drawn.card_name
+
+    @property
+    def orientation(self):
+        return self._drawn.orientation
+
+    @property
+    def position_index(self) -> int:
+        return self._drawn.position_index
+
+    @property
+    def position_name(self) -> str:
+        return self._drawn.position_name
+
+    @property
+    def image_path(self):
+        return self._drawn.image_path
+
+    # ── LenormandCard methods (proxy) ─────────────────────────────────────
+    def get_core(self) -> dict[str, Any]:
+        return self._card.get_core()
+
+    def get_timing(self) -> dict[str, Any]:
+        return self._card.get_timing()
+
+    def get_as_person(self) -> str:
+        return self._card.get_as_person()
+
+    def get_modifier_behavior(self) -> dict[str, Any]:
+        return self._card.get_modifier_behavior()
+
+    def get_playing_card(self) -> str:
+        return self._card.get_playing_card()
+
+    def get_topic_contexts(self) -> dict[str, str]:
+        return self._card.get_topic_contexts()
+
+    def get_line_reading(self) -> dict[str, str]:
+        return self._card.get_line_reading()
+
+    def get_combination_grammar(self) -> dict[str, Any]:
+        return self._card.get_combination_grammar()
+
+    def get_combinations(self) -> list[dict[str, Any]]:
+        return self._card.get_combinations()
+
+    def get_grand_tableau(self) -> dict[str, Any]:
+        return self._card.get_grand_tableau()
+
+    def get_combination_with(self, card_id: str, position: str | None = None) -> dict[str, Any]:
+        return self._card.get_combination_with(card_id, position)
+
+    def __repr__(self) -> str:
+        return f"LenormandDrawnCard({self.card_name!r}, {self.orientation.value})"
 
 
 class LenormandDeck(TarotDeck):
@@ -136,6 +261,45 @@ class LenormandDeck(TarotDeck):
         return super().load(
             card_data_path, image_path, image_format, package_root, system=system
         )
+
+    def draw_with_data(
+        self,
+        count: int,
+        seed: int | None = None,
+        allow_reversals: bool = True,
+    ) -> list[Any]:
+        """Draw cards AND return LenormandDrawnCard objects in one call.
+
+        Each returned object transparently proxies BOTH DrawnCard fields
+        (card_id, card_name, orientation) AND LenormandCard semantic methods
+        (get_core(), get_combination_with(), etc.). Zero two-step boilerplate.
+        """
+        drawn = self.draw(count, seed=seed, allow_reversals=allow_reversals)
+        return [LenormandDrawnCard(d, self.get_card(d.card_id)) for d in drawn]
+
+    def analyze_draw(self, drawn_cards: list[Any]) -> dict[str, Any]:
+        """Analyze drawn cards for orientation patterns and statistics.
+
+        Returns orientation distribution, all-upright/all-reversed detection,
+        and card summary list.
+        """
+        orientations = [c.orientation.value for c in drawn_cards]
+        upright_count = orientations.count('upright')
+        reversed_count = orientations.count('reversed')
+        all_upright = upright_count == len(drawn_cards)
+        all_reversed = reversed_count == len(drawn_cards)
+        return {
+            "count": len(drawn_cards),
+            "upright_count": upright_count,
+            "reversed_count": reversed_count,
+            "all_upright": all_upright,
+            "all_reversed": all_reversed,
+            "pattern": "全正位" if all_upright else ("全逆位" if all_reversed else "混合"),
+            "cards": [
+                {"id": c.card_id, "name": c.card_name, "orientation": c.orientation.value}
+                for c in drawn_cards
+            ]
+        }
 
     def __repr__(self) -> str:
         return f"LenormandDeck({len(self._cards)} cards)"
@@ -167,6 +331,11 @@ checks = [
     ("TarotDeck.load still present", "class TarotDeck:" in content),
     ("shuffle untouched", "def shuffle(self, seed" in content),
     ("draw untouched", "def draw(\n        self,\n        count: int,\n        seed" in content),
+    ("get_combination_with added", "def get_combination_with(" in content),
+    ("_grammar_fallback added", "def _grammar_fallback(" in content),
+    ("draw_with_data added", "def draw_with_data(" in content),
+    ("analyze_draw added", "def analyze_draw(" in content),
+    ("LenormandDrawnCard added", "class LenormandDrawnCard:" in content),
 ]
 
 all_ok = True
