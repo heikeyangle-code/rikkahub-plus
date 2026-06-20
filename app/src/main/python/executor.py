@@ -61,28 +61,154 @@ Available built-in functions (call these from your code):
   人类图               →  NatalEngine.calculateHumanDesign(date,utcHour,utcMin) → {type, authority, profile, centers, channels, gates...}  生日必填（无需经纬度）
 
   【塔罗/雷诺曼/其他】
-  塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位), 规则见下
-                         【抽牌即含9层数据, 勿只给简单解读, 按用户场景取对应层】
-                         1.core_meanings      正位(upright)+逆位(reversed)核心含义(各6组关键词+详细解读)
-                         2.position_interpretations 7种牌位: temporal_positions(过去现在未来) | challenge_and_growth(挑战成长) | guidance_and_action(行动建议) | emotional_and_internal(情感内在) | external_influences(外部影响) | outcome_and_result(结果) | relationships(人际关系)
-                         3.question_contexts  5种场景: love(爱情) | career(事业) | spiritual(灵性) | financial(财务) | health(健康) — 每个含3种解读(关键词/详细/建议)
-                         4.elemental_correspondences 10项: element元素 | zodiac星座 | hebrew_letter希伯来字母 | numerology灵数 | planet行星 | season季节 | time_of_day时辰 | colors颜色 | crystals水晶 | herbs草药
-                         5.symbols            牌面符号逐个解读(每牌5-8个符号)
-                         6.affirmations       4条肯定语
-                         7.journaling_prompts 4条日记提示
-                         8.meditation_focus   冥想指引
-                         9.card_relationships 6种牌间关系: amplifies(增幅) | challenges(挑战) | clarifies(澄清) | similar_energy(同类) | opposite_energy(对立) | learning_sequence(学习序列)
-                         搭配: 深度→查777表→Kaabalah.buildKaabalisticMapData()(JS,全映射:源质+字母+路径+行星)
-  雷诺曼         →  arcanite(system="lenormand") 36张; 数据层:
-                         core(keywords/charge/category/topics) | timing(thematic/duration/season/speed/direction)
-                         as_person(牌的人物性格描述) | modifier_behavior(type/as_modifier/as_modified,修饰牌联动规则)
-                         playing_card(对应扑克牌,如9♥) | topic_contexts(love/career/health/finances/spiritual)
-                         line_reading(as_first/as_middle/as_last) | combination_grammar(7种配牌语法)
-                         combinations(16组固定组合,含with/with_number/category/as_first/as_second)
-                         grand_tableau(as_house/near_significator/far_from_significator/diagonal_or_corner)
-                         访问: d.get_card(c.card_id).get_core() / get_timing() / get_as_person() / get_modifier_behavior() / get_playing_card() / get_topic_contexts() / get_line_reading() / get_combination_grammar() / get_combinations() / get_grand_tableau() — 语义getter, 禁止 _data 裸访问
-                         组合: card.get_combination_with("the_clover", position="left") → 自动含方向+语法回退
-                         无需出生
+
+                       【统一规则】
+                         1.先结论，后解释
+                         2.永远故事优先，不解释数据
+                         3.所有牌必须串联，不可孤立解释
+                         4.数据只用于"增强语气"，不能罗列
+
+                       ╔══════════════════ 塔罗 ══════════════════╗
+ 塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位), 规则见下
+                        【抽牌即含9层数据, 勿只给简单解读, 按用户场景取对应层】
+                        1.core_meanings      正位(upright)+逆位(reversed)核心含义(各6组关键词+详细解读)
+                        2.position_interpretations 7种牌位: temporal_positions(过去现在未来) | challenge_and_growth(挑战成长) | guidance_and_action(行动建议) | emotional_and_internal(情感内在) | external_influences(外部影响) | outcome_and_result(结果) | relationships(人际关系)
+                        3.question_contexts  5种场景: love(爱情) | career(事业) | spiritual(灵性) | financial(财务) | health(健康) — 每个含3种解读(关键词/详细/建议)
+                        4.elemental_correspondences 10项: element元素 | zodiac星座 | hebrew_letter希伯来字母 | numerology灵数 | planet行星 | season季节 | time_of_day时辰 | colors颜色 | crystals水晶 | herbs草药
+                        5.symbols            牌面符号逐个解读(每牌5-8个符号)
+                        6.affirmations       4条肯定语
+                        7.journaling_prompts 4条日记提示
+                        8.meditation_focus   冥想指引
+                        9.card_relationships 6种牌间关系: amplifies(增幅) | challenges(挑战) | clarifies(澄清) | similar_energy(同类) | opposite_energy(对立) | learning_sequence(学习序列)
+                        搭配: 深度→查777表→Kaabalah.buildKaabalisticMapData()(JS,全映射:源质+字母+路径+行星)
+
+ arcanite            →  塔罗: d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
+                       ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
+                       深度: [d.get_card(c.card_id)._data 裸访问已废弃。塔罗DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning() / get_affirmations() / get_journaling_prompts() / get_symbols() 等]
+
+                       【塔罗输出】塔罗=人生故事生成器
+                         【问题】
+                         【牌阵】
+                         【一句话答案】
+                         【主题】一句话总结整局
+                         【整体故事】必须是连续叙事（核心）
+                         【逐牌】
+                         【位置｜牌名】
+                         - 当前状态（位置含义）
+                         - 现实/心理解释（核心意义）
+                         - 与前后牌关系（必须）
+                         - 1个符号/元素点缀（可选）
+                         规则：每张3~5句，不可拆词典
+                         【牌阵结构】元素倾向(element_balance)+大牌比例(major_arcana_ratio/court_card_ratio)+重复主题(repeated_numbers/repeated_suits)+关系网络
+                         【结论】一句话总结
+                         【建议】最多3条
+                         【反思问题】1条
+                         【一句话箴言】1条
+
+
+
+                       ╔══════════════════ 塔罗数据 ═════════════════╗
+                       【塔罗数据使用规则】
+                         必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / journaling_prompts / affirmations / meditation_focus / keywords
+                         用于润色：symbols / element / astrology
+                         结构分析(仅【牌阵结构】): element_balance + major_arcana_ratio + court_card_ratio + repeated_numbers + repeated_suits
+                         完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
+                       ╚════════════════════════════════════════════╝
+
+                       ╔══════════════════ 塔罗牌阵 ═════════════════╗
+                       from arcanite.core.spread import list_spreads, load_spread
+                         list_spreads() → 塔罗11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
+                       ╚════════════════════════════════════════════╝
+                       ╔══════════════════ 塔罗模式 ═════════════════╗
+                         默认=故事叙事
+                         Pro=+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系)
+                         Master=+秘传分析(生命之树/777/四世界)+Pro全部(结构分析+元素尊贵法)
+                       ╚════════════════════════════════════════════╝
+
+【塔罗卡巴拉全对应】arcanite抽牌→查本表→Kaabalah.buildKaabalisticMapData()一键拿全映射(源质+字母+路径+行星对应). 来自Crowley 777/黄金黎明.
+ 大牌(22): 序号=KeyScale, 字母=希伯来字母, 路径=生命之树路径
+    0=Fool(Aleph,11) 1=Magician(Beth,12) 2=HighPriestess(Gimel,13) 3=Empress(Daleth,14)
+    4=Emperor(Heh,15) 5=Hierophant(Vau,16) 6=Lovers(Zain,17) 7=Chariot(Cheth,18)
+    8=Strength(Teth,19) 9=Hermit(Yod,20) 10=WheelOfFortune(Kaph,21) 11=Justice(Lamed,22)
+    12=HangedMan(Mem,23) 13=Death(Nun,24) 14=Temperance(Samekh,25) 15=Devil(Ayin,26)
+    16=Tower(Peh,27) 17=Star(Tzaddi,28) 18=Moon(Qoph,29) 19=Sun(Resh,30)
+    20=Judgement(Shin,31) 21=World(Tau,32)
+    查法: Kaabalah.HEBREW_LETTERS_DATA[letter] 又 Kaabalah.LURIANIC_PATHS[path] 又 Kaabalah.SPHERES[name]
+ 数字牌(40): Ace=1=Kether,2=Chokmah,3=Binah,4=Chesed,5=Geburah,6=Tiphareth,7=Netzach,8=Hod,9=Yesod,10=Malkuth
+    牌组→世界: Wands=Atziluth, Cups=Briah, Swords=Yetzirah, Pentacles=Assiah
+    查法: Kaabalah.SPHERES["Kether"] 又 Kaabalah.FOUR_WORLDS["ATZILUTH"]
+ 宫廷牌(16): King→Chokmah, Queen→Binah, Knight→Tiphareth, Page→Malkuth
+    牌组→世界同上, 查法: Kaabalah.SPHERES["Chokmah"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
+
+  • 塔罗: arcanite(Python)78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
+                       ╚══════════════════ 塔罗 ══════════════════╝
+
+                       ╔══════════════════ 雷诺曼 ═════════════════╗
+ 雷诺曼         →  arcanite(system="lenormand") 36张; 数据层:
+                        core(keywords/charge/category/topics) | timing(thematic/duration/season/speed/direction)
+                        as_person(牌的人物性格描述) | modifier_behavior(type/as_modifier/as_modified,修饰牌联动规则)
+                        playing_card(对应扑克牌,如9♥) | topic_contexts(love/career/health/finances/spiritual)
+                        line_reading(as_first/as_middle/as_last) | combination_grammar(7种配牌语法)
+                        combinations(16组固定组合,含with/with_number/category/as_first/as_second)
+                        grand_tableau(as_house/near_significator/far_from_significator/diagonal_or_corner)
+                        访问: d.get_card(c.card_id).get_core() / get_timing() / get_as_person() / get_modifier_behavior() / get_playing_card() / get_topic_contexts() / get_line_reading() / get_combination_grammar() / get_combinations() / get_grand_tableau() — 语义getter, 禁止 _data 裸访问
+                        组合: card.get_combination_with("the_clover", position="left") → 自动含方向+语法回退
+                        无需出生
+
+                        ╔══════════════════ 雷诺曼 ═════════════════╗
+                        雷诺曼: d=LenormandDeck.load(); items=d.draw_with_data(N)
+                        [print(item.card_id,item.card_name) for item in items]
+                        深度: [item.get_core() for item in items] — 一步直接调语义getter
+                        组合链: item_A.get_combination_with(item_B.card_id, position="left")
+                        统计: d.analyze_draw(items) → 正逆位分布+全正/全逆检测
+
+                        【雷诺曼输出】雷诺曼=现实事件模拟器
+                          【问题】
+                          【一句话答案】
+                          【牌组】A｜B｜C｜D
+                          【事件故事】必须转成现实流程，如: 收到消息→建立联系→推动进展→达成合作
+                          【组合链】A+B→意义 / B+C→推进 / C+D→结果
+                          【结论】一句话现实结果
+                          【建议】最多3条
+
+                        ╚════════════════════════════════════════════╝
+
+                        ╔══════════════════ 雷诺曼数据 ═══════════════╗
+                        【雷诺曼数据使用规则】
+                          必须使用：core / keywords / combination_rules / modifier_behavior / line_reading
+                          用于润色：timing
+                          playing_cards 默认隐藏，Master附录显示
+                          as_person → 抽到人物类卡(骑手/男人/女人/小孩等)时激活，写入该牌解读中
+                        ╚════════════════════════════════════════════╝
+
+                        ╔══════════════════ 雷诺曼牌阵 ═══════════════╗
+                        from tarot_elemental_engine import ElementalDignityEngine as EE; from arcanite.core.spread import list_spreads, load_spread
+                          list_spreads(system="lenormand") → 雷诺曼: line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张) / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张) / astrological-houses(12张) / relationship(5张关系)
+                          load_spread(spread_id, system="lenormand") → SpreadDefinition(positions=...) 按位置数决定draw(N)
+                          Grand Tableau: 4×9网格,36宫role=house,sig=false(男人/女人牌游走),mirror=35-index动态算 row=pos.index//9 col=pos.index%9 → 骑士跳(|Δrow|=2&|Δcol|=1或反之) 对角线(|Δrow|==|Δcol|) 邻近(|Δrow|+|Δcol|≤2) | 镜像: pos.mirror_target | 指示牌: pos.is_significator
+                          牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
+                        ╚════════════════════════════════════════════╝
+                        ╔══════════════════ 雷诺曼模式 ═══════════════╗
+                          默认=事件链
+                          Pro=+话题分析/方向/速度
+                          Master=+Grand Tableau+引擎调度+Pro全部(话题分析/方向/速度)
+                        ╚════════════════════════════════════════════╝
+                          切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
+
+                        【雷诺曼引擎调度】from lenormand_engine import LenormandFateEngine as FE
+                          🟢必开(牌阵触发即用):
+                            FE.parse_karmic_mirrors(spread.positions,items) — 所有有mirror_target的牌阵: line-3/5/7/9/cross/relationship/box-3x3/astrological-houses
+                            FE.parse_portrait_3x3_cage(items, spread_id) — box-3x3/GT 钉四角(十字心仅box-3x3)
+                          🔵Master必开(Grand Tableau):
+                            master=FE.parse_grand_tableau_master_mode(items,spread.positions,gender)
+                            ← 内含指示牌定位/落宫嵌套/骑士跳暗线/四角锚点
+                          🟣工具箱(AI按需取):
+                            FE.get_gt_mirrors(idx) — GT三维镜像(水平/垂直/对角)
+                            FE.calculate_knights_move(sig_idx) — 任意牌的骑士跳暗线扫描
+                            FE.calculate_house_chaining(items,card_id) — 宫位级联(场景:追问原因)
+                            FE.calculate_counting_pulse(items,start_idx,step=9) — 古法步进(场景:年运)
+                          规则: 引擎输出是硬骨架,LLM只在其上叙事不篡改
+                       ╚══════════════════ 雷诺曼 ═════════════════╝
 
   【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机; 灵数/卡巴拉/Gematria/Ifá Python侧无)
   生命灵数/流年/挑战数  →  Kaabalah.calculatePersonalYear(new Date(year,month-1,day)) 又 calculatePersonalMonths 又 calculatePersonalCycles 又 calculateChallenges 又 reduceToSingle 又 getDateEnergies  生日即可
@@ -116,110 +242,7 @@ Available built-in functions (call these from your code):
                         注: cnlunar.Lunar() 构造必须传 datetime 对象(含hour)，不能传 date — 传date报 'date' object has no attribute 'hour'
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import engine; print(dir(engine))        # 梅花起卦查询
-  arcanite            →  塔罗: d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
-                       ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
-                       深度: [d.get_card(c.card_id)._data 裸访问已废弃。塔罗DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning() / get_affirmations() / get_journaling_prompts() / get_symbols() 等]
 
-                       【统一规则】
-                         1.先结论，后解释
-                         2.永远故事优先，不解释数据
-                         3.所有牌必须串联，不可孤立解释
-                         4.数据只用于"增强语气"，不能罗列
-
-                       【塔罗输出】塔罗=人生故事生成器
-                         【问题】
-                         【牌阵】
-                         【一句话答案】
-                         【主题】一句话总结整局
-                         【整体故事】必须是连续叙事（核心）
-                         【逐牌】
-                         【位置｜牌名】
-                         - 当前状态（位置含义）
-                         - 现实/心理解释（核心意义）
-                         - 与前后牌关系（必须）
-                         - 1个符号/元素点缀（可选）
-                         规则：每张3~5句，不可拆词典
-                         【牌阵结构】元素倾向(element_balance)+大牌比例(major_arcana_ratio/court_card_ratio)+重复主题(repeated_numbers/repeated_suits)+关系网络
-                         【结论】一句话总结
-                         【建议】最多3条
-                         【反思问题】1条
-                         【一句话箴言】1条
-
-                       ╚══════════════════ 塔罗 ══════════════════╝
-
-                       ╔══════════════════ 雷诺曼 ═════════════════╗
-                       雷诺曼: d=LenormandDeck.load(); items=d.draw_with_data(N)
-                       [print(item.card_id,item.card_name) for item in items]
-                       深度: [item.get_core() for item in items] — 一步直接调语义getter
-                       组合链: item_A.get_combination_with(item_B.card_id, position="left")
-                       统计: d.analyze_draw(items) → 正逆位分布+全正/全逆检测
-
-                       【雷诺曼输出】雷诺曼=现实事件模拟器
-                         【问题】
-                         【一句话答案】
-                         【牌组】A｜B｜C｜D
-                         【事件故事】必须转成现实流程，如: 收到消息→建立联系→推动进展→达成合作
-                         【组合链】A+B→意义 / B+C→推进 / C+D→结果
-                         【结论】一句话现实结果
-                         【建议】最多3条
-
-
-
-                       ╚════════════════════════════════════════════╝
-                       ╔══════════════════ 塔罗数据 ═════════════════╗
-                       【塔罗数据使用规则】
-                         必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / journaling_prompts / affirmations / meditation_focus / keywords
-                         用于润色：symbols / element / astrology
-                         结构分析(仅【牌阵结构】): element_balance + major_arcana_ratio + court_card_ratio + repeated_numbers + repeated_suits
-                         完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
-                       ╚════════════════════════════════════════════╝
-
-                       ╔══════════════════ 雷诺曼数据 ═══════════════╗
-                       【雷诺曼数据使用规则】
-                         必须使用：core / keywords / combination_rules / modifier_behavior / line_reading
-                         用于润色：timing
-                         playing_cards 默认隐藏，Master附录显示
-                         as_person → 抽到人物类卡(骑手/男人/女人/小孩等)时激活，写入该牌解读中
-                       ╚════════════════════════════════════════════╝
-
-                       ╔══════════════════ 塔罗牌阵 ═════════════════╗
-                       from arcanite.core.spread import list_spreads, load_spread
-                         list_spreads() → 塔罗11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
-                       ╚════════════════════════════════════════════╝
-
-                       ╔══════════════════ 雷诺曼牌阵 ═══════════════╗
-                       from tarot_elemental_engine import ElementalDignityEngine as EE; from arcanite.core.spread import list_spreads, load_spread
-                         list_spreads(system="lenormand") → 雷诺曼: line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张) / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张) / astrological-houses(12张) / relationship(5张关系)
-                         load_spread(spread_id, system="lenormand") → SpreadDefinition(positions=...) 按位置数决定draw(N)
-                         Grand Tableau: 4×9网格,36宫role=house,sig=false(男人/女人牌游走),mirror=35-index动态算 row=pos.index//9 col=pos.index%9 → 骑士跳(|Δrow|=2&|Δcol|=1或反之) 对角线(|Δrow|==|Δcol|) 邻近(|Δrow|+|Δcol|≤2) | 镜像: pos.mirror_target | 指示牌: pos.is_significator
-                         牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
-                       ╚════════════════════════════════════════════╝
-                       ╔══════════════════ 塔罗模式 ═════════════════╗
-                         默认=故事叙事
-                         Pro=+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系)
-                         Master=+秘传分析(生命之树/777/四世界)+Pro全部(结构分析+元素尊贵法)
-                       ╚════════════════════════════════════════════╝
-
-                       ╔══════════════════ 雷诺曼模式 ═══════════════╗
-                         默认=事件链
-                         Pro=+话题分析/方向/速度
-                         Master=+Grand Tableau+引擎调度+Pro全部(话题分析/方向/速度)
-                       ╚════════════════════════════════════════════╝
-                         切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
-
-                       【雷诺曼引擎调度】from lenormand_engine import LenormandFateEngine as FE
-                         🟢必开(牌阵触发即用):
-                           FE.parse_karmic_mirrors(spread.positions,items) — 所有有mirror_target的牌阵: line-3/5/7/9/cross/relationship/box-3x3/astrological-houses
-                           FE.parse_portrait_3x3_cage(items, spread_id) — box-3x3/GT 钉四角(十字心仅box-3x3)
-                         🔵Master必开(Grand Tableau):
-                           master=FE.parse_grand_tableau_master_mode(items,spread.positions,gender)
-                           ← 内含指示牌定位/落宫嵌套/骑士跳暗线/四角锚点
-                         🟣工具箱(AI按需取):
-                           FE.get_gt_mirrors(idx) — GT三维镜像(水平/垂直/对角)
-                           FE.calculate_knights_move(sig_idx) — 任意牌的骑士跳暗线扫描
-                           FE.calculate_house_chaining(items,card_id) — 宫位级联(场景:追问原因)
-                           FE.calculate_counting_pulse(items,start_idx,step=9) — 古法步进(场景:年运)
-                         规则: 引擎输出是硬骨架,LLM只在其上叙事不篡改
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
@@ -244,20 +267,6 @@ Available built-in functions (call these from your code):
 
 【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
 
-【塔罗卡巴拉全对应】arcanite抽牌→查本表→Kaabalah.buildKaabalisticMapData()一键拿全映射(源质+字母+路径+行星对应). 来自Crowley 777/黄金黎明.
-  大牌(22): 序号=KeyScale, 字母=希伯来字母, 路径=生命之树路径
-    0=Fool(Aleph,11) 1=Magician(Beth,12) 2=HighPriestess(Gimel,13) 3=Empress(Daleth,14)
-    4=Emperor(Heh,15) 5=Hierophant(Vau,16) 6=Lovers(Zain,17) 7=Chariot(Cheth,18)
-    8=Strength(Teth,19) 9=Hermit(Yod,20) 10=WheelOfFortune(Kaph,21) 11=Justice(Lamed,22)
-    12=HangedMan(Mem,23) 13=Death(Nun,24) 14=Temperance(Samekh,25) 15=Devil(Ayin,26)
-    16=Tower(Peh,27) 17=Star(Tzaddi,28) 18=Moon(Qoph,29) 19=Sun(Resh,30)
-    20=Judgement(Shin,31) 21=World(Tau,32)
-    查法: Kaabalah.HEBREW_LETTERS_DATA[letter] 又 Kaabalah.LURIANIC_PATHS[path] 又 Kaabalah.SPHERES[name]
-  数字牌(40): Ace=1=Kether,2=Chokmah,3=Binah,4=Chesed,5=Geburah,6=Tiphareth,7=Netzach,8=Hod,9=Yesod,10=Malkuth
-    牌组→世界: Wands=Atziluth, Cups=Briah, Swords=Yetzirah, Pentacles=Assiah
-    查法: Kaabalah.SPHERES["Kether"] 又 Kaabalah.FOUR_WORLDS["ATZILUTH"]
-  宫廷牌(16): King→Chokmah, Queen→Binah, Knight→Tiphareth, Page→Malkuth
-    牌组→世界同上, 查法: Kaabalah.SPHERES["Chokmah"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
 
 【引擎区别速查】AI 回答用户"哪个好/有什么区别"时用:
   • 紫微: ziwei_paipan(Python,iztro port) vs Iztro(JS,⭐3841原版) vs ZiweiNihai(JS,倪海厦+古籍)
@@ -267,7 +276,6 @@ Available built-in functions (call these from your code):
   • 西洋占星: Astronomy(星历)→NatalEngine(解读)→Caelus(12宫位+格局+尊贵+推运) 三层互补
   • 印度吠陀: Astronomy(星历)→NatalEngine(排盘+解读)→Caelus(Yoga+分盘+互容)→NatalEngine(输出) 四层互补
   • 人类图: NatalEngine(JS,类型/权威/通道/闸门) — 唯一
-  • 塔罗: arcanite(Python)78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
   • 卡巴拉/灵数/Gematria/Ifá: JS Kaabalah (Python侧无)
 【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine | caelus-birth(时区→UT,caelus前置) | iztro-engine | natalengine-engine(西洋+吠陀+人类图)
   QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
