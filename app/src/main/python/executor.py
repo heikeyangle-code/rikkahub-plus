@@ -236,7 +236,8 @@ Available built-in functions (call these from your code):
     shengxiao.output(des,key)→ 打印生肖合/冲/刑/害关系 (shengxiao.py CLI工具)
     sizi.summarys            → 120项四柱解盘字典 (ai自己探索sizi.summarys.keys()查看可用键)
     yue.months[月柱]         → 流月详解 (键为月柱干支如'甲寅', 从lunar_python EightChar.getMonth()取值)
-    神煞/纳音/调候/干支/藏干十神等: datas.day_shens/…/jinbuhuan + ganzhi.ten_deities/gan_hes/zhi_*hes/… → 全表在datas.py,用dir(datas)/dir(ganzhi)探索
+    神煞/纳音/空亡/命宫/日主/调候/建禄: datas.day_shens/month_shens/year_shens/g_shens/nayins/empties/minggongs/rizhus/jinbuhuan/jianlus
+    天干地支/藏干十神/干支关系: ganzhi.gan_desc/zhi_desc/ten_deities/gan_hes/zhi_6hes/zhi_3hes/zhi_chongs/zhi_xings/zhi_haies/zhi_poes
     注: bazi.py(2549行)是CLI工具(argparse入口),非库API; 八字排盘直接用 lunar_python.EightChar
   节气和天文          →  lunar_python               ← cnlunar                  日期即可
 
