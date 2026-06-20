@@ -156,9 +156,6 @@ Available built-in functions (call these from your code):
                          【结论】一句话现实结果
                          【建议】最多3条
 
-                       【模式扩展】
-                         Pro：话题分析 / 方向 / 速度
-                         Master：指示牌 / 近远法 / 镜像 / 对角 / 宫位
 
                        【数据使用规则】
                          必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / keywords / combination_rules / modifier_behavior
@@ -173,6 +170,11 @@ Available built-in functions (call these from your code):
                          load_spread('celtic-cross') → SpreadDefinition(positions=[{name,description,rag_mapping},...]) 按位置数决定draw(N)
                          雷诺曼: get_spread_registry(system="lenormand").list_spreads() → line-3(3张) / line-5(5张)
                          牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
+                       【模式扩展】(塔罗/雷诺曼共享)
+                         默认: 塔罗=故事叙事 | 雷诺曼=事件链
+                         Pro(用户说"深入/详细"): 塔罗+结构分析(元素/占星/符号) | 雷诺曼+话题分析/方向/速度
+                         Master(用户说"大师/秘传/777"): 塔罗+秘传分析(生命之树/777/四世界) | 雷诺曼+Grand Tableau(指示牌/近远法/镜像/对角/宫位/扑克牌)
+                         切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
