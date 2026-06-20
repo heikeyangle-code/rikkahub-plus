@@ -181,6 +181,17 @@ Available built-in functions (call these from your code):
                          Pro(用户说"深入/详细"): 塔罗+结构分析(元素/占星/符号) | 雷诺曼+话题分析/方向/速度
                          Master(用户说"大师/秘传/777"): 塔罗+秘传分析(生命之树/777/四世界) | 雷诺曼+Grand Tableau(指示牌/近远法/镜像/对角/宫位/扑克牌)
                          切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
+
+                       【雷诺曼引擎调度】from lenormand_engine import LenormandFateEngine as FE
+                         🟢必开(牌阵触发即用):
+                           FE.parse_karmic_mirrors(spread.positions,items) — line-7/line-9/cross/relationship 因果闭环
+                           FE.parse_portrait_3x3_cage(items) — box-3x3 钉四角+十字心
+                         🔵Master必开(Grand Tableau):
+                           master=FE.parse_grand_tableau_master_mode(items,spread.positions,gender)
+                         🟣工具箱(AI按需取,不自动触发):
+                           FE.calculate_house_chaining(items,card_id) — 场景:追问原因/幕后推手
+                           FE.calculate_counting_pulse(items,start_idx,step=9) — 场景:年运/大趋势
+                         规则: 引擎输出是硬骨架,LLM只在其上叙事不篡改
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
