@@ -109,7 +109,7 @@ Available built-in functions (call these from your code):
   注: bazi.py(2549行)是CLI工具(argparse入口),非库API; 八字排盘直接用 lunar_python.EightChar
   节气和天文          →  lunar_python               ← cnlunar                  日期即可
 
-【查询路由】只查单项数据不排盘时用。每个库有很多方法，AI 用 dir() / help() 自探索完整 API：
+【查询路由】只查单项数据不排盘时用。复杂库(ichingshifa/kinliuren/taixuanshifa等)必须先用 dir() 探索全部方法，不得盲调试错：
   lunar_python (215+) →  l = Lunar.fromYmd(2026,6,16); print(dir(l))
   cnlunar             →  import cnlunar; print(dir(cnlunar.LunarDate))
                         注: cnlunar.Lunar() 构造必须传 datetime 对象(含hour)，不能传 date — 传date报 'date' object has no attribute 'hour'
