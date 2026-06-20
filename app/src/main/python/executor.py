@@ -116,7 +116,9 @@ Available built-in functions (call these from your code):
                         注: cnlunar.Lunar() 构造必须传 datetime 对象(含hour)，不能传 date — 传date报 'date' object has no attribute 'hour'
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import engine; print(dir(engine))        # 梅花起卦查询
-  arcanite            →  ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
+  arcanite            →  塔罗: d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
+                       ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
+                       深度: [d.get_card(c.card_id)._data 裸访问已废弃。塔罗DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning() / get_affirmations() / get_journaling_prompts() / get_symbols() 等]
 
                        【统一规则】
                          1.先结论，后解释
@@ -124,61 +126,66 @@ Available built-in functions (call these from your code):
                          3.所有牌必须串联，不可孤立解释
                          4.数据只用于"增强语气"，不能罗列
 
-                       ╔══════════════════ 塔罗 ══════════════════╗
-
-                       d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
-                       深度: 塔罗DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning() / get_affirmations() / get_journaling_prompts() / get_symbols() 等(禁止_data裸访问)
-
                        【塔罗输出】塔罗=人生故事生成器
-                         【问题】【牌阵】【一句话答案】【主题】【整体故事(连续叙事·核心)】【逐牌】
-                         【位置｜牌名】-当前状态(位置含义)-现实/心理解释(核心意义)-与前后牌关系(必须)-1个符号/元素点缀(可选)
+                         【问题】
+                         【牌阵】
+                         【一句话答案】
+                         【主题】一句话总结整局
+                         【整体故事】必须是连续叙事（核心）
+                         【逐牌】
+                         【位置｜牌名】
+                         - 当前状态（位置含义）
+                         - 现实/心理解释（核心意义）
+                         - 与前后牌关系（必须）
+                         - 1个符号/元素点缀（可选）
                          规则：每张3~5句，不可拆词典
-                         【牌阵结构】element_balance+major_arcana_ratio+court_card_ratio+repeated_numbers+repeated_suits+关系网络
-                         【结论】一句话总结 【建议】≤3条 【反思问题】1条 【箴言】1条
+                         【牌阵结构】元素倾向(element_balance)+大牌比例(major_arcana_ratio/court_card_ratio)+重复主题(repeated_numbers/repeated_suits)+关系网络
+                         【结论】一句话总结
+                         【建议】最多3条
+                         【反思问题】1条
+                         【一句话箴言】1条
 
-                       【塔罗数据使用规则】
-                         必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / journaling_prompts / affirmations / meditation_focus / keywords
-                         用于润色：symbols / element / astrology
-                         结构分析：element_balance + major_arcana_ratio + court_card_ratio + repeated_numbers + repeated_suits
-                         完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
-
-                       【塔罗牌阵】
-                         from arcanite.core.spread import list_spreads, load_spread
-                         list_spreads() → 11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
-                         load_spread('celtic-cross') → 按位置数决定draw(N)
-
-                       【塔罗模式】默认=故事叙事 | Pro=+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis) | Master=+秘传分析(生命之树/777/四世界)+Pro全部
-
-                       ╚════════════════════════════════════════════╝
+                       ╚══════════════════ 塔罗 ══════════════════╝
 
                        ╔══════════════════ 雷诺曼 ═════════════════╗
-
-                       d=LenormandDeck.load(); items=d.draw_with_data(N); [print(item.card_id,item.card_name) for item in items]
-                       深度: item.get_core()/get_timing()/get_as_person()/get_modifier_behavior()/get_playing_card()/get_topic_contexts()/get_line_reading()/get_combination_grammar()/get_combinations()/get_grand_tableau() — 语义getter,禁止_data裸访问
+                       雷诺曼: d=LenormandDeck.load(); items=d.draw_with_data(N)
+                       [print(item.card_id,item.card_name) for item in items]
+                       深度: [item.get_core() for item in items] — 一步直接调语义getter
                        组合链: item_A.get_combination_with(item_B.card_id, position="left")
                        统计: d.analyze_draw(items) → 正逆位分布+全正/全逆检测
 
                        【雷诺曼输出】雷诺曼=现实事件模拟器
-                         【问题】【一句话答案】【牌组】A｜B｜C｜D
+                         【问题】
+                         【一句话答案】
+                         【牌组】A｜B｜C｜D
                          【事件故事】必须转成现实流程，如: 收到消息→建立联系→推动进展→达成合作
                          【组合链】A+B→意义 / B+C→推进 / C+D→结果
-                         【结论】一句话现实结果 【建议】≤3条
+                         【结论】一句话现实结果
+                         【建议】最多3条
 
-                       【雷诺曼数据使用规则】
-                         必须使用：core / keywords / combination_rules / modifier_behavior / line_reading
-                         用于润色：timing
+
+
+                       ╚════════════════════════════════════════════╝
+                       【数据使用规则】
+                         必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / journaling_prompts / affirmations / meditation_focus / keywords / combination_rules / modifier_behavior / line_reading
+                         用于润色：symbols / element / astrology / timing
+                         结构分析(仅【牌阵结构】): element_balance + major_arcana_ratio + court_card_ratio + repeated_numbers + repeated_suits
+                         完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
                          playing_cards 默认隐藏，Master附录显示
                          as_person → 抽到人物类卡(骑手/男人/女人/小孩等)时激活，写入该牌解读中
 
-                       【雷诺曼牌阵】
-                         from arcanite.core.spread import list_spreads, load_spread
-                         list_spreads(system="lenormand") → line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张) / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张) / astrological-houses(12张) / relationship(5张关系)
-                         load_spread(spread_id, system="lenormand") → 按位置数决定draw(N)
+                       【牌阵】
+                         from tarot_elemental_engine import ElementalDignityEngine as EE; from arcanite.core.spread import list_spreads, load_spread
+                         list_spreads() → 塔罗11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
+                         list_spreads(system="lenormand") → 雷诺曼: line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张) / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张) / astrological-houses(12张) / relationship(5张关系)
+                         load_spread(spread_id, system="lenormand") → SpreadDefinition(positions=...) 按位置数决定draw(N)
                          Grand Tableau: 4×9网格,36宫role=house,sig=false(男人/女人牌游走),mirror=35-index动态算 row=pos.index//9 col=pos.index%9 → 骑士跳(|Δrow|=2&|Δcol|=1或反之) 对角线(|Δrow|==|Δcol|) 邻近(|Δrow|+|Δcol|≤2) | 镜像: pos.mirror_target | 指示牌: pos.is_significator
-
-                       【雷诺曼模式】默认=事件链 | Pro=+话题分析/方向/速度 | Master=+Grand Tableau+引擎调度+Pro全部
-
-                       ╚════════════════════════════════════════════╝
+                         牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
+                       【模式扩展】(塔罗/雷诺曼共享)
+                         默认: 塔罗=故事叙事 | 雷诺曼=事件链
+                         Pro(用户说"深入/详细"): 塔罗+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系) | 雷诺曼+话题分析/方向/速度
+                         Master(用户说"大师/秘传/777"): 塔罗+秘传分析(生命之树/777/四世界)+Pro全部(结构分析+元素尊贵法) | 雷诺曼+Grand Tableau(指示牌/近远法/镜像/对角/宫位/扑克牌)+Pro全部(话题分析/方向/速度)
+                         切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
 
                        【雷诺曼引擎调度】from lenormand_engine import LenormandFateEngine as FE
                          🟢必开(牌阵触发即用):
