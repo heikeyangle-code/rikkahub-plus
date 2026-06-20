@@ -118,6 +118,7 @@ Available built-in functions (call these from your code):
   arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(3); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
                        ⚠️ print仅输出原始数据供你读取。解读文字必须写在回复正文，不准在Python里print解读
                        深度数据: [d.get_card(c.card_id)._data[k] for c in cards for k in ["core_meanings","symbols","question_contexts","position_interpretations","elemental_correspondences","affirmations","journaling_prompts","meditation_focus","card_relationships"]]
+                       输出格式: 每张牌一小段(牌名+正逆位+牌面故事+用户关联)；元素/星座/象征/卡巴拉作点缀附在段尾(一行)；最后一段总结合成联贯全牌
                        雷诺曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(5); [print(c.card_id,c.card_name) for c in cards]
                        深度数据: [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
