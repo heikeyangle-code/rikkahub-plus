@@ -70,7 +70,7 @@ Available built-in functions (call these from your code):
                          5.塔罗和雷诺曼各自有独立的输出模板，禁止混用。抽到雷诺曼牌时必须使用雷诺曼输出格式，不得带入塔罗的字段。
 
                        ╔══════════════════ 塔罗 ══════════════════╗
- 塔罗/韦特           →  arcanite(Python,78张+36雷诺曼+牌阵+正逆位), 规则见下
+ 塔罗/韦特           →  arcanite(Python,78张+牌阵+正逆位), 规则见下
                         【抽牌即含9层数据, 勿只给简单解读, 按用户场景取对应层】
                         1.core_meanings      正位(upright)+逆位(reversed)核心含义(各6组关键词+详细解读)
                         2.position_interpretations 7种牌位: temporal_positions(过去现在未来) | challenge_and_growth(挑战成长) | guidance_and_action(行动建议) | emotional_and_internal(情感内在) | external_influences(外部影响) | outcome_and_result(结果) | relationships(人际关系)
@@ -142,7 +142,7 @@ Available built-in functions (call these from your code):
  宫廷牌(16): King→Chokmah, Queen→Binah, Knight→Tiphareth, Page→Malkuth
     牌组→世界同上, 查法: Kaabalah.SPHERES["Chokmah"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
 
-  • 塔罗: arcanite(Python)78张+36雷诺曼+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
+  • 塔罗: arcanite(Python)78张+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
                        ╚══════════════════ 塔罗 ══════════════════╝
 
                        ╔══════════════════ 雷诺曼 ═════════════════╗
