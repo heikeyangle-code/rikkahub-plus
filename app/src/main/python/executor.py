@@ -35,7 +35,7 @@ Available built-in functions (call these from your code):
   【奇门三式】
   奇门遁甲            →  QimenEngine(JS,7局法+断语,拆补+茅山+置闰×时/日/月/年4流派+十干克应)                 时家需精确时间
   大六壬              →  kinliuren                                               生日可选
-  小六壬(马前课)       →  lunar_python取月日时→掌诀推算(大安留连速喜赤口小吉空亡6掌诀)                    无需出生（需月日时）
+  小六壬(马前课)       →  lunar_python取月日时→6掌诀推算(大安/留连/速喜/赤口/小吉/空亡)                           无需出生（需月日时）
 
   【象数易】
   太玄筮法            →  问用户选 taixuanshifa(Python) 或 TaixuanLib(JS,4种起卦) 或对照(JS取随机得code→Python pan_from_code(code))   无需出生
@@ -248,8 +248,9 @@ Available built-in functions (call these from your code):
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import engine; print(dir(engine))        # 梅花起卦查询
 
-  kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
+  kinliuren           →  from kinliuren.kinliuren import Liuren; lr = Liuren(jieqi,cmonth,dayGZ,hourGZ)# 查课, dir()探索全部方法
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
+  jingjue             →  from jingjue.jingjue import qigua; result = qigua()  # 荆诀起卦, dir()探索gua_dict
   不局限于示例，每个库的全部方法都可调。
 
 【输入说明】不是所有排盘都需要生日：
