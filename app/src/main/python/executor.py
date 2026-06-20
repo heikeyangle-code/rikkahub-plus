@@ -166,33 +166,46 @@ Available built-in functions (call these from your code):
 
 
                        ╚════════════════════════════════════════════╝
-                       【数据使用规则】
-                         必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / journaling_prompts / affirmations / meditation_focus / keywords / combination_rules / modifier_behavior / line_reading
-                         用于润色：symbols / element / astrology / timing
+                       ╔══════════════════ 塔罗数据 ═════════════════╗
+                       【塔罗数据使用规则】
+                         必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / journaling_prompts / affirmations / meditation_focus / keywords
+                         用于润色：symbols / element / astrology
                          结构分析(仅【牌阵结构】): element_balance + major_arcana_ratio + court_card_ratio + repeated_numbers + repeated_suits
                          完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
+                       ╚════════════════════════════════════════════╝
+
+                       ╔══════════════════ 雷诺曼数据 ═══════════════╗
+                       【雷诺曼数据使用规则】
+                         必须使用：core / keywords / combination_rules / modifier_behavior / line_reading
+                         用于润色：timing
                          playing_cards 默认隐藏，Master附录显示
                          as_person → 抽到人物类卡(骑手/男人/女人/小孩等)时激活，写入该牌解读中
+                       ╚════════════════════════════════════════════╝
 
-                       【牌阵】
-                         from tarot_elemental_engine import ElementalDignityEngine as EE; from arcanite.core.spread import list_spreads, load_spread
+                       ╔══════════════════ 塔罗牌阵 ═════════════════╗
+                       from arcanite.core.spread import list_spreads, load_spread
                          list_spreads() → 塔罗11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
+                       ╚════════════════════════════════════════════╝
+
+                       ╔══════════════════ 雷诺曼牌阵 ═══════════════╗
+                       from tarot_elemental_engine import ElementalDignityEngine as EE; from arcanite.core.spread import list_spreads, load_spread
                          list_spreads(system="lenormand") → 雷诺曼: line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张) / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张) / astrological-houses(12张) / relationship(5张关系)
                          load_spread(spread_id, system="lenormand") → SpreadDefinition(positions=...) 按位置数决定draw(N)
                          Grand Tableau: 4×9网格,36宫role=house,sig=false(男人/女人牌游走),mirror=35-index动态算 row=pos.index//9 col=pos.index%9 → 骑士跳(|Δrow|=2&|Δcol|=1或反之) 对角线(|Δrow|==|Δcol|) 邻近(|Δrow|+|Δcol|≤2) | 镜像: pos.mirror_target | 指示牌: pos.is_significator
                          牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
+                       ╚════════════════════════════════════════════╝
                        ╔══════════════════ 塔罗模式 ═════════════════╗
-                       默认=故事叙事
-                       Pro=+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系)
-                       Master=+秘传分析(生命之树/777/四世界)+Pro全部(结构分析+元素尊贵法)
+                         默认=故事叙事
+                         Pro=+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系)
+                         Master=+秘传分析(生命之树/777/四世界)+Pro全部(结构分析+元素尊贵法)
                        ╚════════════════════════════════════════════╝
-                       
+
                        ╔══════════════════ 雷诺曼模式 ═══════════════╗
-                       默认=事件链
-                       Pro=+话题分析/方向/速度
-                       Master=+Grand Tableau+引擎调度+Pro全部(话题分析/方向/速度)
-                       切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
+                         默认=事件链
+                         Pro=+话题分析/方向/速度
+                         Master=+Grand Tableau+引擎调度+Pro全部(话题分析/方向/速度)
                        ╚════════════════════════════════════════════╝
+                         切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
 
                        【雷诺曼引擎调度】from lenormand_engine import LenormandFateEngine as FE
                          🟢必开(牌阵触发即用):
