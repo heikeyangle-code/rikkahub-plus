@@ -1,5 +1,6 @@
-"""Add pan_from_code(zhou) method to taixuanshifa.py for dual-engine shared random.
+"""Add pan_from_code(zhou) method to taixuanshifa/__init__.py for dual-engine shared random.
 Inserted before 'def pan(self):', copies pan() logic but skips qigua_number() random.
+v2: input validation — clear Chinese error messages for invalid codes.
 """
 import sys
 
@@ -9,11 +10,40 @@ with open(target, 'r') as f:
     src = f.read()
 
 # The new method — identical to pan() but takes zhou (4-digit string) instead of calling qigua_number()
-pan_from_code = '''
+# Added: input validation block at the top with clear Chinese error messages
+pan_from_code = r'''
     def pan_from_code(self, zhou):
-        """从外部传入4位编码(如"2312")排盘，不取随机"""
+        """从外部传入4位编码(如"2312")排盘，不取随机。
+
+        编码规则: 4位数字，每位只能是 1/2/3，对应太玄81首(1111~3333)。
+        非法输入会给出中文错误提示，不会产生 NoneType 崩溃。
+        """
+        # ── 输入校验 ──
+        if not isinstance(zhou, str):
+            raise TypeError(
+                f"pan_from_code 需要字符串类型的编码，收到了 {type(zhou).__name__}。"
+                f"正确用法: pan_from_code('2312')"
+            )
+        if len(zhou) != 4:
+            raise ValueError(
+                f"太玄编码必须是4位数字(如 '2312')，收到了 {len(zhou)} 位的 '{zhou}'。"
+                f"有效范围: 1111 ~ 3333"
+            )
+        for i, ch in enumerate(zhou, 1):
+            if ch not in '123':
+                raise ValueError(
+                    f"太玄编码每位只能是 1/2/3，第{i}位是 '{ch}'。"
+                    f"完整输入: '{zhou}'"
+                )
         gua_number = int(zhou)
-        gua_details = taixuandict.get(gua_number)
+        if gua_number not in taixuandict:
+            # Shouldn't happen if digits are 1-3, but be safe
+            raise KeyError(
+                f"编码 {gua_number} 不在太玄数据字典中。"
+                f"有效编码范围: 1111~3333 (81首)，当前: {zhou}"
+            )
+
+        gua_details = taixuandict[gua_number]
         gua = gua_details.get("卦")
         result = [int(d) for d in zhou]
         daynightselect = {"旦":["初一","次五","次七"], "夕":["次三","次四","次八"], "日中":["次二","次六","上九"], "夜中":["次二","次六","上九"]}
@@ -65,4 +95,9 @@ src = src.replace('    def pan(self):', pan_from_code + '\n    def pan(self):')
 with open(target, 'w') as f:
     f.write(src)
 
-print(f'pan_from_code injected into {target}')
+# Verify
+if 'not isinstance(zhou, str)' in src:
+    print(f'pan_from_code with validation injected into {target}')
+else:
+    print('ERROR: validation block not found in output', file=sys.stderr)
+    sys.exit(1)

@@ -112,6 +112,7 @@ Available built-in functions (call these from your code):
 【查询路由】只查单项数据不排盘时用。每个库有很多方法，AI 用 dir() / help() 自探索完整 API：
   lunar_python (215+) →  l = Lunar.fromYmd(2026,6,16); print(dir(l))
   cnlunar             →  import cnlunar; print(dir(cnlunar.LunarDate))
+                        注: cnlunar.Lunar() 构造必须传 datetime 对象(含hour)，不能传 date — 传date报 'date' object has no attribute 'hour'
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import engine; print(dir(engine))        # 梅花起卦查询
   arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(3); [print(c.card_name,c.orientation.value) for c in cards]
