@@ -185,7 +185,7 @@ Available built-in functions (call these from your code):
                        【雷诺曼引擎调度】from lenormand_engine import LenormandFateEngine as FE
                          🟢必开(牌阵触发即用):
                            FE.parse_karmic_mirrors(spread.positions,items) — 所有有mirror_target的牌阵: line-3/5/7/9/cross/relationship/box-3x3/astrological-houses
-                           FE.parse_portrait_3x3_cage(items, spread_id) — box-3x3 钉四角+十字心
+                           FE.parse_portrait_3x3_cage(items, spread_id) — box-3x3/GT 钉四角(十字心仅box-3x3)
                          🔵Master必开(Grand Tableau):
                            master=FE.parse_grand_tableau_master_mode(items,spread.positions,gender)
                            ← 内含指示牌定位/落宫嵌套/骑士跳暗线/四角锚点

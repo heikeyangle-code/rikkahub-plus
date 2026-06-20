@@ -41,9 +41,21 @@ class LenormandFateEngine:
     @staticmethod
     def parse_portrait_3x3_cage(drawn_cards: List[Any], spread_id: str = "") -> Dict[str, str]:
         """
-        玩法二：3x3 九宫格欧洲秘传"钉四角与十字心"推演引擎
-        仅 box-3x3 可用（line-9 也是9张但线阵无四角）
+        玩法二：钉四角+十字心推演引擎
+        - box-3x3: 四角(0,2,6,8)焊死小环境边界，十字心(1,3,4,5,7)表个人挣扎
+        - grand-tableau: 四角(0,8,27,35)焊死人生周期天花板/地基，无十字心
         """
+        if spread_id == "grand-tableau":
+            if len(drawn_cards) != 36:
+                return {}
+            corners = [drawn_cards[i].card_name for i in (0, 8, 27, 35)]
+            return {
+                "macro_cage_analysis": (
+                    f"【大蓝图四角宿命结界】: 由 <{', '.join(corners)}> 四角焊死。"
+                    f"左上(初衷/起点)、右上(远景/最高期望)、左下(隐藏根基/潜意识)、"
+                    f"右下(终极归宿/最终结算)。这四张牌构成了整个36张叙事不可逾越的宿命容器。"
+                )
+            }
         if len(drawn_cards) != 9 or spread_id != "box-3x3":
             return {}
 
