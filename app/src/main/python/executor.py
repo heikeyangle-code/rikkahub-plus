@@ -181,11 +181,18 @@ Available built-in functions (call these from your code):
                          load_spread(spread_id, system="lenormand") → SpreadDefinition(positions=...) 按位置数决定draw(N)
                          Grand Tableau: 4×9网格,36宫role=house,sig=false(男人/女人牌游走),mirror=35-index动态算 row=pos.index//9 col=pos.index%9 → 骑士跳(|Δrow|=2&|Δcol|=1或反之) 对角线(|Δrow|==|Δcol|) 邻近(|Δrow|+|Δcol|≤2) | 镜像: pos.mirror_target | 指示牌: pos.is_significator
                          牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
-                       【模式扩展】(塔罗/雷诺曼共享)
-                         默认: 塔罗=故事叙事 | 雷诺曼=事件链
-                         Pro(用户说"深入/详细"): 塔罗+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系) | 雷诺曼+话题分析/方向/速度
-                         Master(用户说"大师/秘传/777"): 塔罗+秘传分析(生命之树/777/四世界)+Pro全部(结构分析+元素尊贵法) | 雷诺曼+Grand Tableau(指示牌/近远法/镜像/对角/宫位/扑克牌)+Pro全部(话题分析/方向/速度)
-                         切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
+                       ╔══════════════════ 塔罗模式 ═════════════════╗
+                       默认=故事叙事
+                       Pro=+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系)
+                       Master=+秘传分析(生命之树/777/四世界)+Pro全部(结构分析+元素尊贵法)
+                       ╚════════════════════════════════════════════╝
+                       
+                       ╔══════════════════ 雷诺曼模式 ═══════════════╗
+                       默认=事件链
+                       Pro=+话题分析/方向/速度
+                       Master=+Grand Tableau+引擎调度+Pro全部(话题分析/方向/速度)
+                       切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
+                       ╚════════════════════════════════════════════╝
 
                        【雷诺曼引擎调度】from lenormand_engine import LenormandFateEngine as FE
                          🟢必开(牌阵触发即用):
