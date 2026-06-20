@@ -188,9 +188,8 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
             name = "eval_javascript",
             description = "Execute JavaScript code using QuickJS engine (ES2020, persistent context).\n\n" +
                 "The JS context persists between calls — libraries loaded via action='load' stay available.\n" +
-                "⚠️ IMPORTANT: Use `var` (not `const`/`let`) for variables you want to reuse across calls.\n" +
-                "`const`/`let` will cause 'redeclaration' errors on subsequent calls with the same variable name.\n" +
-                "To avoid this: use `var engine = ...` or call action='reset' to clear the context first.\n\n" +
+                "⚠️ NOTE: Eval runs in a block scope — `const`/`let` are local to each call (no redeclaration errors).\n" +
+                "Use `var` for variables that need to persist across multiple calls.\n\n" +
                 "Use this tool for calculations, text processing, or divination engines.\n\n" +
                 "When to use:\n" +
                 "- Run JavaScript for calculations, text processing, or prototyping\n" +
