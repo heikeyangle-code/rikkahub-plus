@@ -190,6 +190,7 @@ Available built-in functions (call these from your code):
                            master=FE.parse_grand_tableau_master_mode(items,spread.positions,gender)
                            ← 内含指示牌定位/落宫嵌套/骑士跳暗线/四角锚点
                          🟣工具箱(AI按需取):
+                           FE.get_gt_mirrors(idx) — GT三维镜像(水平/垂直/对角)
                            FE.calculate_knights_move(sig_idx) — 任意牌的骑士跳暗线扫描
                            FE.calculate_house_chaining(items,card_id) — 宫位级联(场景:追问原因)
                            FE.calculate_counting_pulse(items,start_idx,step=9) — 古法步进(场景:年运)

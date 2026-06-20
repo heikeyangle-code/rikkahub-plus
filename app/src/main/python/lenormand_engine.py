@@ -90,6 +90,21 @@ class LenormandFateEngine:
         return valid_hits
 
     @staticmethod
+    def get_gt_mirrors(index: int) -> Dict[str, int]:
+        """
+        Grand Tableau 三维镜像反射器 (4×9矩阵)
+        - horizontal: 意识↔潜意识 (同行,列反射)
+        - vertical:   现实↔根基 (同列,行反射)
+        - diagonal:   宿命折叠 (行列同时反射,=35-index)
+        """
+        row, col = divmod(index, 9)
+        return {
+            "horizontal": row * 9 + (8 - col),
+            "vertical": (3 - row) * 9 + col,
+            "diagonal": 35 - index
+        }
+
+    @staticmethod
     def parse_grand_tableau_master_mode(
         gt_drawn_cards: List[Any],
         gt_positions: List[Dict[str, Any]],
