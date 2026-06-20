@@ -115,12 +115,25 @@ Available built-in functions (call these from your code):
                         注: cnlunar.Lunar() 构造必须传 datetime 对象(含hour)，不能传 date — 传date报 'date' object has no attribute 'hour'
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import engine; print(dir(engine))        # 梅花起卦查询
-  arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(3); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
-                       ⚠️ print仅输出原始数据供你读取。解读文字必须写在回复正文，不准在Python里print解读
-                       深度数据: [d.get_card(c.card_id)._data[k] for c in cards for k in ["core_meanings","symbols","question_contexts","position_interpretations","elemental_correspondences","affirmations","journaling_prompts","meditation_focus","card_relationships"]]
-                       输出格式: 每张牌一小段(牌名+正逆位+牌面故事+用户关联)；元素/星座/象征/卡巴拉作点缀附在段尾(一行)；最后一段总结合成联贯全牌
-                       雷诺曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(5); [print(c.card_id,c.card_name) for c in cards]
-                       深度数据: [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
+  arcanite            →  塔罗: d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
+                       ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
+                       深度: [d.get_card(c.card_id)._data[k] for c in cards for k in ["core_meanings","symbols","question_contexts","position_interpretations","elemental_correspondences","affirmations","journaling_prompts","meditation_focus","card_relationships"]]
+
+                       【塔罗输出】塔罗输出的是故事。默认Lite模式:
+                         主题→整体解读(全牌故事)→逐牌(位置意义+关键牌义)→结论→建议→反思问题(journaling_prompts选1)→箴言(affirmations选1)
+                         逐牌必入正文: core_meanings+position_interpretations+question_contexts+card_relationships
+                         点缀(每牌最多1-2): symbols+element+astrology 融进叙事不另起段
+                         Pro模式(用户要求时): 加【牌阵结构】元素倾向+大牌比例+重复数字/主题+牌间关系网
+                         Master模式(用户要求时): 加【秘传分析】生命之树路径+希伯来字母+777+四世界 单独放附录
+
+                       雷诺曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(N); [print(c.card_id,c.card_name) for c in cards]
+                       深度: [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
+
+                       【雷诺曼输出】雷诺曼输出的是事件链。默认Lite模式:
+                         组合链→事件链(串联成发展过程)→结果→建议
+                         修饰行为内部计算(descriptor/amplifier/negator等)，用户只看叙事结果不看到类型名
+                         Pro模式: 加【时间】【方向】【速度】【话题分析】
+                         Master模式: 加【Grand Tableau】指示牌/近远法/镜像/对角/宫位 + 附录【扑克牌对应】
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
