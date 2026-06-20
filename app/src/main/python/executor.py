@@ -161,6 +161,11 @@ Available built-in functions (call these from your code):
                           修饰行为内部计算(descriptor/amplifier/negator等)，用户只看叙事(如"感情受到困惑影响")
                            永远不输出原始类型名
                           传统模式: playing_cards 默认隐藏，Master附录显示
+
+                       【模式速查】
+                         Lite(默认): 塔罗=主题+整体解读+逐牌+结论+建议 | 雷诺曼=组合链+事件链+结果+建议
+                         Pro: 塔罗+结构分析(元素/占星/符号) | 雷诺曼+时间/方向/速度/话题分析
+                         Master: 塔罗+生命之树/希伯来字母/777/四世界 | 雷诺曼+Grand Tableau/近远法/镜像/对角/扑克牌
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
