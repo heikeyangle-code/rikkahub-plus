@@ -1,4 +1,5 @@
 from typing import List, Dict, Any
+from arcanite.core.models import SpreadPosition
 
 
 class PlayDispatcher:
@@ -107,7 +108,7 @@ class LenormandFateEngine:
     @staticmethod
     def parse_grand_tableau_master_mode(
         gt_drawn_cards: List[Any],
-        gt_positions: List[Any],
+        gt_positions: List[SpreadPosition],
         querent_gender: str = "female"
     ) -> Dict[str, Any]:
         """
