@@ -158,6 +158,8 @@ jobs:
           sed -i 's/"pydantic>=2.0"/"pydantic<2.0"/' "$dir/pyproject.toml"
           # Lenormand card_id/id 兼容: 塔罗用card_id, 雷诺曼用id (字段名不同, 都需支持)
           python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_lenormand.py "$dir/src/arcanite/core/deck.py"
+          # LenormandCard + LenormandDeck + load_lenormand_deck() (10 semantic getters)
+          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_lenormand_deck.py "$dir/src/arcanite/core/deck.py"
           # Fix: preserve original __init__.py structure, only strip broken imports (render/prompts/images)
           # Instead of full rewrite, keep original and just comment out unavailable subpackages
           if [ -f "$dir/src/arcanite/__init__.py" ]; then
