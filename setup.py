@@ -1,0 +1,1 @@
+from setuptools import setup; setup(name="ichingshifa", version="0.1", packages=["ichingshifa"], package_data={"ichingshifa": ["*.pkl"]})

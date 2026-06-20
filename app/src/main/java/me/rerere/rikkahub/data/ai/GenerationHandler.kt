@@ -182,7 +182,7 @@ class GenerationHandler(
                 appendLine("【灵数/卡巴拉】生命灵数/流年/挑战数→Kaabalah(JS,零随机,日期类函数必须传new Date对象不可传{year,month,day}) | 卡巴拉生命之树→Kaabalah.buildKaabalisticMapData | Gematria→Kaabalah.calculateGematria | Ifá→Kaabalah.calculateOdu (仅JS)")
                 appendLine("【农历天文】黄历/择日/建除/太岁→cnlunar(备:lunar_python,Lunar(JS)) | 公历农历转换/八字→lunar_python | 二十八宿→Lunar.getTwentyEightMans() | 吉神凶神/彭祖百忌→cnlunar | 生肖/干支→bazi_china | 节气→lunar_python")
                 appendLine("输入要求：八字/紫微需生日时辰+性别 | 西洋占星/吠陀需生日+经纬度 | 人类图需生日(无需经纬度) | 黄历/择日/太岁/节气仅需日期 | 六爻/梅花/太玄/荆诀/塔罗无需出生")
-                appendLine("⚠️ JS引擎通过 eval_javascript 调用。首次需 load: action='load', library='<库名>'（库名见 executor.py 路由表）。11库: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine(西洋+吠陀占星) | caelus-birth(时区→UT转换) | iztro-engine(紫微⭐3841) | natalengine-engine(西洋+吠陀+人类图)")
+                appendLine("⚠️ JS引擎通过 eval_javascript 调用。首次需 load: action='load', library='<库名>'（库名见 executor.py 路由表）。12库: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine(西洋+吠陀占星) | caelus-birth(时区→UT转换) | iztro-engine(紫微⭐3841) | natalengine-engine(西洋+吠陀+人类图)")
                 appendLine("⚠️ 双引擎对照: 六爻→JS dayan()取爻值→Python qigua_manual(同爻值) | 太玄→JS generate()取{code}→Python pan_from_code(code) | 禁止两引擎各自取随机=同一问题起两卦=违易经规矩")
                 appendLine("⚠️ 效率原则: 排盘/抽牌/取数据优先在一次 execute_code 或一次 eval_javascript 里完成。JS引擎首次需load,后续直接eval。多次调用仅在数据量过大或需跨库对照时使用。不得因追求一次完成而遗漏任何数据层或简化解读步骤，数据完整性优先于调用次数。")
                 appendLine("</mingli_routing>")
