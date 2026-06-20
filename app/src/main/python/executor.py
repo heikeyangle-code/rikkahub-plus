@@ -115,10 +115,11 @@ Available built-in functions (call these from your code):
                         注: cnlunar.Lunar() 构造必须传 datetime 对象(含hour)，不能传 date — 传date报 'date' object has no attribute 'hour'
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
   meihua_yi           →  from meihua_yi import engine; print(dir(engine))        # 梅花起卦查询
-  arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(3); [print(c.card_name,c.orientation.value) for c in cards]
-                       ⚠️ 抽牌结果和解读正文必须写在回复里（工具只取数据，不输出正文）。每张牌列出：牌名、正逆位、核心含义。再按用户场景取对应数据层。不要出现"工具输出如下"——直接把内容当正文写
+  arcanite            →  from arcanite.core.deck import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(3); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
+                       ⚠️ print仅输出原始数据供你读取。解读文字必须写在回复正文，不准在Python里print解读
                        深度数据: [d.get_card(c.card_id)._data[k] for c in cards for k in ["core_meanings","symbols","question_contexts","position_interpretations","elemental_correspondences","affirmations","journaling_prompts","meditation_focus","card_relationships"]]
-                       雷诺曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(5); [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
+                       雷诺曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(5); [print(c.card_id,c.card_name) for c in cards]
+                       深度数据: [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
