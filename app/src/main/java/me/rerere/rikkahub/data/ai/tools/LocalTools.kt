@@ -125,10 +125,11 @@ sealed class LocalToolOption {
 
 class LocalTools(private val context: Context, private val eventBus: AppEventBus) {
     // ── Persistent JS engine ──
-    private val jsExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private var jsExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val jsContextLock = Any()
     @Volatile private var jsContext: QuickJSContext? = null
     private val loadedLibraries = mutableSetOf<String>()
+    @Volatile private var contextDirty = false  // set on timeout → force reset next call
 
     private fun getOrCreateJSContext(): QuickJSContext {
         if (jsContext == null) {
@@ -263,6 +264,12 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                                 "loaded"
                             }
                             else -> {
+                                // If previous execution timed out, nuke the stuck context
+                                if (contextDirty) {
+                                    resetJSContext()
+                                    contextDirty = false
+                                    logs.add("[WARN] JS context was reset — previous execution had timed out and corrupted the runtime. Libraries need reloading.")
+                                }
                                 val ctx = getOrCreateJSContext()
                                 // Wrap code in block scope: const/let die inside, var persists globally.
                                 // This prevents "redeclaration of X" errors on repeated eval_javascript calls
@@ -306,7 +313,12 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                     listOf(UIMessagePart.Text(payload.toString()))
                 } catch (e: java.util.concurrent.TimeoutException) {
                     future?.cancel(true)
-                    error("JavaScript execution timed out after ${safeTimeout}s")
+                    // Native QuickJS evaluate() can't be interrupted — the thread is stuck.
+                    // Abandon the old executor+context entirely, force a fresh start next call.
+                    jsExecutor.shutdownNow()
+                    jsExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+                    contextDirty = true
+                    error("JavaScript execution timed out after ${safeTimeout}s — context will be reset on next call")
                 } catch (e: Exception) {
                     future?.cancel(true)
                     val msg = e.message ?: e.toString()
