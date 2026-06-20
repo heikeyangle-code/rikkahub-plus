@@ -369,6 +369,7 @@ jobs:
           # caelus-birth: timezone → UT converter for Caelus charts
           cd /tmp && npm pack caelus-birth --pack-destination /tmp/caelus_build 2>&1
           cd /tmp/caelus_build && tar xzf caelus-birth-*.tgz && cd package
+          npm install --production 2>&1 | tail -3
           echo 'export * from "./dist/src/index.js";' > birth-entry.mjs
           npx esbuild birth-entry.mjs --bundle --platform=node --format=iife --global-name=CaelusBirth --target=es2020 --tree-shaking=false --outfile=caelus-birth.js 2>&1 | tail -3
           cp caelus-birth.js ${GITHUB_WORKSPACE}/app/src/main/assets/
