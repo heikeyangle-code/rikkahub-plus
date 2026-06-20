@@ -236,12 +236,8 @@ Available built-in functions (call these from your code):
     shengxiao.output(des,key)→ 打印生肖合/冲/刑/害关系 (shengxiao.py CLI工具)
     sizi.summarys            → 120项四柱解盘字典 (ai自己探索sizi.summarys.keys()查看可用键)
     yue.months[月柱]         → 流月详解 (键为月柱干支如'甲寅', 从lunar_python EightChar.getMonth()取值)
-    神煞(datas.py): day_shens(将星/华盖/驿马/劫煞/亡神/桃花) | month_shens(天德/月德) | year_shens(孤辰/寡宿/大耗) | g_shens(天乙/文昌/阳刃/红艳) | shens_infos(含义详解)
-    纳音: datas.nayins[(干,支)] → 如'海中金' | 空亡: datas.empties[(干,支)] → 如('戌','亥')
-    命宫: datas.minggongs[支] → 命宫解读 | 日主: datas.rizhus['甲子'] → 日主批断
-    调候用神: datas.jinbuhuan['甲子'] → 喜丙忌壬等 | 建禄: datas.jianlus[(干,支)] → 建禄格详解
-    天干地支描述: ganzhi.gan_desc['甲'] / ganzhi.zhi_desc['子'] | 藏干十神: ganzhi.ten_deities[干][支]→十神名
-    干支关系: ganzhi.gan_hes → 天干五合 | ganzhi.zhi_6hes → 地支六合 | zhi_3hes → 三合 | zhi_chongs → 六冲 | zhi_xings → 三刑 | zhi_haies → 六害 | zhi_poes → 六破
+    神煞/纳音/空亡/命宫/日主/调候/建禄: datas.day_shens/month_shens/year_shens/g_shens/nayins/empties/minggongs/rizhus/jinbuhuan/jianlus
+    天干地支/藏干十神/干支关系: ganzhi.gan_desc/zhi_desc/ten_deities/gan_hes/zhi_6hes/zhi_3hes/zhi_chongs/zhi_xings/zhi_haies/zhi_poes
     注: bazi.py(2549行)是CLI工具(argparse入口),非库API; 八字排盘直接用 lunar_python.EightChar
   节气和天文          →  lunar_python               ← cnlunar                  日期即可
 
