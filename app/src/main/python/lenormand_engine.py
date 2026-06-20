@@ -13,15 +13,15 @@ class LenormandFateEngine:
         """
         karmic_statements = []
         for pos in spread_schema:
-            target_idx = pos.get("mirror_target")
-            if target_idx is not None and pos["index"] < target_idx:
-                card_cause = drawn_cards[pos["index"]]
+            target_idx = pos.mirror_target
+            if target_idx is not None and pos.index < target_idx:
+                card_cause = drawn_cards[pos.index]
                 card_effect = drawn_cards[target_idx]
                 target_pos = spread_schema[target_idx]
 
                 stmt = (
-                    f"【宿命因果折叠】: 位置[{pos['name']}]抽出的 <{card_cause.card_name}> 与 "
-                    f"位置[{target_pos['name']}]抽出的 <{card_effect.card_name}> 形成量子镜像闭环。 "
+                    f"【宿命因果折叠】: 位置[{pos.name}]抽出的 <{card_cause.card_name}> 与 "
+                    f"位置[{target_pos.name}]抽出的 <{card_effect.card_name}> 形成量子镜像闭环。 "
                     f"-> 命理铁律：<{card_cause.card_name}> 所代表的过去根基，必然是直接导致 <{card_effect.card_name}> 结局的直接诱因。"
                 )
                 karmic_statements.append(stmt)
@@ -94,8 +94,8 @@ class LenormandFateEngine:
         sig_house = gt_positions[sig_idx]
         nesting_stmt = (
             f"【核心落宫嵌套】: 问卜者指示牌 <{sig_card.card_name}> "
-            f"降落在第{sig_idx+1}宫 <{sig_house['name']}>。"
-            f"化学合成语境：问卜者当前的潜意识底色完全被'{sig_house['short_description']}'笼罩。"
+            f"降落在第{sig_idx+1}宫 <{sig_house.name}>。"
+            f"化学合成语境：问卜者当前的潜意识底色完全被'{sig_house.short_description}'笼罩。"
         )
 
         # 3. 触发骑士跳暗线扫描

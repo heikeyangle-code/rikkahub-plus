@@ -118,7 +118,7 @@ Available built-in functions (call these from your code):
   meihua_yi           →  from meihua_yi import engine; print(dir(engine))        # 梅花起卦查询
   arcanite            →  塔罗: d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
-                       深度: [d.get_card(c.card_id)._data[k] for c in cards for k in ["core_meanings","symbols","question_contexts","position_interpretations","elemental_correspondences","affirmations","journaling_prompts","meditation_focus","card_relationships"]]
+                       深度: [d.get_card(c.card_id)._data 裸访问已废弃。塔罗DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning() / get_affirmations() / get_journaling_prompts() / get_symbols() 等]
 
                        【统一规则】
                          1.先结论，后解释
@@ -184,13 +184,15 @@ Available built-in functions (call these from your code):
 
                        【雷诺曼引擎调度】from lenormand_engine import LenormandFateEngine as FE
                          🟢必开(牌阵触发即用):
-                           FE.parse_karmic_mirrors(spread.positions,items) — line-7/line-9/cross/relationship 因果闭环
+                           FE.parse_karmic_mirrors(spread.positions,items) — 所有有mirror_target的牌阵: line-3/5/7/9/cross/relationship/box-3x3/astrological-houses
                            FE.parse_portrait_3x3_cage(items) — box-3x3 钉四角+十字心
                          🔵Master必开(Grand Tableau):
                            master=FE.parse_grand_tableau_master_mode(items,spread.positions,gender)
-                         🟣工具箱(AI按需取,不自动触发):
-                           FE.calculate_house_chaining(items,card_id) — 场景:追问原因/幕后推手
-                           FE.calculate_counting_pulse(items,start_idx,step=9) — 场景:年运/大趋势
+                           ← 内含指示牌定位/落宫嵌套/骑士跳暗线/四角锚点
+                         🟣工具箱(AI按需取):
+                           FE.calculate_knights_move(sig_idx) — 任意牌的骑士跳暗线扫描
+                           FE.calculate_house_chaining(items,card_id) — 宫位级联(场景:追问原因)
+                           FE.calculate_counting_pulse(items,start_idx,step=9) — 古法步进(场景:年运)
                          规则: 引擎输出是硬骨架,LLM只在其上叙事不篡改
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
