@@ -366,6 +366,14 @@ jobs:
           cp caelus-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Caelus JS engine compiled: $(wc -c < caelus-engine.js) bytes"
 
+          # caelus-birth: timezone → UT converter for Caelus charts
+          cd /tmp && npm pack caelus-birth --pack-destination /tmp/caelus_build 2>&1
+          cd /tmp/caelus_build && tar xzf caelus-birth-*.tgz && cd package
+          echo 'export * from "./dist/src/index.js";' > birth-entry.mjs
+          npx esbuild birth-entry.mjs --bundle --platform=node --format=iife --global-name=CaelusBirth --target=es2020 --tree-shaking=false --outfile=caelus-birth.js 2>&1 | tail -3
+          cp caelus-birth.js ${GITHUB_WORKSPACE}/app/src/main/assets/
+          echo "Caelus Birth (timezone→UT) compiled: $(wc -c < caelus-birth.js) bytes"
+
       - name: Compile NatalEngine JS (natalengine — 西洋占星+印度吠陀+Human Design, 依赖astronomy-engine)
         run: |
           mkdir -p /tmp/natalengine_build

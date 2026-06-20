@@ -178,6 +178,9 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
             name = "eval_javascript",
             description = "Execute JavaScript code using QuickJS engine (ES2020, persistent context).\n\n" +
                 "The JS context persists between calls — libraries loaded via action='load' stay available.\n" +
+                "⚠️ IMPORTANT: Use `var` (not `const`/`let`) for variables you want to reuse across calls.\n" +
+                "`const`/`let` will cause 'redeclaration' errors on subsequent calls with the same variable name.\n" +
+                "To avoid this: use `var engine = ...` or call action='reset' to clear the context first.\n\n" +
                 "Use this tool for calculations, text processing, or divination engines.\n\n" +
                 "When to use:\n" +
                 "- Run JavaScript for calculations, text processing, or prototyping\n" +
@@ -187,7 +190,7 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                 "Available JS engines (action='load', library=...):\n" +
                 "  qimen-engine (QiMen) | ziwei-nihai (ZiweiNihai) | iching-shifa-engine (IchingShifa) | taixuan-engine (TaixuanLib)\n" +
                 "  lunar-engine (Lunar) | astronomy-engine (Astronomy) | horoscope-engine (HoroscopeJS) | kaabalah-engine (Kaabalah)\n" +
-                "  caelus-engine (Caelus: Western+Vedic astrology)\n\n" +
+                "  caelus-engine (Caelus: Western+Vedic astrology) | caelus-birth (CaelusBirth: timezone→UT)\n\n" +
 
                 "- action: 'eval' (default) | 'load' | 'reset'\n" +
                 "- library: asset filename without .js (for action='load') — loads once, cached\n" +
@@ -261,10 +264,12 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                             }
                             else -> {
                                 val ctx = getOrCreateJSContext()
-                                // Execute code — QuickJS evaluate() returns last expression value
+                                // Wrap code in block scope: const/let die inside, var persists globally.
+                                // This prevents "redeclaration of X" errors on repeated eval_javascript calls
+                                // while still allowing `var engine = ...` to survive across calls.
                                 val codeResult = if (!code.isNullOrBlank()) {
                                     logs.add("[INFO] eval: ${code.take(100)}...")
-                                    ctx.evaluate(code)
+                                    ctx.evaluate("{\n$code\n}")
                                 } else null
 
                                 // Call function if specified (with safe arg binding)
