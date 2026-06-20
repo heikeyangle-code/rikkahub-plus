@@ -163,7 +163,7 @@ Available built-in functions (call these from your code):
                          结构分析(仅【牌阵结构】): element_balance + major_arcana_ratio + court_card_ratio + repeated_numbers + repeated_suits
                          完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
                          playing_cards 默认隐藏，Master附录显示
-                         as_person 归Master(指示牌分析)
+                         as_person → 抽到人物类卡(骑手/男人/女人/小孩等)时激活，写入该牌解读中
 
                        【牌阵】
                          from arcanite.core.spread import list_spreads, load_spread
