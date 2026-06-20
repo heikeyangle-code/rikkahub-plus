@@ -75,16 +75,17 @@ class ElementalDignityEngine:
 
     @staticmethod
     def get_element(card: Any) -> Optional[str]:
-        """从 TarotCard 或 DrawnCard 提取元素"""
+        """从 DrawnCard 或 TarotCard 提取元素 (通过 card_id 解析花色)"""
         name = card.card_name if hasattr(card, 'card_name') else str(card)
+        card_id = card.card_id if hasattr(card, 'card_id') else ""
 
-        # 1. 小牌：从 suit 取 (suit可能是小写)
-        if hasattr(card, 'suit') and card.suit:
-            suit_title = card.suit.title()
-            if suit_title in ELEMENT_OF_SUIT:
-                return ELEMENT_OF_SUIT[suit_title]
+        # 1. 小牌/宫廷牌：从 card_id 提取花色 (格式: "ace_of_wands", "king_of_cups" 等)
+        if "_of_" in card_id:
+            suit = card_id.split("_of_")[-1].title()  # "Wands", "Cups", "Swords", "Pentacles"
+            if suit in ELEMENT_OF_SUIT:
+                return ELEMENT_OF_SUIT[suit]
 
-        # 2. 大牌：从占星对应取
+        # 2. 大牌：从占星对应取 (无 _of_ 即大阿卡纳)
         for major_name in MAJOR_ARCANA_CORRESPONDENCE:
             if major_name in name:
                 corr = MAJOR_ARCANA_CORRESPONDENCE[major_name]
@@ -96,19 +97,16 @@ class ElementalDignityEngine:
                     return ZODIAC_ELEMENT[corr]
                 return None
 
-        # 3. 宫廷牌：从 rank 取 (King=Fire, etc.)
-        for rank in COURT_ELEMENT:
-            if name.startswith(rank):
-                return COURT_ELEMENT[rank]
-
         return None
 
     @staticmethod
     def get_secondary_element(card: Any) -> Optional[str]:
-        """宫廷牌副元素 = 宫廷位阶元素"""
-        name = card.card_name if hasattr(card, 'card_name') else str(card)
-        for rank in COURT_ELEMENT:
-            if name.startswith(rank):
+        """宫廷牌副元素 = 宫廷位阶元素 (King=Fire, Queen=Water, Knight=Air, Page=Earth)"""
+        card_id = card.card_id if hasattr(card, 'card_id') else ""
+        # 从 card_id 解析 rank: "king_of_wands" → "King"
+        if "_of_" in card_id:
+            rank = card_id.split("_of_")[0].title()  # "King", "Queen", "Knight", "Page"
+            if rank in COURT_ELEMENT:
                 return COURT_ELEMENT[rank]
         return None
 

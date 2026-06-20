@@ -107,7 +107,7 @@ class LenormandFateEngine:
     @staticmethod
     def parse_grand_tableau_master_mode(
         gt_drawn_cards: List[Any],
-        gt_positions: List[Dict[str, Any]],
+        gt_positions: List[Any],
         querent_gender: str = "female"
     ) -> Dict[str, Any]:
         """
