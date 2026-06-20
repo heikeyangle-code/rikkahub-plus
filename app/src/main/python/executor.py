@@ -119,53 +119,34 @@ Available built-in functions (call these from your code):
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
                        深度: [d.get_card(c.card_id)._data[k] for c in cards for k in ["core_meanings","symbols","question_contexts","position_interpretations","elemental_correspondences","affirmations","journaling_prompts","meditation_focus","card_relationships"]]
 
-                       【塔罗输出结构】塔罗输出的是故事。原则: 主题→故事→逐牌→结构→结论
-                         【问题】用户的提问
-                         【牌阵】牌阵名+抽牌数
-                         【主题】一句话点出整个牌阵核心
-                         【整体解读】先讲整个牌阵在讲什么故事
-                         ───逐牌(每张)───
-                         【位置名｜XX牌】位置意义 + 结合问题领域解释 + 关键牌义 + 与相邻牌的关系
-                           (必要时引用1个符号，最多1个占星/元素作点缀)
-                         ────────────────
-                         【牌阵结构】元素倾向+大牌比例+重复数字+重要重复主题+牌间关系网络
-                         【综合结论】整个牌阵真正想表达什么
-                         【行动建议】具体建议
-                         【反思问题】选1条 journaling_prompts
-                         【今日箴言】选1条 affirmations
+                       【统一规则】
+                         先结论后解释 | 永远故事优先不罗列数据 | 牌必须串联不可孤立
+                         数据只用于增强语气，不可堆砌
 
-                         数据规则:
-                          必入正文: core_meanings + position_interpretations + question_contexts + card_relationships
-                          点缀(每牌≤2): symbols(element/astrology) 融进叙事不另起段
-                          结构分析(仅【牌阵结构】): element_balance + major_arcana_ratio + court_card_ratio + repeated_numbers + repeated_suits
-                          默认隐藏: hebrew_letters + tree_of_life + 777 + four_worlds + sephiroth
-                          Master模式附录【秘传分析】: 生命之树路径 + 希伯来字母 + 777对应 + 四世界分析 单独放最后
+                       【塔罗输出】塔罗=人生故事生成器
+                         【问题】【牌阵】【一句话答案】【主题】一句话总结整局
+                         【整体故事】必须是连续叙事(核心)
+                         【逐牌】每张: 当前状态+现实/心理解释+与前后牌关系(必须)+1个符号/元素点缀(可选)
+                           每张3~5句，不可拆词典
+                         【牌阵结构】元素倾向+大牌比例+重复主题+关系网络
+                         【结论】一句话【建议】最多3条【反思问题】1条【一句话箴言】1条
 
                        雷诺曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(N); [print(c.card_id,c.card_name) for c in cards]
                        深度: [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
 
-                       【雷诺曼输出结构】雷诺曼输出的是事件链
-                         【问题】用户的提问
-                         【牌组】XX｜XX｜XX (一行列牌)
-                         【组合链】A+B→组合意义 / B+C→组合意义 / C+D→组合意义
-                         【事件链】把组合串成事件发展过程(如: 消息到来→产生联系→建立合作)
-                         【时间】自动生成时间判断
-                         【结果】最终结果
-                         【建议】具体建议
-                         Pro模式: +【话题分析】(爱情/事业/财务/健康) +【方向】【速度】
-                         Master模式: +【指示牌分析】【近远法】【镜像】【对角】【宫位】+附录【扑克牌对应】
+                       【雷诺曼输出】雷诺曼=现实事件模拟器
+                         【问题】【一句话答案】【牌组】A｜B｜C｜D(一行列牌)
+                         【事件故事】转成现实流程: 信息→行动→发展→结果
+                         【组合链】A+B→意义 / B+C→推进 / C+D→结果
+                         【结论】一句话现实结果【建议】最多3条
+                         Pro: +话题分析/方向/速度
+                         Master: +指示牌/近远法/镜像/对角/宫位
 
-                         数据规则:
-                          必入正文: keywords + combination_rules + fixed_pairs + linear_positions + modifier_rules
-                          条件启用: timing + speed + direction + topics (有相关问题才启用)
-                          修饰行为内部计算(descriptor/amplifier/negator等)，用户只看叙事(如"感情受到困惑影响")
-                           永远不输出原始类型名
-                          传统模式: playing_cards 默认隐藏，Master附录显示
-
-                       【模式速查】
-                         Lite(默认): 塔罗=主题+整体解读+逐牌+结论+建议 | 雷诺曼=组合链+事件链+结果+建议
-                         Pro: 塔罗+结构分析(元素/占星/符号) | 雷诺曼+时间/方向/速度/话题分析
-                         Master: 塔罗+生命之树/希伯来字母/777/四世界 | 雷诺曼+Grand Tableau/近远法/镜像/对角/扑克牌
+                       【数据使用规则】
+                         必须使用: core_meanings/position_interpretations/question_contexts/card_relationships
+                                  keywords/combination_rules/modifier_behavior
+                         用于润色: symbols/element/astrology/timing
+                         完全隐藏: hebrew_letters/tree_of_life/777/four_worlds/sephiroth
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
