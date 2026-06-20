@@ -123,8 +123,8 @@ Available built-in functions (call these from your code):
                          默认=故事叙事
                          Pro(用户说"深入/详细"): 塔罗+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系)
                          Master(用户说"大师/秘传/777"): 塔罗+秘传分析(生命之树/777/四世界)+Pro全部(结构分析+元素尊贵法)
+                         切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
                        ╚════════════════════════════════════════════╝
-                          切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
 
 【塔罗卡巴拉全对应】arcanite抽牌→查本表→Kaabalah.buildKaabalisticMapData()一键拿全映射(源质+字母+路径+行星对应). 来自Crowley 777/黄金黎明.
  大牌(22): 序号=KeyScale, 字母=希伯来字母, 路径=生命之树路径
@@ -194,8 +194,8 @@ Available built-in functions (call these from your code):
                           默认=事件链
                           Pro(用户说"深入/详细"): 雷诺曼+话题分析/方向/速度
                           Master(用户说"大师/秘传/777"): 雷诺曼+Grand Tableau(指示牌/近远法/镜像/对角/宫位/扑克牌)+引擎调度+Pro全部(话题分析/方向/速度)
-                        ╚════════════════════════════════════════════╝
                           切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
+                        ╚════════════════════════════════════════════╝
 
                         【雷诺曼引擎调度】from lenormand_engine import LenormandFateEngine as FE
                           🟢必开(牌阵触发即用):
