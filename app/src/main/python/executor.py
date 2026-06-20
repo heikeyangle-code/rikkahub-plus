@@ -138,7 +138,7 @@ Available built-in functions (call these from your code):
                          - 与前后牌关系（必须）
                          - 1个符号/元素点缀（可选）
                          规则：每张3~5句，不可拆词典
-                         【牌阵结构】元素倾向+大牌比例+重复主题+关系网络
+                         【牌阵结构】元素倾向(element_balance)+大牌比例(major_arcana_ratio/court_card_ratio)+重复主题(repeated_numbers/repeated_suits)+关系网络
                          【结论】一句话总结
                          【建议】最多3条
                          【反思问题】1条
@@ -164,6 +164,13 @@ Available built-in functions (call these from your code):
                          必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / keywords / combination_rules / modifier_behavior
                          用于润色：symbols / element / astrology / timing
                          完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
+
+                       【牌阵】
+                         from arcanite.core.spread import list_spreads, load_spread
+                         list_spreads() → 塔罗11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
+                         load_spread('celtic-cross') → SpreadDefinition(positions=[{name,description,rag_mapping},...]) 按位置数决定draw(N)
+                         雷诺曼: get_spread_registry(system="lenormand").list_spreads() → line-3(3张) / line-5(5张)
+                         牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
