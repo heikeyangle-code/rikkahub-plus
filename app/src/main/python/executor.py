@@ -158,6 +158,7 @@ Available built-in functions (call these from your code):
                         ╔══════════════════ 雷诺曼 ═════════════════╗
                         雷诺曼: d=LenormandDeck.load(); items=d.draw_with_data(N)
                         [print(item.card_id,item.card_name) for item in items]
+                       ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
                         深度: [item.get_core() for item in items] — 一步直接调语义getter
                         组合链: item_A.get_combination_with(item_B.card_id, position="left")
                         统计: d.analyze_draw(items) → 正逆位分布+全正/全逆检测
