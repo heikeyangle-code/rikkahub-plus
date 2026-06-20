@@ -124,6 +124,7 @@ Available built-in functions (call these from your code):
                          Pro(用户说"深入/详细"): 塔罗+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系)
                          Master(用户说"大师/秘传/777"): 塔罗+秘传分析(生命之树/777/四世界)+Pro全部(结构分析+元素尊贵法)
                        ╚════════════════════════════════════════════╝
+                          切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
 
 【塔罗卡巴拉全对应】arcanite抽牌→查本表→Kaabalah.buildKaabalisticMapData()一键拿全映射(源质+字母+路径+行星对应). 来自Crowley 777/黄金黎明.
  大牌(22): 序号=KeyScale, 字母=希伯来字母, 路径=生命之树路径
