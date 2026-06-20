@@ -170,7 +170,7 @@ Available built-in functions (call these from your code):
                          as_person → 抽到人物类卡(骑手/男人/女人/小孩等)时激活，写入该牌解读中
 
                        【牌阵】
-                         from arcanite.core.spread import list_spreads, load_spread
+                         from tarot_elemental_engine import ElementalDignityEngine as EE; from arcanite.core.spread import list_spreads, load_spread
                          list_spreads() → 塔罗11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
                          list_spreads(system="lenormand") → 雷诺曼: line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张) / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张) / astrological-houses(12张) / relationship(5张关系)
                          load_spread(spread_id, system="lenormand") → SpreadDefinition(positions=...) 按位置数决定draw(N)
@@ -178,7 +178,7 @@ Available built-in functions (call these from your code):
                          牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
                        【模式扩展】(塔罗/雷诺曼共享)
                          默认: 塔罗=故事叙事 | 雷诺曼=事件链
-                         Pro(用户说"深入/详细"): 塔罗+结构分析(元素/占星/符号) | 雷诺曼+话题分析/方向/速度
+                         Pro(用户说"深入/详细"): 塔罗+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系) | 雷诺曼+话题分析/方向/速度
                          Master(用户说"大师/秘传/777"): 塔罗+秘传分析(生命之树/777/四世界) | 雷诺曼+Grand Tableau(指示牌/近远法/镜像/对角/宫位/扑克牌)
                          切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
 
