@@ -165,6 +165,7 @@ Available built-in functions (call these from your code):
                          用于润色：symbols / element / astrology / timing
                          结构分析(仅【牌阵结构】): element_balance + major_arcana_ratio + court_card_ratio + repeated_numbers + repeated_suits
                          完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
+                         playing_cards 默认隐藏，Master附录显示
 
                        【牌阵】
                          from arcanite.core.spread import list_spreads, load_spread
