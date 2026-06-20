@@ -39,11 +39,12 @@ class LenormandFateEngine:
         return karmic_statements
 
     @staticmethod
-    def parse_portrait_3x3_cage(drawn_cards: List[Any]) -> Dict[str, str]:
+    def parse_portrait_3x3_cage(drawn_cards: List[Any], spread_id: str = "") -> Dict[str, str]:
         """
         玩法二：3x3 九宫格欧洲秘传"钉四角与十字心"推演引擎
+        仅 box-3x3 可用（line-9 也是9张但线阵无四角）
         """
-        if len(drawn_cards) != 9:
+        if len(drawn_cards) != 9 or spread_id != "box-3x3":
             return {}
 
         # 钉四角 (Corners: 0, 2, 6, 8) -> 决定事件无法逃脱的宏观天花板
