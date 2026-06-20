@@ -117,7 +117,7 @@ Available built-in functions (call these from your code):
                        ╚════════════════════════════════════════════╝
 
                        ╔══════════════════ 塔罗牌阵 ═════════════════╗
-                       from arcanite.core.spread import list_spreads, load_spread
+                       from tarot_elemental_engine import ElementalDignityEngine as EE; from arcanite.core.spread import list_spreads, load_spread
                          list_spreads() → 塔罗11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
                        ╚════════════════════════════════════════════╝
                        ╔══════════════════ 塔罗模式 ═════════════════╗
@@ -185,7 +185,7 @@ Available built-in functions (call these from your code):
                         ╚════════════════════════════════════════════╝
 
                         ╔══════════════════ 雷诺曼牌阵 ═══════════════╗
-                        from tarot_elemental_engine import ElementalDignityEngine as EE; from arcanite.core.spread import list_spreads, load_spread
+                        from arcanite.core.spread import list_spreads, load_spread
                           list_spreads(system="lenormand") → 雷诺曼: line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张) / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张) / astrological-houses(12张) / relationship(5张关系)
                           load_spread(spread_id, system="lenormand") → SpreadDefinition(positions=...) 按位置数决定draw(N)
                           Grand Tableau: 4×9网格,36宫role=house,sig=false(男人/女人牌游走),mirror=35-index动态算 row=pos.index//9 col=pos.index%9 → 骑士跳(|Δrow|=2&|Δcol|=1或反之) 对角线(|Δrow|==|Δcol|) 邻近(|Δrow|+|Δcol|≤2) | 镜像: pos.mirror_target | 指示牌: pos.is_significator
