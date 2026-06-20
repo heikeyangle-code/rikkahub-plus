@@ -1,16 +1,27 @@
 from typing import List, Dict, Any
 
 
+class PlayDispatcher:
+    """数据驱动的玩法兼容性守卫 — 直接读 spread 实际数据，不硬编码牌阵列表。"""
+
+    @staticmethod
+    def has_mirrors(spread_schema: List[Any]) -> bool:
+        """牌阵里任一位置有 mirror_target 不为 None → 镜像可用"""
+        return any(pos.mirror_target is not None for pos in spread_schema)
+
+
 class LenormandFateEngine:
     """
     雷诺曼高级命理拓扑计算引擎（神经符号AI的左脑逻辑单元）
     """
 
     @staticmethod
-    def parse_karmic_mirrors(spread_schema: List[Dict[str, Any]], drawn_cards: List[Any]) -> List[str]:
+    def parse_karmic_mirrors(spread_schema: List[Any], drawn_cards: List[Any]) -> List[str]:
         """
         玩法一：因果闭环计算器（根据 mirror_target 指针，自动绑定两张牌的宿命因果）
         """
+        if not PlayDispatcher.has_mirrors(spread_schema):
+            return []
         karmic_statements = []
         for pos in spread_schema:
             target_idx = pos.mirror_target
