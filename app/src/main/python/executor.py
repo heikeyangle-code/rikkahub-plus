@@ -158,11 +158,12 @@ Available built-in functions (call these from your code):
 
 
                        【数据使用规则】
-                         必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / keywords / combination_rules / modifier_behavior
+                         必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / journaling_prompts / affirmations / meditation_focus / keywords / combination_rules / modifier_behavior / line_reading
                          用于润色：symbols / element / astrology / timing
                          结构分析(仅【牌阵结构】): element_balance + major_arcana_ratio + court_card_ratio + repeated_numbers + repeated_suits
                          完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
                          playing_cards 默认隐藏，Master附录显示
+                         as_person 归Master(指示牌分析)
 
                        【牌阵】
                          from arcanite.core.spread import list_spreads, load_spread
