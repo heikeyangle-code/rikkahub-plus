@@ -120,33 +120,50 @@ Available built-in functions (call these from your code):
                        深度: [d.get_card(c.card_id)._data[k] for c in cards for k in ["core_meanings","symbols","question_contexts","position_interpretations","elemental_correspondences","affirmations","journaling_prompts","meditation_focus","card_relationships"]]
 
                        【统一规则】
-                         先结论后解释 | 永远故事优先不罗列数据 | 牌必须串联不可孤立
-                         数据只用于增强语气，不可堆砌
+                         1.先结论，后解释
+                         2.永远故事优先，不解释数据
+                         3.所有牌必须串联，不可孤立解释
+                         4.数据只用于"增强语气"，不能罗列
 
                        【塔罗输出】塔罗=人生故事生成器
-                         【问题】【牌阵】【一句话答案】【主题】一句话总结整局
-                         【整体故事】必须是连续叙事(核心)
-                         【逐牌】每张: 当前状态+现实/心理解释+与前后牌关系(必须)+1个符号/元素点缀(可选)
-                           每张3~5句，不可拆词典
+                         【问题】
+                         【牌阵】
+                         【一句话答案】
+                         【主题】一句话总结整局
+                         【整体故事】必须是连续叙事（核心）
+                         【逐牌】
+                         【位置｜牌名】
+                         - 当前状态（位置含义）
+                         - 现实/心理解释（核心意义）
+                         - 与前后牌关系（必须）
+                         - 1个符号/元素点缀（可选）
+                         规则：每张3~5句，不可拆词典
                          【牌阵结构】元素倾向+大牌比例+重复主题+关系网络
-                         【结论】一句话【建议】最多3条【反思问题】1条【一句话箴言】1条
+                         【结论】一句话总结
+                         【建议】最多3条
+                         【反思问题】1条
+                         【一句话箴言】1条
 
                        雷诺曼: d=TarotDeck.load(system="lenormand"); cards=d.draw(N); [print(c.card_id,c.card_name) for c in cards]
                        深度: [d.get_card(c.card_id)._data[k] for k in ["core","timing","as_person","modifier_behavior","playing_card","topic_contexts","line_reading","combination_grammar","combinations","grand_tableau"]]
 
                        【雷诺曼输出】雷诺曼=现实事件模拟器
-                         【问题】【一句话答案】【牌组】A｜B｜C｜D(一行列牌)
-                         【事件故事】转成现实流程: 信息→行动→发展→结果
+                         【问题】
+                         【一句话答案】
+                         【牌组】A｜B｜C｜D
+                         【事件故事】必须转成现实流程：信息→行动→发展→结果
                          【组合链】A+B→意义 / B+C→推进 / C+D→结果
-                         【结论】一句话现实结果【建议】最多3条
-                         Pro: +话题分析/方向/速度
-                         Master: +指示牌/近远法/镜像/对角/宫位
+                         【结论】一句话现实结果
+                         【建议】最多3条
+
+                       【模式扩展】
+                         Pro：话题分析 / 方向 / 速度
+                         Master：指示牌 / 近远法 / 镜像 / 对角 / 宫位
 
                        【数据使用规则】
-                         必须使用: core_meanings/position_interpretations/question_contexts/card_relationships
-                                  keywords/combination_rules/modifier_behavior
-                         用于润色: symbols/element/astrology/timing
-                         完全隐藏: hebrew_letters/tree_of_life/777/four_worlds/sephiroth
+                         必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / keywords / combination_rules / modifier_behavior
+                         用于润色：symbols / element / astrology / timing
+                         完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
   kinliuren           →  import kinliuren; print(dir(kinliuren))             # 查课
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
   不局限于示例，每个库的全部方法都可调。
