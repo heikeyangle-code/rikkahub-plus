@@ -29,16 +29,72 @@ Available built-in functions (call these from your code):
   用户问             →  首选                        ← 也能用这些               输入要求
   ─────────────────────────────────────────────────────────────────────────────────────────
   【中华正统】
-  八字/四柱/大运      →  【双库并联 Step1-6】
-                        Step1: lunar_python.Solar → 公历转农历+节气+星宿+彭祖百忌
-                        Step2: lunar_python.EightChar → 排盘(四柱+纳音+五行+藏干+十神+旬空+身宫)
-                        Step3: lunar_python.Yun → 大运(起运/十步/流年/流月)
-                        Step4: bazi_china.sizi.summarys → 四柱解盘古诀(120条)
-                        Step5: bazi_china.datas → 神煞(将星/桃花/华盖/驿马/天德/月德/天乙/文昌/阳刃/红艳)
-                        Step6: bazi_china.datas → 命宫断语/日主断语/金不换/调候用神
-                        Step7: bazi_china.ganzhi → 干支关系(五合/六合/三合/六冲/六害/六破/三刑)
-                        Step8: bazi_china.datas.ganzhi60 → 纳音(60甲子完整,datas.nayins空壳,用ganzhi60)
-                        分工: lunar_python=排盘骨架+大运流年+农历 | bazi_china=神煞断语+调候+古诀+干支库
+  八字/四柱/大运      →  【双库并联】
+
+╔══════════════════════════════════════════════════════╗
+║  Step 1: 验证排盘 (lunar_python)                    ║
+║    Solar.fromYmdHms(year,month,day,hour,minute,0)    ║
+║    → getLunar().getEightChar()  → 四柱干支           ║
+║    → 与用户自排八字对照, 节气交界日须校验            ║
+╚══════════════════════════════════════════════════════╝
+↓
+╔══════════════════════════════════════════════════════╗
+║  Step 2: 骨架 — lunar_python                        ║
+║    ┌─ Solar.toFullString()  → 公历信息+星座          ║
+║    ├─ Lunar.toFullString()  → 农历+纳音+星宿+        ║
+║    │                         彭祖百忌+喜贵财神方位    ║
+║    ├─ Lunar.getJieQiTable() → 24节气精确日期         ║
+║    ├─ EightChar             → 四柱/纳音/五行/藏干    ║
+║    │                          /十神/旬空/身宫        ║
+║    └─ EightChar.getYun(1)   → 大运起岁+十步+流年    ║
+╚══════════════════════════════════════════════════════╝
+↓
+╔══════════════════════════════════════════════════════╗
+║  Step 3: 血肉 — bazi_china                          ║
+║    ⚠️ 先 sys.path.insert(0, 'app/src/main/python')   ║
+║    ⚠️ datas.nayins/ganzhi60 的key是tuple!            ║
+║        正确: datas.nayins[('戊','寅')] → '城头土'   ║
+║        错误: datas.nayins['戊寅'] → KeyError        ║
+║    ⚠️ datas.empties key也是tuple!                   ║
+║        正确: datas.empties[('甲','子')] → ('戌','亥')║
+║    ⚠️ datas.tiaohous 是简码需解码:                  ║
+║        '1丙2_甲' = 第一用神丙, 第二用神甲           ║
+║        '1壬2丙甲' = 第一用神壬, 第二用神丙甲        ║
+║    ⚠️ shengxiao.output('合','子') 有bug, 绕开       ║
+║                                                    ║
+║    ┌─ sizi.summarys['戊日壬子'] → 时柱古诀          ║
+║    ├─ datas.day_shens['将星']['午'] → 日支神煞     ║
+║    ├─ datas.year_shens['孤辰']['寅'] → 年支神煞    ║
+║    ├─ datas.month_shens['天德']['子'] → 月支神煞   ║
+║    ├─ datas.g_shens['天乙']['戊'] → 天乙贵人       ║
+║    ├─ datas.minggongs['丑'] → 命宫断语             ║
+║    ├─ datas.rizhus['戊午'] → 日主断语              ║
+║    ├─ datas.jinbuhuan['戊午'] → 金不换调候+大运喜忌║
+║    ├─ datas.lu_types['戊'][('戊','巳')] → 禄类型   ║
+║    ├─ datas.self_zuo['印'] → 自坐解释              ║
+║    ├─ yue.months['甲子'] → 月令详细论述            ║
+║    ├─ ganzhi.gan_hes → 天干五合详解                ║
+║    ├─ ganzhi.zhi_6hes/3hes/chongs/haies/poes/xings ║
+║    ├─ ganzhi.gan_desc/zhi_desc → 干支特性           ║
+║    ├─ ganzhi.zhi_zangs → 地支藏干(脏腑对应)        ║
+║    └─ ganzhi.ten_deities['戊']['子'] → 十二宫状态  ║
+╚══════════════════════════════════════════════════════╝
+【关键坑位提醒】
+• datas.nayins 的key是tuple: ('戊','寅') 不是 '戊寅'
+• datas.ganzhi60 也是tuple key, 且数据与nayins相同
+  两者选一个用即可, 推荐 datas.nayins
+• datas.empties key也是tuple: ('甲','子')
+• datas.tiaohous 是简码: '1丙2_甲' 格式
+  1=第一用神, 2=第二用神, _=分隔符
+• shengxiao.output('合','子') 作用域有bug, 用datas关係表替代
+• lunar_python.Yun.getDaYun() 返回的是list, 需遍历
+• lunar_python的流年/流月: dy.getLiuNian(year).getGanZhi()
+【分工总结】
+lunar_python = 排盘骨架 + 大运流年 + 农历信息
+→ 先跑, 不可替代
+bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
++ 干支关係库 + 禄/十二宫 + 流月论述
+→ 后跑, 不可省略
                         生日（含时辰）
   紫微斗数            →  问用户选 Iztro(JS,iztro⭐3841原版,权威基准) 或 ziwei_paipan(Python,iztro标准算法port) 或 ZiweiNihai(JS,倪海夏天纪+古籍) 或多个一起对照   生日（含时辰）
 
