@@ -7,10 +7,11 @@ New fields (all optional, zero impact on existing tarot spreads):
   - key: Optional[str] — unique semantic key
   - is_significator: bool — core indicator card marker
   - mirror_target: Optional[int] — mirror reflection index
+  - role: Optional[str] — semantic role (first/middle/last)
 
 SpreadPosition:
   Before: name, short_description, detailed_description, keywords, rag_mapping, question_adaptations
-  After:  + index, key, is_significator, mirror_target (all optional, default None/False)
+  After:  + index, key, is_significator, mirror_target, role (all optional, default None/False)
 """
 
 import sys
@@ -48,7 +49,8 @@ new_spread_pos = '''class SpreadPosition(BaseModel):
     index: Optional[int] = None
     key: Optional[str] = None
     is_significator: bool = False
-    mirror_target: Optional[int] = None'''
+    mirror_target: Optional[int] = None
+    role: Optional[str] = None'''
 
 if old_spread_pos not in models:
     print("ERROR: SpreadPosition class not found in models.py", file=sys.stderr)
