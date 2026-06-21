@@ -52,6 +52,24 @@ with open(lenormand_init, "w") as f:
             'from arcanite.core.deck import LenormandCard, LenormandDeck, load_lenormand_deck\n\n'
             '__all__ = ["LenormandCard", "LenormandDeck", "load_lenormand_deck"]\n')
 
+
+# ── Patch 4: engine shortcuts → top-level __init__.py ──────────────────────────
+top_init = os.path.join(pkg_root, "__init__.py")
+with open(top_init, "a") as f:
+    f.write('''
+
+# ── Engine shortcuts (CI) ──────────────────────────────────────────────────
+try:
+    from lenormand_engine import LenormandFateEngine as FateEngine
+except ImportError:
+    FateEngine = None
+try:
+    from tarot_elemental_engine import ElementalDignityEngine as ElementalDignity
+except ImportError:
+    ElementalDignity = None
+''')
+print("Engine shortcuts added to top-level __init__.py")
+
 # ── Verify ────────────────────────────────────────────────────────────────────
 checks = [
     ("LenormandCard in import line", "LenormandCard" in new_import),
