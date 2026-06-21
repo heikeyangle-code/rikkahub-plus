@@ -100,7 +100,7 @@ Available built-in functions (call these from your code):
                          - 与前后牌关系（必须）
                          - 1个符号/元素点缀（可选）
                          规则：每张3~5句，不可拆词典
-                         【牌阵结构】元素倾向(element_balance)+大牌比例(major_arcana_ratio/court_card_ratio)+重复主题(repeated_numbers/repeated_suits)+关系网络
+                         【牌阵结构】元素倾向(statistics)+大牌比例(composition.major_arcana_ratio/composition.court_card_ratio)+重复主题(composition.repeated_numbers/composition.repeated_suits)+关系网络+正逆位信号(reversal.blocked_energy_signal,仅高比例逆位时提及)
                          【结论】一句话总结
                          【建议】最多3条
                          【反思问题】1条
@@ -112,7 +112,7 @@ Available built-in functions (call these from your code):
                        【塔罗数据使用规则】
                          必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / journaling_prompts / affirmations / meditation_focus / keywords
                          用于润色：symbols / element / astrology
-                         结构分析(仅【牌阵结构】): element_balance + major_arcana_ratio + court_card_ratio + repeated_numbers + repeated_suits
+                         结构分析(仅【牌阵结构】): statistics + composition.major_arcana_ratio + composition.court_card_ratio + composition.repeated_numbers + composition.repeated_suits + reversal.blocked_energy_signal
                          完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
                        ╚════════════════════════════════════════════╝
 
@@ -121,9 +121,9 @@ Available built-in functions (call these from your code):
                          list_spreads() → 塔罗11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
                        ╚════════════════════════════════════════════╝
                        ╔══════════════════ 塔罗模式 ═════════════════╗
-                         默认=故事叙事
-                         Pro(用户说"深入/详细"): 塔罗+结构分析(元素/占星/符号)+元素尊贵法(EE.full_analysis测牌间元素关系)
-                         Master(用户说"大师/秘传/777"): 塔罗+秘传分析(生命之树/777/四世界)+Pro全部(结构分析+元素尊贵法)
+                         默认=故事叙事,不调用EE引擎
+                         Pro(用户说"深入/详细"): 塔罗+EE.full_analysis(cards)取spread_dignity(元素尊贵法,三张一组+架桥+链式/孤岛扩展)+statistics(元素分布)+composition(大牌/宫廷占比+重复数字花色)
+                         Master(用户说"大师/秘传/777"): 塔罗+EE.full_analysis(cards)全字段(Pro基础上追加numerology数字学加总+absence缺席读法+doubling重复数字共振+reversal正逆位统计)+秘传分析(生命之树/777/四世界,查Kaabalah.buildKaabalisticMapData())
                          切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
                        ╚════════════════════════════════════════════╝
 
