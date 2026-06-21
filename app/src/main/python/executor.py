@@ -115,7 +115,7 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
 ║ NatalEngine → 日月升 + 文本 + 元素平衡   ║
 ║ Caelus     → 尊贵 + 格局 + 互容 + 7点   ║
 ║ Caelus     → 法达 + ZR + 主限 + 太阳弧  ║
-║ Caelus     → 赤纬                       ║
+║ Caelus     → 赤纬 + 日食月食             ║
 ║ 合盘: NatalEngine.compareAstrology       ║
 ║      + Caelus composite/synastry/davison ║
 ╚══════════════════════════════════════════╝
