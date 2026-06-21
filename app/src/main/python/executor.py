@@ -203,6 +203,11 @@ Caelus.starParans(e,jd,lat,stars,bodies?) → [{star,star_angle,body,body_angle,
 【天文事件 (4个)】
 Caelus.lunarEclipses(e,jdStart,jdEnd) / solarEclipses  (Meeus精度)
 需要更高精度时用 Astronomy.SearchLunarEclipse / SearchGlobalSolarEclipse
+⚡ Astronomy（星座交界仲裁）:
+调它只有两种情况——
+① Caelus 和 NatalEngine 对同一行星输出不同星座时，以它为准
+② 问日食月食精确时刻时，用它拿秒级时间，Caelus 拿类型
+其余不调。6弧秒算法差 < 400弧秒位置模糊，调了等于没调。
 Caelus.lunarPhases(e,jdStart,jdEnd)
 Caelus.riseSet(e,body,jd,lat,lon) → jd|null  极昼/极夜返回null
 【其他常用】
