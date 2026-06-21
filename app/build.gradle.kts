@@ -16,9 +16,6 @@ plugins {
 chaquopy {
     defaultConfig {
         version = "3.14"
-        python {
-            srcDir("src/main/python")
-        }
         pip {
             install("requests")
             install("beautifulsoup4")
