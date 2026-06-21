@@ -220,63 +220,70 @@ Caelus.chartFeatures(e,jd) → 20维ML特征向量
 ║ Caelus     → Ashtottari + Yogini 大运    ║
 ║ Caelus     → Kemadruma + Parivartana     ║
 ╚══════════════════════════════════════════╝
-── 第一层: NatalEngine ──
-NatalEngine.calculateVedic("1990-06-15", hour, tz_offset, lat, lon)
+── NatalEngine (主力, 字段全) ──
+NatalEngine.calculateVedic("1990-06-15", hour, tz, lat, lon)
 → system: "Vedic (Jyotish)"
-→ ayanamsa: {value:23.7236, formatted:"23°43'24\"", system:"Lahiri (Chitrapaksha)"}
-→ moonSign: {
-rashi: {name:"Kumbha", westernName:"Aquarius", symbol:"♒", ruler:"Saturn",
-element:"Air", quality:"Fixed", index:11, degreeInSign:17.20},
-nakshatra: {number:24, name:"Shatabhisha", lord:"Rahu", deity:"Varuna",
-symbol:"Circle", pada:4, degreeInNakshatra:10.53,
-startDegree:306.67, endDegree:320},
-summary: "Moon in Kumbha (Aquarius), Shatabhisha Nakshatra"
-
-}
-→ positions: {sun, moon, mercury, venus, mars, jupiter, saturn, rahu, ketu, ascendant, midheaven}
+→ ayanamsa: {value:23.7236, formatted:"23°43'24\"", system:"Lahiri"}
+→ moonSign: {rashi:{name, westernName, symbol, ruler, element, quality, index, degreeInSign},
+nakshatra:{number, name, lord, deity, symbol, pada, degreeInNakshatra, startDegree, endDegree},
+summary:"Moon in Kumbha (Aquarius), Shatabhisha Nakshatra"}
+→ positions: {sun,moon,mercury,venus,mars,jupiter,saturn,rahu,ketu,ascendant,midheaven}
 每行星: {longitude, tropicalLongitude, degree, rashi:{name,westernName,symbol,ruler,element,quality,index,degreeInSign},
 nakshatra:{number,name,lord,deity,symbol,pada,degreeInNakshatra,startDegree,endDegree}}
-→ dasha: {
-birthLord: "Rahu",
-proportionElapsed: 79.0,
-yearsRemaining: 3.78,
-current: {lord:"Saturn", startDate, endDate, years:19, isPartial:false},
-dashas: [{lord:"Rahu", startDate, endDate, years:3.78, isPartial:true},
-{lord:"Jupiter", startDate, endDate, years:16},
-{lord:"Saturn", startDate, endDate, years:19}, ...共9段]
-}
-── 第二层: Caelus (同一次 eval) ──
-26种Yoga: Caelus.detectYogas(engine, jd, lat, lon)
-→ [{yoga:"Budha-Aditya", planets:["sun","mercury"]},
-{yoga:"Chandra-Mangala", planets:["moon","mars"]}, ...]
-Raja Yoga: Caelus.rajaYogasAt(engine, jd, lat, lon)
-
-→ {raja:[{lords:["jupiter","sun"], via:"conjunction"}],
-yogakarakas:["mars"]}
-Dhana Yoga: Caelus.dhanaYogas(engine, jd, lat, lon)
-→ [{lords:["jupiter","mercury"], via:"conjunction"}, ...]
-Kemadruma: Caelus.kemadruma(engine, jd, lat, lon)
-→ {present:true/false, planets_checked:[...]}
-Parivartana: Caelus.parivartana(engine, jd, lat, lon) → true/false
-7分盘 (Varga): Caelus.vargaAt(engine, jd, n)  ← n∈{1,2,3,9,10,12,30}
-D1  (Rasi):      vargaAt(engine, jd, 1)  → {varga:1, rasi, sign, division}
-D2  (Hora):      vargaAt(engine, jd, 2)  → 财富
-
-D3  (Drekkana):  vargaAt(engine, jd, 3)  → 兄弟
-D9  (Navamsa):   vargaAt(engine, jd, 9)  → 婚姻/内在
-D10 (Dasamsa):   vargaAt(engine, jd, 10) → 事业
-D12 (Dvadasamsa):vargaAt(engine, jd, 12) → 父母
-D30 (Trimsamsa): vargaAt(engine, jd, 30) → 祸福
-辅助大运: Caelus.ashtottariAt(engine, jd) → {moon_nakshatra, start_lord}
-Caelus.yoginiAt(engine, jd)    → {moon_nakshatra, start_yogini}
-Caelus.vimshottariDashas(moonSiderealLon, natalJd)
-→ {start_lord, balance_years, dashas:[{level, lord, start, end, sub:[...]}, ...有日期]}
-5种岁差: Caelus.ayanamsa(jd, "lahiri") → 23.72°
-Caelus.ayanamsa(jd, "fagan_bradley") / "krishnamurti" / "raman" / "yukteshwar"
-Nakshatra单算: Caelus.nakshatra(siderealLon) → {index, name, pada, lord, pos}
-Caelus.nakshatraAt(engine, jd, body, zodiac) → 同上
-
-恒星黄道经度获取: engine.longitude("moon", jd, {zodiac:"sidereal:lahiri"})
+→ dasha: {birthLord, proportionElapsed, yearsRemaining,
+current:{lord,startDate,endDate,years,isPartial},
+dashas:[{lord,startDate,endDate,years,isPartial}, ...9段]}
+→ houses: {1..12}  每宫: {rashi, degree}
+【大运 — 3 种体系 (7个)】
+Vimshottari  Caelus.vimshottariDashas(moonSiderealLon, natalJd)   ← 不是(e,...)!
+→ {start_lord, balance_years, dashas:[{level,lord,start,end,sub:[...]}]}
+Caelus.vimshottariAt(e, natalJd, targetJd)
+→ {moon_nakshatra, moon_pada, start_lord, maha?, antar?, pratyantar?}
+Caelus.vimshottariActive(moonLon, natalJd, targetJd)
+Ashtottari   Caelus.ashtottariDashas(moonLon, natalJd)
+Caelus.ashtottariAt(e, natalJd, targetJd) → {moon_nakshatra, start_lord, maha?, antar?}
+Caelus.ashtottariActive(moonLon, natalJd, targetJd)
+Yogini       Caelus.yoginiDashas(moonLon, natalJd)
+Caelus.yoginiAt(e, natalJd, targetJd) → {moon_nakshatra, start_yogini, maha?, antar?}
+【Yoga 检测 — 4 类 (4个)】
+Caelus.yogasAt(e,natalJd,lat,lon)    → [{yoga:"Budha-Aditya",planets:["sun","mercury"]},...]
+Caelus.rajaYogasAt(e,natalJd,lat,lon) → {raja:[{lords:[...],via:"conjunction"}], yogakarakas:[...]}
+Caelus.dhanaYogasAt(e,natalJd,lat,lon)→ [{lords:[...],via:"conjunction"},...]
+Caelus.kemadrumaAt(e,natalJd,lat,lon) → {present:bool, planets_checked:[...]}
+【分盘 — 7 种 (1核心+整盘)】
+Caelus.vargaAt(e, jd, n)   ← n∈{1,2,3,9,10,12,30}, 不是 "D9"!
+→ {varga:n, rasi:"Aquarius", rasi_index:10, sign:"Pisces", sign_index:11, division:6}
+Caelus.vargaChart(e, jd, n) → {"sun":{varga,rasi,division}, ...}  每星体一分盘
+D1 Rasi        D2 Hora        D3 Drekkana   D9 Navamsa
+D10 Dasamsa    D12 Dvadasamsa  D30 Trimsamsa
+【27 宿 — (2个)】
+Caelus.nakshatra(siderealLon)        → {index, name, pada, lord, pos}
+Caelus.nakshatraAt(e, jd, body, zodiac) → 指定星体的宿度
+【岁差 — (1个)】
+Caelus.ayanamsa(jd, "lahiri")  → 23.72°
+可选: "fagan_bradley" / "krishnamurti" / "raman" / "yukteshwar"
+【恒星黄道经度 (必用)】
+engine.longitude("moon", jd, {zodiac:"sidereal:lahiri"})
+→ 任何函数需要 sidereal lon 时用这个取值
+【尊贵 (吠陀也用)】
+Caelus.dignities("sun", 2)    ← sign 是 0-11 索引
+Caelus.dignityScore("sun", 84.13, "day") → {rulership,exaltation,triplicity,term,face,total}
+Caelus.yogakarakas(Math.floor(chart.angles.asc/30)) → 命主星列表  (或从rajaYogasAt结果取)
+【Vedic 原子查询 (按需)】
+Caelus.vimshottariDashas(moonLon, natalJd).start_lord → 出生大运主星
+Caelus.ashtottariLord(nakIndex)   → Ashtottari 起始主星  (nakIndex=nakshatra(moonLon).index)
+Caelus.startingYogini(nakIndex)   → Yogini 起始  (nakIndex=nakshatra(moonLon).index)
+Caelus.isDayChart(e,jd,lat,lon)  → 昼夜盘
+╔══════════════════ 参数坑 ══════════════════╗
+║ vargaAt(e,jd,9)              ← 数字 9     ║
+║ vimshottariDashas(moonLon,jd) ← 不是(e,..)║
+║ nakshatra(siderealLon)       ← 恒星经度   ║
+║ dignities("sun",2)           ← sign索引   ║
+║ ayanamsa(jd,"lahiri")        ← 必须传mode ║
+╚═════════════════════════════════════════════╝
+其余用 dir(Caelus) 自探索: 常量(VIMSHOTTARI_ORDER/YOGA_PLANETS/DHANA_HOUSES/
+KENDRAS/TRIKONAS/DRISHTI/NAKSHATRAS等), yogasAt/dhanaYogasAt 单项查询,
+kemadrumaAt 带日期, varga 裸经度版, 各种 lord/active 原子函数。
 
 【人类图/Human Design】
 
