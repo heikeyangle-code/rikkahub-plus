@@ -174,6 +174,8 @@ jobs:
           python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_drawncard_proxy.py "$dir/src/arcanite/core/models.py" "$dir/src/arcanite/core/deck.py"
           # FateEngine shortcut: from arcanite import FateEngine
           python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_fateengine_shortcut.py "$dir/src/arcanite/__init__.py"
+          # ElementalDignity shortcut: from arcanite import ElementalDignity
+          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_elementaldignity_shortcut.py "$dir/src/arcanite/__init__.py"
           # Grand Tableau spread: register 36 houses as formal spread in lenormand-spreads.json
           python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_grand_tableau.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
           # line-7 spread: 7-card extended linear reading
