@@ -212,7 +212,9 @@ Available built-in functions (call these from your code):
                             FE.get_intersection(idx) — 任意牌所在整行+整列(不含自身),返回{row/col:[索引]}
                             FE.calculate_mod(sig_idx,topic_indices,items) — 主题牌权重排序,含speed权重+direction(past/future)
                             FE.calculate_knights_move(sig_idx) — 任意牌的骑士跳暗线扫描, 返回[索引列表]用items[索引].card_name取牌解读
+
                             FE.calculate_house_chaining(items,card_id) — 宫位级联(场景:追问原因)
+
                             FE.calculate_counting_pulse(items,start_idx,step=9) — 古法步进(场景:年运)
                           规则: 引擎输出是硬骨架,LLM只在其上叙事不篡改
                        ╚══════════════════ 雷诺曼 ═════════════════╝
