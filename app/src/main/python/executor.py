@@ -123,16 +123,16 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
 NatalEngine.calculateAstrology("1990-06-15", hour, tz_offset, lat, lon)
 → bigThree: "♊ Gemini Sun, ♓ Pisces Moon, ♍ Virgo Rising"
 → summary:  "You are a Gemini with Pisces Moon and Virgo Rising"
-→ sun:   {sign:{name,element,modality,ruler,traits,shadow}, degree, house}
-→ moon:  {sign:{name,element}, degree, house}
-→ rising:{sign:{name}, degree}
+→ sun:   {sign:{name,element,modality,ruler,traits,shadow}, degree, longitude}
+→ moon:  {sign:{name,element}, degree}
+→ rising:{sign:{name}, degree}  ⚠️ 无位置时近似
 → midheaven: {sign:{name}, degree}
-→ balance: {elements,modalities,dominantElement,dominantModality}
+→ balance: {elements,modalities,dominantElement,dominantModality}  (基于日/月/升3星)
 → planets: {mercury,venus,mars,jupiter,saturn,uranus,neptune,pluto}
-每行星: {sign:{name,element}, degree, house, longitude}
-→ nodes: {northNode,southNode}  → allAspects: [37个相位]
+每行星: {sign:{name,element}, degree, longitude}  ⚠️ 无宫位数据
+→ nodes: {north,south}  → allAspects: 数组
 精度: 星历与 Astronomy (NASA/VSOP87) 同级 — Moon 误差 0.00″
-合盘: NatalEngine.compareAstrology(chartA, chartB) → {systems, comparisons, summary}
+合盘: NatalEngine.compareAstrology(chartA, chartB) → {overallScore, scoreLabel, aspectSummary, summary}
 初始化: var e=new Caelus.Engine(Caelus.embeddedData);
 var jd=Caelus.julianDay(1990,6,15,4,0,0);
 var chart=e.chartAt(jd,lat,lon,{});
@@ -144,11 +144,14 @@ Caelus.lots(e,jd,lat,lon) → {day:bool, fortune:number, spirit:number, eros, ne
 每个点需自算星座: signNames[floor(lon/30)%12]+" "+(lon%30).toFixed(1)+"°"
 Caelus.chartSignature(chart) → {elements:{fire,earth,air,water}, modalities:{cardinal,fixed,mutable}, angularity:{angular,succedent,cadent}, dominant:{element,modality,sign}, ruler, hemispheres, quadrants, bodies}
 
-ctx.atoms→kind:"pattern"  → T-square/Kite/Stellium/MysticRectangle/GrandTrine 等
-ctx.atoms→kind:"reception"→ 互容 (domicile/exaltation/triplicity 三种)
+ctx.atoms->kind:"pattern"  → T-square/Kite/Stellium/MysticRectangle/GrandTrine 等
+Caelus.detectPatterns(chart) → [{kind,bodies,apex?,orb}]  同上,直接取
+ctx.atoms->kind:"reception"→ 互容 (domicile/exaltation/triplicity 三种)
 ctx.atoms→kind:"dispositor"→ 定位星链
 ctx.atoms→kind:"dignity"  → almuten/face/term/triplicity
 Caelus.findAspects(chart.bodies) → 最强相位
+Caelus.aspectBetween(e,"sun","mars",jd) → {aspect,orb,phase,separation}  两星最紧相位
+Caelus.aspectPhase(lonA,speedA,lonB,speedB,aspectDeg) → "applying"|"separating"|"exact"
 Caelus.declinationAspects(e, Caelus.DEFAULT_BODIES, jd, 1) → [{a,b,kind:"parallel"|"contraparallel"}, ...]
 Caelus.voidOfCourse(e,jd) → {isVoid:bool, sign, signExit, nextAspect|null}
 Caelus.outOfBounds(e,"moon",jd) → true/false
@@ -158,7 +161,10 @@ Caelus.planetarySect("mars") → "diurnal"|"nocturnal"|null
 Caelus.inSect("mars", isDay) → true/false  是否得时
 Caelus.gauquelinSector(e,"mars",jd,lat,lon) → 高奎林扇区
 Caelus.pheno(e,"mars",jd) → {phaseAngle,phase,elongation,diameter,magnitude}
+Caelus.signedElongation(lonA,lonB) → 带符号角距
+Caelus.heliocentric(e,"mars",jdUt) → {lon,lat,dist}  日心位置
 Caelus.solarPhase(e,"mercury",jd) → "cazimi"|"combust"|"under_beams"|null
+Caelus.planetaryHour(e,jd,lat,lon) → {ruler,kind,hour,start,end}  出生行星时
 Caelus.chartBrief(ctx) → {facts:[{id,kind,text,salience}], prompt}  最终文本
 【推运 — 7 种 (15个)】
 法达     Caelus.firdariaAt(e,natalJd,targetJd,lat,lon) → {day:bool, major, sub} ⚠️必须传targetJd, 75年外返回{null,null}
@@ -181,12 +187,14 @@ whole_sign/alcabitius/morinus/meridian/polich_page/vehlow
 比较盘   Caelus.synastryAspects(chartA,chartB) → [{a,b,aspect,orb,strength}, ...]
 Caelus.synastryOverlays(chartA,chartB) → 落宫
 组合中点 Caelus.compositeLongitudes(e,jdA,jdB,bodies) ← 不是(chartA,chartB)
-Caelus.compositePlacements(e,jdA,jdB,bodies) → [{body,sign,signDeg},...]  带星座名
+Caelus.compositePlacements(e,jdA,jdB,bodies) → [{body,lon,sign,signDeg},...]  带星座名
 戴维森   Caelus.davisonParams(jdA,latA,lonA,jdB,latB,lonB) → [midJd,midLat,midLon]
 【行运 (5个)】
 Caelus.transitAspects(natalChart, e, transitJd)
 Caelus.scan({start,end,step}, fn)
 Caelus.when(e, predicate, jdStart, jdEnd)
+Caelus.retrograde("mars") → Predicate   (配合when查询逆行时段)
+Caelus.notRetrograde("venus") → Predicate
 Caelus.crossings(e, body, targetLon, jdStart, jdEnd) → [jd,...]
 Caelus.rankMoments({start,end,step}, scoreFn) → [{jd,score}]
 【恒星 (2个)】
@@ -232,7 +240,7 @@ Caelus.chartFeatures(e,jd) → 20维ML特征向量
 ── NatalEngine (主力, 字段全) ──
 NatalEngine.calculateVedic("1990-06-15", hour, tz, lat, lon)
 → system: "Vedic (Jyotish)"
-→ ayanamsa: {value:23.7236, formatted:"23°43'24\"", system:"Lahiri"}
+→ ayanamsa: {value:23.7236, formatted:"23°43'24\"", system:"Lahiri (Chitrapaksha)"}
 → moonSign: {rashi:{name, westernName, symbol, ruler, element, quality, index, degreeInSign},
 nakshatra:{number, name, lord, deity, symbol, pada, degreeInNakshatra, startDegree, endDegree},
 summary:"Moon in Kumbha (Aquarius), Shatabhisha Nakshatra"}
@@ -253,7 +261,7 @@ var ascSign=Math.floor(chart.angles.asc/30);    // asc→给houseSign/houseLord
 # 需恒星经度的: 用 engine.longitude(body, jd, {zodiac:"sidereal:lahiri"})
 # 需tropical盘数据的: 用 chart.bodies.xxx
 【大运 — 3 种体系 (7个)】
-Vimshottari  Caelus.vimshottariDashas(moonSiderealLon, natalJd)   ← 不是(e,...)!
+Vimshottari  Caelus.vimshottariDashas(moonLon, natalJd)   ← 不是(e,...)!
 → {start_lord, balance_years, dashas:[{level,lord,start,end,sub:[...]}]}
 Caelus.vimshottariAt(e, natalJd, targetJd)
 → {moon_nakshatra, moon_pada, start_lord, maha?, antar?, pratyantar?}
@@ -342,14 +350,14 @@ note: "Calculated with astronomy-engine (VSOP87)"
 生日必填（无需经纬度）
 基因钥匙 →  NatalEngine.calculateGeneKeys(humanDesignResult)  ← 参数是HD结果,不是日期!
 → {
-activation: {
+activationSequence: {
 lifeWork:  {key:"12.2", gift:"Discrimination", siddhi:"Purity", shadow:"Vanity"},
 evolution: {key:"11.2", gift:"Idealism",     siddhi:"Light"},
 radiance:  {key:"36.4", gift:"Humanity",     siddhi:"Compassion"},
 purpose:   {key:"6.4",  gift:"Diplomacy",    siddhi:"Peace"}
 },
-venus: {attraction:"43.6", iq:"2.6", eq:"21.2", sq:"19.3"},
-pearl: {vocation:"41.2", culture:"15.4", pearl:"53.1"},
+venusSequence: {attraction:{key:"43.6"}, iq:{key:"2.6"}, eq:{key:"21.2"}, sq:{key:"19.3"}},
+pearlSequence: {vocation:{key:"41.2"}, culture:{key:"15.4"}, pearl:{key:"53.1"}},
 pathways: {challenge:"12→11", breakthrough:"11→36", coreStability:"36→6"},
 primeGifts: ["Discrimination","Idealism","Humanity","Diplomacy"],
 
