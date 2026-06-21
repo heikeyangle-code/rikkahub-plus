@@ -59,6 +59,67 @@ if old_load not in content:
 
 content = content.replace(old_load, new_load, 1)
 
+# ── Patch 3: singleton → multi-cache (one registry per system) ───────────────
+old_registry = """# Module-level singleton for convenience
+_default_registry: SpreadRegistry | None = None
+
+
+def get_spread_registry(
+    config_path: Path | str | None = None,
+    reload: bool = False,
+    system: str = \"tarot\",
+) -> SpreadRegistry:
+    \"\"\"
+    Get the default spread registry (singleton).
+
+    Args:
+        config_path: Optional custom config path
+        reload: Force reload even if already loaded
+        system: Card system (default: 'tarot')
+
+    Returns:
+        SpreadRegistry instance
+    \"\"\"
+    global _default_registry
+
+    if _default_registry is None or reload:
+        _default_registry = SpreadRegistry.from_config(config_path, system=system)
+
+    return _default_registry"""
+
+new_registry = """# Module-level registries keyed by system
+_registries: dict[str, SpreadRegistry] = {}
+
+
+def get_spread_registry(
+    config_path: Path | str | None = None,
+    reload: bool = False,
+    system: str = \"tarot\",
+) -> SpreadRegistry:
+    \"\"\"
+    Get the default spread registry (one per system).
+
+    Args:
+        config_path: Optional custom config path
+        reload: Force reload even if already loaded
+        system: Card system (default: 'tarot')
+
+    Returns:
+        SpreadRegistry instance
+    \"\"\"
+    global _registries
+
+    if system not in _registries or reload:
+        _registries[system] = SpreadRegistry.from_config(config_path, system=system)
+
+    return _registries[system]"""
+
+if old_registry not in content:
+    print("ERROR: get_spread_registry() singleton pattern not found", file=sys.stderr)
+    # Not fatal — might already be patched
+else:
+    content = content.replace(old_registry, new_registry, 1)
+
 with open(path, "w") as f:
     f.write(content)
 

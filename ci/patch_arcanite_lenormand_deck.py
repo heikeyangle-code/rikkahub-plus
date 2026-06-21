@@ -123,7 +123,12 @@ class LenormandCard:
         Returns:
             dict with interpretation or empty dict. Auto-falls back to
             combination_grammar when no preset combination exists.
+
+        Raises:
+            ValueError: if card_id is empty or whitespace-only
         """
+        if not card_id or not card_id.strip():
+            raise ValueError("card_id cannot be empty")
         for combo in self.get_combinations():
             if combo.get('with') == card_id:
                 if position == 'left':
@@ -134,7 +139,9 @@ class LenormandCard:
                             'direction': 'B→A', 'source': 'preset'}
                 return combo
         # Fallback to combination_grammar
-        return self._grammar_fallback(card_id, position)
+        result = self._grammar_fallback(card_id, position)
+        result['warning'] = f"No preset combination found for '{card_id}', using grammar fallback"
+        return result
 
     def _grammar_fallback(self, card_id: str, position: str | None = None) -> dict[str, Any]:
         """Fallback to combination_grammar when no preset combination exists.
@@ -273,7 +280,12 @@ class LenormandDeck(TarotDeck):
         Each returned object transparently proxies BOTH DrawnCard fields
         (card_id, card_name, orientation) AND LenormandCard semantic methods
         (get_core(), get_combination_with(), etc.). Zero two-step boilerplate.
+
+        Raises:
+            ValueError: if count <= 0
         """
+        if count <= 0:
+            raise ValueError(f"draw count must be positive, got {count}")
         drawn = self.draw(count, seed=seed, allow_reversals=allow_reversals)
         return [LenormandDrawnCard(d, self.get_card(d.card_id)) for d in drawn]
 
@@ -283,6 +295,16 @@ class LenormandDeck(TarotDeck):
         Returns orientation distribution, all-upright/all-reversed detection,
         and card summary list.
         """
+        if not drawn_cards:
+            return {
+                "count": 0,
+                "upright_count": 0,
+                "reversed_count": 0,
+                "all_upright": False,
+                "all_reversed": False,
+                "pattern": "空抽牌",
+                "cards": []
+            }
         orientations = [c.orientation.value for c in drawn_cards]
         upright_count = orientations.count('upright')
         reversed_count = orientations.count('reversed')
