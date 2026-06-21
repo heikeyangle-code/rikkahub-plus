@@ -311,6 +311,11 @@ Caelus.parivartana(planetA,signA,planetB,signB) → true/false  互容检测
 Caelus.aspectsSign(planet,planetSign,targetSign) → true/false  行星特殊相位(Mars→4/8,Jupiter→5/9,Saturn→3/10,全→7)
 Caelus.startingYogini(nakIndex)   → Yogini 起始  (nakIndex=nakshatra(moonLon).index)
 Caelus.isDayChart(e,jd,lat,lon)  → 昼夜盘
+⚡ Astronomy（择时/食相专用）:
+调它只有两种情况——
+① 问日食月食精确到秒的时刻（吠陀 muhurta 择时需要）
+② 问行星精确赤经/赤纬/出没时刻
+其余不调。nakshatra 宽度 13°20'，弧秒级精度无意义。
 ╔══════════════════ 参数坑 ══════════════════╗
 ║ vargaAt(e,jd,9)              ← 数字 9     ║
 ║ vimshottariDashas(moonLon,jd) ← 不是(e,..)║
