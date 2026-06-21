@@ -109,21 +109,205 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
   六爻/周易/卦        →  问用户选 ichingshifa(Python,大衍筮法) 或 IchingShifa(JS,6种起卦) 或对照(JS取随机→同爻值喂Python qigua_manual)   无需出生（需起卦数）
   梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排     无需出生（需起卦数）
 
-  【西洋占星】 (仅JS) — 三层互补:
-  Astronomy(JS,VSOP87)              → 行星精确位置+日月食+升降+月相  (底层星历)
-  NatalEngine(主力) → 本命盘解读+合盘+吠陀  (唯一带文本输出)
-  Caelus(JS,231函数)               → 12宫位制+赤纬相位+格局检测+行星尊贵+推运+合盘细节+福点  (NatalEngine没有的它全补,具体函数名用dir()自探索)
-  合盘: NatalEngine.compareAstrology + Caelus composite/synastry/davison
-  备选: HoroscopeJS(底层宫位,已被Caelus覆盖)
-  【印度/吠陀】 (仅JS) — 四层互补:
-  Astronomy(JS,VSOP87)              → 行星精确位置+Lahiri岁差调整  (底层星历,精度最高)
-  NatalEngine.calculateVedic()      → Rasi Chart+27星宿+Pada+Vimshottari Dasha  (基础排盘+文本解读)
-  Caelus(JS)                       → Yoga检测(富贵贫)+分盘(D9/D10等)+Ashtottari大运+尊贵五重评估+DRISHTI相位+互容  (NatalEngine没有的)
-  NatalEngine                      → 大运时间线解读+文本报告  (输出层)
+【西洋占星】 (仅JS)
 
-  【人类图/Human Design】
-  人类图               →  NatalEngine.calculateHumanDesign(date,utcHour,utcMin) → {type, authority, profile, centers, channels, gates...}  生日必填（无需经纬度）
+╔══════════════════ 速览 ══════════════════╗
+║ NatalEngine → 日月升 + 文本 + 元素平衡   ║
+║ Caelus     → 尊贵 + 格局 + 互容 + 7点   ║
+║ Caelus     → 法达 + ZR + 主限 + 太阳弧  ║
+║ Caelus     → 赤纬 + 日食月食             ║
+║ 合盘: NatalEngine.compareAstrology       ║
+║      + Caelus composite/synastry/davison ║
+╚══════════════════════════════════════════╝
+── 第一层: NatalEngine (主力) ──
+NatalEngine.calculateAstrology("1990-06-15", hour, tz_offset, lat, lon)
+→ bigThree: "♊ Gemini Sun, ♓ Pisces Moon, ♍ Virgo Rising"
+→ summary:  "You are a Gemini with Pisces Moon and Virgo Rising"
+→ sun:   {sign:{name,element,modality,ruler,traits,shadow}, degree, house}
+→ moon:  {sign:{name,element}, degree, house}
+→ rising:{sign:{name}, degree}
+→ midheaven: {sign:{name}, degree}
+→ balance: {elements:{Fire,Earth,Air,Water}, modalities:{Cardinal,Fixed,Mutable},
 
+dominantElement:{name,traits}, dominantModality:{name,traits}}
+→ planets: {mercury,venus,mars,jupiter,saturn,uranus,neptune,pluto}
+每行星: {sign:{name,element}, degree, house, longitude}
+→ nodes: {northNode:{sign,degree}, southNode:{sign,degree}}
+→ allAspects: [37个相位] ⚠️ 字段名可能未定义, 优先用 Caelus 的 aspect 数据
+精度: 星历与 Astronomy (NASA/VSOP87) 同级 — Moon 误差 0.00″
+合盘: NatalEngine.compareAstrology(chartA, chartB)
+→ {systems:["astrology","humandesign","genekeys"], comparisons:{...}, summary}
+── 第二层: Caelus (深度, 同一次 eval 共享 JD) ──
+初始化: var engine = new Caelus.Engine(Caelus.embeddedData);
+var jd = Caelus.isoToJd("1990-06-15T04:00:00Z");  // UTC 时间
+var chart = engine.chartAt(jd, lat, lon, {});
+var ctx = Caelus.interpretationContext(chart);
+行星尊贵: chart.bodies.sun.dignities → ["domicile"|"exaltation"|...]
+
+ctx.atoms filter kind==="dignity" → almuten / face / term / triplicity
+格局检测: ctx.atoms filter kind==="pattern"
+→ Kite / T-square / Mystic Rectangle / Stellium (house+sign) / Grand Trine 等
+互容定位: ctx.atoms filter kind==="reception"
+→ "Mutual reception: Moon↔Jupiter (domicile)"
+ctx.atoms filter kind==="dispositor"
+→ "Moon→Jupiter", "Mars: final dispositor"
+7赫尔墨斯点: Caelus.lots(engine, jd, lat, lon)
+→ {day:bool, fortune:{deg}, spirit:{deg}, eros, necessity, courage, victory, nemesis}
+每个点的经纬度需自算星座: signNames[floor(lon/30)%12] + " " + (lon%30).toFixed(1) + "°"
+法达: Caelus.firdariaAt(engine, natalJd, targetJd, lat, lon)
+→ {day:bool, major:"sun", sub:"sun"}   ⚠️ 必须传 targetJd, 否则返回 {major:null,sub:null}
+ZR释放: Caelus.zrAt(engine, jd, lat, lon) → {lot:"spirit", day:bool}
+主限法: Caelus.primaryDirections(engine, jd, lat, lon)
+→ [{body:"sun", angle:"MC", arc:3.68, years:3.7}, ...]
+太阳弧: Caelus.solarArc(engine, natalJd, targetJd) → 度数值
+次限: Caelus.progressedLongitude(engine, "sun", natalJd, targetJd) → 推进后的经度
+小限: Caelus.profectedSign(engine, jd, age) → 年主星所在星座索引
+
+赤纬相位: Caelus.declinationAspects(engine, DEFAULT_BODIES, jd, orb)
+→ [{a,b,kind:"parallel"|"contraparallel"}, ...]
+越界: Caelus.outOfBounds(engine, body, jd) → true/false
+盘面签名: Caelus.chartSignature(chart)
+→ {elements:{fire,earth,air,water}, modalities:{cardinal,fixed,mutable},
+dominant:{element,modality,sign}, ruler, hemispheres, quadrants}
+日食月食: Caelus.lunarEclipses(engine, jdStart, jdEnd)
+Caelus.solarEclipses(engine, jdStart, jdEnd)
+需要更高精度时用 Astronomy.SearchLunarEclipse / SearchGlobalSolarEclipse
+合盘: Caelus.compositeLongitudes(engine, jdA, jdB, bodies)  ← 注意不是 (chartA, chartB)
+Caelus.synastryAspects(chartA, chartB) → [{a_body, b_body, aspect, orb}, ...]
+
+Caelus.davisonParams(jdA, latA, lonA, jdB, latB, lonB) → [midJd, midLat, midLon]
+── 文本输出 ──
+Caelus.chartBrief(ctx) → {facts:[{id,kind,text,salience}, ...], prompt:"..."}
+合并: ne.summary + brief.facts → 最终解读
+╔══════════════════ Caelus 参数坑 ══════════════════╗
+║ vargaAt(engine, jd, 9)      ← 数字 9 不是 "D9"   ║
+║ hasAspect({a:"sun"})(ctx)   ← 柯里化              ║
+║ lots(engine, jd, lat, lon)  ← 用这个               ║
+║ firdariaAt(eng, jd, TARGET, lat, lon) ← 必须target║
+║ dignities("sun", 2)         ← sign是0-11索引       ║
+║ termRuler(2, 24.13)         ← (signIdx,degInSign)  ║
+║ almuten(84.13)              ← 裸经度不是body名     ║
+║ compositeLongitudes(eng,jdA,jdB,bodies) ← 不是chart║
+║ vimshottariDashas(moonLon,jd) ← 不是 (engine,...)  ║
+║ outOfBounds(engine,body,jd) ← 不是 (body,decl)     ║
+
+╚═════════════════════════════════════════════════════╝
+备选: HoroscopeJS (已被 Caelus 完全覆盖，不再推荐)
+⚠️ HoroscopeJS 日期参数是 date 不是 day: {year,month,date,hour,minute}
+【印度/吠陀】 (仅JS)
+
+╔══════════════════ 速览 ══════════════════╗
+║ NatalEngine → Rasi + 27宿 + Dasha + 文本 ║
+║ Caelus     → 26种Yoga + 7分盘            ║
+║ Caelus     → Ashtottari + Yogini 大运    ║
+║ Caelus     → Kemadruma + Parivartana     ║
+╚══════════════════════════════════════════╝
+── 第一层: NatalEngine ──
+NatalEngine.calculateVedic("1990-06-15", hour, tz_offset, lat, lon)
+→ system: "Vedic (Jyotish)"
+→ ayanamsa: {value:23.7236, formatted:"23°43'24\"", system:"Lahiri (Chitrapaksha)"}
+→ moonSign: {
+rashi: {name:"Kumbha", westernName:"Aquarius", symbol:"♒", ruler:"Saturn",
+element:"Air", quality:"Fixed", index:11, degreeInSign:17.20},
+nakshatra: {number:24, name:"Shatabhisha", lord:"Rahu", deity:"Varuna",
+symbol:"Circle", pada:4, degreeInNakshatra:10.53,
+startDegree:306.67, endDegree:320},
+summary: "Moon in Kumbha (Aquarius), Shatabhisha Nakshatra"
+
+}
+→ positions: {sun, moon, mercury, venus, mars, jupiter, saturn, rahu, ketu, ascendant, midheaven}
+每行星: {longitude, tropicalLongitude, degree, rashi:{name,westernName,symbol,ruler,element,quality,index,degreeInSign},
+nakshatra:{number,name,lord,deity,symbol,pada,degreeInNakshatra,startDegree,endDegree}}
+→ dasha: {
+birthLord: "Rahu",
+proportionElapsed: 79.0,
+yearsRemaining: 3.78,
+current: {lord:"Saturn", startDate, endDate, years:19, isPartial:false},
+dashas: [{lord:"Rahu", startDate, endDate, years:3.78, isPartial:true},
+{lord:"Jupiter", startDate, endDate, years:16},
+{lord:"Saturn", startDate, endDate, years:19}, ...共9段]
+}
+── 第二层: Caelus (同一次 eval) ──
+26种Yoga: Caelus.detectYogas(engine, jd, lat, lon)
+→ [{yoga:"Budha-Aditya", planets:["sun","mercury"]},
+{yoga:"Chandra-Mangala", planets:["moon","mars"]}, ...]
+Raja Yoga: Caelus.rajaYogasAt(engine, jd, lat, lon)
+
+→ {raja:[{lords:["jupiter","sun"], via:"conjunction"}],
+yogakarakas:["mars"]}
+Dhana Yoga: Caelus.dhanaYogas(engine, jd, lat, lon)
+→ [{lords:["jupiter","mercury"], via:"conjunction"}, ...]
+Kemadruma: Caelus.kemadruma(engine, jd, lat, lon)
+→ {present:true/false, planets_checked:[...]}
+Parivartana: Caelus.parivartana(engine, jd, lat, lon) → true/false
+7分盘 (Varga): Caelus.vargaAt(engine, jd, n)  ← n∈{1,2,3,9,10,12,30}
+D1  (Rasi):      vargaAt(engine, jd, 1)  → {varga:1, rasi, sign, division}
+D2  (Hora):      vargaAt(engine, jd, 2)  → 财富
+
+D3  (Drekkana):  vargaAt(engine, jd, 3)  → 兄弟
+D9  (Navamsa):   vargaAt(engine, jd, 9)  → 婚姻/内在
+D10 (Dasamsa):   vargaAt(engine, jd, 10) → 事业
+D12 (Dvadasamsa):vargaAt(engine, jd, 12) → 父母
+D30 (Trimsamsa): vargaAt(engine, jd, 30) → 祸福
+辅助大运: Caelus.ashtottariAt(engine, jd) → {moon_nakshatra, start_lord}
+Caelus.yoginiAt(engine, jd)    → {moon_nakshatra, start_yogini}
+Caelus.vimshottariDashas(moonSiderealLon, natalJd)
+→ {start_lord, balance_years, dashas:[{level, lord, start, end, sub:[...]}, ...有日期]}
+5种岁差: Caelus.ayanamsa(jd, "lahiri") → 23.72°
+Caelus.ayanamsa(jd, "fagan_bradley") / "krishnamurti" / "raman" / "yukteshwar"
+Nakshatra单算: Caelus.nakshatra(siderealLon) → {index, name, pada, lord, pos}
+Caelus.nakshatraAt(engine, jd, body, zodiac) → 同上
+
+恒星黄道经度获取: engine.longitude("moon", jd, {zodiac:"sidereal:lahiri"})
+
+【人类图/Human Design】
+
+人类图  →  NatalEngine.calculateHumanDesign("1990-06-15", hour, tz_offset)
+→ {
+type: {name:"Projector", strategy:"Wait for the Invitation",
+notSelf:"Bitterness", signature:"Success",
+description:"Guides and managers who see others deeply",
+percentage:"20%"},
+authority: {name:"Self-Projected Authority",
+description:"Hear truth in your own voice"},
+profile: {numbers:"2/4", name:"Hermit/Opportunist",
+theme:"Natural talent shared with others"},
+definition: "Single Definition" | "Split Definition" | ...,
+incarnationCross: {angle:"right", angleName:"Right Angle",
+name:"Eden", fullName:"Right Angle Cross of Eden (12/11 | 36/6)",
+gates:[12,11,36,6], gateNames:["Caution","Ideas","Crisis","Friction"]},
+centers: {defined:[{name,theme,biological,definedMeaning,...}],
+
+undefined:[{name,status:"undefined",activatedGates:[...]}],
+open:[{name,status:"open",activatedGates:[]}]},
+channels: [{gates:[13,33], name:"The Prodigal", centers:["g","throat"],
+theme:"A witness", circuit:"collective", subcircuit:"sensing"}],
+gates: {personality:{sun,earth,moon,northNode,southNode},
+design:{sun,earth,moon,northNode,southNode}},
+circuitAnalysis: {individual:{channels,names}, tribal:{...},
+collective:{...}, integration:{...},
+dominant:{name,theme,keywords,channelCount}},
+summary: "Projector with Self-Projected Authority, 2/4 Profile",
+note: "Calculated with astronomy-engine (VSOP87)"
+}
+生日必填（无需经纬度）
+基因钥匙 →  NatalEngine.calculateGeneKeys(humanDesignResult)  ← 参数是HD结果,不是日期!
+→ {
+activation: {
+lifeWork:  {key:"12.2", gift:"Discrimination", siddhi:"Purity", shadow:"Vanity"},
+evolution: {key:"11.2", gift:"Idealism",     siddhi:"Light"},
+radiance:  {key:"36.4", gift:"Humanity",     siddhi:"Compassion"},
+purpose:   {key:"6.4",  gift:"Diplomacy",    siddhi:"Peace"}
+},
+venus: {attraction:"43.6", iq:"2.6", eq:"21.2", sq:"19.3"},
+pearl: {vocation:"41.2", culture:"15.4", pearl:"53.1"},
+pathways: {challenge:"12→11", breakthrough:"11→36", coreStability:"36→6"},
+primeGifts: ["Discrimination","Idealism","Humanity","Diplomacy"],
+
+summary: "Life's Work: 12.2 (Discrimination), Evolution: 11.2 (Idealism)..."
+}
+HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGates, activeGateCount}
+(当前时刻的行运闸门)
   【塔罗/雷诺曼/其他】
 
                        【统一规则】
@@ -283,12 +467,99 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
                           规则: 引擎输出是硬骨架,LLM只在其上叙事不篡改
                        ╚══════════════════ 雷诺曼 ═════════════════╝
 
-  【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎,零随机; 灵数/卡巴拉/Gematria/Ifá Python侧无)
-  生命灵数/流年/挑战数  →  Kaabalah.calculatePersonalYear(new Date(year,month-1,day)) 又 calculatePersonalMonths 又 calculatePersonalCycles 又 calculateChallenges 又 reduceToSingle 又 getDateEnergies  生日即可
-  卡巴拉生命之树       →  Kaabalah.buildKaabalisticMapData({}) 又 getCanonicalTree() 又 SPHERES 又 LURIANIC_PATHS 又 TreeOfLife 又 getAstrologyTreeMarkers 又 getGematriaTreeMarkers 又 getNumerologyTreeMarkers 又 calculateKaabalisticLifePath(new Date(Date.UTC(y,m-1,d)))  需Date对象,不可传{year,month,day}
-  希伯来Gematria      →  Kaabalah.calculateGematria("shalom") 又 reverseGematria(376) 又 GematriaData 又 HEBREW_LETTERS_DATA  输入文本/数字
-  非洲Ifá占卜         →  Kaabalah.calculateOdu()                                    无需出生
+【灵数学/卡巴拉/数秘】 (JS Kaabalah引擎, 1.3MB, 零随机)
 
+⚠️ 所有日期参数必须是 new Date(Date.UTC(y, m-1, d))，不可传 {year,month,day}
+╔══════════════════ 速览 ══════════════════╗
+║ 生命灵数 + 流年 + 挑战数 + 斐波那契周期  ║
+║ 希伯来Gematria (字母数值)               ║
+║ Ifá 非洲占卜 (Odu)                      ║
+║ 生命之树 (11球体+22路径+对应映射)        ║
+╚══════════════════════════════════════════╝
+── 生命灵数 ──
+var d = new Date(Date.UTC(1990, 5, 15));  // 6月=5
+Kaabalah.calculateKaabalisticLifePath(d)
+→ {parts:{day:"15",month:"06",year1:"19",year2:"90"},
+reducedParts:{reducedDay:6,reducedMonth:6,reducedYear1:1,reducedYear2:9},
+syntheses:{dayMonthSynthesis:66,yearSynthesis:19,
+reducedDayMonthSynthesis:3,reducedYearSynthesis:1,finalSynthesis:31},
+lifePath:{reducedValue:4,reductionSteps:[31,4]},
+personalMythologyNumbers:[6619,31,4]}
+Kaabalah.calculateStraightAcrossReductionLifePath(d)
+→ {dayEnergy:{reducedValue:6,reductionSteps:[15,6]},
+monthEnergy:{reducedValue:6,reductionSteps:[6]},
+yearEnergy:{reducedValue:1,reductionSteps:[1990,19,10,1]},
+lifePath:{reducedValue:4,reductionSteps:[15061990,31,4]}}
+流年: Kaabalah.calculatePersonalYear(birthDate, new Date())
+→ {reducedValue:4, reductionSteps:[2047,13,4]}
+挑战数: Kaabalah.calculateChallenges(d)
+→ {day:6, month:6, year:1, mainChallenge:5, subChallenge1:0, subChallenge2:5}
+斐波那契周期: Kaabalah.calculateFibonacciCycle(d)
+→ {currentAge:36,
+cycle1:{reducedValue:9,reductionSteps:[36,9]},
+cycle2:{reducedValue:2,reductionSteps:[11,2]}, ...共7轮}
+日期能量: Kaabalah.getDateEnergies(d)
+→ {dayEnergy:{reducedValue:6,reductionSteps:[15,6]},
+monthEnergy:{reducedValue:6,reductionSteps:[6]},
+yearEnergy:{reducedValue:1,reductionSteps:[1990,19,10,1]}}
+大师数: Kaabalah.isMasterNumber(11) → true
+Kaabalah.isMasterNumber(22) → true
+Kaabalah.isMasterNumber(33) → true  (也识别 44)
+Kaabalah.isMasterNumber(5)  → false
+约简: Kaabalah.reduceToSingleWithSteps(31) → {reducedValue:4, reductionSteps:[31,4]}
+Kaabalah.reduceToSingleWithSteps(1990) → {reducedValue:1, reductionSteps:[1990,19,10,1]}
+── 希伯来字母数值 (Gematria) ──
+Kaabalah.calculateGematria("chiron")
+→ {vowels:{originalSum:16,reductionSteps:[16,7],finalValue:7},
+consonants:{originalSum:1200,reductionSteps:[1200,3],finalValue:3},
+synthesis:{originalSum:1216,reductionSteps:[19,10,1],finalValue:1},
+includedLetters:[{latinLetterId,value,hebrewCharacter,hebrewLetterId,isVowel}, ...]}
+// chiron → Ch=ש=300, I=י=10, R=ר=200, O=ו=6, N=ן=700  元音I+O=16→7  辅音Ch+R+N=1200→3
+Kaabalah.calculateGematria("love")
+→ vowels:11→2  consonants:36→9  synthesis:47→20→2
+L=ל=30, O=ו=6, V=ו=6, E=ה=5
+Kaabalah.calculateGematria("aries")
+→ vowels:16→7  consonants:260→8  synthesis:276→24→6
+A=א=1, R=ר=200, I=י=10, E=ה=5, S=ס=60
+反向查词: Kaabalah.reverseGematria(111) → {results:[], hasMore:false, totalFound:0}
+(字典可能未加载单词表, 结果可能为空)
+── Ifá 非洲占卜 ──
+Kaabalah.calculateOdu(d)
+→ {leftNumbers:[1,0,1,9], rightNumbers:[5,6,9,0],
+north:11, south:2, east:13, west:8, center:7}
+── 生命之树 ──
+Kaabalah.buildKaabalisticMapData(d)
+→ {spheres:[11个球体: {id,name,hebrew,number,meaning,position}],
+paths:[22条路径: {id,name,from,to,hebrew}],
+markers:[], sphereMarkers:{}, pathMarkers:{},
+countsById:{}, itemConnections:{}}
+11球体: Kether→Chokhmah→Binah→Daath→Chesed→Geburah→
+Tiphareth→Netzach→Hod→Yesod→Malkuth
+球体数据: Kaabalah.SPHERES_DATA["Kether"]
+→ {name, hebrew, number, meaning, position, colors, ...}
+路径数据: Kaabalah.LURIANIC_PATHS["11"]
+→ {from:"Kether", to:"Chokhmah", letter:"Aleph", ...}
+字母数据: Kaabalah.HEBREW_LETTERS_DATA["Aleph"]
+→ {value:1, symbol:"א", meaning:"Ox", ...}
+四世界: Kaabalah.FOUR_WORLDS → ["ATZILUTH","BRIAH","YETZIRAH","ASSIAH"]
+Kaabalah.FOUR_WORLDS_DATA["ATZILUTH"] → {name, meaning, ...}
+── 占星→生命之树映射 (需特定格式) ──
+Kaabalah.buildKaabalisticMapData(d, {chart: {
+planets: [{name:"Sun", zodiacPosition:{sign:{name:"Gemini"}}}, ...],
+nodes: [{name:"North Node", sign:"Aquarius"}, ...],
+houses: {ascendant:{sign:{name:"Virgo"}}, mc:{sign:{name:"Gemini"}},
+ascmc:{vertex:{sign:{name:"Leo"}}}}
+}})
+⚠️ sign 必须是对象 {name:"Gemini"} 不能是字符串 "Gemini"
+⚠️ planets 是数组不是对象, 每个行星必须有 zodiacPosition.sign.name
+塔罗卡巴拉全对应 (777表):
+大牌(22): 序号Fool=0=路径11=字母Aleph ... World=21=路径32=字母Tau
+数字牌(40): Ace=1=Kether, 2=Chokmah, ..., 10=Malkuth
+牌组→世界: Wands=Atziluth, Cups=Briah, Swords=Yetzirah, Pentacles=Assiah
+宫廷牌(16): King→Chokmah, Queen→Binah, Knight→Tiphareth, Page→Malkuth
+查法: Kaabalah.SPHERES["Kether"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
+又 Kaabalah.HEBREW_LETTERS_DATA["Aleph"]
+又 Kaabalah.LURIANIC_PATHS["11"]
   【农历/干支/天文】
   农历/黄历/择日      →  cnlunar(Python)            ← lunar_python, Lunar(JS引擎)  日期即可
   公历农历转换/八字     →  lunar_python(Python)       ← Lunar(JS引擎,可离线算Solar/Lunar/EightChar/DaYun/JieQi)  日期即可
@@ -380,10 +651,13 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
   • 奇门: QimenEngine(JS,7局法×4流派+断语) — Python侧C扩展已删,仅JS
   • 六爻: ichingshifa(Python,大衍1种) vs IchingShifa(JS,6种起卦)
   • 太玄: taixuanshifa(Python,蓍法1种) vs TaixuanLib(JS,4种起卦)
-  • 西洋占星: Astronomy(星历)→NatalEngine(解读)→Caelus(12宫位+格局+尊贵+推运) 三层互补
-  • 印度吠陀: Astronomy(星历)→NatalEngine(排盘+解读)→Caelus(Yoga+分盘+互容)→NatalEngine(输出) 四层互补
-  • 人类图: NatalEngine(JS,类型/权威/通道/闸门) — 唯一
-  • 卡巴拉/灵数/Gematria/Ifá: JS Kaabalah (Python侧无)
+  • 西洋占星: NatalEngine(解读+文本,唯一输出) → Caelus(格局+尊贵+推运+12宫位+赤纬+7点)
+
+NatalEngine 星历精度与 Astronomy 同级 (Moon:0.00″ vs VSOP87)
+Astronomy 仅需要 NASA 级精度时选配
+  • 印度吠陀: NatalEngine(Rasi+27宿+Dasha+文本) → Caelus(26Yoga+7分盘+Ashtottari+Yogini+Kemadruma)
+  • 人类图+基因钥匙: NatalEngine 唯一
+  • 卡巴拉/灵数/Gematria/Ifá: Kaabalah 唯一
 【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine | caelus-birth(时区→UT,caelus前置) | iztro-engine | natalengine-engine(西洋+吠陀+人类图)
   QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({...})')
       可用type:
@@ -399,14 +673,31 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
   Lunar (JS)  → eval_javascript(library='lunar-engine', code='Lunar.Solar.fromDate(new Date(2026,5,19)) 又 Lunar.Lunar.fromDate(d) 又 Lunar.EightChar.fromLunar(lunar) 又 Lunar.DaYun(...) 又 Lunar.JieQi.getJieQi(2026)
   Astronomy   → eval_javascript(library='astronomy-engine', code='Astronomy.SunPosition(new Date(2026,5,19,14,0,0)) 又 Astronomy.GeoVector(Astronomy.Body.Sun,new Date(2026,5,19,14,0,0),false) 又 Astronomy.SearchRiseSet(Astronomy.Body.Sun,new Astronomy.Observer(39.9,116.4,0),1,new Date(2026,5,19),1) 又 Astronomy.SearchLunarEclipse(new Date(2026,5,19)) 又 Astronomy.Seasons(2026) 又 Astronomy.MoonPhase(new Date(2026,5,19))  (零随机,VSOP87精度)
   HoroscopeJS → eval_javascript(library='horoscope-engine', code='new HoroscopeJS.Horoscope({origin:new HoroscopeJS.Origin({year:2026,month:5,date:19,hour:14,minute:0,latitude:39.9,longitude:116.4}),houseSystem:"placidus",zodiac:"tropical"})  (零随机,Kepler精度+7宫位制)
-  Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calculateGematria("shalom") 又 Kaabalah.buildKaabalisticMapData({}) 又 Kaabalah.calculateKaabalisticLifePath(new Date(Date.UTC(...))) 又 Kaabalah.calculatePersonalYear(new Date(...)) 又 Kaabalah.calculateOdu()  (零随机,纯JS; 塔罗走arcanite+777表。塔罗卡巴拉对应所有数据来自本库)
-  Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=new Caelus.Engine(Caelus.embeddedData); e.chart(1990,6,15,14,30,0,25.0330,121.5654,\"placidus\")")  (零依赖VSOP87D,231函数,先new Engine)
+Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calculateKaabalisticLifePath(new Date(Date.UTC(1990,5,15)))')
+
+又 calculatePersonalYear(birth, new Date())  又 calculateChallenges(birth)
+又 calculateFibonacciCycle(birth)  又 getDateEnergies(birth)
+又 calculateGematria("word")  又 reverseGematria(111)
+又 calculateOdu(birth)  又 buildKaabalisticMapData(birth)
+又 isMasterNumber(n)  又 reduceToSingleWithSteps(n)
+(零随机,纯JS; 塔罗走arcanite+777表,查SPHERES/FOUR_WORLDS/HEBREW_LETTERS/LURIANIC_PATHS)
+Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=new Caelus.Engine(Caelus.embeddedData); var jd=Caelus.isoToJd('1990-06-15T04:00:00Z'); e.chartAt(jd,39.9,116.4,{})")
+又 lots(e,jd,lat,lon) 又 firdariaAt(e,jd,targetJd,lat,lon) 又 primaryDirections 又 solarArc
+又 detectYogas(e,jd,lat,lon) 又 vargaAt(e,jd,9) 又 ashtottariAt 又 yoginiAt
+又 declinationAspects(e,bodies,jd,orb) 又 outOfBounds(e,body,jd)
+(零依赖VSOP87D,231函数,先new Engine; ⚠️varga用数字9不是"D9"; lots不是hermeticLots)
       ⚠️ chart(y,mo,d,h,mi,s,lat,lonEast,opts) 位置参数,不是getBirthChart({})
       ⚠️ varga/vargaAt/vargaChart 的n是数字不是字符串: vargaAt(e,jd,9) 而非 vargaAt(e,jd,"D9")
       ⚠️ compositeLongitudes(e,jdA,jdB,bodies,zodiac) 需要engine+两个jd,不是chart对象
       ⚠️ hermeticLots(asc,day,sun,...) 需9个裸角度 → 用 lots(e,jd,lat,lonEast,zodiac) 替代
       ⚠️ hasAspect/hasPlacement/hasVarga 等柯里化: hasAspect({a:"sun",b:"mars",kind:"square"})(ctx)
-  NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-engine', code='NatalEngine.calculateAstrology("1990-06-15",14.5,0,40.7,-74.0)') 返回 {bigThree:\"Gemini Sun...\", planets:[{sign,house,aspects}], houses:{ascendant,midheaven...}}; 吠陀: NatalEngine.calculateVedic(date,utcH,utcM,lat,lng) → {moonSign, planets:[{siderealLon,nakshatra,pada,rashi}], dasha}; 人类图: NatalEngine.calculateHumanDesign(date,utcH,utcM) → {type,authority,profile,centers,channels,gates}; 合盘: NatalEngine.compareAstrology(chartA,chartB)  (纯JS,基于astronomy-engine VSOP87,已解读输出)
+NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-engine', code='NatalEngine.calculateAstrology("1990-06-15",12,8,39.9,116.4)') → {bigThree,summary,sun,moon,rising,midheaven,balance,planets,nodes,allAspects}
+
+吠陀: NatalEngine.calculateVedic(date,hour,tz,lat,lng) → {moonSign,planets,dasha}
+人类图: NatalEngine.calculateHumanDesign(date,hour,tz) → {type,authority,centers,channels}
+基因钥匙: NatalEngine.calculateGeneKeys(hdResult)  ← 参数是HD结果不是日期
+合盘: NatalEngine.compareAstrology(chartA,chartB)
+(纯JS,VSOP87精度与Astronomy同级Moon误差0.00″)
   Iztro(紫微⭐3841) → eval_javascript(library='iztro-engine', code='Iztro.astro.bySolar(\"1990-6-15\",7,\"male\")') 返回 FunctionalAstrolabe 含 .palaces[12] .palace(i) .surroundedPalaces(i).have([\"紫微\"]) .horoscope(date,timeIndex) .soul .body .fiveElementsClass .sign .zodiac; 配置: Iztro.astro.config({dayDivide:\"forward\",yearDivide:\"normal\",algorithm:\"default\"}); 农历盘: Iztro.astro.byLunar(\"1990-5-23\",7,\"male\",false)  (零随机,纯确定性算法)
   返回 JSON，AI 基于真实数据解读。
 """
