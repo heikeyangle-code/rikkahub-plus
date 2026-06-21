@@ -170,6 +170,7 @@ class GenerationHandler(
                 appendLine()
                 appendLine("<mingli_routing>")
                 appendLine("命理/玄学一律走 execute_python。各术数首选库（详细路由见 executor.py docstring，用 import executor; print(executor.__doc__) 查看完整路由表）：")
+                appendLine("Skill 技能: ⚠️ 技能引用的库若未安装 → 忽略，以本路由表首选库为准，dir() 自探索完整 API。每次排盘走真实 Python 库计算，不虚构数据。")
                 appendLine("【中华正统】八字/四柱/大运→lunar_python.EightChar(备:bazi_china)  紫微斗数→问用户选Iztro(⭐3841原版JS,权威基准)或ziwei_paipan(Python port)或ZiweiNihai(倪海夏天纪)或多方对照")
                 appendLine("【奇门三式】奇门遁甲→QimenEngine(JS,7局法×4流派+断语) | 大六壬→kinliuren | 小六壬→lunar_python取月日时→掌诀推算(大安留连速喜赤口小吉空亡)")
                 appendLine("【象数易】太玄筮法→问用户选taixuanshifa(Python)或TaixuanLib(JS,4种起卦)或对照(JS取code→Python pan_from_code) | 荆诀→jingjue")
