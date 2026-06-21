@@ -119,7 +119,7 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
 ║ 合盘: NatalEngine.compareAstrology       ║
 ║      + Caelus composite/synastry/davison ║
 ╚══════════════════════════════════════════╝
-── 第一层: NatalEngine (主力) ──
+── NatalEngine (主力, 字段全) ──
 NatalEngine.calculateAstrology("1990-06-15", hour, tz_offset, lat, lon)
 → bigThree: "♊ Gemini Sun, ♓ Pisces Moon, ♍ Virgo Rising"
 → summary:  "You are a Gemini with Pisces Moon and Virgo Rising"
@@ -127,71 +127,89 @@ NatalEngine.calculateAstrology("1990-06-15", hour, tz_offset, lat, lon)
 → moon:  {sign:{name,element}, degree, house}
 → rising:{sign:{name}, degree}
 → midheaven: {sign:{name}, degree}
-→ balance: {elements:{Fire,Earth,Air,Water}, modalities:{Cardinal,Fixed,Mutable},
-
-dominantElement:{name,traits}, dominantModality:{name,traits}}
+→ balance: {elements,modalities,dominantElement,dominantModality}
 → planets: {mercury,venus,mars,jupiter,saturn,uranus,neptune,pluto}
 每行星: {sign:{name,element}, degree, house, longitude}
-→ nodes: {northNode:{sign,degree}, southNode:{sign,degree}}
-→ allAspects: [37个相位] ⚠️ 字段名可能未定义, 优先用 Caelus 的 aspect 数据
+→ nodes: {northNode,southNode}  → allAspects: [37个相位]
 精度: 星历与 Astronomy (NASA/VSOP87) 同级 — Moon 误差 0.00″
-合盘: NatalEngine.compareAstrology(chartA, chartB)
-→ {systems:["astrology","humandesign","genekeys"], comparisons:{...}, summary}
-── 第二层: Caelus (深度, 同一次 eval 共享 JD) ──
-初始化: var engine = new Caelus.Engine(Caelus.embeddedData);
-var jd = Caelus.isoToJd("1990-06-15T04:00:00Z");  // UTC 时间
-var chart = engine.chartAt(jd, lat, lon, {});
-var ctx = Caelus.interpretationContext(chart);
-行星尊贵: chart.bodies.sun.dignities → ["domicile"|"exaltation"|...]
+合盘: NatalEngine.compareAstrology(chartA, chartB) → {systems, comparisons, summary}
+初始化: var e=new Caelus.Engine(Caelus.embeddedData);
+var jd=Caelus.julianDay(1990,6,15,4,0,0);
+var chart=e.chartAt(jd,lat,lon,{});
+var ctx=Caelus.interpretationContext(chart);
+【本命 — 必调 (14个)】
+chart.bodies.sun → {sign,signDeg,house,retrograde,dignities,speed,lat,dist,ra,dec}
+Caelus.isDayChart(e,jd,lat,lon) → 昼夜盘
+Caelus.lots(e,jd,lat,lon) → {day:bool, fortune:number, spirit:number, eros, necessity, courage, victory, nemesis}
+每个点需自算星座: signNames[floor(lon/30)%12]+" "+(lon%30).toFixed(1)+"°"
+Caelus.chartSignature(chart) → {elements:{fire,earth,air,water}, modalities:{cardinal,fixed,mutable}, angularity:{angular,succedent,cadent}, dominant:{element,modality,sign}, ruler, hemispheres, quadrants, bodies}
 
-ctx.atoms filter kind==="dignity" → almuten / face / term / triplicity
-格局检测: ctx.atoms filter kind==="pattern"
-→ Kite / T-square / Mystic Rectangle / Stellium (house+sign) / Grand Trine 等
-互容定位: ctx.atoms filter kind==="reception"
-→ "Mutual reception: Moon↔Jupiter (domicile)"
-ctx.atoms filter kind==="dispositor"
-→ "Moon→Jupiter", "Mars: final dispositor"
-7赫尔墨斯点: Caelus.lots(engine, jd, lat, lon)
-→ {day:bool, fortune:{deg}, spirit:{deg}, eros, necessity, courage, victory, nemesis}
-每个点的经纬度需自算星座: signNames[floor(lon/30)%12] + " " + (lon%30).toFixed(1) + "°"
-法达: Caelus.firdariaAt(engine, natalJd, targetJd, lat, lon)
-→ {day:bool, major:"sun", sub:"sun"}   ⚠️ 必须传 targetJd, 否则返回 {major:null,sub:null}
-ZR释放: Caelus.zrAt(engine, jd, lat, lon) → {lot:"spirit", day:bool}
-主限法: Caelus.primaryDirections(engine, jd, lat, lon)
-→ [{body:"sun", angle:"MC", arc:3.68, years:3.7}, ...]
-太阳弧: Caelus.solarArc(engine, natalJd, targetJd) → 度数值
-次限: Caelus.progressedLongitude(engine, "sun", natalJd, targetJd) → 推进后的经度
-小限: Caelus.profectedSign(engine, jd, age) → 年主星所在星座索引
-
-赤纬相位: Caelus.declinationAspects(engine, DEFAULT_BODIES, jd, orb)
-→ [{a,b,kind:"parallel"|"contraparallel"}, ...]
-越界: Caelus.outOfBounds(engine, body, jd) → true/false
-盘面签名: Caelus.chartSignature(chart)
-→ {elements:{fire,earth,air,water}, modalities:{cardinal,fixed,mutable},
-dominant:{element,modality,sign}, ruler, hemispheres, quadrants}
-日食月食: Caelus.lunarEclipses(engine, jdStart, jdEnd)
-Caelus.solarEclipses(engine, jdStart, jdEnd)
+ctx.atoms→kind:"pattern"  → T-square/Kite/Stellium/MysticRectangle/GrandTrine 等
+ctx.atoms→kind:"reception"→ 互容 (domicile/exaltation/triplicity 三种)
+ctx.atoms→kind:"dispositor"→ 定位星链
+ctx.atoms→kind:"dignity"  → almuten/face/term/triplicity
+Caelus.findAspects(chart.bodies) → 最强相位
+Caelus.declinationAspects(e, Caelus.DEFAULT_BODIES, jd, 1) → [{a,b,kind:"parallel"|"contraparallel"}, ...]
+Caelus.voidOfCourse(e,jd) → {isVoid:bool, sign, signExit, nextAspect|null}
+Caelus.outOfBounds(e,"moon",jd) → true/false
+Caelus.gauquelinSector(e,"mars",jd,lat,lon) → 高奎林扇区
+Caelus.chartBrief(ctx) → {facts:[{id,kind,text,salience}], prompt}  最终文本
+【推运 — 7 种 (15个)】
+法达     Caelus.firdariaAt(e,natalJd,targetJd,lat,lon) → {day:bool, major, sub} ⚠️必须传targetJd, 75年外返回{null,null}
+Caelus.firdaria(day,natalJd) → 完整周期表
+ZR       Caelus.zrAt(e,natalJd,targetJd,lat,lon) → {lot,lot_sign,day:bool, l1?,l2?,l3?,l4?}
+主限     Caelus.primaryDirections(e,jd,lat,lon) → [{body,angle,arc,years,jd}]
+太阳弧   Caelus.solarArc(e,natalJd,targetJd) → 度数值
+次限     Caelus.progressedLongitude(e,"sun",natalJd,targetJd) → 推进后的经度
+小限     Caelus.profectionAt(e,natalJd,targetJd,lat,lon) → {age_years,month, annual:{sign,sign_index,house,lord}, monthly:{sign,sign_index,house,lord}}
+回归     Caelus.solarReturn(e,natalJd,start,end) / lunarReturn
+Caelus.returns(e,body,natalJd,start,end) → [jd,...]
+【宫位 — 12 种制式 (按需)】
+e.chartAt(jd,lat,lon,{houseSystem:"koch"}) 切换制式
+可选值: placidus/koch/regiomontanus/campanus/porphyry/equal/
+whole_sign/alcabitius/morinus/meridian/polich_page/vehlow
+查询: Caelus.houseOf(chart.bodies.sun.lon, chart.cusps) / Caelus.houseLord(Math.floor(chart.angles.asc/30), n)
+【合盘 — 3 种 (5个)】
+比较盘   Caelus.synastryAspects(chartA,chartB) → [{a,b,aspect,orb,strength}, ...]
+Caelus.synastryOverlays(chartA,chartB) → 落宫
+组合中点 Caelus.compositeLongitudes(e,jdA,jdB,bodies) ← 不是(chartA,chartB)
+戴维森   Caelus.davisonParams(jdA,latA,lonA,jdB,latB,lonB) → [midJd,midLat,midLon]
+【行运 (5个)】
+Caelus.transitAspects(natalChart, e, transitJd)
+Caelus.scan({start,end,step}, fn)
+Caelus.when(e, predicate, jdStart, jdEnd)
+Caelus.crossings(e, body, targetLon, jdStart, jdEnd) → [jd,...]
+Caelus.rankMoments({start,end,step}, scoreFn) → [{jd,score}]
+【恒星 (2个)】
+e.starConjunctions(chart,{orb}) → [{body,star,orb}, ...]
+Caelus.starParans(e,jd,lat,stars,bodies?) → [{star,star_angle,body,body_angle,jd,gap_min}, ...]
+【天文事件 (4个)】
+Caelus.lunarEclipses(e,jdStart,jdEnd) / solarEclipses  (Meeus精度)
 需要更高精度时用 Astronomy.SearchLunarEclipse / SearchGlobalSolarEclipse
-合盘: Caelus.compositeLongitudes(engine, jdA, jdB, bodies)  ← 注意不是 (chartA, chartB)
-Caelus.synastryAspects(chartA, chartB) → [{a_body, b_body, aspect, orb}, ...]
+Caelus.lunarPhases(e,jdStart,jdEnd)
+Caelus.riseSet(e,body,jd,lat,lon) → jd|null  极昼/极夜返回null
+【其他常用】
+Caelus.harmonicChart(e,jd,bodies,n) → 调和盘
+Caelus.astrocartography(e,jd,bodies) → ACG行星线
+Caelus.parans(e,jd,lat) → 四轴共升共落
+Caelus.antiscion(lon) / contraAntiscion(lon) → 映点
+Caelus.midpointLon(lon1,lon2) → 中点
+Caelus.ephemeris(e,bodies,{start,end,step}) → 星历表
+Caelus.chartFeatures(e,jd) → 20维ML特征向量
+╔══════════════════ 参数坑 ══════════════════╗
+║ vargaAt(e,jd,9)     ← 数字,不是 "D9"      ║
+║ hasAspect({})(ctx)   ← 柯里化,不是(chart)  ║
+║ lots(e,jd,lat,lon)  ← 不是 hermeticLots   ║
+║ firdariaAt 必须传 targetJd                 ║
+║ compositeLongitudes(e,jdA,jdB,bodies)      ║
+║ dignities("sun",2)  ← sign是0-11索引      ║
+║ almuten(84.13)      ← 裸经度不是body名     ║
+║ outOfBounds(e,body,jd) ← 不是(body,decl)   ║
+╚═════════════════════════════════════════════╝
+其余 150+ 函数用 dir(Caelus) 自探索，包括: 底层天文(sunApparent/nutation/precessEcliptic),
 
-Caelus.davisonParams(jdA, latA, lonA, jdB, latB, lonB) → [midJd, midLat, midLon]
-── 文本输出 ──
-Caelus.chartBrief(ctx) → {facts:[{id,kind,text,salience}, ...], prompt:"..."}
-合并: ne.summary + brief.facts → 最终解读
-╔══════════════════ Caelus 参数坑 ══════════════════╗
-║ vargaAt(engine, jd, 9)      ← 数字 9 不是 "D9"   ║
-║ hasAspect({a:"sun"})(ctx)   ← 柯里化              ║
-║ lots(engine, jd, lat, lon)  ← 用这个               ║
-║ firdariaAt(eng, jd, TARGET, lat, lon) ← 必须target║
-║ dignities("sun", 2)         ← sign是0-11索引       ║
-║ termRuler(2, 24.13)         ← (signIdx,degInSign)  ║
-║ almuten(84.13)              ← 裸经度不是body名     ║
-║ compositeLongitudes(eng,jdA,jdB,bodies) ← 不是chart║
-║ vimshottariDashas(moonLon,jd) ← 不是 (engine,...)  ║
-║ outOfBounds(engine,body,jd) ← 不是 (body,decl)     ║
-
-╚═════════════════════════════════════════════════════╝
+尊贵原子(dignityScore/faceRuler/termRuler/signRuler), 组合器(matchAll/matchAny/notRetrograde),
+特殊点(meanNode/meanLilith/vertexEastPoint/planetaryHour), 太阳细节(solarPhase/solarElongation) 等。
 备选: HoroscopeJS (已被 Caelus 完全覆盖，不再推荐)
 ⚠️ HoroscopeJS 日期参数是 date 不是 day: {year,month,date,hour,minute}
 【印度/吠陀】 (仅JS)
@@ -681,7 +699,7 @@ Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calcul
 又 calculateOdu(birth)  又 buildKaabalisticMapData(birth)
 又 isMasterNumber(n)  又 reduceToSingleWithSteps(n)
 (零随机,纯JS; 塔罗走arcanite+777表,查SPHERES/FOUR_WORLDS/HEBREW_LETTERS/LURIANIC_PATHS)
-Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=new Caelus.Engine(Caelus.embeddedData); var jd=Caelus.isoToJd('1990-06-15T04:00:00Z'); e.chartAt(jd,39.9,116.4,{})")
+Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=new Caelus.Engine(Caelus.embeddedData); var jd=Caelus.julianDay(1990,6,15,4,0,0); e.chartAt(jd,39.9,116.4,{})")
 又 lots(e,jd,lat,lon) 又 firdariaAt(e,jd,targetJd,lat,lon) 又 primaryDirections 又 solarArc
 又 detectYogas(e,jd,lat,lon) 又 vargaAt(e,jd,9) 又 ashtottariAt 又 yoginiAt
 又 declinationAspects(e,bodies,jd,orb) 又 outOfBounds(e,body,jd)
