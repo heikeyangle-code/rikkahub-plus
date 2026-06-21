@@ -15,6 +15,18 @@ path = sys.argv[1]
 with open(path) as f:
     content = f.read()
 
+# ── Patch 0: add None/invalid type defense to TarotDeck.draw() ────────────────
+old_draw_guard = "        if count > len(self._cards):"
+new_draw_guard = """        if not isinstance(count, int) or count <= 0:
+            raise ValueError(f"draw count must be a positive integer, got {count}")
+        if count > len(self._cards):"""
+
+if old_draw_guard not in content:
+    print("ERROR: draw() guard not found (maybe already patched?)", file=sys.stderr)
+    sys.exit(1)
+
+content = content.replace(old_draw_guard, new_draw_guard, 1)
+
 # ── Patch 1: construct LenormandCard when system=="lenormand" ──────────────────
 # This is the ONLY change inside TarotDeck. Shuffle/draw are untouched.
 old_card_ctor = "            cards.append(TarotCard(data, image_filename))"
@@ -284,8 +296,8 @@ class LenormandDeck(TarotDeck):
         Raises:
             ValueError: if count <= 0
         """
-        if count <= 0:
-            raise ValueError(f"draw count must be positive, got {count}")
+        if not isinstance(count, int) or count <= 0:
+            raise ValueError(f"draw count must be a positive integer, got {count}")
         drawn = self.draw(count, seed=seed, allow_reversals=allow_reversals)
         return [LenormandDrawnCard(d, self.get_card(d.card_id)) for d in drawn]
 
