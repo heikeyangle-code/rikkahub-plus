@@ -22,7 +22,10 @@ new_draw_guard = """        if not isinstance(count, int) or count <= 0:
         if count > len(self._cards):"""
 
 if old_draw_guard not in content:
-    print("ERROR: draw() guard not found (maybe already patched?)", file=sys.stderr)
+    if 'isinstance(count, int)' in content:
+        print("draw() guard already patched, skipping")
+        sys.exit(0)
+    print("ERROR: draw() guard not found", file=sys.stderr)
     sys.exit(1)
 
 content = content.replace(old_draw_guard, new_draw_guard, 1)
