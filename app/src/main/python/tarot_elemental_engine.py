@@ -457,11 +457,42 @@ class ElementalDignityEngine:
             "has_doubling": bool(doublings),
         }
 
+    # ── NEW 5：正逆位统计 Reversal Statistics ─────────────────────────────
+
+    @staticmethod
+    def reversal_statistics(cards: List[Any]) -> Dict[str, Any]:
+        """
+        统计整手牌的逆位数量/占比。逆位比例≥70%时标记"能量受阻"信号——
+        传统塔罗读法里，全逆位或高比例逆位常被解读为问题指向内在、
+        事情卡在某个环节尚未外显。读取 card.orientation，找不到则跳过。
+        """
+        total = len(cards)
+        if total == 0:
+            return {}
+
+        reversed_count = 0
+        for c in cards:
+            orientation = getattr(c, "orientation", None)
+            val = getattr(orientation, "value", orientation)
+            if val and str(val).lower() in ("reversed", "reverse"):
+                reversed_count += 1
+
+        ratio = round(reversed_count / total, 2)
+        blocked = ratio >= 0.7
+
+        return {
+            "reversed_count": reversed_count,
+            "upright_count": total - reversed_count,
+            "reversal_ratio": ratio,
+            "blocked_energy_signal": blocked,
+            "note": "逆位占比过高，传统读法视为能量受阻、问题指向内在" if blocked else "",
+        }
+
     # ── 一键综合 ──────────────────────────────────────────────────────────
 
     @staticmethod
     def full_analysis(cards: List[Any]) -> Dict[str, Any]:
-        """一键运行所有元素尊贵法 + 数字学/构成/缺席/共振分析"""
+        """一键运行所有元素尊贵法 + 数字学/构成/缺席/共振/正逆位统计"""
         spread = ElementalDignityEngine.analyze_spread(cards)
         elements = [r["primary_element"] for r in spread]
         stats = ElementalDignityEngine.element_statistics(elements)
@@ -472,6 +503,7 @@ class ElementalDignityEngine:
         composition = ElementalDignityEngine.arcana_composition_stats(cards)
         absence = ElementalDignityEngine.absence_reading(cards)
         doubling = ElementalDignityEngine.detect_doubling(cards)
+        reversal = ElementalDignityEngine.reversal_statistics(cards)
 
         return {
             "spread_dignity": spread,
@@ -482,4 +514,5 @@ class ElementalDignityEngine:
             "composition": composition,
             "absence": absence,
             "doubling": doubling,
+            "reversal": reversal,
         }
