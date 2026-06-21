@@ -218,6 +218,9 @@ Caelus.chartFeatures(e,jd) → 20维ML特征向量
 ① Caelus 和 NatalEngine 对同一行星输出不同星座时，以它为准
 ② 问日食月食精确时刻时，用它拿秒级时间，Caelus 拿类型
 其余不调。6弧秒算法差 < 400弧秒位置模糊，调了等于没调。
+调用: var t=new Astronomy.MakeTime(new Date(Date.UTC(y,m-1,d,h,m)));
+Astronomy.EclipticLongitude(Astronomy.Body.Mercury, t) → 黄经
+Sun 用 Astronomy.SunPosition(t).elon, Moon 用 new Astronomy.Ecliptic(Astronomy.GeoMoon(t)).elon
 ╔══════════════════ 参数坑 ══════════════════╗
 ║ vargaAt(e,jd,9)     ← 数字,不是 "D9"      ║
 ║ hasAspect({})(ctx)   ← 柯里化,不是(chart)  ║
@@ -316,6 +319,8 @@ Caelus.isDayChart(e,jd,lat,lon)  → 昼夜盘
 ① 问日食月食精确到秒的时刻（吠陀 muhurta 择时需要）
 ② 问行星精确赤经/赤纬/出没时刻
 其余不调。nakshatra 宽度 13°20'，弧秒级精度无意义。
+调用: Astronomy.SearchLunarEclipse(jd) / SearchGlobalSolarEclipse(jd)
+Astronomy.SearchRiseSet(Astronomy.Body.Sun, new Astronomy.Observer(lat, lon, 0), 1, jd, 1)
 ╔══════════════════ 参数坑 ══════════════════╗
 ║ vargaAt(e,jd,9)              ← 数字 9     ║
 ║ vimshottariDashas(moonLon,jd) ← 不是(e,..)║
