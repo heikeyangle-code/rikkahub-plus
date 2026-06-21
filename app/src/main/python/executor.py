@@ -32,10 +32,9 @@ Available built-in functions (call these from your code):
   八字/四柱/大运      →  【双库并联】
 
 ╔══════════════════════════════════════════════════════╗
-║  Step 1: 验证排盘 (lunar_python)                    ║
+║  Step 1: (lunar_python)                            ║
 ║    Solar.fromYmdHms(year,month,day,hour,minute,0)    ║
 ║    → getLunar().getEightChar()  → 四柱干支           ║
-║    → 与用户自排八字对照, 节气交界日须校验            ║
 ╚══════════════════════════════════════════════════════╝
 ↓
 ╔══════════════════════════════════════════════════════╗
