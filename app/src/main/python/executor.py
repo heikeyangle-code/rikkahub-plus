@@ -29,7 +29,17 @@ Available built-in functions (call these from your code):
   用户问             →  首选                        ← 也能用这些               输入要求
   ─────────────────────────────────────────────────────────────────────────────────────────
   【中华正统】
-  八字/四柱/大运      →  lunar_python EightChar      ← bazi_china               生日（含时辰）
+  八字/四柱/大运      →  【双库并联 Step1-6】
+                        Step1: lunar_python.Solar → 公历转农历+节气+星宿+彭祖百忌
+                        Step2: lunar_python.EightChar → 排盘(四柱+纳音+五行+藏干+十神+旬空+身宫)
+                        Step3: lunar_python.Yun → 大运(起运/十步/流年/流月)
+                        Step4: bazi_china.sizi.summarys → 四柱解盘古诀(120条)
+                        Step5: bazi_china.datas → 神煞(将星/桃花/华盖/驿马/天德/月德/天乙/文昌/阳刃/红艳)
+                        Step6: bazi_china.datas → 命宫断语/日主断语/金不换/调候用神
+                        Step7: bazi_china.ganzhi → 干支关系(五合/六合/三合/六冲/六害/六破/三刑)
+                        Step8: bazi_china.datas.ganzhi60 → 纳音(60甲子完整,datas.nayins空壳,用ganzhi60)
+                        分工: lunar_python=排盘骨架+大运流年+农历 | bazi_china=神煞断语+调候+古诀+干支库
+                        生日（含时辰）
   紫微斗数            →  问用户选 Iztro(JS,iztro⭐3841原版,权威基准) 或 ziwei_paipan(Python,iztro标准算法port) 或 ZiweiNihai(JS,倪海夏天纪+古籍) 或多个一起对照   生日（含时辰）
 
   【奇门三式】
