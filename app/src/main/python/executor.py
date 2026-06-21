@@ -206,12 +206,12 @@ Available built-in functions (call these from your code):
                             master=FE.parse_grand_tableau_master_mode(items,spread.positions,gender)
                             ← 返回Step1-4结构: step1_inner_ring(内九宫格定调) → step2_mod_ranking(MOD权重排序,含speed+direction) → step3_deep_dive(骑士步/镜像/反射,仅指示牌) → step4_house_background(落宫+级联链)。LLM必须按此顺序使用数据。
                           🟣工具箱(AI按需取):
-                            FE.get_gt_mirrors(idx) — GT镜像(水平/垂直/对角), 返回{方向: 索引}用items[索引].card_name取牌解读
-                            FE.get_reflection(idx) — GT反射(首尾对调,=35-idx), 返回索引用items[索引].card_name取牌解读
+                            FE.get_gt_mirrors(idx) — GT三维镜像(水平/垂直/对角), 返回{方向: 索引}用items[索引].card_name取牌解读
+                            FE.get_reflection(idx) — GT反射(编号对调35-idx),独立调用,数值同get_gt_mirrors的diagonal
+                            FE.get_inner_9_ring(idx) — 任意牌的3×3邻接(截断,角落少于8张),返回{ring/row/col/diag:[索引]}
+                            FE.get_intersection(idx) — 任意牌所在整行+整列(不含自身),返回{row/col:[索引]}
+                            FE.calculate_mod(sig_idx,topic_indices,items) — 主题牌权重排序,含speed权重+direction(past/future)
                             FE.calculate_knights_move(sig_idx) — 任意牌的骑士跳暗线扫描, 返回[索引列表]用items[索引].card_name取牌解读
-                            FE.get_inner_9_ring(center_idx) — 内九宫格(3×3邻接), 返回{ring/row/col/diag: [索引列表]}
-                            FE.get_intersection(idx) — 行列交叉法(整行+整列), 返回{row/col: [索引列表]}
-                            FE.calculate_mod(sig_idx, topic_indices, cards) — MOD主题权重排序,返回[{idx,card_name,speed,final_weight,direction}]按final_weight升序
                             FE.calculate_house_chaining(items,card_id) — 宫位级联(场景:追问原因)
                             FE.calculate_counting_pulse(items,start_idx,step=9) — 古法步进(场景:年运)
                           规则: 引擎输出是硬骨架,LLM只在其上叙事不篡改
