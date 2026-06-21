@@ -86,7 +86,7 @@ Available built-in functions (call these from your code):
   1=第一用神, 2=第二用神, _=分隔符
 • shengxiao.output(des, zhi, key) 三参调用
 • lunar_python.Yun.getDaYun() 返回的是list, 需遍历
-• lunar_python的流年/流月: dy.getLiuNian(year).getGanZhi()
+• lunar_python的流年/流月: dy.getLiuNian(year)[0].getGanZhi()  (getLiuNian返回list, 取[0]为干支)
 【分工总结】
 lunar_python = 排盘骨架 + 大运流年 + 农历信息
 → 先跑, 不可替代
@@ -663,18 +663,23 @@ getKaabalisticCorrespondenceTargets / TreeOfLife / TreeTopology 类,
           shengxiao.output('', '子', '冲') → '马'     (子午冲)
     【luohou — 择日/风水/罗猴/九宫飞星】
       它能做什么:
-        get_hou(date, xiazhi, dongzhi) → 每日择日: 煞方/年猴月罗季猴/岁破月破/大偷休/时家紫白飞星+日九星
-        yearly_nine_stars(year) → 年九宫飞星: 返回9方位各是什么星(查财位/病符/桃花位)
-        monthly_nine_stars(年支) → 月九星: 返回{月份:星名}
-        daily_nine_stars(lunar) → 日九星
-        get_jizhu(年干,年支) → 太岁压祭主(从ganzhi导入)
-        jiuxings_dsp → 九星吉凶说明文字,解释各星含义时用
-        get_hou() 直接 print 输出, 需传夏至冬至日期: lunar.getJieQiTable()['夏至']和['DONG_ZHI']
+        luohou.yearly_nine_stars(year) → 年九宫飞星: 返回JiuFeiXing对象, 用属性名取方位 jfx.东 .南 .西 .北 .中 .东北 .东南 .西南 .西北
+        luohou.monthly_nine_stars(年支) → 月九星: 返回{月份:星名}
+        luohou.daily_nine_stars(lunar对象) → 日九星
+        luohou.get_hou(d, xiazhi, dongzhi) → 每日择日(三参都是datetime.date)
+        luohou.get_jizhu(年干,年支) → 太岁压祭主
+        luohou.jiuxings_dsp → 九星吉凶说明文字
       什么时候调它:
-        "今天日子怎么样"/"搬家/动土/嫁娶/开工选日子" → get_hou()
-        "今年什么方位吉利"/"财位在哪"/"病符在哪" → yearly_nine_stars()
-        "这个月飞星到哪" → monthly_nine_stars()
-        "能动土吗/能开工吗" → get_jizhu(年干支) + get_hou()查岁破
+        "今天日子怎么样"/"搬家/动土/嫁娶/开工选日子"
+          → from datetime import date; from bazi_china import luohou; from lunar_python import Lunar
+          → table=Lunar.fromYmd(2024,1,1).getJieQiTable()
+          → xz=date(table['夏至'].getYear(),table['夏至'].getMonth(),table['夏至'].getDay())
+          → dz=date(table['DONG_ZHI'].getYear(),table['DONG_ZHI'].getMonth(),table['DONG_ZHI'].getDay())
+          → luohou.get_hou(date(2024,6,21), xz, dz)  # 直接print输出
+        "今年什么方位吉利"/"财位在哪"/"病符在哪"
+          → jfx=luohou.yearly_nine_stars(2024); jfx.东 / jfx.南 / jfx.西 / jfx.北 / jfx.中 / jfx.东北 / jfx.东南 / jfx.西南 / jfx.西北
+        "这个月飞星到哪" → luohou.monthly_nine_stars('子')
+        "能动土吗/能开工吗" → luohou.get_jizhu(年干,年支) + get_hou()查岁破
     sizi.summarys            → 120项四柱解盘字典 (ai自己探索sizi.summarys.keys()查看可用键)
     yue.months[月柱]         → 流月详解 (键为月柱干支如'甲寅', 从lunar_python EightChar.getMonth()取值)
     神煞/纳音/空亡/命宫/日主/调候/建禄: datas.day_shens/month_shens/year_shens/g_shens/nayins/empties/minggongs/rizhus/jinbuhuan/jianlus
@@ -686,26 +691,64 @@ getKaabalisticCorrespondenceTargets / TreeOfLife / TreeTopology 类,
   lunar_python (215+) →  l = Lunar.fromYmd(2026,6,16); print(dir(l))
   cnlunar             →  import cnlunar; print(dir(cnlunar.LunarDate))
                         注: cnlunar.Lunar() 构造必须传 datetime 对象(含hour)，不能传 date — 传date报 'date' object has no attribute 'hour'
-  ichingshifa         →  from ichingshifa import Iching; i = Iching(); print(dir(i))  # 查卦/变卦
-  meihua_yi           →  meihua_yi.qigua_coin() 摇钱起卦 / meihua_yi.qigua_time(dt) 时间起卦
-      返回 (main_lines, moving_indices, yao_details) → 传给 compute_hexagrams() 解卦
-      用户说\"梅花起卦\"\"数字起卦\"\"时间起卦\"时调, 无需出生
-      analyze_ti_yong(ti_element, yong_element) 体用分析, GUA_NAMES查64卦名
+  ichingshifa         →  from ichingshifa import Iching; i = Iching()
+      i.qigua_now()                          当前时间起卦
+      i.qigua_time(y,m,d,h,minute)           指定时间起卦
+      i.qigua_manual(y,m,d,h,minute,gua)     手动爻值起卦(gua="697887")
+      i.bookgua_details(yao=None)            兼断详细解
+      i.decode_gua(gua, daygangzhi=None)     解本卦
+      i.decode_two_gua(bengua,ggua,daygangzhi=None)  解本变卦
+      ⚠️ 全部是 Iching() 实例方法，不是模块级函数
+  meihua_yi           →  import meihua_yi
+      meihua_yi.qigua_coin(coin_results=None)          摇钱起卦, 返回 (主爻,动爻,爻详)
+      meihua_yi.qigua_time(dt=None)                    时间起卦, 返回同上
+      meihua_yi.compute_hexagrams(main_lines, moving_indices)
+         返回 {main,mutual,changed,ti,yong,moving_indices}
+         ti/yong 体用已内建: result['ti']={name,symbol,element}
+         ⚠️ 不存在 analyze_ti_yong 函数,体用由 compute_hexagrams 直接返回
+      meihua_yi.format_hexagram_text(lines, moving_indices)  格式化卦象文本(供解卦用)
+      meihua_yi.get_gua_name(lines)                    查64卦名
+      GUA_NAMES                                        64卦字典
+      BAGUA         →  {(1,1,1):{name:'乾',symbol:'☰',element:'金'}, ...}
+      XIAN_TIAN     →  {1:(1,1,1), 2:(1,1,0), 3:(1,0,1), ...}
+      用户说"梅花起卦""数字起卦""时间起卦"时调, 无需出生
 
   kinliuren           →  kinliuren.Liuren(节气, 农历月, 日干支如'甲子', 时干支如'甲子')
       构造后调 .result(0) 排盘(返回课体/三传/神将等) .sike_dict()查四课
       .moongeneral()月将 .dayhorse()驿马
       参数从 lunar_python 取: EightChar.getDayGan()+getDayZhi()=日干支, 时干支同理
-  taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
-  jingjue             →  jingjue.jingjue.qigua() 无参, 返回[卦辞] (先秦占卜, 无需出生)
-      荆诀/先秦占卜, 用户说"卜一卦""荆诀起卦"时调
+  taixuanshifa        →  from taixuanshifa import Taixuan; t = Taixuan(y,m,d,h)
+      t.pan_from_code(zhou)              按code排盘(如 "2312")
+      t.pan()                            排当前盘
+      t.qigua_number()                   起玄数
+  jingjue             →  import jingjue; jingjue.qigua() 无参, 返回[卦辞] (先秦占卜, 无需出生)
       gua_dict(16卦)可探索, secrets含内部数据
+      用户说"卜一卦""荆诀起卦"时调
+  ⚠️ qigua() 是模块级函数，jingjue.jingjue 不存在
   ziwei_paipan        →  ziwei_paipan.by_solar("1990-6-15", 7, "male") 返回 AstrolabeResult
-      参数: solar_date(公历日期), time_index(时辰0-12), gender("male"/"female")
-      返回值含: palaces[12], major_stars, minor_stars, adjective_stars, mutagens, horoscopes
+      参数: solar_date(公历日期), time_index(时辰0-12), gender("male"/"female"), fix_leap=True
+      返回值(astrolabe):
+        基础: .five_elements_class(五行局) .sign(星座) .zodiac(生肖)
+              .soul_master(命主) .body_master(身主)
+              .lunar_date(农历) .chinese_date(干支纪年) .time_range(时辰)
+        年柱: .heavenly_stem_of_year .earthly_branch_of_year
+        命身宫: .heavenly_stem_of_soul .earthly_branch_of_soul
+              .soul_index .body_index
+              .earthly_branch_of_soul_palace .earthly_branch_of_body_palace
+        紫府: .ziwei_index .tianfu_index
+        十二宫: .palaces[12] ← 每个: {index,name,heavenly_stem,earthly_branch,
+                    is_soul,is_body,is_original_palace,decadal,ages}
+        主星: .major_stars[14] ← 每个: {name,index,type,system,brightness,mutagen}
+        辅星: .minor_stars[14] ← 每个: {name,index,type,brightness,mutagen}
+        杂星: .adjective_stars[38] ← 每个: {name,index,type}
+        四化: .mutagens ← [{name,index,mutagen}]
+        大限: .horoscopes ← [{index,range:[24,33],heavenly_stem,earthly_branch}]
+        12神: .changsheng12 .boshi12 .suiqian12 .jiangqian12
+      映射: 星在几宫 → star['index'] → palaces[star['index']]['name']
+            例: {name:'紫微',index:10} → palaces[10]['name']='命宫' → 紫微在命宫
       配置: iztro_configure(day_divide='forward', year_divide='normal', algorithm='default')
-      与 JS Iztro 1:1 等价(已验证10项bug已修复), by_lunar("1990-5-23",7,"male") 也可用
-  不局限于示例，每个库的全部方法都可调。
+      其他: by_lunar("1990-5-23",7,"male",is_leap_month=False)  农历排盘
+            rearrange_astrolable(result,天干,地支,timeIndex)    天盘/人盘/地盘重排
 
 【输入说明】不是所有排盘都需要生日：
   • 需生日(含时辰) — 八字/紫微
@@ -715,14 +758,14 @@ getKaabalisticCorrespondenceTargets / TreeOfLife / TreeTopology 类,
 
 【双引擎对照规则】⚠️ 易经"初筮告，再三渎"——同一问题只能起一卦。调用前先 dir() 确认函数存在。
   六爻对照: AI 先调 JS IchingShifa.dayan() 取一次随机得爻值如"697887",
-            再调 Python iching.bookgua_details() 或 qigua_manual(年,月,日,时,分,"697887") 用同一爻值排盘,
+            再调 Python from ichingshifa import Iching; i=Iching(); i.bookgua_details() 或用 i.qigua_manual(y,m,d,h,minute,"697887") 同爻值排盘,
             两引擎同一卦各自解盘，AI 对比两套解读。异数起两卦 = 违章。
   太玄对照: AI 先调 JS TaixuanLib.generate() 得 {code:"2312",gua:{...}},
             再调 Python Taixuan(y,m,d,h).pan_from_code("2312") 同首排盘。
   紫微对照: 纯确定性算法，同一输入→同一天干地支=同一命盘。AI 可同时调
             Iztro.astro.bySolar(date,timeIndex,gender) + ziwei_paipan.by_solar(date,timeIndex,gender)
             两引擎各自排盘（无需随机连线），对比命宫/身宫/五行局/主星位置是否一致，
-            不一致处即为日历层差异（闰月/节气/干支计算）。ZiweiNihai 则因流派不同不可直接对比位置。
+            不一致处即为日历层差异（闰月/节气/干支计算）。ZiweiNihai 也用 iztro 排盘数据一致，仅亮度/地支/四化字段命名不同。
   不影响效率: 仍调两次引擎，第一次随机+排盘，第二次仅排盘(无随机开销)，总耗时几乎不变。
 
 【输出】排盘结果直接用 print() 输出文字，模型基于真实数据解读。
@@ -749,8 +792,39 @@ Astronomy 仅需要 NASA 级精度时选配
         {type:"shijia", juMethod:"chaibu", baseChart:日家结果} → 时家,需先调日家拿baseChart
       返回 QimenChart: palaces(9宫数据), zhiFuStar/zhiShiDoor, dun/juNumber/yuan, fourPillars, kongWang
   ZiweiNihai  → eval_javascript(library='ziwei-nihai', code='ZiweiNihai.generateChart({year:1990,month:6,day:15,hour:7,gender:"male"})')
-      参数: year(公历年), month(公历月), day(公历日), hour(时辰索引0-11), gender("male"/"female")
-  IchingShifa → eval_javascript(library='iching-shifa-engine', code='IchingShifa.dayan() 又 IchingShifa.lueshifa() 又 IchingShifa.timeQiGua(2026,6,19,14,5,19,"午","午") 又 IchingShifa.manualQiGua("697887") 又 IchingShifa.threeNumberQiGua(123,456,789) 又 IchingShifa.numberArrayQiGua([3,7,2,9,1,5],0); IchingShifa.decodePan(yao,{year,month,day,hour})排盘
+      参数: year(公历年), month(公历月1-12), day(公历日), hour(时辰索引0=子~11=亥),
+            gender("male"/"female"), name?, province?, city?, longitude?(真太阳时)
+      返回 ZiweiChart — 源码: types.ts 90行:
+        .birthInfo          {year,month,day,hour,gender}
+        .lunarInfo          {lunarYear,lunarMonth,lunarDay,yearStem,yearBranch,isLeapMonth}
+        .mingGongBranch     (命宫地支索引0-11)
+        .shenGongBranch     (身宫地支索引0-11)
+        .wuxingJu           (五行局数字2-6)
+        .wuxingJuName       (五行局名称"水二局")
+        .ziweiPos           (紫微星宫位索引)
+        .palaces[12]        每个: {branch(地支),stem(天干),name(宫名),stars[](星曜数组),
+               daXianAge([start,end]),isCurrentDaXian,isMingGong,isShenGong,
+               selfSihua[](宫干自化),oppositeBranch(对宫),isEmpty(空宫),
+               borrowedFromBranch,borrowedFromName,borrowedStars[](借星)}
+          Star: {name,type:major|minor|lucky|sha,siHua:禄权科忌,brightness:bright|normal|dim}
+        .daXians[]          每个: {startAge,endAge,palaceBranch,palaceName}
+        .currentAge         (当前年龄)
+        .currentDaXianIndex (当前大限索引)
+      其他导出(源码 lib/nihai + lib/classics):
+        .getLunarInfo(year,month,day)           → 农历转换
+        .NI_HAIXIA_BIO                          → 倪海厦传记全文
+        .SANJI_CATEGORIES                       → 三纪分类(天/地/人)
+        .TIANJI_EPISODES .TIANJI_QUOTES         → 天纪24集+语录
+        .HEXAGRAMS                              → 六十四卦详解
+        .FENGSHUI_ENTRIES                       → 风水条目
+        .RENJI_MODULES .ACU_EXPERIENCES         → 人纪针灸+经方
+        .ALL_BOOKS                              → 古籍库(骨随赋/全集/全书)
+        .getBookBySlug(slug)                    → 按slug取古籍
+        .getChapter(bookSlug, idx)              → 按章节取内容
+        .getParagraphById(id)                   → 按段落ID取原文
+        .searchKeyword(keyword)                 → 古籍全文搜索
+      流派: 倪海夏天纪体系(三合派+象数派+九星派+河洛数理), 盘面数据与 Iztro 一致, 仅亮度(bright/normal/dim)/地支数字/四化(siHua)命名不同
+  IchingShifa → eval_javascript(library='iching-shifa-engine', code="IchingShifa.dayan() 又 IchingShifa.lueshifa() 又 IchingShifa.timeQiGua(2026,6,19,14,5,19,'午','午') 又 IchingShifa.manualQiGua('697887') 又 IchingShifa.threeNumberQiGua(123,456,789) 又 IchingShifa.numberArrayQiGua([3,7,2,9,1,5],0); IchingShifa.decodePan(yao,{year,month,day,hour})排盘")
   TaixuanLib  → eval_javascript(library='taixuan-engine', code='TaixuanLib.generate() 又 TaixuanLib.generateByCoins() 又 TaixuanLib.generateByDice() 又 TaixuanLib.generateByShi() 又 TaixuanLib.generateByNumber(5678); 返回{code:"2312",gua:{...}}
   Lunar (JS)  → eval_javascript(library='lunar-engine', code='Lunar.Solar.fromDate(new Date(2026,5,19)) 又 Lunar.Lunar.fromDate(d) 又 Lunar.EightChar.fromLunar(lunar) 又 Lunar.DaYun(...) 又 Lunar.JieQi.getJieQi(2026)
   Astronomy   → eval_javascript(library='astronomy-engine', code='Astronomy.SunPosition(new Date(2026,5,19,14,0,0)) 又 Astronomy.GeoVector(Astronomy.Body.Sun,new Date(2026,5,19,14,0,0),false) 又 Astronomy.SearchRiseSet(Astronomy.Body.Sun,new Astronomy.Observer(39.9,116.4,0),1,new Date(2026,5,19),1) 又 Astronomy.SearchLunarEclipse(new Date(2026,5,19)) 又 Astronomy.Seasons(2026) 又 Astronomy.MoonPhase(new Date(2026,5,19))  (零随机,VSOP87精度)
@@ -780,7 +854,35 @@ NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-en
 基因钥匙: NatalEngine.calculateGeneKeys(hdResult)  ← 参数是HD结果不是日期
 合盘: NatalEngine.compareAstrology(chartA,chartB)
 (纯JS,VSOP87精度与Astronomy同级Moon误差0.00″)
-  Iztro(紫微⭐3841) → eval_javascript(library='iztro-engine', code='Iztro.astro.bySolar(\"1990-6-15\",7,\"male\")') 返回 FunctionalAstrolabe 含 .palaces[12] .palace(i) .surroundedPalaces(i).have([\"紫微\"]) .horoscope(date,timeIndex) .soul .body .fiveElementsClass .sign .zodiac; 配置: Iztro.astro.config({dayDivide:\"forward\",yearDivide:\"normal\",algorithm:\"default\"}); 农历盘: Iztro.astro.byLunar(\"1990-5-23\",7,\"male\",false)  (零随机,纯确定性算法)
+  Iztro(紫微⭐3841) → eval_javascript(library='iztro-engine', code="Iztro.astro.bySolar('1990-6-15',7,'male')")
+      返回 FunctionalAstrolabe — 原版 iztro API v2.5.8 (iztro.com):
+        .palaces[12] 或 .palace(i)                         → 十二宫(0命宫~11兄弟宫)
+        .surroundedPalaces(i)                               → 三方四正(本宫/对宫/财帛/官禄)
+        .star(sName)                                        → 按名称找星曜实例
+        .horoscope(date?,timeIndex?)                        → 大限推算(decadals+ages)
+        .soul / .body                                       → 命主星/身主星名称
+        .fiveElementsClass / .sign / .zodiac                → 五行局/星座/生肖
+        .fourPillars / .lunarDate / .chineseDate            → 四柱/农历日/干支日
+        .timeRange / .time / .solarDate                     → 时辰/时间/阳历
+        .earthlyBranchOfSoulPalace / .earthlyBranchOfBodyPalace → 命身宫地支
+      单宫: .palace(i).has(["紫微","天机"])                  → 本宫是否含某星(全含)
+            .palace(i).hasOneOf(["紫微","天机"])              → 本宫是否含任一
+            .palace(i).isEmpty()                             → 是否空宫
+            .palace(i).hasMutagen("禄")                      → 本宫是否有四化
+            .palace(i).fliesTo("子女宫","化禄")               → 本宫是否飞化到目标宫
+            .palace(i).selfMutaged("化权")                    → 本宫是否自化
+            宫位属性: .index .name .isBodyPalace .isOriginalPalace
+                     .heavenlyStem .earthlyBranch
+                     .majorStars .minorStars .adjectiveStars  (星数组,每个含.name+.brightness+.mutagen)
+                     .changsheng12 .boshi12 .jiangqian12 .suiqian12
+                     .decadal [{range,heavenlyStem,earthlyBranch}] .ages[]
+      三方四正: .surroundedPalaces(i).have(["紫微"])          → 三方四正全含
+            .surroundedPalaces(i).haveOneOf(["紫微"])          → 三方四正任一
+            .surroundedPalaces(i).haveMutagen("禄")           → 三方四正有化禄
+            四宫: .target .opposite .wealth .career
+      配置: Iztro.astro.config({dayDivide:"forward",yearDivide:"normal",algorithm:"default"});
+      农历盘: Iztro.astro.byLunar("1990-5-23",7,"male",false)
+      (零随机,纯确定性算法)
   返回 JSON，AI 基于真实数据解读。
 """
 
