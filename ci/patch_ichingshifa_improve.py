@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Patch ichingshifa/ichingshifa.py: add bookgua_string() + count_yy validation.
-
-Inserts:
-  1. bookgua_string(yao_str) — accepts 6-digit yao string like "697887"
-  2. count_yy input validation — detects single-char args vs 2-char 干支
-"""
+"""Patch ichingshifa/ichingshifa.py: add bookgua_string() + count_yy validation + fix bookgua_details."""
 
 import sys
 
@@ -14,7 +9,6 @@ with open(target) as f:
     src = f.read()
 
 # ── Patch 1: insert bookgua_string after bookgua() ────────────────────────────
-# Find the end of bookgua(): the return line that joins shifa_results
 old_bookgua_return = '        return "".join(str(e) for e in shifa_results[:6])'
 if old_bookgua_return not in src:
     print("ERROR: bookgua anchor not found", file=sys.stderr)
@@ -23,7 +17,7 @@ if old_bookgua_return not in src:
 bookgua_string_method = '''        return "".join(str(e) for e in shifa_results[:6])
 
     def bookgua_string(self, yao_str):
-        """用指定6位爻值起卦（如 \"697887\"），不取随机。
+        """用指定6位爻值起卦（如 "697887"），不取随机。
 
         Args:
             yao_str: 6位字符串，每位为 6(老阴)/7(少阳)/8(少阴)/9(老阳)
@@ -65,6 +59,19 @@ new_count_yy = '''    def count_yy(self, ygz, mgz, dgz, hgz):
 
 src = src.replace(old_count_yy, new_count_yy, 1)
 
+# ── Patch 3: fix bookgua_details to accept optional yao ─────────────────────
+old_details = '    def bookgua_details(self):'
+if old_details in src:
+    new_details = '''    def bookgua_details(self, yao=None):
+        """查看当前卦的详细信息。yao不为None时使用指定爻值(如"697887")，不走随机。"""
+        if yao is not None:
+            return self.mget_bookgua_details(self.bookgua_string(str(yao)))
+        return self.mget_bookgua_details(self.bookgua())'''
+    src = src.replace(old_details, new_details, 1)
+    print("bookgua_details patched to accept optional yao parameter")
+else:
+    print("WARNING: bookgua_details anchor not found, skipping", file=sys.stderr)
+
 with open(target, 'w') as f:
     f.write(src)
 
@@ -75,12 +82,15 @@ checks = [
     ("count_yy validation inserted", '必须是2字干支格式' in src),
     ("original bookgua intact", 'def bookgua(self):' in src),
     ("original datetime_bookgua intact", 'def datetime_bookgua(self' in src),
+    ("bookgua_details accepts yao", 'yao=None' in src),
 ]
+
 all_ok = True
 for label, ok in checks:
-    print(f"  [{'OK' if ok else 'FAIL'}] {label}")
+    status = "OK" if ok else "FAIL"
     if not ok:
         all_ok = False
+    print(f"  [{status}] {label}")
 
 if not all_ok:
     print("ERROR: verification failed", file=sys.stderr)
