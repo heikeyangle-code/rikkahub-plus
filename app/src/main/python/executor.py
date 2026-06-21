@@ -138,7 +138,7 @@ var jd=Caelus.julianDay(1990,6,15,4,0,0);
 var chart=e.chartAt(jd,lat,lon,{});
 var ctx=Caelus.interpretationContext(chart);
 【本命 — 必调 (14个)】
-chart.bodies.sun → {sign,signDeg,house,retrograde,dignities,speed,lat,dist,ra,dec}
+chart.bodies.sun → {lon,sign,signDeg,house,retrograde,dignities,speed,lat,dist,ra,dec}
 Caelus.isDayChart(e,jd,lat,lon) → 昼夜盘
 Caelus.lots(e,jd,lat,lon) → {day:bool, fortune:number, spirit:number, eros, necessity, courage, victory, nemesis}
 每个点需自算星座: signNames[floor(lon/30)%12]+" "+(lon%30).toFixed(1)+"°"
