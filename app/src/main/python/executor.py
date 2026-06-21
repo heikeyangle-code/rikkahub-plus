@@ -347,6 +347,11 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
   jingjue             →  jingjue.jingjue.qigua() 无参, 返回[卦辞] (先秦占卜, 无需出生)
       荆诀/先秦占卜, 用户说"卜一卦""荆诀起卦"时调
       gua_dict(16卦)可探索, secrets含内部数据
+  ziwei_paipan        →  ziwei_paipan.by_solar("1990-6-15", 7, "male") 返回 AstrolabeResult
+      参数: solar_date(公历日期), time_index(时辰0-12), gender("male"/"female")
+      返回值含: palaces[12], major_stars, minor_stars, adjective_stars, mutagens, horoscopes
+      配置: iztro_configure(day_divide='forward', year_divide='normal', algorithm='default')
+      与 JS Iztro 1:1 等价(已验证10项bug已修复), by_lunar("1990-5-23",7,"male") 也可用
   不局限于示例，每个库的全部方法都可调。
 
 【输入说明】不是所有排盘都需要生日：
