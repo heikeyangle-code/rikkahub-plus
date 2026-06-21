@@ -163,7 +163,7 @@ Available built-in functions (call these from your code):
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
                         深度: [item.get_core() for item in items] — 一步直接调语义getter
                         组合链: item_A.get_combination_with(item_B.card_id, position="left")
-                        统计: d.analyze_draw(items) → 正逆位分布+全正/全逆检测
+                        统计: d.analyze_draw(items) → 电荷属性分布(positive/neutral/negative占比)+速度牌占比(fast/medium/slow)+人物卡激活检测
 
                         【雷诺曼输出】雷诺曼=现实事件模拟器
                           【问题】
@@ -188,7 +188,7 @@ Available built-in functions (call these from your code):
                         from arcanite.core.spread import list_spreads, load_spread
                           list_spreads(system="lenormand") → 雷诺曼: line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张) / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张) / astrological-houses(12张) / relationship(5张关系)
                           load_spread(spread_id, system="lenormand") → SpreadDefinition(positions=...) 按位置数决定draw(N)
-                          Grand Tableau: 4×9网格,36宫role=house,sig=false(男人/女人牌游走),mirror=35-index动态算 row=pos.index//9 col=pos.index%9 → 骑士跳(|Δrow|=2&|Δcol|=1或反之) 对角线(|Δrow|==|Δcol|) 邻近(|Δrow|+|Δcol|≤2) | 镜像: pos.mirror_target | 指示牌: pos.is_significator
+                          Grand Tableau: 4×9网格,36宫role=house,sig=false(男人/女人牌游走) | 坐标计算一律调用FE方法,不在此处理:骑士跳→FE.calculate_knights_move 反射→FE.get_reflection 镜像→FE.get_gt_mirrors 内九宫格→FE.get_inner_9_ring 交叉→FE.get_intersection | 镜像位: pos.mirror_target | 指示牌: pos.is_significator
                           牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
                         ╚════════════════════════════════════════════╝
                         ╔══════════════════ 雷诺曼模式 ═══════════════╗
@@ -204,10 +204,14 @@ Available built-in functions (call these from your code):
                             FE.parse_portrait_3x3_cage(items, spread_id) — box-3x3/GT 钉四角(十字心仅box-3x3)
                           🔵Master必开(Grand Tableau):
                             master=FE.parse_grand_tableau_master_mode(items,spread.positions,gender)
-                            ← 内含指示牌定位/落宫嵌套/骑士跳暗线/四角锚点
+                            ← 返回Step1-4结构: step1_inner_ring(内九宫格定调) → step2_mod_ranking(MOD权重排序,含speed+direction) → step3_deep_dive(骑士步/镜像/反射,仅指示牌) → step4_house_background(落宫+级联链)。LLM必须按此顺序使用数据。
                           🟣工具箱(AI按需取):
-                            FE.get_gt_mirrors(idx) — GT三维镜像(水平/垂直/对角), 返回{方向: 索引}用items[索引].card_name取牌解读
+                            FE.get_gt_mirrors(idx) — GT镜像(水平/垂直/对角), 返回{方向: 索引}用items[索引].card_name取牌解读
+                            FE.get_reflection(idx) — GT反射(首尾对调,=35-idx), 返回索引用items[索引].card_name取牌解读
                             FE.calculate_knights_move(sig_idx) — 任意牌的骑士跳暗线扫描, 返回[索引列表]用items[索引].card_name取牌解读
+                            FE.get_inner_9_ring(center_idx) — 内九宫格(3×3邻接), 返回{ring/row/col/diag: [索引列表]}
+                            FE.get_intersection(idx) — 行列交叉法(整行+整列), 返回{row/col: [索引列表]}
+                            FE.calculate_mod(sig_idx, topic_indices, cards) — MOD主题权重排序,返回[{idx,card_name,speed,final_weight,direction}]按final_weight升序
                             FE.calculate_house_chaining(items,card_id) — 宫位级联(场景:追问原因)
                             FE.calculate_counting_pulse(items,start_idx,step=9) — 古法步进(场景:年运)
                           规则: 引擎输出是硬骨架,LLM只在其上叙事不篡改
