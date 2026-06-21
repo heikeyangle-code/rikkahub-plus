@@ -32,9 +32,9 @@ Available built-in functions (call these from your code):
   八字/四柱/大运      →  【双库并联】
 
 ╔══════════════════════════════════════════════════════╗
-║  Step 1: (lunar_python)                            ║
-║    Solar.fromYmdHms(year,month,day,hour,minute,0)    ║
-║    → getLunar().getEightChar()  → 四柱干支           ║
+║  Step 1: 排盘 — lunar_python                       ║
+║    ┌─ Solar.fromYmdHms(year,month,day,hour,minute,0)║
+║    └─ → getLunar().getEightChar()  → 四柱干支       ║
 ╚══════════════════════════════════════════════════════╝
 ↓
 ╔══════════════════════════════════════════════════════╗
@@ -51,7 +51,7 @@ Available built-in functions (call these from your code):
 ╔══════════════════════════════════════════════════════╗
 ║  Step 3: 血肉 — bazi_china                          ║
 ║    ⚠️ 先 sys.path.insert(0, 'app/src/main/python')   ║
-║    ⚠️ datas.nayins/ganzhi60 的key是tuple!            ║
+║    ⚠️ datas.nayins 的key是tuple;  datas.ganzhi60 的key是int 1-60║
 ║        正确: datas.nayins[('戊','寅')] → '城头土'   ║
 ║        错误: datas.nayins['戊寅'] → KeyError        ║
 ║    ⚠️ datas.empties key也是tuple!                   ║
@@ -59,7 +59,7 @@ Available built-in functions (call these from your code):
 ║    ⚠️ datas.tiaohous 是简码需解码:                  ║
 ║        '1丙2_甲' = 第一用神丙, 第二用神甲           ║
 ║        '1壬2丙甲' = 第一用神壬, 第二用神丙甲        ║
-║    ⚠️ shengxiao.output('合','子') 有bug, 绕开       ║
+║    ⚠️ shengxiao.output(des,zhi,key) 三参调用         ║
 ║                                                    ║
 ║    ┌─ sizi.summarys['戊日壬子'] → 时柱古诀          ║
 ║    ├─ datas.day_shens['将星']['午'] → 日支神煞     ║
@@ -79,13 +79,12 @@ Available built-in functions (call these from your code):
 ║    └─ ganzhi.ten_deities['戊']['子'] → 十二宫状态  ║
 ╚══════════════════════════════════════════════════════╝
 【关键坑位提醒】
-• datas.nayins 的key是tuple: ('戊','寅') 不是 '戊寅'
-• datas.ganzhi60 也是tuple key, 且数据与nayins相同
-  两者选一个用即可, 推荐 datas.nayins
+• datas.nayins[('戊','寅')] → '城头土'     (查纳音, key是tuple)
+• datas.ganzhi60[1] → '甲子'               (60甲子序列表, key是int 1-60)
 • datas.empties key也是tuple: ('甲','子')
 • datas.tiaohous 是简码: '1丙2_甲' 格式
   1=第一用神, 2=第二用神, _=分隔符
-• shengxiao.output('合','子') 作用域有bug, 用datas关係表替代
+• shengxiao.output(des, zhi, key) 三参调用
 • lunar_python.Yun.getDaYun() 返回的是list, 需遍历
 • lunar_python的流年/流月: dy.getLiuNian(year).getGanZhi()
 【分工总结】
@@ -98,7 +97,7 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
   紫微斗数            →  问用户选 Iztro(JS,iztro⭐3841原版,权威基准) 或 ziwei_paipan(Python,iztro标准算法port) 或 ZiweiNihai(JS,倪海夏天纪+古籍) 或多个一起对照   生日（含时辰）
 
   【奇门三式】
-  奇门遁甲            →  QimenEngine(JS,7局法+断语,拆补+茅山+置闰×时/日/月/年4流派+十干克应)                 时家需精确时间
+  奇门遁甲            →  QimenEngine(JS,7局法+断语,拆补+茅山+置闰×时/日/月/年4流派+十干克应)  日家自包含(推荐),时家需先有日家baseChart
   大六壬              →  kinliuren                                               生日可选
   小六壬(马前课)       →  lunar_python取月日时→6掌诀推算(大安/留连/速喜/赤口/小吉/空亡)                           无需出生（需月日时）
 
@@ -304,12 +303,30 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
     ganzhi.Gan[:10]          → ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸']
     ganzhi.Zhi[:12]          → ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']
     datas.shengxiaos[zhi]    → 该地支的生肖名 (如datas.shengxiaos['子']→'鼠')
-    shengxiao.output(des,key)→ 打印生肖合/冲/刑/害关系 (shengxiao.py CLI工具)
+    shengxiao.output(des,zhi,key)→ 打印生肖合/冲/刑/害关系 (shengxiao.py CLI)
+    生肖合婚/配对查询 → 单独调用 shengxiao.output，不需要先排八字
+      用户问\"属X和什么合/冲\"时调，入参: zhi=生肖对应地支(鼠→子 牛→丑…), key=合/六/会/冲/刑/害/破
+      例: shengxiao.output('', '子', '合') → '猴龙'   (子与申猴辰龙三合)
+          shengxiao.output('', '子', '冲') → '马'     (子午冲)
+    【luohou — 择日/风水/罗猴/九宫飞星】
+      它能做什么:
+        get_hou(date, xiazhi, dongzhi) → 每日择日: 煞方/年猴月罗季猴/岁破月破/大偷休/时家紫白飞星+日九星
+        yearly_nine_stars(year) → 年九宫飞星: 返回9方位各是什么星(查财位/病符/桃花位)
+        monthly_nine_stars(年支) → 月九星: 返回{月份:星名}
+        daily_nine_stars(lunar) → 日九星
+        get_jizhu(年干,年支) → 太岁压祭主(从ganzhi导入)
+        jiuxings_dsp → 九星吉凶说明文字,解释各星含义时用
+        get_hou() 直接 print 输出, 需传夏至冬至日期: lunar.getJieQiTable()['夏至']和['DONG_ZHI']
+      什么时候调它:
+        "今天日子怎么样"/"搬家/动土/嫁娶/开工选日子" → get_hou()
+        "今年什么方位吉利"/"财位在哪"/"病符在哪" → yearly_nine_stars()
+        "这个月飞星到哪" → monthly_nine_stars()
+        "能动土吗/能开工吗" → get_jizhu(年干支) + get_hou()查岁破
     sizi.summarys            → 120项四柱解盘字典 (ai自己探索sizi.summarys.keys()查看可用键)
     yue.months[月柱]         → 流月详解 (键为月柱干支如'甲寅', 从lunar_python EightChar.getMonth()取值)
     神煞/纳音/空亡/命宫/日主/调候/建禄: datas.day_shens/month_shens/year_shens/g_shens/nayins/empties/minggongs/rizhus/jinbuhuan/jianlus
     天干地支/藏干十神/干支关系: ganzhi.gan_desc/zhi_desc/ten_deities/gan_hes/zhi_6hes/zhi_3hes/zhi_chongs/zhi_xings/zhi_haies/zhi_poes
-    注: bazi.py(2549行)是CLI工具(argparse入口),非库API; 八字排盘直接用 lunar_python.EightChar
+    注: bazi_china 里只有 bazi.py(2549行)是CLI工具, 其余模块(ganzhi/datas/sizi/yue/shengxiao/luohou)全是库函数可以直接 import 调
   节气和天文          →  lunar_python               ← cnlunar                  日期即可
 
 【查询路由】只查单项数据不排盘时用。复杂库(ichingshifa/kinliuren/taixuanshifa等)必须先用 dir() 探索全部方法，不得盲调试错：
@@ -317,11 +334,19 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
   cnlunar             →  import cnlunar; print(dir(cnlunar.LunarDate))
                         注: cnlunar.Lunar() 构造必须传 datetime 对象(含hour)，不能传 date — 传date报 'date' object has no attribute 'hour'
   ichingshifa         →  from ichingshifa import iching; print(dir(iching))  # 查卦/变卦
-  meihua_yi           →  from meihua_yi import engine; print(dir(engine))        # 梅花起卦查询
+  meihua_yi           →  meihua_yi.qigua_coin() 摇钱起卦 / meihua_yi.qigua_time(dt) 时间起卦
+      返回 (main_lines, moving_indices, yao_details) → 传给 compute_hexagrams() 解卦
+      用户说\"梅花起卦\"\"数字起卦\"\"时间起卦\"时调, 无需出生
+      analyze_ti_yong(ti_element, yong_element) 体用分析, GUA_NAMES查64卦名
 
-  kinliuren           →  from kinliuren.kinliuren import Liuren; lr = Liuren(jieqi,cmonth,dayGZ,hourGZ)# 查课, dir()探索全部方法
+  kinliuren           →  kinliuren.Liuren(节气, 农历月, 日干支如'甲子', 时干支如'甲子')
+      构造后调 .result(0) 排盘(返回课体/三传/神将等) .sike_dict()查四课
+      .moongeneral()月将 .dayhorse()驿马
+      参数从 lunar_python 取: EightChar.getDayGan()+getDayZhi()=日干支, 时干支同理
   taixuanshifa        →  import taixuanshifa; print(dir(taixuanshifa))       # 查玄数
-  jingjue             →  from jingjue.jingjue import qigua; result = qigua()  # 荆诀起卦, dir()探索gua_dict
+  jingjue             →  jingjue.jingjue.qigua() 无参, 返回[卦辞] (先秦占卜, 无需出生)
+      荆诀/先秦占卜, 用户说"卜一卦""荆诀起卦"时调
+      gua_dict(16卦)可探索, secrets含内部数据
   不局限于示例，每个库的全部方法都可调。
 
 【输入说明】不是所有排盘都需要生日：
@@ -355,8 +380,15 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
   • 人类图: NatalEngine(JS,类型/权威/通道/闸门) — 唯一
   • 卡巴拉/灵数/Gematria/Ifá: JS Kaabalah (Python侧无)
 【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine | caelus-birth(时区→UT,caelus前置) | iztro-engine | natalengine-engine(西洋+吠陀+人类图)
-  QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({type:'shijia',juMethod:'chaibu',year:2026,month:6,day:19,hour:14,minute:30,location:{lng:116.4,lat:39.9}})
-  ZiweiNihai  → eval_javascript(library='ziwei-nihai', code='ZiweiNihai.generateChart({solarYear:1990,solarMonth:6,solarDay:15,timeIndex:7,gender:'male'})
+  QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({...})')
+      可用type:
+        {type:"rijia", year:2026, month:6, day:19}       → 日家,自包含(推荐)
+        {type:"nianjia", year:2026}                       → 年家,自包含
+        {type:"yuejia", year:2026, month:5}                → 月家,自包含(节气月)
+        {type:"shijia", juMethod:"chaibu", baseChart:日家结果} → 时家,需先调日家拿baseChart
+      返回 QimenChart: palaces(9宫数据), zhiFuStar/zhiShiDoor, dun/juNumber/yuan, fourPillars, kongWang
+  ZiweiNihai  → eval_javascript(library='ziwei-nihai', code='ZiweiNihai.generateChart({year:1990,month:6,day:15,hour:7,gender:"male"})')
+      参数: year(公历年), month(公历月), day(公历日), hour(时辰索引0-11), gender("male"/"female")
   IchingShifa → eval_javascript(library='iching-shifa-engine', code='IchingShifa.dayan() 又 lueshifa() 又 timeQiGua({...}) 又 manualQiGua("697887") 又 threeNumberQiGua(a,b,c) 又 numberArrayQiGua(arr,idx); decodePan(yao,{year,month,day,hour})排盘
   TaixuanLib  → eval_javascript(library='taixuan-engine', code='TaixuanLib.generate() 又 generateByShi() 又 generateByDice() 又 generateByCoins() 又 generateByNumber(5678); 返回{code:"2312",gua:{...}}
   Lunar (JS)  → eval_javascript(library='lunar-engine', code='Lunar.Solar.fromDate(new Date(2026,5,19)) 又 Lunar.Lunar.fromDate(d) 又 Lunar.EightChar.fromLunar(lunar) 又 Lunar.DaYun(...) 又 Lunar.JieQi.getJieQi(2026)

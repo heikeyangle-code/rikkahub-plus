@@ -61,7 +61,7 @@ def get_hou(d, xiazhi, dongzhi):
     if day_ganzhi in tuple(ji_hous.values()):       
         birthday = d  
         for i in range(30):    
-            day_ = sxtwl.fromSolar(birthday.year, birthday.month, birthday.day)
+            day_ = fromSolar(birthday.year, birthday.month, birthday.day)
             if day_.hasJieQi():
                 ji = jis[(day_.getJieQi() + 3)//6]
                 break        
@@ -158,6 +158,23 @@ shi_feixings2 = {"子":zheng_jiuxings_shi2, "丑":ku_jiuxings_shi2, "寅":sheng_
 Gans = collections.namedtuple("Gans", "year month day")
 Zhis = collections.namedtuple("Zhis", "year month day")
 JiuFeiXing = collections.namedtuple("JiuFeiXing", "中 西北 西 东北 南 北 西南 东 东南")
+
+def yearly_nine_stars(year):
+    """年九宫飞星 — 返回JiuFeiXing命名字段(中,西北,西,东北,南,北,西南,东,东南)
+    用途: 查今年财位/病符/桃花位等风水方位"""
+    index = year % 10 + year // 10 % 10
+    index = index - 9 if index > 9 else index
+    index = 9 - index
+    return JiuFeiXing(*fangweis[index:], *fangweis[0:index])
+
+def monthly_nine_stars(year_earthly_branch):
+    """月九宫飞星 — 输入年支(如'子'), 返回{月份:九星名}字典
+    用途: 看每个月飞星位置"""
+    return month_feixings[year_earthly_branch]
+
+def daily_nine_stars(lunar):
+    """日九星 — 输入lunar_python Lunar对象, 返回当日九星名"""
+    return lunar.getDayNineStar()
 
 
 

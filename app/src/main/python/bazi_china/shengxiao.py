@@ -6,7 +6,7 @@
 import argparse
 from .datas import shengxiaos, zhi_atts
 
-def output(des, key):
+def output(des, zhi, key):
     print()
     print(des, end='')
     for item in zhi_atts[zhi][key]:
@@ -34,18 +34,18 @@ if __name__ == '__main__':
         print("合婚请以八字为准，技术支持：钉钉或微信pythontesting") 
         print("以下为相合的生肖：") 
         print("="*80) 
-        output("与你三合的生肖：", '合')  
-        output("与你六合的生肖：", '六')      
-        output("与你三会的生肖：", '会')
+        output("与你三合的生肖：", zhi, '合')  
+        output("与你六合的生肖：", zhi, '六')      
+        output("与你三会的生肖：", zhi, '会')
         print()
         print("="*80) 
         print("以下为不合的生肖：") 
         print("="*80)     
-        output("与你相冲的生肖：", '冲')  
-        output("你刑的生肖：", '刑')
-        output("被你刑的生肖：", '被刑') 
-        output("与你相害的生肖：", '害')     
-        output("与你相破的生肖：", '破') 
+        output("与你相冲的生肖：", zhi, '冲')  
+        output("你刑的生肖：", zhi, '刑')
+        output("被你刑的生肖：", zhi, '被刑') 
+        output("与你相害的生肖：", zhi, '害')     
+        output("与你相破的生肖：", zhi, '破') 
         print()
         print("="*80) 
         print("如果生肖同时在你的合与不合中，则做加减即可。")
