@@ -395,12 +395,6 @@ jobs:
             vsop87d_mercury.full.json vsop87d_venus.full.json vsop87d_earth.full.json \
             vsop87d_mars.full.json vsop87d_jupiter.full.json vsop87d_saturn.full.json \
             vsop87d_uranus.full.json vsop87d_neptune.full.json \
-            vsop87d_mercury.high.json vsop87d_venus.high.json vsop87d_earth.high.json \
-            vsop87d_mars.high.json vsop87d_jupiter.high.json vsop87d_saturn.high.json \
-            vsop87d_uranus.high.json vsop87d_neptune.high.json \
-            vsop87d_mercury.micro.json vsop87d_venus.micro.json vsop87d_earth.micro.json \
-            vsop87d_mars.micro.json vsop87d_jupiter.micro.json vsop87d_saturn.micro.json \
-            vsop87d_uranus.micro.json vsop87d_neptune.micro.json \
             moon_cheb.full.json turbo.json uranian_kepler.json pluto_cheb.json \
             ceres_cheb.json pallas_cheb.json juno_cheb.json vesta_cheb.json pholus_cheb.json; do
             curl -sL "${CAELUS_DATA}/${f}" -o "data/${f}" && echo "  ✓ ${f}" || echo "  ⚠ ${f} skipped"
