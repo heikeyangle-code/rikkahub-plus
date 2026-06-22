@@ -407,7 +407,7 @@ lotFortune/lotSpirit/hermeticLots, 探测(houseCusp/angles/gmst/gast/normalizeHo
 353|353|353|     — 已加载 Caelus 时用它算日出/日落
 354|354|354|     — 否则让用户提供: "请输入出生当天日出时刻 (HH:MM 格式)"
 355|355|355|     — 示例: NodeJhora.DateTime.fromISO("1990-06-15T05:30:00+05:30")
-⚠️ YogaEngine.findYogas 首次调用较慢 — 先用 depth=2 出 Vimshottari 和 Panchanga，同时在后台调 findYogas，等结果出来再补 Yoga 解读。不要串行等。
+⚠️ YogaEngine.findYogas 首次调用慢(遍历数百条规则)。一次 eval_javascript 里和前几个API一起调，不要单独开一次调用等它。
 ⚠️ generateVimshottari: 默认 depth=2 (Maha+Antar)。用户问"某月/某天运势"时用 depth=3 (Maha+Antar+Pratyantar)。depth=1 太粗没用。
 358|358|358|
 ╔═══════════════════ 调用骨架 ════════════════════╗
