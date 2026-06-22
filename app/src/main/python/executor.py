@@ -182,7 +182,7 @@ Caelus.progressedJd(natalJd,targetJd) → 数值,传chartAt得整盘次限
 e.chartAt(jd,lat,lon,{houseSystem:"koch"}) 切换制式
 可选值: placidus/koch/regiomontanus/campanus/porphyry/equal/
 whole_sign/alcabitius/morinus/meridian/polich_page/vehlow
-查询: Caelus.houseOf(chart.bodies.sun.lon, chart.cusps) / Caelus.houseLord(Math.floor(chart.angles.asc/30), n)
+查询: Caelus.houseOf(chart.bodies.sun.lon, chart.cusps) / Caelus.houseLord(ascSign, n)  (ascSign=热带索引0-11, 非恒星)
 【合盘 — 3 种 (5个)】
 比较盘   Caelus.synastryAspects(chartA,chartB) → [{a,b,aspect,orb,strength}, ...]
 Caelus.synastryOverlays(chartA,chartB) → 落宫
@@ -234,7 +234,7 @@ Sun 用 Astronomy.SunPosition(t).elon, Moon 用 new Astronomy.Ecliptic(Astronomy
 其余 150+ 函数用 dir(Caelus) 自探索，包括: 底层天文(sunApparent/nutation/precessEcliptic),
 
 尊贵原子(dignityScore/faceRuler/termRuler/signRuler), 组合器(matchAll/matchAny/notRetrograde),
-特殊点(meanNode/meanLilith/vertexEastPoint/planetaryHour), 太阳细节(solarPhase/solarElongation) 等。
+特殊点(meanNode(data,jd)/meanLilith/vertexEastPoint/planetaryHour), 太阳细节(solarPhase/solarElongation) 等。
 备选: HoroscopeJS (已被 Caelus 完全覆盖，不再推荐)
 ⚠️ HoroscopeJS 日期参数是 date 不是 day: {year,month,date,hour,minute}
 【印度/吠陀】 (仅JS)
@@ -264,12 +264,12 @@ var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00");  // 本命JD: +08:00是示�
 var natalJd=jd;
 var targetJd=Caelus.julianDay(2026,6,22,12,0,0); // 推运目标JD
 var moonLon=e.longitude("moon",jd,{zodiac:"sidereal:lahiri"});  // 月亮恒星经度
-var chart=e.chartAt(jd,lat,lon,{});             // chart→取asc/planets
+var chart=e.chartAt(jd,lat,lon,{});             // ⚠️ angles 是热带坐标, 吠陀需 ascSidereal=(asc-ayanamsa+360)%360
 var ascSign=Math.floor(chart.angles.asc/30);    // asc→给houseSign/houseLord
 # 需恒星经度的: 用 engine.longitude(body, jd, {zodiac:"sidereal:lahiri"})
 # 需tropical盘数据的: 用 chart.bodies.xxx
 【大运 — 3 种体系 (7个)】
-Vimshottari  Caelus.vimshottariDashas(moonLon, natalJd)   ← 不是(e,...)!
+Vimshottari  Caelus.vimshottariDashas(moonLon, natalJd)   ← 不是(e,...)!  返回完整理论周期, 需balance_years截实际出生点
 → {start_lord, balance_years, dashas:[{level,lord,start,end,sub:[...]}]}
 Caelus.vimshottariAt(e, natalJd, targetJd)
 → {moon_nakshatra, moon_pada, start_lord, maha?, antar?, pratyantar?}
@@ -289,7 +289,7 @@ Caelus.associationType(planetA,signA,planetB,signB) → "conjunction"|"exchange"
 Caelus.houseSign(ascSign,house) → 星座索引  (ascSign=floor(asc/30))
 Caelus.houseFromAsc(ascSign,sign) → 宫号  星座在第几宫
 【分盘 — 7 种 (1核心+整盘)】
-Caelus.vargaAt(e, jd, n)   ← n∈{1,2,3,9,10,12,30}, 不是 "D9"!
+Caelus.vargaAt(e, jd, n)   ← n∈{1,2,3,9,10,12,30}, 不是 "D9"!  body默认"moon", 节点用"mean_node"非"rahu"
 → {varga:n, rasi:"Aquarius", rasi_index:10, sign:"Pisces", sign_index:11, division:6}
 Caelus.vargaChart(e, jd, n) → {"sun":{varga,rasi,division}, ...}  每星体一分盘
 D1 Rasi        D2 Hora        D3 Drekkana   D9 Navamsa
