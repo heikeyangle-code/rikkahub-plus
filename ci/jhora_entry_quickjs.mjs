@@ -3,8 +3,12 @@
  *  Kotlin side injects the 32MB de440s.bsp as a byte[] into
  *  this global before loading this file. Zero encoding overhead.
  */
-// bspBuffer is pre-injected by Kotlin as a Uint8Array on globalThis
+// bspBuffer is pre-injected by Kotlin — handle both ArrayBuffer and Uint8Array
 var bspBuffer = __nodejhora_bsp;
+if (bspBuffer instanceof ArrayBuffer) {
+    bspBuffer = new Uint8Array(bspBuffer);
+}
+__nodejhora_bsp = null;  // release global ref
 
 // Polyfill Buffer#toString for SPK header detection (spk.js line 66)
 bspBuffer.toString = function (encoding, start, end) {
@@ -19,9 +23,6 @@ bspBuffer.toString = function (encoding, start, end) {
 // Wire up ephemeris engine
 import { EphemerisEngine } from '@node-jhora/core';
 EphemerisEngine.getInstance().loadBspBuffer(bspBuffer);
-
-// Clean up the global to free the reference
-__nodejhora_bsp = null;
 
 // Export luxon DateTime for AI date construction
 export { DateTime } from 'luxon';
