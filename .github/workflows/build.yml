@@ -424,13 +424,11 @@ jobs:
           echo 'export * from "@node-jhora/analytics";' >> jhora-entry.mjs
           echo 'export * from "@node-jhora/prediction";' >> jhora-entry.mjs
           npx esbuild jhora-entry.mjs --bundle --platform=node --format=iife --global-name=NodeJhora --target=es2020 --outfile=node-jhora-engine.js 2>&1 | tail -3
-          # Download Swiss Ephemeris data (SE1 format, ~40MB)
-          mkdir -p /tmp/ephe
-          for f in sepl_18.se1 semo_18.se1 seas_18.se1; do
-            curl -sL "https://www.astro.com/ftp/swisseph/ephe/\$f" -o "/tmp/ephe/\$f" && echo "  ✅ \$f: \$(wc -c < /tmp/ephe/\$f) bytes" || echo "  ⚠️ \$f skipped"
-          done
-          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/ephe
-          cp /tmp/ephe/*.se1 ${GITHUB_WORKSPACE}/app/src/main/assets/ephe/ 2>/dev/null
+          # Download JPL DE440s ephemeris (32MB, NASA public domain, 1849-2150)
+          curl -sL "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440s.bsp" \
+            -o ${GITHUB_WORKSPACE}/app/src/main/assets/de440s.bsp \
+            && echo "  ✅ de440s.bsp: $(wc -c < ${GITHUB_WORKSPACE}/app/src/main/assets/de440s.bsp) bytes" \
+            || echo "  ⚠️ de440s.bsp download failed"
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
           cp node-jhora-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "NodeJhora compiled: $(wc -c < node-jhora-engine.js) bytes"
