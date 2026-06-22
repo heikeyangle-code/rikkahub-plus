@@ -436,7 +436,7 @@ jobs:
           npx esbuild jhora-entry.mjs \
             --bundle --platform=node --format=iife --global-name=NodeJhora \
             --target=es2020 --tree-shaking=false \
-            --loader:.bsp=binary \
+            --loader:.bsp=base64 \
             --outfile=node-jhora-engine.js 2>&1 | tail -3
 
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
