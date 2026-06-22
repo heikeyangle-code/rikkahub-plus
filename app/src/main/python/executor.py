@@ -134,7 +134,7 @@ NatalEngine.calculateAstrology("1990-06-15", hour, tz_offset, lat, lon)
 精度: 星历与 Astronomy (NASA/VSOP87) 同级 — Moon 误差 0.00″
 合盘: NatalEngine.compareAstrology(chartA, chartB) → {overallScore, scoreLabel, aspectSummary, summary}
 初始化: var e=new Caelus.Engine(Caelus.embeddedData);
-var jd=Caelus.julianDay(1990,6,15,4,0,0);
+var jd=Caelus.isoToJd(\"1990-06-15T12:00:00+08:00\");  // 本地时间+时区→自动转UT→JD  (已知UT可直接用 julianDay(y,m,d,h,m,s))
 var chart=e.chartAt(jd,lat,lon,{});
 var ctx=Caelus.interpretationContext(chart);
 【本命 — 必调 (14个)】
@@ -260,7 +260,7 @@ current:{lord,startDate,endDate,years,isPartial},
 dashas:[{lord,startDate,endDate,years,isPartial}, ...9段]}
 → houses: {1..12}  每宫: {rashi, degree}
 初始化: var e=new Caelus.Engine(Caelus.embeddedData);
-var jd=Caelus.julianDay(1990,6,15,4,0,0);      // 本命JD
+var jd=Caelus.isoToJd(\"1990-06-15T12:00:00+08:00\");  // 本命JD: 本地时间+时区→自动转UT
 var natalJd=jd;
 var targetJd=Caelus.julianDay(2026,6,22,12,0,0); // 推运目标JD
 var moonLon=e.longitude("moon",jd,{zodiac:"sidereal:lahiri"});  // 月亮恒星经度
@@ -783,7 +783,7 @@ Astronomy 仅需要 NASA 级精度时选配
   • 印度吠陀: NatalEngine(Rasi+27宿+Dasha+文本) → Caelus(26Yoga+7分盘+Ashtottari+Yogini+Kemadruma)
   • 人类图+基因钥匙: NatalEngine 唯一
   • 卡巴拉/灵数/Gematria/Ifá: Kaabalah 唯一
-【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine | caelus-birth(时区→UT,caelus前置) | iztro-engine | natalengine-engine(西洋+吠陀+人类图)
+【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine | iztro-engine | natalengine-engine(西洋+吠陀+人类图)
   QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({...})')
       可用type:
         {type:"rijia", year:2026, month:6, day:19}       → 日家,自包含(推荐)
@@ -837,7 +837,7 @@ Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calcul
 又 calculateOdu(birth)  又 buildKaabalisticMapData(birth)
 又 isMasterNumber(n)  又 reduceToSingleWithSteps(n)
 (零随机,纯JS; 塔罗走arcanite+777表,查SPHERES/FOUR_WORLDS/HEBREW_LETTERS/LURIANIC_PATHS)
-Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=new Caelus.Engine(Caelus.embeddedData); var jd=Caelus.julianDay(1990,6,15,4,0,0); e.chartAt(jd,39.9,116.4,{})")
+Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=new Caelus.Engine(Caelus.embeddedData); var jd=Caelus.isoToJd('1990-06-15T12:00:00+08:00'); e.chartAt(jd,39.9,116.4,{})")
 又 lots(e,jd,lat,lon) 又 firdariaAt(e,jd,targetJd,lat,lon) 又 primaryDirections 又 solarArc
 又 detectYogas(e,jd,lat,lon) 又 vargaAt(e,jd,9) 又 ashtottariAt 又 yoginiAt
 又 declinationAspects(e,bodies,jd,orb) 又 outOfBounds(e,body,jd)
