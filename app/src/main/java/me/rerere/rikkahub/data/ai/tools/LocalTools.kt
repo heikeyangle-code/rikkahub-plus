@@ -264,6 +264,12 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                                 val lib = library ?: throw IllegalArgumentException("library is required for action='load'")
                                 val ctx = getOrCreateJSContext()
                                 if (lib !in loadedLibraries) {
+                                    // NodeJhora: inject 32MB de440s.bsp as Uint8Array before loading engine
+                                    if (lib == "node-jhora-engine") {
+                                        val bspBytes = context.assets.open("de440s.bsp").readBytes()
+                                        ctx.globalObject.setProperty("__nodejhora_bsp", bspBytes)
+                                        logs.add("[INFO] Injected de440s.bsp (${bspBytes.size} bytes) for NodeJhora")
+                                    }
                                     val engineCode = context.assets.open("$lib.js").bufferedReader().readText()
                                     ctx.evaluate(engineCode)
                                     loadedLibraries.add(lib)
