@@ -467,13 +467,13 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
 
                        ╔══════════════════ 雷诺曼 ═════════════════╗
  雷诺曼         →  arcanite(system="lenormand") 36张; 数据层:
-                        core(keywords/charge/category/topics) | timing(thematic/duration/season/speed/direction)
-                        as_person(牌的人物性格描述) | modifier_behavior(type/as_modifier/as_modified,修饰牌联动规则)
-                        playing_card(对应扑克牌,如9♥) | topic_contexts(love/career/health/finances/spiritual)
+                        core(keywords/charge/category/topics) | timing(thematic/duration/season/speed(fast/moderate/slow/instant/glacial/variable/None)/direction)
+                        as_person(牌的人物性格描述) | modifier_behavior(type(descriptor/intensifier/negator/pivot)/as_modifier/as_modified)
+                        playing_card(对应扑克牌,如"10 of Hearts"/"Ace of Diamonds") | topic_contexts(love/career/health/finances/spiritual)
                         line_reading(as_first/as_middle/as_last) | combination_grammar(7种配牌语法)
                         combinations(16组固定组合,含with/with_number/category/as_first/as_second)
                         grand_tableau(as_house/near_significator/far_from_significator/diagonal_or_corner)
-                        访问: d.get_card(c.card_id).get_core() / get_timing() / get_as_person() / get_modifier_behavior() / get_playing_card() / get_topic_contexts() / get_line_reading() / get_combination_grammar() / get_combinations() / get_grand_tableau() — 语义getter, 禁止 _data 裸访问
+                        访问: d.get_card(c.card_id).get_core() / get_timing() / get_as_person() / get_modifier_behavior() / get_playing_card() / get_topic_contexts() / get_line_reading() / get_combination_grammar() / get_combinations() / get_grand_tableau() — 语义getter, 禁止 raw_data 裸访问
                         组合: card.get_combination_with("the_clover", position="left") → 自动含方向+语法回退
                         无需出生
 
@@ -483,7 +483,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
                         深度: [item.get_core() for item in items] — 一步直接调语义getter
                         组合链: item_A.get_combination_with(item_B.card_id, position="left")
-                        统计: d.analyze_draw(items) → 电荷属性分布(positive/neutral/negative占比)+速度牌占比(fast/medium/slow)+人物卡激活检测
+                        统计: d.analyze_draw(items) → {count, upright_count, reversed_count, all_upright, all_reversed, pattern, cards}; 需自行从cards统计: 电荷分布(positive/neutral/negative) / 速度分布(fast/moderate/slow等) / 人物卡(category=person的牌)
 
                         【雷诺曼输出】雷诺曼=现实事件模拟器
                           【问题】
