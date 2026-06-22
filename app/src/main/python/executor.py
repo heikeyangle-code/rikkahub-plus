@@ -647,13 +647,9 @@ NodeJhora.midpoint(a,b) → 中点 (走短弧)
 573|573|573|  ⚠️ 宫位制: whole-sign 默认; 可选 Porphyry。Placidus 此处不可用。
 574|574|574|     NodeJhora.calculateHouseCusps(dt,lat,lon,"WholeSign",e) 或 "Porphyry"
 575|575|575|
-其余用 dir(NodeJhora) 自探索: 引擎(EphemerisEngine), 便捷类(NodeJHora),
-Shadbala组件(calculateDigBala/calculateNatonataBala/calculatePakshaBala/
-calculateTribhagaBala/calculateAyanabala/calculateChestaBala),
-Ashtakavarga(Ashtakavarga.calculate 一键版), KP引擎(KPEngine),
-常量(AYANAMSA/NAKSHATRA_SPAN_D/DASHA_YEAR_DAYS/PLANET_IDS/Relationship/
-DASHA_DURATIONS/DASHA_ORDER/YOGA_LIBRARY), 底层数学(D/toNum/normalize360D
-/normalize360/getShortestDistance/dmsToDecimal/decimalToDms/midpoint) 等。
+⚠️ 自探索: load 后用 Object.keys(NodeJhora) 看全部导出,
+  Object.getOwnPropertyNames(NodeJhora.EphemerisEngine.prototype) 看引擎方法,
+  Object.keys(NodeJhora.Ashtakavarga) / Object.keys(NodeJhora.JaiminiCore) 等看子模块。
 578|578|578|
 579|579|579|  ━━━ 常用速算 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 580|580|580|
