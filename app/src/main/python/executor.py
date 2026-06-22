@@ -154,11 +154,9 @@
     ⚠️ searchPlaces 是 async, 返回 Promise — 用 .then(r=>{...}) 或 await
 ── ③ Caelus（深度分析，231+ 函数） ──
   初始化:
-    // 用户说"北京 1990-06-15 12:00" → AI 用 NatalEngine.searchPlaces("北京") 拿时区
-    // → resolveUtcOffset("1990-06-15","12:00","Asia/Shanghai") → -8
-    // → 拼成 "1990-06-15T12:00:00+08:00" 喂给 isoToJd
+    // 用户报地名→searchPlaces拿时区→resolveUtcOffset拿偏移→拼ISO字符串
     var e=new Caelus.Engine(Caelus.embeddedData);
-    var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00");  // isoToJd 内部转UT
+    var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00");  // +08:00是示例, isoToJd内部转UT; 已知UT可直接用 julianDay(y,m,d,h,m,s)
     var natalJd=jd; var targetJd=Caelus.julianDay(2026,6,22,12,0,0);
     var chart=e.chartAt(jd,lat,lon,{});  // 默认Placidus+热带
     var ctx=Caelus.interpretationContext(chart);
