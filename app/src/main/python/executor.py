@@ -468,7 +468,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        ╔══════════════════ 雷诺曼 ═════════════════╗
  雷诺曼         →  arcanite(system="lenormand") 36张; 数据层:
                         core(keywords/charge/category/topics) | timing(thematic/duration/season/speed(fast/moderate/slow/instant/glacial/variable/None)/direction)
-                        as_person(牌的人物性格描述) | modifier_behavior(type(descriptor/intensifier/negator/pivot)/as_modifier/as_modified)
+                        as_person(牌的人物性格描述) | modifier_behavior(type(descriptor描述/intensifier放大/negator反转/pivot转折)/as_modifier/as_modified)
                         playing_card(对应扑克牌,如"10 of Hearts"/"Ace of Diamonds") | topic_contexts(love/career/health/finances/spiritual)
                         line_reading(as_first/as_middle/as_last) | combination_grammar(7种配牌语法)
                         combinations(16组固定组合,含with/with_number/category/as_first/as_second)
