@@ -686,6 +686,8 @@ NodeJhora.midpoint(a,b) → 中点 (走短弧)
   「KP主宰星/择时」→ NodeJhora.KPRuling.calculateRulingPlanets
   「Ashtottari大运/108年」→ Caelus.ashtottariDashas(moonLon, natalJd)  ← NodeJhora没有!
   「Kemadruma/月亮孤独格」→ Caelus.kemadrumaAt(e, natalJd, lat, lon)  ← NodeJhora没有!
+  「Yogini大运/36年」→ NodeJhora.YoginiDasha.calculate  (Caelus.yoginiDashas 也可)
+  「Narayana大运/Rasi大运」→ NodeJhora.NarayanaDasha.calculate
   「Yoga/格局/富贵贫贱」→ NodeJhora.YogaEngine.findYogas
   「某星何时换座/换宿」→ NodeJhora.TransitEngine.findTransits
   「某星何时入相位」→ NodeJhora.TransitEngine.findExactAspect
@@ -693,12 +695,12 @@ NodeJhora.midpoint(a,b) → 中点 (走短弧)
   「虚星/Dhooma/Vyatipata」→ NodeJhora.calculateTimeUpagrahas
   「行星关系/敌友」→ NodeJhora.getRelationship
   「互容/Parivartana」→ Caelus.parivartana(planetA,signA,planetB,signB)  ← NodeJhora没有!
-  「Drishti/行星特殊相位」→ Caelus.aspectsSign(planet,planetSign,targetSign) / NodeJhora.calculateDrishtiValue
+  「Drishti/相位强度」→ NodeJhora.calculateDrishtiValue / NodeJhora.calculateDrigBala
+  「Drishti/特殊相位」→ Caelus.aspectsSign(planet,planetSign,targetSign)
   「印历/今天什么日子/Panchanga」→ NodeJhora.calculatePanchanga
   「Nakshatra/星宿宿度(含主宰星)」→ Caelus.nakshatra(siderealLon) ← 含lord字段! NodeJhora的Panchanga不带lord
   「Nakshatra/星宿宿度(仅索引)」→ NodeJhora Panchanga.nakshatra 或 Math.floor(moonLon/13.3333)
   「Ashtottari大运/108年周期」→ Caelus.ashtottariDashas(moonLon, natalJd)
-  「Yogini大运/36年」→ NodeJhora.YoginiDasha.calculate  (Caelus.yoginiDashas 也可)
 614|614|614|
 615|615|615|
 616|616|616|【人类图/Human Design】
