@@ -84,6 +84,11 @@ new_drawncard = '''    image_path: Optional[Path] = None
     ) -> dict[str, Any]:
         return self._get_card_data().get_interpretation(rag_mapping, reversed)
 
+    @property
+    def raw_data(self) -> dict[str, Any]:
+        """Get the full raw card data dict (proxied from TarotCard/LenormandCard)."""
+        return self._get_card_data().raw_data
+
     # ── Convenience properties ──────────────────────────────────────────
 
     @property
