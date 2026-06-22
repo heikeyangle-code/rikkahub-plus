@@ -234,7 +234,7 @@ Sun 用 Astronomy.SunPosition(t).elon, Moon 用 new Astronomy.Ecliptic(Astronomy
 其余 150+ 函数用 dir(Caelus) 自探索，包括: 底层天文(sunApparent/nutation/precessEcliptic),
 
 尊贵原子(dignityScore/faceRuler/termRuler/signRuler), 组合器(matchAll/matchAny/notRetrograde),
-特殊点(meanNode(data,jd)/meanLilith/vertexEastPoint/planetaryHour), 太阳细节(solarPhase/solarElongation) 等。
+特殊点(meanNode(data,jd)→弧度需/57.2958转度/meanLilith/vertexEastPoint/planetaryHour), 太阳细节(solarPhase/solarElongation) 等。
 备选: HoroscopeJS (已被 Caelus 完全覆盖，不再推荐)
 ⚠️ HoroscopeJS 日期参数是 date 不是 day: {year,month,date,hour,minute}
 【印度/吠陀】 (仅JS)
@@ -306,7 +306,7 @@ engine.longitude("moon", jd, {zodiac:"sidereal:lahiri"})
 【尊贵 (吠陀也用)】
 Caelus.dignities("sun", 2)    ← sign 是 0-11 索引
 Caelus.dignityScore("sun", 84.13, "day") → {rulership,exaltation,triplicity,term,face,total}
-Caelus.yogakarakas(Math.floor(chart.angles.asc/30)) → 命主星列表  (或从rajaYogasAt结果取)
+Caelus.yogakarakas(Math.floor(chart.angles.asc/30)) → 命主星列表  (⚠️ asc是热带, 吠陀用ascSidereal/30; 或从rajaYogasAt结果取)
 【Vedic 原子查询 (按需)】
 Caelus.vimshottariDashas(moonLon, natalJd).start_lord → 出生大运主星
 Caelus.ashtottariLord(nakIndex)   → Ashtottari 起始主星  (nakIndex=nakshatra(moonLon).index)
