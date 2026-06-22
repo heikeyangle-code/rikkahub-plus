@@ -695,11 +695,17 @@ NodeJhora.midpoint(a,b) → 中点 (走短弧)
   「虚星/Dhooma/Vyatipata」→ NodeJhora.calculateTimeUpagrahas
   「行星关系/敌友」→ NodeJhora.getRelationship
   「互容/Parivartana」→ Caelus.parivartana(planetA,signA,planetB,signB)  ← NodeJhora没有!
+  「Yogakaraka/命主星」→ Caelus.yogakarakas(ascSign)  ← NodeJhora没有!
+  「行星关联类型(合相/互容/相位)」→ Caelus.associationType(planetA,signA,planetB,signB)  ← NodeJhora没有!
   「Drishti/相位强度」→ NodeJhora.calculateDrishtiValue / NodeJhora.calculateDrigBala
-  「Drishti/特殊相位」→ Caelus.aspectsSign(planet,planetSign,targetSign)
+  「Drishti/某星是否投相位到某宫」→ Caelus.aspectsSign(planet,planetSign,targetSign)
+  「宫位/星座映射(houselord等)」→ Caelus.houseLord(ascSign,n) / houseSign / houseFromAsc / signLord
   「印历/今天什么日子/Panchanga」→ NodeJhora.calculatePanchanga
-  「Nakshatra/星宿宿度(含主宰星)」→ Caelus.nakshatra(siderealLon) ← 含lord字段! NodeJhora的Panchanga不带lord
-  「Nakshatra/星宿宿度(仅索引)」→ NodeJhora Panchanga.nakshatra 或 Math.floor(moonLon/13.3333)
+  「Nakshatra/星宿宿度(含主宰星)」→ Caelus.nakshatra(siderealLon) ← 含lord字段!
+  「Nakshatra/任意星体的宿度」→ Caelus.nakshatraAt(e, jd, body, zodiac) ← NodeJhora的Panchanga只针对月亮!
+  「星宿宿度(仅索引)」→ NodeJhora Panchanga.nakshatra 或 Math.floor(moonLon/13.3333)
+  「Vimshottari某时刻激活的大运」→ Caelus.vimshottariAt(e, natalJd, targetJd) ← 带moon_nakshatra!
+  「吠陀本命解读文本」→ NatalEngine.calculateVedic("1990-06-15",hour,tz,lat,lon) ← 含dasha/summary!
   「Ashtottari大运/108年周期」→ Caelus.ashtottariDashas(moonLon, natalJd)
 614|614|614|
 615|615|615|
