@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ master, mingli ]
+    branches: [ master, mingli, mingli2 ]
   workflow_dispatch:
 
 jobs:
