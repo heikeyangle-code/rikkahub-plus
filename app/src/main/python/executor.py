@@ -134,7 +134,7 @@ NatalEngine.calculateAstrology("1990-06-15", hour, tz_offset, lat, lon)
 精度: 星历与 Astronomy (NASA/VSOP87) 同级 — Moon 误差 0.00″
 合盘: NatalEngine.compareAstrology(chartA, chartB) → {overallScore, scoreLabel, aspectSummary, summary}
 初始化: var e=new Caelus.Engine(Caelus.embeddedData);
-var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00");  // 例: +08:00=东八区, 替换为用户实际时区; 已知UT可直接用 julianDay(y,m,d,h,m,s)
+var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00");  // +08:00是示例(东八区), 实际换成用户的真实时区偏移; 已知UT可直接用 julianDay(y,m,d,h,m,s)
 var chart=e.chartAt(jd,lat,lon,{});
 var ctx=Caelus.interpretationContext(chart);
 【本命 — 必调 (14个)】
@@ -260,7 +260,7 @@ current:{lord,startDate,endDate,years,isPartial},
 dashas:[{lord,startDate,endDate,years,isPartial}, ...9段]}
 → houses: {1..12}  每宫: {rashi, degree}
 初始化: var e=new Caelus.Engine(Caelus.embeddedData);
-var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00");  // 本命JD: 例 +08:00=东八区, 替换为用户实际时区
+var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00");  // 本命JD: +08:00是示例, 实际换成用户真实时区偏移
 var natalJd=jd;
 var targetJd=Caelus.julianDay(2026,6,22,12,0,0); // 推运目标JD
 var moonLon=e.longitude("moon",jd,{zodiac:"sidereal:lahiri"});  // 月亮恒星经度
