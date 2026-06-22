@@ -162,7 +162,7 @@ Caelus.inSect("mars", isDay) → true/false  是否得时
 Caelus.gauquelinSector(e,"mars",jd,lat,lon) → 高奎林扇区
 Caelus.pheno(e,"mars",jd) → {phaseAngle,phase,elongation,diameter,magnitude}
 Caelus.signedElongation(lonA,lonB) → 带符号角距
-Caelus.heliocentric(e,"mars",jdUt) → {lon,lat,dist}  日心位置
+engine.heliocentric("mars",jdUt) → {lon,lat,dist}  日心位置  (Engine实例方法, 不是Caelus.)
 Caelus.solarPhase(e,"mercury",jd) → "cazimi"|"combust"|"under_beams"|null
 Caelus.planetaryHour(e,jd,lat,lon) → {ruler,kind,hour,start,end}  出生行星时
 Caelus.chartBrief(ctx) → {facts:[{id,kind,text,salience}], prompt}  最终文本
