@@ -391,17 +391,26 @@ jobs:
           # Fetch extra data files from GitHub repo (not in npm package)
           echo "Fetching full VSOP87D / asteroid / moon tiers from caelus repo..."
           CAELUS_DATA="https://raw.githubusercontent.com/heavyblotto/caelus/main/packages/caelus/data"
+          MISSING=0
           for f in \
             vsop87d_mercury.full.json vsop87d_venus.full.json vsop87d_earth.full.json \
             vsop87d_mars.full.json vsop87d_jupiter.full.json vsop87d_saturn.full.json \
             vsop87d_uranus.full.json vsop87d_neptune.full.json \
             moon_cheb.full.json turbo.json uranian_kepler.json pluto_cheb.json \
             ceres_cheb.json pallas_cheb.json juno_cheb.json vesta_cheb.json pholus_cheb.json; do
-            curl -sL "${CAELUS_DATA}/${f}" -o "data/${f}" && echo "  ✓ ${f}" || echo "  ⚠ ${f} skipped"
+            curl -sL "${CAELUS_DATA}/${f}" -o "data/${f}" && echo "  ✓ ${f}" || { echo "  ✗ ${f} FAILED"; MISSING=1; }
           done
 
-          # Build entry: export everything + embeddedData with full extras merged
-          cat > caelus-entry.mjs << 'ENTRYEOF'
+          # Fallback: if any file is missing, use embedded-only build (no GitHub data)
+          if [ "$MISSING" = "1" ]; then
+            echo "⚠️  Some full-data files unavailable — falling back to embedded-only"
+            cat > caelus-entry.mjs << 'ENTRYEOF'
+          export * from "./dist/src/index.js";
+          export { embeddedData } from "./dist/src/data-embedded.js";
+          ENTRYEOF
+          else
+            echo "✅  All full-data files downloaded — building with maximum precision"
+            cat > caelus-entry.mjs << 'ENTRYEOF'
           export * from "./dist/src/index.js";
           import { embeddedData } from "./dist/src/data-embedded.js";
 
@@ -442,6 +451,7 @@ jobs:
 
           export { fullData as embeddedData };
           ENTRYEOF
+          fi
 
           npx esbuild caelus-entry.mjs --bundle --platform=node --format=iife --global-name=Caelus --target=es2020 --tree-shaking=false --outfile=caelus-engine.js 2>&1 | tail -5
           cp caelus-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
