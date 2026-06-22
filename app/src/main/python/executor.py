@@ -393,7 +393,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
  塔罗/韦特           →  arcanite(Python,78张+牌阵+正逆位), 规则见下
                         【抽牌即含9层数据, 勿只给简单解读, 按用户场景取对应层】
                         1.core_meanings      正位(upright)+逆位(reversed)核心含义(各6组关键词+详细解读, 调时传 reversed=bool 匹配正逆位)
-                        2.position_interpretations 7种牌位(调时传 rag_mapping+reversed=bool): temporal_positions(过去现在未来) | challenge_and_growth(挑战成长) | guidance_and_action(行动建议) | emotional_and_internal(情感内在) | external_influences(外部影响) | outcome_and_result(结果) | relationships(人际关系)
+                        2.position_interpretations 7种牌位(调时传 rag_mapping+reversed=bool): temporal_positions(时间维度: 过去/现在/未来及其细分) | challenge_and_growth(挑战成长) | guidance_and_action(行动建议) | emotional_and_internal(情感内在) | external_influences(外部影响) | outcome_and_result(结果) | relationships(人际关系)
                         3.question_contexts  5种场景(调时传 question_type+reversed=bool): love(爱情) | career(事业) | spiritual(灵性) | financial(财务) | health(健康) — 每个含3种解读(关键词/详细/建议)
                         4.elemental_correspondences 10项: element元素 | zodiac星座 | hebrew_letter希伯来字母 | numerology灵数 | planet行星 | season季节 | time_of_day时辰 | colors颜色 | crystals水晶 | herbs草药
                         5.symbols            牌面符号逐个解读(每牌5-8个符号)
