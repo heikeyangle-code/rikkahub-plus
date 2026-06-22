@@ -405,7 +405,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
 
  arcanite            →  塔罗: d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
-                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning() / get_interpretation() / get_question_context() / get_elemental_correspondences() / get_symbols() / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段)
+                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols() / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段)
 
                        【塔罗输出】塔罗=人生故事生成器
                          【问题】
@@ -430,8 +430,8 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
 
                        ╔══════════════════ 塔罗数据 ═════════════════╗
                        【塔罗数据使用规则】
-                         必须使用：core_meanings / position_interpretations / question_contexts / card_relationships / journaling_prompts / affirmations / meditation_focus / keywords
-                         用于润色：symbols / element / astrology
+                         必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping, reversed=) / get_question_context(question_type, reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / .raw_data(含meditation_focus等全部原始字段)
+                         用于润色：get_symbols() / get_elemental_correspondences() (取element,astrology等)
                          结构分析(仅【牌阵结构】): statistics + composition.major_arcana_ratio + composition.court_card_ratio + composition.repeated_numbers + composition.repeated_suits + reversal.blocked_energy_signal
                          完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
                        ╚════════════════════════════════════════════╝
