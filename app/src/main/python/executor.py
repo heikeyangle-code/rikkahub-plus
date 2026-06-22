@@ -109,134 +109,189 @@
 109|109|109|  六爻/周易/卦        →  问用户选 ichingshifa(Python,大衍筮法) 或 IchingShifa(JS,6种起卦) 或对照(JS取随机→同爻值喂Python qigua_manual)   无需出生（需起卦数）
 110|110|110|  梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排     无需出生（需起卦数）
 111|111|111|
-112|112|112|【西洋占星】 (仅JS)
-113|113|113|
-114|114|114|╔══════════════════ 速览 ══════════════════╗
-115|115|115|║ NatalEngine → 日月升 + 文本 + 元素平衡   ║
-116|116|116|║ Caelus     → 尊贵 + 格局 + 互容 + 7点   ║
-117|117|117|║ Caelus     → 法达 + ZR + 主限 + 太阳弧  ║
-118|118|118|║ Caelus     → 赤纬 + 日食月食             ║
-119|119|119|║ 合盘: NatalEngine.compareAstrology       ║
-120|120|120|║      + Caelus composite/synastry/davison ║
-121|121|121|╚══════════════════════════════════════════╝
-122|122|122|── NatalEngine (主力, 字段全) ──
-123|123|123|NatalEngine.calculateAstrology("1990-06-15", hour, tz_offset, lat, lon)
-124|124|124|→ bigThree: "♊ Gemini Sun, ♓ Pisces Moon, ♍ Virgo Rising"
-125|125|125|→ summary:  "You are a Gemini with Pisces Moon and Virgo Rising"
-126|126|126|→ sun:   {sign:{name,element,modality,ruler,traits,shadow}, degree, longitude}
-127|127|127|→ moon:  {sign:{name,element}, degree}
-128|128|128|→ rising:{sign:{name}, degree}  ⚠️ 无位置时近似
-129|129|129|→ midheaven: {sign:{name}, degree}
-130|130|130|→ balance: {elements,modalities,dominantElement,dominantModality}  (基于日/月/升3星)
-131|131|131|→ planets: {mercury,venus,mars,jupiter,saturn,uranus,neptune,pluto}
-132|132|132|每行星: {sign:{name,element}, degree, longitude}  ⚠️ 无宫位数据
-133|133|133|→ nodes: {north,south}  → allAspects: 数组
-134|134|134|精度: 星历与 Astronomy (NASA/VSOP87) 同级 — Moon 误差 0.00″
-135|135|135|合盘: NatalEngine.compareAstrology(chartA, chartB) → {overallScore, scoreLabel, aspectSummary, summary}
-136|136|136|初始化: var e=new Caelus.Engine(Caelus.embeddedData);
-137|137|137|var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00");  // +08:00是示例(东八区), 实际换成用户的真实时区偏移; 已知UT可直接用 julianDay(y,m,d,h,m,s)
-138|138|138|var chart=e.chartAt(jd,lat,lon,{});
-139|139|139|var ctx=Caelus.interpretationContext(chart);
-140|140|140|【本命 — 必调 (14个)】
-141|141|141|chart.bodies.sun → {lon,sign,signDeg,house,retrograde,dignities,speed,lat,dist,ra,dec}
-142|142|142|Caelus.isDayChart(e,jd,lat,lon) → 昼夜盘
-143|143|143|Caelus.lots(e,jd,lat,lon) → {day:bool, fortune:number, spirit:number, eros, necessity, courage, victory, nemesis}
-144|144|144|每个点需自算星座: signNames[floor(lon/30)%12]+" "+(lon%30).toFixed(1)+"°"
-145|145|145|Caelus.chartSignature(chart) → {elements:{fire,earth,air,water}, modalities:{cardinal,fixed,mutable}, angularity:{angular,succedent,cadent}, dominant:{element,modality,sign}, ruler, hemispheres, quadrants, bodies}
-146|146|146|
-147|147|147|ctx.atoms->kind:"pattern"  → T-square/Kite/Stellium/MysticRectangle/GrandTrine 等
-148|148|148|Caelus.detectPatterns(chart) → [{kind,bodies,apex?,orb}]  同上,直接取
-149|149|149|ctx.atoms->kind:"reception"→ 互容 (domicile/exaltation/triplicity 三种)
-150|150|150|ctx.atoms→kind:"dispositor"→ 定位星链
-151|151|151|ctx.atoms→kind:"dignity"  → almuten/face/term/triplicity
-152|152|152|Caelus.findAspects(chart.bodies) → 最强相位
-153|153|153|Caelus.aspectBetween(e,"sun","mars",jd) → {aspect,orb,phase,separation}  两星最紧相位
-154|154|154|Caelus.aspectPhase(lonA,speedA,lonB,speedB,aspectDeg) → "applying"|"separating"|"exact"
-155|155|155|Caelus.declinationAspects(e, Caelus.DEFAULT_BODIES, jd, 1) → [{a,b,kind:"parallel"|"contraparallel"}, ...]
-156|156|156|Caelus.voidOfCourse(e,jd) → {isVoid:bool, sign, signExit, nextAspect|null}
-157|157|157|Caelus.outOfBounds(e,"moon",jd) → true/false
-158|158|158|Caelus.outOfBoundsMargin(e,"moon",jd) → 度数  (越界幅度)
-159|159|159|Caelus.dignityOf(e,"mars",jd) → ["domicile","exaltation",...]  任意时刻尊贵
-160|160|160|Caelus.planetarySect("mars") → "diurnal"|"nocturnal"|null
-161|161|161|Caelus.inSect("mars", isDay) → true/false  是否得时
-162|162|162|Caelus.gauquelinSector(e,"mars",jd,lat,lon) → 高奎林扇区
-163|163|163|Caelus.pheno(e,"mars",jd) → {phaseAngle,phase,elongation,diameter,magnitude}
-164|164|164|Caelus.signedElongation(lonA,lonB) → 带符号角距
-165|165|165|engine.heliocentric("mars",jdUt) → {lon,lat,dist}  日心位置  (Engine实例方法, 不是Caelus.)
-166|166|166|Caelus.solarPhase(e,"mercury",jd) → "cazimi"|"combust"|"under_beams"|null
-167|167|167|Caelus.planetaryHour(e,jd,lat,lon) → {ruler,kind,hour,start,end}  出生行星时
-168|168|168|Caelus.chartBrief(ctx) → {facts:[{id,kind,text,salience}], prompt}  最终文本
-169|169|169|【推运 — 7 种 (15个)】
-170|170|170|法达     Caelus.firdariaAt(e,natalJd,targetJd,lat,lon) → {day:bool, major, sub} ⚠️必须传targetJd, 75年外返回{null,null}
-171|171|171|Caelus.firdaria(day,natalJd) → 完整周期表
-172|172|172|ZR       Caelus.zrAt(e,natalJd,targetJd,lat,lon) → {lot,lot_sign,day:bool, l1?,l2?,l3?,l4?}
-173|173|173|主限     Caelus.primaryDirections(e,jd,lat,lon) → [{body,angle,arc,years,jd}]
-174|174|174|太阳弧   Caelus.solarArc(e,natalJd,targetJd) → 度数值
-175|175|175|次限     Caelus.progressedLongitude(e,"sun",natalJd,targetJd) → 推进后的经度
-176|176|176|小限     Caelus.profectionAt(e,natalJd,targetJd,lat,lon) → {age_years,month, annual:{sign,sign_index,house,lord}, monthly:{sign,sign_index,house,lord}}
-177|177|177|回归     Caelus.solarReturn(e,natalJd,start,end) / lunarReturn
-178|178|178|Caelus.returns(e,body,natalJd,start,end) → [jd,...]
-179|179|179|Caelus.stations(e,"saturn",jdStart,jdEnd) → [[jd,"retrograde"|"direct"],...]
-180|180|180|Caelus.progressedJd(natalJd,targetJd) → 数值,传chartAt得整盘次限
-181|181|181|【宫位 — 12 种制式 (按需)】
-182|182|182|e.chartAt(jd,lat,lon,{houseSystem:"koch"}) 切换制式
-183|183|183|可选值: placidus/koch/regiomontanus/campanus/porphyry/equal/
-184|184|184|whole_sign/alcabitius/morinus/meridian/polich_page/vehlow
-185|185|185|查询: Caelus.houseOf(chart.bodies.sun.lon, chart.cusps) / Caelus.houseLord(ascSign, n)  (ascSign=热带索引0-11, 非恒星)
-186|186|186|【合盘 — 3 种 (5个)】
-187|187|187|比较盘   Caelus.synastryAspects(chartA,chartB) → [{a,b,aspect,orb,strength}, ...]
-188|188|188|Caelus.synastryOverlays(chartA,chartB) → 落宫
-189|189|189|组合中点 Caelus.compositeLongitudes(e,jdA,jdB,bodies) ← 不是(chartA,chartB)
-190|190|190|Caelus.compositePlacements(e,jdA,jdB,bodies) → [{body,lon,sign,signDeg},...]  带星座名
-191|191|191|戴维森   Caelus.davisonParams(jdA,latA,lonA,jdB,latB,lonB) → [midJd,midLat,midLon]
-192|192|192|【行运 (5个)】
-193|193|193|Caelus.transitAspects(natalChart, e, transitJd)
-194|194|194|Caelus.scan({start,end,step}, fn)
-195|195|195|Caelus.when(e, predicate, jdStart, jdEnd)
-196|196|196|Caelus.retrograde("mars") → Predicate   (配合when查询逆行时段)
-197|197|197|Caelus.notRetrograde("venus") → Predicate
-198|198|198|Caelus.crossings(e, body, targetLon, jdStart, jdEnd) → [jd,...]
-199|199|199|Caelus.rankMoments({start,end,step}, scoreFn) → [{jd,score}]
-200|200|200|【恒星 (2个)】
-201|201|201|e.starConjunctions(chart,{orb}) → [{body,star,orb}, ...]
-202|202|202|Caelus.starParans(e,jd,lat,stars,bodies?) → [{star,star_angle,body,body_angle,jd,gap_min}, ...]
-203|203|203|【天文事件 (4个)】
-204|204|204|Caelus.lunarEclipses(e,jdStart,jdEnd) / solarEclipses  (Meeus精度)
-205|205|205|需要更高精度时用 Astronomy.SearchLunarEclipse / SearchGlobalSolarEclipse
-206|206|206|Caelus.lunarPhases(e,jdStart,jdEnd)
-207|207|207|Caelus.riseSet(e,body,jd,lat,lon) → jd|null  极昼/极夜返回null
-208|208|208|【其他常用】
-209|209|209|Caelus.harmonicChart(e,jd,bodies,n) → 调和盘
-210|210|210|Caelus.astrocartography(e,jd,bodies) → ACG行星线
-211|211|211|Caelus.parans(e,jd,lat) → 四轴共升共落
-212|212|212|Caelus.antiscion(lon) / contraAntiscion(lon) → 映点
-213|213|213|Caelus.midpointLon(lon1,lon2) → 中点
-214|214|214|Caelus.ephemeris(e,bodies,{start,end,step}) → 星历表
-215|215|215|Caelus.chartFeatures(e,jd) → 20维ML特征向量
-216|216|216|⚡ Astronomy（星座交界仲裁）:
-217|217|217|调它只有两种情况——
-218|218|218|① Caelus 和 NatalEngine 对同一行星输出不同星座时，以它为准
-219|219|219|② 问日食月食精确时刻时，用它拿秒级时间，Caelus 拿类型
-220|220|220|其余不调。6弧秒算法差 < 400弧秒位置模糊，调了等于没调。
-221|221|221|调用: var t=new Astronomy.MakeTime(new Date(Date.UTC(y,m-1,d,h,m)));
-222|222|222|Astronomy.EclipticLongitude(Astronomy.Body.Mercury, t) → 黄经
-223|223|223|Sun 用 Astronomy.SunPosition(t).elon, Moon 用 new Astronomy.Ecliptic(Astronomy.GeoMoon(t)).elon
-224|224|224|╔══════════════════ 参数坑 ══════════════════╗
-225|225|225|║ vargaAt(e,jd,9)     ← 数字,不是 "D9"      ║
-226|226|226|║ hasAspect({})(ctx)   ← 柯里化,不是(chart)  ║
-227|227|227|║ lots(e,jd,lat,lon)  ← 不是 hermeticLots   ║
-228|228|228|║ firdariaAt 必须传 targetJd                 ║
-229|229|229|║ compositeLongitudes(e,jdA,jdB,bodies)      ║
-230|230|230|║ dignities("sun",2)  ← sign是0-11索引      ║
-231|231|231|║ almuten(84.13)      ← 裸经度不是body名     ║
-232|232|232|║ outOfBounds(e,body,jd) ← 不是(body,decl)   ║
-233|233|233|╚═════════════════════════════════════════════╝
-234|234|234|其余 150+ 函数用 dir(Caelus) 自探索，包括: 底层天文(sunApparent/nutation/precessEcliptic),
-235|235|235|
-236|236|236|尊贵原子(dignityScore/faceRuler/termRuler/signRuler), 组合器(matchAll/matchAny/notRetrograde),
-237|237|237|特殊点(meanNode(data,jd)→弧度需/57.2958转度/meanLilith/vertexEastPoint/planetaryHour), 太阳细节(solarPhase/solarElongation) 等。
-238|238|238|备选: HoroscopeJS (已被 Caelus 完全覆盖，不再推荐)
-239|239|239|⚠️ HoroscopeJS 日期参数是 date 不是 day: {year,month,date,hour,minute}
+【西洋占星】 (仅JS)   四个库: Caelus v0.23.0 + NatalEngine + CaelusBirth + Astronomy
+
+╔══════════════════════════ 速览 ═══════════════════════════╗
+║ NatalEngine → 日月升+文本+元素平衡+合盘评分+ACG+HD行运     ║
+║ Caelus     → 本命(尊贵/格局/互容/7点)+12宫位+7种推运       ║
+║ Caelus     → 3种合盘(比较/组合中点/戴维森)+行运+恒星        ║
+║ Caelus     → 赤纬相位+日食月食+越界+空亡+映点+调和盘       ║
+║ CaelusBirth→ 时区名→UT(备选, 同功能走NatalEngine.timezone) ║
+║ Astronomy  → 星座仲裁(双引擎不一致时)+食相秒级精度          ║
+╚═══════════════════════════════════════════════════════════╝
+── NatalEngine（主力，一键出盘+解读文本） ──
+  ── 西洋本命 ──
+  NatalEngine.calculateAstrology("1990-06-15", hour, tz, lat, lon)
+  → bigThree / summary / sun:{sign:{name,element,modality,ruler,traits,shadow},degree,longitude}
+  → moon / rising / midheaven  各含{sign:{name,element},degree}
+  → balance:{elements,modalities,dominantElement,dominantModality}  (仅日/月/升3星)
+  → planets:{mercury,venus,mars,jupiter,saturn,uranus,neptune,pluto}
+    每行星:{sign:{name,element},degree,longitude}  ⚠️ 无宫位/逆行/尊贵
+  → nodes:{north,south}  → allAspects:[{a,b,aspect,orb}]
+  精度: Meeus算法, VSOP87 — Moon误差0.00″
+  ⚠️ NatalEngine 无宫位/逆行/尊贵 — 快速概览用, 深度分析走 Caelus。
+  ── 合盘 ──
+  NatalEngine.compareAstrology(chartA,chartB) → {overallScore,scoreLabel,aspectSummary,summary}
+  NatalEngine.compareHumanDesign(hdA,hdB) → {overallScore,scoreLabel,connections,summary}
+  NatalEngine.compareGeneKeys(gkA,gkB) → {overallScore,scoreLabel,pairings,summary}
+  NatalEngine.compareCharts(personA,personB,systems?) → 三系统综合对比
+  ── ACG 行星线 ──
+  NatalEngine.calculateAstroCartography("1990-06-15", 12, -8, {latitude:39.9, longitude:116.4})
+  → {sun:{MC:[{lat,lon}],IC:[...],ASC:[...],DSC:[...]}, moon:{...}, ...}
+  NatalEngine.getLinesAtLocation(acgResult, lat, lon, orb?) → [{planet,angle,distanceKm,...}]
+  NatalEngine.getLocationReport(acgResult, lat, lon, "Beijing") → 文本报告
+  常量: NatalEngine.ACG_PLANET_INFO / NatalEngine.ACG_ANGLE_INFO
+  ── HD 行运 ──
+  NatalEngine.calculateHDTransits(hdResult, "2026-06-22", tz) → {activatedGates,definedCenters,...}
+  NatalEngine.calculateTransitGates("2026-06-22", tz) → {sun:{gate,line}, moon:{...},...}
+  ── 底层天文 ──
+  NatalEngine.calculateBirthPositions(y, mo, d, h, tz, lat?, lon?) → {sun:{longitude,...},...}
+  NatalEngine.getZodiacSign(longitude) → {name,element,modality,ruler,symbol}
+  ── 时区/地名(同时被CaelusBirth提供,二选一) ──
+  NatalEngine.resolveUtcOffset("1990-06-15", "12:00", "Asia/Shanghai") → -8  (小时数)
+  NatalEngine.formatUtcOffset(-8) → "UTC-8"    (-5.5 → "UTC+5:30")
+  NatalEngine.searchPlaces("Beijing") → [{name,latitude,longitude,timezone,countryCode}]
+    ⚠️ searchPlaces 是 async, 返回 Promise — 用 .then(r=>{...}) 或 await
+── ③ Caelus（深度分析，231+ 函数） ──
+  初始化:
+    var e=new Caelus.Engine(Caelus.embeddedData);
+    var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00");  // +08:00是示例, 换成用户真实时区偏移; 已知UT用 julianDay(y,m,d,h,m,s)
+    var natalJd=jd; var targetJd=Caelus.julianDay(2026,6,22,12,0,0);
+    var chart=e.chartAt(jd,lat,lon,{});  // 默认Placidus+热带
+    var ctx=Caelus.interpretationContext(chart);
+  ── 本命(18个) ──
+  chart.bodies.sun → {lon,sign,signDeg,house,retrograde,dignities,speed,lat,dist,ra,dec}
+    可选: sun/moon/mercury/venus/mars/jupiter/saturn/uranus/neptune/pluto/chiron/mean_node/true_node
+    扩展: mean_lilith/true_lilith (Caelus.EXTRA_BODIES)
+  Caelus.isDayChart(e,jd,lat,lon) → 昼夜盘
+  Caelus.lots(e,jd,lat,lon) → {day,fortune,spirit,eros,necessity,courage,victory,nemesis}
+    自算星座: Caelus.SIGNS[Math.floor(lon/30)]+" "+(lon%30).toFixed(1)+"°"
+  Caelus.chartSignature(chart) → {elements:{},modalities:{},angularity:{},dominant:{element,modality,sign},ruler,hemispheres,quadrants,bodies}
+  ctx.atoms→kind:"pattern" → T-square/Kite/Stellium/MysticRectangle/GrandTrine/GrandCross/Yod
+  Caelus.detectPatterns(chart) → [{kind,bodies,apex?,orb}]  同上,直接取
+  ctx.atoms→kind:"reception"→ 互容(domicile/exaltation/triplicity+mixed)
+  ctx.atoms→kind:"dispositor"→ 定位星链
+  ctx.atoms→kind:"dignity"  → almuten/face/term/triplicity
+  Caelus.findAspects(chart.bodies) → 最紧相位排行
+  Caelus.aspectBetween(e,"sun","mars",jd) → {aspect,orb,phase,separation}
+  Caelus.aspectPhase(lonA,speedA,lonB,speedB,aspectDeg) → "applying"|"separating"|"exact"
+  Caelus.declinationAspects(e,Caelus.DEFAULT_BODIES,jd,1) → [{a,b,kind:"parallel"|"contraparallel"},...]
+  Caelus.voidOfCourse(e,jd) → {isVoid,sign,signExit,nextAspect|null}
+  Caelus.outOfBounds(e,"moon",jd) → bool   Caelus.outOfBoundsMargin(e,"moon",jd) → 度数
+  Caelus.dignityOf(e,"mars",jd) → ["domicile","exaltation",...]
+  Caelus.planetarySect("mars") → "diurnal"|"nocturnal"|null
+  Caelus.inSect("mars",isDay) → bool  得时/失时
+  Caelus.gauquelinSector(e,"mars",jd,lat,lon) → 高奎林扇区
+  Caelus.pheno(e,"mars",jd) → {phaseAngle,phase,elongation,diameter,magnitude}
+  Caelus.signedElongation(lonA,lonB) → (-180..180]   Caelus.separation(lonA,lonB) → [0,180]
+  Caelus.solarElongation(e,"mercury",jd) → 日距(度)
+  engine.heliocentric("mars",jdUt) → {lon,lat,dist}  (Engine实例, 不是Caelus.)
+  Caelus.solarPhase(e,"mercury",jd) → "cazimi"|"combust"|"under_beams"|null
+  Caelus.planetaryHour(e,jd,lat,lon) → {ruler,kind,hour,start,end}
+  Caelus.chartBrief(ctx,{limit?,kinds?,minSalience?}) → {jdUt,zodiac,facts:[{id,kind,text,salience}],prompt}
+  ── 推运(7种,18个) ──
+  法达:  Caelus.firdariaAt(e,natalJd,targetJd,lat,lon) → {day,major,sub}
+         ⚠️ 必须传targetJd; 75年外返回{null,null}
+         Caelus.firdaria(day,natalJd) → 完整周期表
+  ZR:    Caelus.zrAt(e,natalJd,targetJd,lat,lon) → {lot,lot_sign,day,l1?,l2?,l3?,l4?}
+  主限:  Caelus.primaryDirections(e,jd,lat,lon,bodies?,key?,maxYears?,yearLength?)
+         → [{body,angle:"MC"|"IC"|"ASC"|"DSC",arc,years,jd}]
+         时间键 KEYS:{naibod:0.9856,ptolemy:1.0,brahe:0.986,cardan:0.985,simmonite:0.985}
+  世俗:  Caelus.mundaneDirections(e,natalJd,lat,lonEast,bodies?,key?,maxYears?,yearLength?)
+         → [{promissor,significator,arc,years,jd}]  Placidus半弧, 行星到行星
+  太阳弧:Caelus.solarArc(e,natalJd,targetJd,yearLength?,zodiac?) → 度数值
+         等价: Caelus.directedLongitude(e,body,natalJd,targetJd,key?,zodiac?)
+  次限:  Caelus.progressedLongitude(e,"sun",natalJd,targetJd,yearLength?,zodiac?) → 经度
+         Caelus.progressedJd(natalJd,targetJd,yearLength?) → 数值,传chartAt得整盘次限
+  小限:  Caelus.profectionAt(e,natalJd,targetJd,lat,lon)
+         → {age_years,month,annual:{sign,sign_index,house,lord},monthly:{sign,sign_index,house,lord}}
+  回归:  Caelus.solarReturn(e,natalJd,start,end,zodiac?)/lunarReturn → [jd,...]
+         Caelus.returns(e,body,natalJd,start,end,zodiac?,maxHits?) → [jd,...]
+  Caelus.stations(e,"saturn",jdStart,jdEnd) → [[jd,"retrograde"|"direct"],...]
+  ── 合盘(3种,5个) ──
+  比较:   Caelus.synastryAspects(chartA,chartB,maxOrb?,orbs?) → [{a,b,aspect,orb,strength}]
+          Caelus.synastryOverlays(chartA,chartB) → {aInB:{body:house},bInA:{body:house}}
+  组合:   Caelus.compositeLongitudes(e,jdA,jdB,bodies,zodiac?) ← 不是(chartA,chartB)
+          Caelus.compositePlacements(e,jdA,jdB,bodies?,zodiac?) → [{body,lon,sign,signDeg},...]
+  戴维森: Caelus.davisonParams(jdA,latA,lonA,jdB,latB,lonB) → [midJd,midLat,midLon]
+  增强:   Caelus.enrichSynastryOptions(e,chartA,chartB,{orb?,zodiac?}) → {synastry,composite}
+          合并到 ctx: interpretationContext(chartA,{...enrichSynastryOptions(...)})
+  ── 行运(12个) ──
+  Caelus.transitAspects(natalChart,e,transitJd,{maxOrb?,zodiac?,orbs?,bodies?})
+    → [{transit,natal,aspect,orb,phase,strength,natalHouse}]
+  Caelus.scan({start,end,step,onProgress?,progressEvery?},fn) → 批次扫描
+  Caelus.rankMoments({start,end,step,limit?,minScore?},scoreFn) → [{jd,score}]
+  Caelus.when(e,predicate,jdStart,jdEnd,{step?,maxIntervals?}) → [[start,end],...]
+    Caelus.aspect(body,kind,target,orb?,zodiac?) → Predicate   (与定点/另一星成指定相位)
+    Caelus.inSign(body,sign,zodiac?) → Predicate              (在指定星座)
+    Caelus.retrograde(body,zodiac?) → Predicate               (逆行)
+    Caelus.notRetrograde(body,zodiac?) → Predicate            (顺行/停)
+    Caelus.allOf(...preds) → Predicate   Caelus.anyOf(...preds) → Predicate
+    Caelus.notOf(pred) → Predicate        组合任意条件
+  Caelus.crossings(e,body,targetLon,jdStart,jdEnd,zodiac?,maxHits?) → [jd,...]
+    ⚠️ 逆行体可穿3次同经度, 全部返回, 按时间排序
+  ── 恒星(2个) ──
+  e.starConjunctions(chart,{orb}) → [{body,star,orb},...]
+  Caelus.starParans(e,jd,lat,stars,bodies?) → [{star,star_angle,body,body_angle,jd,gap_min},...]
+  ── 天文事件(5个) ──
+  Caelus.lunarEclipses(e,jdStart,jdEnd)/solarEclipses  (Meeus精度)
+    需要秒级精确时刻用 Astronomy.SearchLunarEclipse/SearchGlobalSolarEclipse
+  Caelus.lunarPhases(e,jdStart,jdEnd,maxHits?) → [[jd,"new"|"first_quarter"|"full"|"last_quarter"],...]
+  Caelus.riseSet(e,body,jdStart,lat,lon,"rise"|"set"|"mtransit"|"itransit",
+    {altM?,pressure?,tempC?,searchDays?,discCenter?}) → jd|null  极昼/极夜=null
+  Caelus.crossings(e,body,targetLon,jdStart,jdEnd,zodiac?,maxHits?) → [jd,...]
+  Caelus.stations(e,"saturn",jdStart,jdEnd) → [[jd,"retrograde"|"direct"],...]
+  ── 宫位(12种制式) ──
+  e.chartAt(jd,lat,lon,{houseSystem:"koch"}) 切换制式
+  Caelus.normalizeHouseSystem("whole sign") → "whole_sign"  容错输入
+  有效值: placidus/koch/regiomontanus/campanus/porphyry/equal/
+          whole_sign/alcabitius/morinus/meridian/polich_page/vehlow
+  Caelus.houseOf(lon,cusps)/Caelus.houseLord(ascSign,n)  (ascSign=热带0-11)
+  ── 上下文增强 ──
+  Caelus.enrichContextOptions(e,chart,{jd,lat,lonEast,zodiac?},
+    {transits?,timelords?,vedic?,transitOrb?})
+  → {transits,timelords,vedic}  合并到 interpretationContext(chart,{...base,...extras})
+  ── 其他常用 ──
+  Caelus.harmonicChart(e,jd,bodies,n) → 调和盘
+  Caelus.astrocartography(e,jd,bodies,latMin?,latMax?,latStep?) → ACG行星线
+  Caelus.parans(e,jd,lat,bodies?,toleranceMin?) → 四轴共升共落
+  Caelus.antiscion(lon)/contraAntiscion(lon) → 映点/反映点
+  Caelus.midpointLon(lon1,lon2) → 中点
+  Caelus.ephemeris(e,bodies,{start,end,step,value?,zodiac?}) → {body:[{jd,value},...]}
+    value默认"longitude", 可选"latitude"/"declination"/"rightAscension"/"speed"
+  Caelus.sampleCount(start,end,step) → 样本数
+  Caelus.element(sign)→"fire"|...  Caelus.modality(sign)→"cardinal"|...
+  Caelus.quadrant(house)→1-4  Caelus.angularity(house)→"angular"|"succedent"|"cadent"
+  Caelus.unitVector(lonDeg,latDeg)→[x,y,z]  Caelus.angularSeparation3d(lonA,latA,lonB,latB)→度
+  常量: DEFAULT_BODIES/SIGNS/BODIES/EXTRA_BODIES/ASPECTS/DEFAULT_ORBS/DOMICILE/EXALTATION/
+        HOUSE_SYSTEMS/TROPICAL_YEAR/DEG/ARCSEC/J2000/LIGHT_TIME_AU
+── ④ Astronomy（精度备份+仲裁） ──
+  调它只有两种情况:
+    ① Caelus和NatalEngine对同一行星输出不同星座时，以它为准(仲裁)
+    ② 问日食月食精确到秒的时刻时，用它拿秒级时间(Caelus返回类型+时间范围)
+  其余不调。CAELUS_VSOP87 != ASTRONOMY_VSOP87 (6弧秒算法差<400弧秒位置模糊, 调了等于没调)。
+  调用: var t=new Astronomy.MakeTime(new Date(Date.UTC(y,m-1,d,h,m)));
+        Astronomy.EclipticLongitude(Astronomy.Body.Mercury,t) → 黄经
+        Sun用Astronomy.SunPosition(t).elon, Moon用new Astronomy.Ecliptic(Astronomy.GeoMoon(t)).elon
+        Astronomy.SearchLunarEclipse(new Date(...)) / SearchGlobalSolarEclipse(...)
+        Astronomy.SearchRiseSet(Astronomy.Body.Sun,new Astronomy.Observer(lat,lon,0),1,new Date(...),1)
+        Astronomy.Seasons(2026) / Astronomy.MoonPhase(new Date(...))
+── ⑤ HoroscopeJS（已被Caelus完全覆盖，不再推荐） ──
+  ⚠️ 日期参数是date不是day: {year,month,date,hour,minute}
+╔══════════════════ 参数坑 ══════════════════╗
+║ vargaAt(e,jd,9)      ← 数字,不是"D9"       ║
+║ hasAspect({})(ctx)    ← 柯里化,不是(chart)  ║
+║ lots(e,jd,lat,lon)   ← 不是hermeticLots    ║
+║ firdariaAt 必须传 targetJd                 ║
+║ compositeLongitudes(e,jdA,jdB,bodies)      ║
+║ dignities("sun",2)   ← sign是0-11索引      ║
+║ almuten(84.13)       ← 裸经度不是body名     ║
+║ outOfBounds(e,body,jd)← 不是(body,decl)    ║
+╚═════════════════════════════════════════════╝
+其余 200+ 函数用 dir(Caelus) 自探索: 底层天文(sunApparent/nutation/precessEcliptic),
+尊贵原子(dignityScore/faceRuler/termRuler/signRuler), 组合器(matchAll/matchAny),
+特殊点(meanNode→弧度/57.2958转度/meanLilith/trueLilith/vertexEastPoint),
+lotFortune/lotSpirit/hermeticLots, 探测(houseCusp/angles/gmst/gast/normalizeHouseSystem)等。
 240|240|240|【印度/吠陀】 (仅JS)
 241|241|241|
 242|242|242|╔══════════════════ 速览 ══════════════════╗
@@ -382,89 +437,97 @@
 383|383|383|    → {cusps, ascendant, mc, armc, vertex}
 384|384|384|  NodeJhora.calculateBhavaSandhi(cusps) → [12] 宫位交界点
 385|385|385|
-386|386|386|  便捷类 (内部调 EphemerisEngine, 一步拿全):
-387|387|387|  NodeJhora.NodeJHora.calculate(new Date("1990-06-15T12:00:00+08:00"),
-388|388|388|    {latitude:lat, longitude:lon}, "Lahiri")
-389|389|389|    → {planets, houses, panchanga, ascendant, ayanamsa}
-390|390|390|    ⚠️ 返回 Promise, 用 .then(r=>...)
-391|391|391|  var j=new NodeJhora.NodeJHora({lat,lon}); j.getPlanets(dt); j.getHouses(dt)
+便捷类 (内部调 EphemerisEngine, 一步拿全):
+NodeJhora.NodeJHora.calculate(new Date("1990-06-15T12:00:00+08:00"),
+  {latitude:lat, longitude:lon}, "Lahiri")
+  → Promise<{planets, houses, ascendant, ayanamsa, panchanga}>
+  ⚠️ 返回 Promise, 用 .then(r=>{...}); panchanga 结构见上
+var j=new NodeJhora.NodeJHora({lat,lon}); j.getPlanets(dt); j.getHouses(dt)
 392|392|392|
-393|393|393|  ━━━ 二、五支 / Panchanga (印历要素) ━━━━━━━━━━━━━━━━━━━━━━━━━━
-394|394|394|
-395|395|395|  NodeJhora.calculatePanchanga(sunLon, moonLon, dt, sunriseHour=6.0)
-396|396|396|    → {tithi:{name,index,paksha,remaining_degrees},
-397|397|397|       nakshatra:{name,lord,deity,index},
-398|398|398|       yoga:{name,index}, karana:{name,index}, vaara:{name,index}}
-399|399|399|
-400|400|400|  ━━━ 三、分盘 / Vargas (D1–D60) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-401|401|401|
-402|402|402|  NodeJhora.calculateVarga(lon, division)  // division 为数字: 1=D1(Rasi), 2=Hora,
-403|403|403|    → {sign, signIndex, division}          //   3=Drekkana, 9=Navamsa, 10=Dasamsa,
-404|404|404|  便捷别名:                                  //   12=Dvadasamsa, 30=Trimsamsa, 60=Shashtyamsa
-405|405|405|  NodeJhora.calculateD9(lon) / NodeJhora.calculateD10(lon) / NodeJhora.calculateD60(lon)
-406|406|406|  NodeJhora.calculateShashtyamsa(lon) → 同 calculateD60
-407|407|407|  支持全部分盘: D1 D2 D3 D4 D7 D9 D10 D12 D16 D20 D24 D27 D30 D40 D45 D60
+━━━ 二、五支 / Panchanga (印历要素) ━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NodeJhora.calculatePanchanga(sunLon, moonLon, dt, sunriseHour=6.0)
+  → {tithi:{index, name, percent},
+     nakshatra:{index, name, pada, percent},
+     yoga:{index, name}, karana:{index, name}, vara:{index, name}}
+  ⚠️ nakshatra 不含 lord/deity — 需自行查表匹配
+
+━━━ 三、分盘 / Vargas (D1–D60) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NodeJhora.calculateVarga(lon, division)  // division: 1=D1..60=D60
+  → {longitude, sign, degree, deity?}    // sign: 1-12 (Aries=1), degree: 0-30
+便捷别名 (均返回同上 VargaPoint):
+NodeJhora.calculateD1(lon) / calculateD2 / calculateD3 / calculateD4
+NodeJhora.calculateD7 / calculateD9 / calculateD10 / calculateD12
+NodeJhora.calculateD16 / calculateD20 / calculateD24 / calculateD27
+NodeJhora.calculateD30 / calculateD40 / calculateD45 / calculateD60
+NodeJhora.calculateShashtyamsa(lon) → 同 calculateD60
+支持全部分盘: D1 D2 D3 D4 D7 D9 D10 D12 D16 D20 D24 D27 D30 D40 D45 D60
 408|408|408|
-409|409|409|  ━━━ 四、大运 / Dasha (时间维度) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-410|410|410|
-411|411|411|  NodeJhora.generateVimshottari(dt, moonLon, depth=2)
-412|412|412|    → [{lord, start, end, years, subPeriods:[{lord,...}]}]
-413|413|413|    depth: 1=仅 Maha, 2=Maha+Antar, 3=Maha+Antar+Pratyantar
-414|414|414|  NodeJhora.calculateDashaBalance(moonLon)
-415|415|415|    → {elapsedYears, remainingYears, proportionElapsed}
-416|416|416|
-417|417|417|  NodeJhora.YoginiDasha.calculate(moonLon, dt, 50)   // 36年周期, 8 Yoginis
-418|418|418|    → [{planet, start, end, durationYears, level, subPeriods}]
-419|419|419|
-420|420|420|  NodeJhora.NarayanaDasha.calculate(chart, dt, 80)   // Rasi 序列大运
-421|421|421|    → [{signIndex, start, end, durationYears, isForward}]
-422|422|422|    chart 需含 {ascendant, planets:[{id,longitude}]}
-423|423|423|
-424|424|424|  ╔══════════════════ Dasha 对比 ═══════════════════╗
-425|425|425|  ║ Vimshottari: 120年, 9段, 最常用                  ║
-426|426|426|  ║ Yogini:      36年,  8段, 快速审视                ║
-427|427|427|  ║ Narayana:    Rasi进阶, Jaimini体系大运             ║
-428|428|428|  ╚══════════════════════════════════════════════════╝
+━━━ 四、大运 / Dasha (时间维度) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NodeJhora.generateVimshottari(dt, moonLon, depth=2)
+  → [{planet, level, start, end, durationYears, subPeriods:[{...}]}]
+  depth: 1=仅 Maha, 2=Maha+Antar, 3..5=更深
+NodeJhora.calculateDashaBalance(moonLon)
+  → {lord, yearsRemaining, totalDuration, fractionTraversed, nakshatraIndex}
+
+NodeJhora.YoginiDasha.calculate(moonLon, dt, 50)   // 36年周期, 8 Yoginis
+  → [{planet, level, start, end, durationYears, subPeriods}]
+
+NodeJhora.NarayanaDasha.calculate(chart, dt, 80)   // Rasi 序列大运
+  → [{signIndex, startYear, endYear, durationYears, isForward}]
+  chart 需含 {planets:[{id,longitude}], houses:{ascendant}}
+
+╔══════════════════ Dasha 对比 ═══════════════════╗
+║ Vimshottari: 120年, 9段, 最主流                  ║
+║ Yogini:      36年,  8段, 快速审视                ║
+║ Narayana:    Rasi进阶, Jaimini体系大运             ║
+╚══════════════════════════════════════════════════╝
 429|429|429|
 430|430|430|  ━━━ 五、力量体系 · Shadbala (六力) ━━━━━━━━━━━━━━━━━━━━━━━━━━
 431|431|431|
-432|432|432|  NodeJhora.calculateShadbala({
-433|433|433|    planet:         {id, longitude},        // 单星体
-434|434|434|    allPlanets:     [{id, longitude}, ...], // 全七曜+节点
-435|435|435|    houses:         {ascendant, mc, cusps},
-436|436|436|    sun:            {id:0, longitude},
-437|437|437|    moon:           {id:1, longitude},
-438|438|438|    timeDetails:    {birthHour, sunrise, sunset},
-439|439|439|    vargaPositions: [{vargaName:"D9", sign}]  // Navamsa 位置
-440|440|440|  })
-441|441|441|  → {totalVirupa,        // 总分 (越大越强)
-442|442|442|     sthana:  {uchcha, saptavargaja, kendra, ojayugma},
-443|443|443|     dig:     digBala,   // 方向力量
-444|444|444|     kaala:   {natonata, paksha, tribhaga, ayanabala},
-445|445|445|     chesta:  chestaBala, // 视运动力量
-446|446|446|     naisargika, drigBala}
-447|447|447|  各行星比 totalVirupa → 力量排行
-448|448|448|
-449|449|449|  单算组件:
-450|450|450|  NodeJhora.calculateUchchaBala(planetId, lon)    → 庙旺力量
-451|451|451|  NodeJhora.calculateKendraBala(houseNum)         → 四正宫力量
-452|452|452|  NodeJhora.calculateOjayugmarasyamsaBala(planetId, rashiSign, navamsaSign)
-453|453|453|  NodeJhora.calculateSaptavargajaBala(planetId, rashiSign, vargaPositions)
-454|454|454|  NodeJhora.calculateDrigBala(targetPlanet, allPlanets) → 相位力量
+NodeJhora.calculateShadbala({
+  planet:         {id, longitude},        // 单星体
+  allPlanets:     [{id, longitude}, ...], // 全七曜+节点
+  houses:         {ascendant, mc, cusps},
+  sun:            {id:0, longitude},
+  moon:           {id:1, longitude},
+  timeDetails:    {birthHour, sunrise, sunset},
+  vargaPositions: [{vargaName:"D9", sign, lordId, lordRashiSign}]
+})
+→ {total, sthana, dig, kaala, chesta, naisargika, drig,
+   ishtaPhala, kashtaPhala,           // 吉凶分数
+   breakdown:{uchcha,saptavargaja,kendra,ojayugma,dig,natonata,paksha,tribhaga,ayana,chesta,naisargika,drig}}
+各行星比 total → 力量排行
+
+单算组件:
+NodeJhora.calculateUchchaBala(planetId, lon)       → 庙旺力量
+NodeJhora.calculateKendraBala(houseNum)            → 四正宫力量
+NodeJhora.calculateOjayugmarasyamsaBala(planetId, rashiSign, navamsaSign)
+NodeJhora.calculateSaptavargajaBala(planetId, planetRashiSign, vargaPositions)
+NodeJhora.calculateDrigBala(targetPlanet, allPlanets) → 相位力量总和
+时间六力 (shadbala_time):
+NodeJhora.calculateDigBala(planet, ascendant, mc)  → 方向力量
+NodeJhora.calculateNatonataBala(planetId, sunLon, mcLon)
+NodeJhora.calculatePakshaBala(planetId, sunLon, moonLon)
+NodeJhora.calculateTribhagaBala(planetId, birthHour, sunrise, sunset)
+NodeJhora.calculateAyanabala(planetId, declination)
+NodeJhora.calculateChestaBala(planet)              → 视运动力量
 455|455|455|
-456|456|456|  ━━━ 六、力量体系 · Ashtakavarga (八分力) ━━━━━━━━━━━━━━━━━━━━━
-457|457|457|
-458|458|458|  NodeJhora.Ashtakavarga.calculateBAV(planets, targetId)
-459|459|459|    → [12] 单星 Bhinnashtakavarga, targetId: 0=Sun..6=Saturn
-460|460|460|  NodeJhora.Ashtakavarga.calculateSAV(planets)
-461|461|461|    → [12] 七曜综合 Sarvashtakavarga, 每宫总分
-462|462|462|  SAV[ind] 越高 → 该宫越有力; BAV 看单星在12宫的分布
-463|463|463|
-464|464|464|  ╔══════════════ 力量体系对比 ══════════════════╗
-465|465|465|  ║ Shadbala:    行星本身有多强 (6维度)           ║
-466|466|466|  ║ Ashtakavarga: 行星在12宫各有多强+宫位总分     ║
-467|467|467|  ║ 先用 Shadbala 排行, 再用 Ashtakavarga 看分布  ║
-468|468|468|  ╚══════════════════════════════════════════════╝
+━━━ 六、力量体系 · Ashtakavarga (八分力) ━━━━━━━━━━━━━━━━━━━━━
+
+NodeJhora.Ashtakavarga.calculateBAV(planets, targetId)
+  → [12] 单星 Bhinnashtakavarga, targetId: 0=Sun..6=Saturn
+NodeJhora.Ashtakavarga.calculateSAV(planets)
+  → {bav:{0:[12],1:[12],...}, sav:[12]}  BAV+SAV一起返回
+SAV 每宫总分越高 → 该宫越有力; BAV 看单星在12宫的分布
+
+╔══════════════ 力量体系对比 ══════════════════╗
+║ Shadbala:    行星本身有多强 (6维度+吉凶分数)  ║
+║ Ashtakavarga: 行星在12宫各有多强+宫位总分     ║
+║ 先用 Shadbala 排行, 再用 Ashtakavarga 看分布  ║
+╚══════════════════════════════════════════════╝
 469|469|469|
 470|470|470|  ━━━ 七、Jaimini 系统 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 471|471|471|
@@ -479,9 +542,11 @@
 480|480|480|  NodeJhora.JaiminiCore.calculateArudha(houseNum, houseSignIndex, lordSignIndex)
 481|481|481|    → {arudhaSignIndex, arudhaHouse}
 482|482|482|    houseNum: 1-12
-483|483|483|  NodeJhora.JaiminiDashas.calculateCharaDasha(ascSignIndex, planets)
-484|484|484|    → [{signIndex, start, end, durationYears}]
-485|485|485|    ascSignIndex: 上升星座索引 0-11
+NodeJhora.JaiminiDashas.calculateCharaDasha(ascSignIndex, planets)
+  → [{signIndex, startYear, endYear, durationYears}]
+  ascSignIndex: 上升星座索引 0-11
+NodeJhora.JaiminiDashas.calculateSignDuration(signIndex, planets) → 年数
+NodeJhora.JaiminiDashas.getSignRulerId(signIndex) → 主宰星id
 486|486|486|
 487|487|487|  ━━━ 八、KP 克利希那穆提 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 488|488|488|
@@ -514,33 +579,32 @@
 515|515|515|  t.findTransits(planetId, startDt, endDt, stepHours=24)
 516|516|516|    → [{planetId, type:"Sign"/"Nakshatra", prevValue, newValue, time}]
 517|517|517|    扫指定行星在时间段内的换座/换宿事件
-518|518|518|  t.findExactAspect(p1Id, p2Id, angle, startDt, endDt, 0.01)
-519|519|519|    → [{exactDate, angle}]  精确入相位时刻
-520|520|520|    angle: 0/60/90/120/180
-521|521|521|  ⚠️ 这两个是 async — 用 .then(r=>{...})
+t.findExactAspect(p1Id, p2Id, angle, startDt, endDt, 0.01)
+  → DateTime | null  精确入相位时刻 (单个值, 不是数组)
+  angle: 0/60/90/120/180
+⚠️ 两个都是 async — 用 .then(r=>{...})
 522|522|522|
-523|523|523|  ━━━ 十一、特殊 Lagna (8种) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-524|524|524|
-525|525|525|  NodeJhora.calculatePranapada(dt, sunriseDt, sunLon)
-526|526|526|    → {longitude, sign, signIndex}
-527|527|527|    气息上升点, 用于健康/活力判断
-528|528|528|
-529|529|529|  NodeJhora.calculateInduLagna(ascSign, moonSign, planets)  // ascSign/moonSign: 1-12
-530|530|530|  NodeJhora.calculateShreeLagna(dt, sunriseDt, moonLon)
-531|531|531|  NodeJhora.calculateHoraLagna(dt, sunriseDt, ascLon)
-532|532|532|  NodeJhora.calculateGhatiLagna(dt, sunriseDt, sunLon)
-533|533|533|  NodeJhora.calculateBhavaLagna(dt, sunriseDt, sunLon)
-534|534|534|  NodeJhora.calculateVarnadaLagna(ascLon, horaLagnaLon, ascSign, horaLagnaSign)
-535|535|535|  均需 sunriseDt: 出生当天日出时刻的 Luxon DateTime
-536|536|536|  均返回 {longitude, sign:"Aries", signIndex:0}
-537|537|537|
-538|538|538|  ━━━ 十二、Upagraha (虚星/影星, 5个) ━━━━━━━━━━━━━━━━━━━━━━━
-539|539|539|
-540|540|540|  NodeJhora.calculateTimeUpagrahas(dt, sunriseDt, sunsetDt, sunLon, moonLon)
-541|541|541|    → [{name, longitude}×5]
-542|542|542|    Dhooma→Vyatipata→Parivesha→Indrachapa→Upaketu (链式推导)
-543|543|543|  NodeJhora.calculateDhumadiUpagrahas(sunLon)
-544|544|544|    → [{name, longitude}×5]  同上但只依赖日度
+━━━ 十一、特殊 Lagna (8种) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ 全部返回裸恒星黄经(number), 需自行 Math.floor(lon/30) 取星座索引
+NodeJhora.calculatePranapada(dt, sunriseDt, sunLon) → number  气息上升点
+NodeJhora.calculateInduLagna(ascSign, moonSign, planets) → number  ascSign/moonSign:1-12
+NodeJhora.calculateShreeLagna(dt, sunriseDt, moonLon) → number
+NodeJhora.calculateHoraLagna(dt, sunriseDt, ascLon) → number
+NodeJhora.calculateGhatiLagna(dt, sunriseDt, sunLon) → number
+NodeJhora.calculateBhavaLagna(dt, sunriseDt, sunLon) → number
+NodeJhora.calculateVarnadaLagna(ascLon, horaLagnaLon, ascSign, horaLagnaSign) → number
+均需 sunriseDt: Luxon DateTime, 出生当天日出时刻
+
+━━━ 十二、Upagraha (虚星/影星) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NodeJhora.calculateTimeUpagrahas(dt, sunriseDt, sunsetDt, sunLon, moonLon, isDay)
+  → {kaala, paridhi, mrityu, ardhaprahara, yamakantaka, kodanda, mandi, gulika}
+  8个时间虚星, 每个值=恒星经度; isDay: Caelus.isDayChart() 或 (sunLon>ascLon)
+NodeJhora.calculateDhumadiUpagrahas(sunLon)
+  → {dhuma, vyatipata, parivesha, indrachapa, upaketu}
+  5个日度虚星 (链式推导: dhuma→vyatipata→parivesha→indrachapa→upaketu)
+  每个值=恒星经度
 545|545|545|
 546|546|546|  ━━━ 十三、行星关系 / Drishti ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 547|547|547|
@@ -557,17 +621,24 @@
 558|558|558|  NodeJhora.calculateDrigBala(targetPlanet, allPlanets)
 559|559|559|    → 所有星对该星的相位力量总和
 560|560|560|
-561|561|561|  ━━━ 常量 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-562|562|562|
-563|563|563|  NodeJhora.AYANAMSA: {LAHIRI:1, DELUCE:2, RAMAN:3, KRISHNAMURTI:5,
-564|564|564|             YUKTESHWAR:7, JN_BHASIN:8, TRUE_CITRA:27, TRUE_PUSHYA:29}
-565|565|565|  NodeJhora.D, NodeJhora.NAKSHATRA_SPAN_D: 13.3333...° (D对象)
-566|566|566|  NodeJhora.DASHA_YEAR_DAYS: 365.25
-567|567|567|  NodeJhora.YOGA_LIBRARY: 传给 YogaEngine.findYogas()
-568|568|568|  NodeJhora.PLANET_IDS: [0,1,4,2,5,3,6]  七曜
-569|569|569|  NodeJhora.Relationship: {GreatFriend,Friend,Neutral,Enemy,GreatEnemy}
-570|570|570|  NodeJhora.DASHA_DURATIONS: {Ketu:7,Venus:20,Sun:6,...}
-571|571|571|  NodeJhora.DASHA_ORDER: ["Ketu",...]
+━━━ 常量 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NodeJhora.AYANAMSA: {LAHIRI:1, DELUCE:2, RAMAN:3, KRISHNAMURTI:5,
+           YUKTESHWAR:7, JN_BHASIN:8, TRUE_CITRA:27, TRUE_PUSHYA:29}
+NodeJhora.D / NodeJhora.toNum / NodeJhora.normalize360D  (Decimal精确数学)
+NodeJhora.NAKSHATRA_SPAN_D: 13.3333...° (Decimal) / NAKSHATRA_SPAN_N: 13.3333 (number)
+NodeJhora.DASHA_YEAR_DAYS: 365.242189623 (tropical year, Decimal)
+NodeJhora.YOGA_LIBRARY: 传给 YogaEngine.findYogas()
+NodeJhora.PLANET_IDS: [0,1,4,2,5,3,6]  七曜
+NodeJhora.Relationship: {GreatFriend,Friend,Neutral,Enemy,GreatEnemy}
+NodeJhora.DASHA_DURATIONS: {Ketu:7,Venus:20,Sun:6,...}
+NodeJhora.DASHA_ORDER: ["Ketu",...]
+── 数学工具 (core/math) ──
+NodeJhora.normalize360(angle) → [0,360)
+NodeJhora.getShortestDistance(a,b) → [0,180]
+NodeJhora.dmsToDecimal(d,m,s) → 十进制度
+NodeJhora.decimalToDms(deg) → {d,m,s}
+NodeJhora.midpoint(a,b) → 中点 (走短弧)
 572|572|572|
 573|573|573|  ⚠️ 宫位制: whole-sign 默认; 可选 Porphyry。Placidus 此处不可用。
 574|574|574|     NodeJhora.calculateHouseCusps(dt,lat,lon,"WholeSign",e) 或 "Porphyry"
@@ -585,31 +656,48 @@
 586|586|586|  sunriseDt=NodeJhora.DateTime.fromISO("1990-06-15T05:30:00+05:30")
 587|587|587|  dayLordId=Math.floor(jd)%7                 // 当日主宰星 0=Sun..6=Sat
 588|588|588|
-589|589|589|  它能做什么:
-590|590|590|    JPL DE440 星历 (NASA 公共领域, 1849–2150)。精度同级 Swiss Ephemeris。
-591|591|591|    Shadbala(六力) + Ashtakavarga(八分力) 完整行星力量量化。
-592|592|592|    Jaimini(CharaKaraka + CharaDasha + Arudha + RashiDrishti)。
-593|593|593|    KP(SubLord 亚主星 + 全盘主星分析 + Ruling Planets)。
-594|594|594|    3种大运 + Yoga格局检测 + 行运 + 8种特殊Lagna + 5虚星。
-595|595|595|    Caelus/NatalEngine 未覆盖的深度吠陀分析全在这。
-596|596|596|
-597|597|597|  什么时候调:
-598|598|598|    任何深度吠陀分析 — Shadbala力量排行 / Ashtakavarga宫位力量
-599|599|599|    "哪个星最强/最弱/力量排行" → NodeJhora.calculateShadbala
-600|600|600|    "八分力/Ashtakavarga/Sarvastakavarga" → NodeJhora.Ashtakavarga.calculateSAV
-601|601|601|    "Atmakaraka/CharaKaraka/Jaimini" → NodeJhora.JaiminiCore.calculateCharaKarakas
-602|602|602|    "CharaDasha/Jaimini大运" → NodeJhora.JaiminiDashas.calculateCharaDasha
-603|603|603|    "Arudha/ArudhaLagna/投射盘" → NodeJhora.JaiminiCore.calculateArudha
-604|604|604|    "KP/SubLord/亚主星/星宿主星" → NodeJhora.KPSubLord.calculateKPSignificators
-605|605|605|    "KP主宰星/择时" → NodeJhora.KPRuling.calculateRulingPlanets
-606|606|606|    "Yogini大运/36年周期" → NodeJhora.YoginiDasha.calculate
-607|607|607|    "Narayana大运/Rasi大运" → NodeJhora.NarayanaDasha.calculate
-608|608|608|    "Yoga/格局/富贵贫贱" → NodeJhora.YogaEngine.findYogas
-609|609|609|    "行运/某星何时换座/入相位" → NodeJhora.TransitEngine
-610|610|610|    "Pranapada/InduLagna/特殊上升" → NodeJhora.calculatePranapada 等
-611|611|611|    "虚星/Dhooma/Vyatipata" → NodeJhora.calculateTimeUpagrahas
-612|612|612|    "行星关系/敌友/临时关系" → NodeJhora.getRelationship
-613|613|613|    "Drishti/相位强度" → NodeJhora.calculateDrishtiValue / NodeJhora.calculateDrigBala
+它能做什么 — 对照印度占星完整体系:
+  星历:      JPL DE440 (NASA, 1849–2150), 精度同级 Swiss Ephemeris
+  九曜:      7曜+Rahu/Ketu, 恒星黄经+赤纬+速度+距离 (getPlanets)
+  二十七宿:   Panchanga 内嵌完整27宿(名/主宰星/神祇), 每月站13°20′
+  大运:       Vimshottari(120年/9段, 最主流) + Yogini(36年/8段) + Narayana(Rasi进阶)
+             ⚠️ Ashtottari(108年) NodeJhora不支持 — 用 Caelus.ashtottariDashas()
+  力量:       Shadbala(六力量化) + Ashtakavarga(八分力/BAV+SAV宫位评分)
+  Jaimini:    CharaKaraka(7灵魂星/Atmakaraka为首) + CharaDasha + Arudha + RashiDrishti
+  KP:         SubLord亚主星 + 全盘主星分析 + Ruling Planets(择时)
+  Yoga:       内置数百条规则, YOGA_LIBRARY → YogaEngine.findYogas
+  分盘:       16种全(D1-D60), calculateVarga/calculateD9/calculateD10/calculateD60
+  Panchanga:  Tithi+Nakshatra+Yoga+Karana+Vaara — 五支印历
+  行运:       TransitEngine — 换座/换宿扫描 + 精确入相位时刻
+  特殊Lagna:  8种(Pranapada/Indu/Shree/Hora/Ghati/Bhava/Varnada)
+  虚星:       5个Upagraha(Dhooma→Vyatipata→Parivesha→Indrachapa→Upaketu)
+  Drishti:    行星特殊相位强度 + DrigBala相位力量总和
+  行星关系:   自然关系+临时关系→复合关系(GreatFriend..GreatEnemy)
+  Caelus/NatalEngine 未覆盖的深度吠陀分析全在这。
+
+什么时候调 — 用户这样问时:
+  「排个印度盘/吠陀盘」→ 骨架: p+h → moonLon/sunLon/ascSign → Panchanga + Vimshottari
+  「哪个星最强/最弱」→ NodeJhora.calculateShadbala → 按 total 排行
+  「八分力/Ashtakavarga/宫位力量」→ NodeJhora.Ashtakavarga.calculateSAV
+  「Atmakaraka/灵魂之星/Jaimini」→ NodeJhora.JaiminiCore.calculateCharaKarakas
+  「CharaDasha/Jaimini大运」→ NodeJhora.JaiminiDashas.calculateCharaDasha
+  「Arudha/投射盘」→ NodeJhora.JaiminiCore.calculateArudha
+  「KP/SubLord/亚主星」→ NodeJhora.KPSubLord.calculateKPSignificators
+  「KP主宰星/择时」→ NodeJhora.KPRuling.calculateRulingPlanets
+  「Yogini大运/36年」→ NodeJhora.YoginiDasha.calculate
+  「Narayana大运/Rasi大运」→ NodeJhora.NarayanaDasha.calculate
+  「Ashtottari大运/108年」→ Caelus.ashtottariDashas(moonLon,natalJd)  ← 注意: NodeJhora没有!
+  「Yoga/格局/富贵贫贱」→ NodeJhora.YogaEngine.findYogas
+  「某星何时换座/换宿」→ NodeJhora.TransitEngine.findTransits
+  「某星何时入相位」→ NodeJhora.TransitEngine.findExactAspect
+  「Pranapada/InduLagna/特殊上升」→ NodeJhora.calculatePranapada 等8种
+  「虚星/Dhooma/Vyatipata」→ NodeJhora.calculateTimeUpagrahas
+  「行星关系/敌友」→ NodeJhora.getRelationship
+  「Drishti/相位强度」→ NodeJhora.calculateDrishtiValue/calculateDrigBala
+  「印历/今天什么日子/Panchanga」→ NodeJhora.calculatePanchanga
+  「Nakshatra/星宿/宿度」→ Panchanga.nakshatra 或 NodeJhora.NAKSHATRA_SPAN_D
+  「Ashtottari大运/108年周期」→ Caelus.ashtottariDashas(moonLon, natalJd)
+     ⚠️ NodeJhora 不含Ashtottari — 这是 Caelus 独有的吠陀功能
 614|614|614|
 615|615|615|
 616|616|616|【人类图/Human Design】
