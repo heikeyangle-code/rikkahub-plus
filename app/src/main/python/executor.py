@@ -410,15 +410,19 @@ lotFortune/lotSpirit/hermeticLots, 探测(houseCusp/angles/gmst/gast/normalizeHo
 356|356|356|  ⚠️ YogaEngine.findYogas 首次调用较慢 (YOGA_LIBRARY 规则量大)。
 357|357|357|  ⚠️ generateVimshottari depth=3 递归量大, 建议 depth=2 按需展开。
 358|358|358|
-359|359|359|  ╔═══════════════════ 调用骨架 ════════════════════╗
-360|360|360|  ║ dt=NodeJhora.DateTime.fromISO("1990-06-15T12:00:00+08:00") ║
-361|361|361|  ║ e=NodeJhora.EphemerisEngine.getInstance()         ║
-362|362|362|  ║ p=e.getPlanets(dt,{lat,lon},{ayanamsaOrder:1})  ║
-363|363|363|  ║ jd=e.julday(dt)                                  ║
-364|364|364|  ║ h=e.getHouses(jd,lat,lon,"W",true)               ║
-365|365|365|  ║ moonLon=p.find(x=>x.id===1).longitude            ║
-366|366|366|  ║ ascSign=Math.floor(h.ascendant/30)               ║
-367|367|367|  ╚══════════════════════════════════════════════════╝
+╔═══════════════════ 调用骨架 ════════════════════╗
+║ dt=NodeJhora.DateTime.fromISO("1990-06-15T12:00:00+08:00") ║
+║ nj=NodeJhora.EphemerisEngine.getInstance()        ║
+║ p=nj.getPlanets(dt,{lat,lon},{ayanamsaOrder:1}) ║
+║ jd=nj.julday(dt)                                 ║
+║ h=nj.getHouses(jd,lat,lon,"W",true)              ║
+║ moonLon=p.find(x=>x.id===1).longitude            ║
+║ ascSign=Math.floor(h.ascendant/30)               ║
+╚══════════════════════════════════════════════════╝
+── 跨库调用需 Caelus (Ashtottari/Kemadruma/Nakshatra等) ──
+eval_javascript(library="caelus-engine", code="var ce=new Caelus.Engine(Caelus.embeddedData)")
+var siderealLon = ce.longitude("moon", jd, {zodiac:"sidereal:lahiri"})
+// ce 已可用: ce.nakshatra(siderealLon) / Caelus.ashtottariDashas(...) 等
 368|368|368|
 369|369|369|  ━━━ 一、本命盘 (Rasi / D1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 370|370|370|
