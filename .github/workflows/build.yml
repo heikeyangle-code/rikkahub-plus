@@ -381,18 +381,77 @@ jobs:
           cp kaabalah-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
           echo "Kaabalah JS engine compiled: $(wc -c < kaabalah-engine.js) bytes"
 
-      - name: Compile Caelus JS engine (Western + Vedic astrology — zero-dependency VSOP87D)
+      - name: Compile Caelus JS engine (Western + Vedic — full-data VSOP87D)
         run: |
           mkdir -p /tmp/caelus_build
           cd /tmp && npm pack caelus --pack-destination /tmp/caelus_build 2>&1
           cd /tmp/caelus_build && tar xzf caelus-*.tgz && cd package
           mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
-          # data-embedded.js is NOT re-exported by index.js — create custom entry
-          echo 'export * from "./dist/src/index.js";' > caelus-entry.mjs
-          echo 'export { embeddedData } from "./dist/src/data-embedded.js";' >> caelus-entry.mjs
-          npx esbuild caelus-entry.mjs --bundle --platform=node --format=iife --global-name=Caelus --target=es2020 --tree-shaking=false --outfile=caelus-engine.js 2>&1 | tail -3
+
+          # Fetch extra data files from GitHub repo (not in npm package)
+          echo "Fetching full VSOP87D / asteroid / moon tiers from caelus repo..."
+          CAELUS_DATA="https://raw.githubusercontent.com/heavyblotto/caelus/main/packages/caelus/data"
+          for f in \
+            vsop87d_mercury.full.json vsop87d_venus.full.json vsop87d_earth.full.json \
+            vsop87d_mars.full.json vsop87d_jupiter.full.json vsop87d_saturn.full.json \
+            vsop87d_uranus.full.json vsop87d_neptune.full.json \
+            vsop87d_mercury.high.json vsop87d_venus.high.json vsop87d_earth.high.json \
+            vsop87d_mars.high.json vsop87d_jupiter.high.json vsop87d_saturn.high.json \
+            vsop87d_uranus.high.json vsop87d_neptune.high.json \
+            vsop87d_mercury.micro.json vsop87d_venus.micro.json vsop87d_earth.micro.json \
+            vsop87d_mars.micro.json vsop87d_jupiter.micro.json vsop87d_saturn.micro.json \
+            vsop87d_uranus.micro.json vsop87d_neptune.micro.json \
+            moon_cheb.full.json turbo.json uranian_kepler.json pluto_cheb.json \
+            ceres_cheb.json pallas_cheb.json juno_cheb.json vesta_cheb.json pholus_cheb.json; do
+            curl -sL "${CAELUS_DATA}/${f}" -o "data/${f}" && echo "  ✓ ${f}" || echo "  ⚠ ${f} skipped"
+          done
+
+          # Build entry: export everything + embeddedData with full extras merged
+          cat > caelus-entry.mjs << 'ENTRYEOF'
+          export * from "./dist/src/index.js";
+          import { embeddedData } from "./dist/src/data-embedded.js";
+
+          import moonChebFull    from "./data/moon_cheb.full.json"     with { type: "json" };
+          import fixedStarsDeep  from "./data/fixed_stars_deep.json"   with { type: "json" };
+          import ceresCheb       from "./data/ceres_cheb.json"         with { type: "json" };
+          import pallasCheb      from "./data/pallas_cheb.json"        with { type: "json" };
+          import junoCheb        from "./data/juno_cheb.json"          with { type: "json" };
+          import vestaCheb       from "./data/vesta_cheb.json"         with { type: "json" };
+          import pholusCheb      from "./data/pholus_cheb.json"        with { type: "json" };
+          import plutoCheb       from "./data/pluto_cheb.json"         with { type: "json" };
+          import uranianKepler   from "./data/uranian_kepler.json"     with { type: "json" };
+          import turboPack       from "./data/turbo.json"              with { type: "json" };
+          import mercuryFull     from "./data/vsop87d_mercury.full.json" with { type: "json" };
+          import venusFull       from "./data/vsop87d_venus.full.json"   with { type: "json" };
+          import earthFull       from "./data/vsop87d_earth.full.json"   with { type: "json" };
+          import marsFull        from "./data/vsop87d_mars.full.json"    with { type: "json" };
+          import jupiterFull     from "./data/vsop87d_jupiter.full.json" with { type: "json" };
+          import saturnFull      from "./data/vsop87d_saturn.full.json"  with { type: "json" };
+          import uranusFull      from "./data/vsop87d_uranus.full.json"  with { type: "json" };
+          import neptuneFull     from "./data/vsop87d_neptune.full.json" with { type: "json" };
+
+          const fullData = {
+            ...embeddedData,
+            moonCheb: moonChebFull,
+            deepStars: fixedStarsDeep,
+            chebPacks: {
+              ceres: ceresCheb, pallas: pallasCheb, juno: junoCheb,
+              vesta: vestaCheb, pholus: pholusCheb, pluto: plutoCheb,
+            },
+            keplerPack: uranianKepler,
+            vsop: {
+              mercury: mercuryFull, venus: venusFull, earth: earthFull,
+              mars: marsFull, jupiter: jupiterFull, saturn: saturnFull,
+              uranus: uranusFull, neptune: neptuneFull,
+            },
+          };
+
+          export { fullData as embeddedData };
+          ENTRYEOF
+
+          npx esbuild caelus-entry.mjs --bundle --platform=node --format=iife --global-name=Caelus --target=es2020 --tree-shaking=false --outfile=caelus-engine.js 2>&1 | tail -5
           cp caelus-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
-          echo "Caelus JS engine compiled: $(wc -c < caelus-engine.js) bytes"
+          echo "Caelus JS engine compiled (full-data): $(wc -c < caelus-engine.js) bytes"
 
           # caelus-birth: timezone → UT converter for Caelus charts
           cd /tmp && npm pack caelus-birth --pack-destination /tmp/caelus_build 2>&1
