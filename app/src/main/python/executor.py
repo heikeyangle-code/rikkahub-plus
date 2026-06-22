@@ -306,7 +306,7 @@ engine.longitude("moon", jd, {zodiac:"sidereal:lahiri"})
 【尊贵 (吠陀也用)】
 Caelus.dignities("sun", 2)    ← sign 是 0-11 索引
 Caelus.dignityScore("sun", 84.13, "day") → {rulership,exaltation,triplicity,term,face,total}
-Caelus.yogakarakas(Math.floor(chart.angles.asc/30)) → 命主星列表  (⚠️ asc是热带, 吠陀用ascSidereal/30; 或从rajaYogasAt结果取)
+Caelus.yogakarakas(ascSign) → 命主星列表  (⚠️ 热带和恒星结果不同; Caelus算法含H4/7/10+H5/9, 不含H1, 与BPHS有差异; 也可从rajaYogasAt结果取)
 【Vedic 原子查询 (按需)】
 Caelus.vimshottariDashas(moonLon, natalJd).start_lord → 出生大运主星
 Caelus.ashtottariLord(nakIndex)   → Ashtottari 起始主星  (nakIndex=nakshatra(moonLon).index)
