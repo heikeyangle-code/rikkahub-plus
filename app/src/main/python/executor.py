@@ -109,10 +109,6 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
   六爻/周易/卦        →  问用户选 ichingshifa(Python,大衍筮法) 或 IchingShifa(JS,6种起卦) 或对照(JS取随机→同爻值喂Python qigua_manual)   无需出生（需起卦数）
   梅花易数            →  meihua_yi                  ← ichingshifa, 或手动排     无需出生（需起卦数）
 
-  【塔罗】
-  韦特塔罗            →  arcanite(Python,78张+牌阵+正逆位+元素尊贵)  无需出生
-                        TarotKit(JS,中英双语要点式,drawCards裸抽无牌阵,5独立读牌面字段)  无需出生
-
 【西洋占星】 (仅JS)   四个库: Caelus v0.23.0 + NatalEngine + CaelusBirth + Astronomy
 
 ╔══════════════════════════ 速览 ═══════════════════════════╗
