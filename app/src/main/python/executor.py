@@ -1151,13 +1151,13 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                         统计: d.analyze_draw(items) → {count, upright_count, reversed_count, all_upright, all_reversed, pattern, cards}; 需自行从cards统计: 电荷分布(positive/neutral/negative) / 速度分布(fast/moderate/slow等) / 人物卡(category=person的牌)
 
                         【雷诺曼输出】雷诺曼=现实事件模拟器
-                         权威来源:
-                           Rana George → 系统双卡组合 + 时间预测
-                           Caitlín Matthews → Grand Tableau 镜像/骑士/主题线
-                           Andy Boroveshengra → 距离法(牌离指示牌=影响力) + 方向法(视线=能量流)
-                           Sylvie Steinbach → 上下文决定牌义, 心理洞察
-                           Mary K. Greer → 传统雷诺曼法则 + 逆位试验
-                           Iris Treppner → 大桌高级技巧
+                         权威来源（以下书籍经 OpenLibrary 验证存在）:
+                           Rana George → 《The Essential Lenormand》(2014)
+                           Caitlín Matthews → 《The Complete Lenormand Oracle Handbook》(2014)
+                           Andy Boroveshengra → 《Lenormand: Thirty-Six Cards》(2014)
+                           Sylvie Steinbach → 《The Secrets of the Lenormand Oracle》(2007)
+                           Iris Treppner → 德国大桌课程体系
+                           Mary K. Greer → 博客教学(marykgreer.com) — 本模板中实际引用的解读案例来源
 
                          核心原则:
                            ① 牌从不单独解读——每张牌都在组合中形成含义
