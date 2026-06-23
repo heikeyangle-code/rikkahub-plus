@@ -1294,7 +1294,9 @@ TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', cod
                /readingAspects(currentSituation/innerState/rootCause/development/advice)
                /contextualMeanings(love/work/interpersonal/others)
       所有字段均有en+zh双语, 0占位符
-      (零随机,确定性抽牌)
+      ⚠️ 无内置牌阵。drawCards(N)只返回N张裸牌,无位置语义。
+         牌阵可手工定义(如抽3张=过去/现在/未来),或搭配arcanite的牌阵系统确定位置。
+      (硬件真随机, 不支持种子复现)
 
 LiuRen(大六壬) → eval_javascript(library='liuren-engine', code="LiuRen.getLiuRenByDate(new Date(2026,5,19,12,0))")
       返回 LiuRenResult 含:
