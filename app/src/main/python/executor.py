@@ -1173,7 +1173,7 @@ Astronomy 仅需要 NASA 级精度时选配
   • 印度吠陀: NatalEngine(Rasi+27宿+Dasha+文本) → Caelus(26Yoga+7分盘+Ashtottari+Yogini+Kemadruma)
   • 人类图+基因钥匙: NatalEngine 唯一
   • 卡巴拉/灵数/Gematria/Ifá: Kaabalah 唯一
-【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine | iztro-engine | natalengine-engine(西洋+吠陀+人类图)
+【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine | iztro-engine | natalengine-engine(西洋+吠陀+人类图) | tarotkit-engine(塔罗,中英双语) | liuren-engine(大六壬)
   QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({...})')
       可用type:
         {type:"rijia", year:2026, month:6, day:19}       → 日家,自包含(推荐)
@@ -1274,6 +1274,35 @@ NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-en
       农历盘: Iztro.astro.byLunar("1990-5-23",7,"male",false)
       (零随机,纯确定性算法)
   返回 JSON，AI 基于真实数据解读。
+
+TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', code="TarotKit.drawCards(3)")
+      返回 [{card, orientation}] — card含id/name/description/meaning/readingAspects/contextualMeanings全部字段
+      TarotKit.getAllCards("zh")                          → 全部78牌(中文)
+      TarotKit.getCardById("the-fool", "zh")              → 按ID查牌
+      TarotKit.drawRandomCard()                           → 抽1张 {card, orientation}
+      TarotKit.drawCards(3)                               → 抽3张 [{card, orientation}, ...]
+      TarotKit.getCardMeaning(drawn, "zh")                → 取正/逆位含义文本
+      数据字段: card.name(cn/zh)/description/coreKeyword/meaning.upright.reversed
+               /readingAspects(currentSituation/innerState/rootCause/development/advice)
+               /contextualMeanings(love/work/interpersonal/others)
+      所有字段均有en+zh双语, 0占位符
+      (零随机,确定性抽牌)
+
+LiuRen(大六壬) → eval_javascript(library='liuren-engine', code="LiuRen.getLiuRenByDate(new Date(2026,5,19,12,0))")
+      返回 LiuRenResult 含:
+        dateInfo          → 日期+四柱干支
+        tianDiPan         → {diPan(地盘), tianPan(天盘), tianJiang(天将)}
+        siKe              → {ke1,ke2,ke3,ke4} 四课
+        sanChuan          → {chuChuan(初传),zhongChuan(中传),moChuan(末传),keTi(课体)}
+        dunGan            → {子~亥} 遁干
+        chuJian/fuJian    → 初监/覆监
+        jianChu           → 兼初
+        shenSha           → [{name,value,description}] 神煞数组
+        yinYangGuiRen     → {yangGuiRen(阳贵人), yinGuiRen(阴贵人)} 天将分布
+      也可: LiuRen.getLiuRenBySiZhu("甲辰","丙寅","戊午","庚申")  → 通过四柱起课
+           LiuRen.getNianMing(new Date(1990,5,15), "男")       → 虚岁流年
+      十二宫key为拼音: zi/chou/yin/mao/chen/si/wu/wei/shen/you/xu/hai
+      (零随机,纯确定性排盘)
 """
 
 # ── Chaquopy fix: executor replaces random.Random.__init__ with restored_init
