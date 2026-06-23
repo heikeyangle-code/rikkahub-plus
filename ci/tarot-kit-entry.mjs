@@ -10,10 +10,12 @@
  *   TarotKit.drawRandomCard()              → 抽1张 {card, orientation}
  *   TarotKit.drawCards(count)              → 抽N张 [{card, orientation}]
  *   TarotKit.getCardMeaning(drawn, lang)   → 取正/逆位含义文本
+ *   TarotKit.validateUniqueCardIds()       → 验证所有牌ID唯一性
  *   TarotKit.getLocalizedText(text, lang)  → 取本地化文本
- *   TarotKit.cards                         → 原始卡牌数组
+ *   TarotKit.cards                         → 原始卡牌数组(78张)
  */
 export { cards } from './data/cards.js';
 export { getAllCards, getCardById, getCardsByArcana } from './helpers/cards.js';
 export { drawRandomCard, drawCards, getCardMeaning } from './helpers/draw.js';
+export { validateUniqueCardIds } from './helpers/validate.js';
 export { getLocalizedText } from './helpers/localize.js';
