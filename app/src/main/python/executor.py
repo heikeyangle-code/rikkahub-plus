@@ -1285,7 +1285,7 @@ TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', cod
                /development(发展)/advice(建议),
             arcanite的同类数据埋在7类×5-8子位的3层深处,AI取用需逐层导航。
             ② 每牌有专属 description(画面描述) 和 coreKeyword(一词总结), arcanite无此字段。
-            ③ 所有20个文本块均有正/逆位两个版本,结构一致无例外。
+            ③ 所有20个文本块(meaning×2+readingAspects×10+contextualMeanings×8)均有正/逆位两个版本,结构一致无例外。
             ④ bullet point风格(斜杠分隔多个要点),AI直接组合,无需从段落提炼。
       缺点: 无牌阵/无元素尊贵/无牌间关系/无777卡巴拉对照 — 需要这些功能时用arcanite。
       中英双语: getCardMeaning/getLocalizedText第二个参数传"zh"取中文版,省略默认"en"。
@@ -1303,9 +1303,13 @@ TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', cod
       注意: cards/getAllCards/getCardById 返回的card含所有语言的原始数据
             (如 name.en/name.zh)。lang参数仅 getCardMeaning/getLocalizedText 支持,
             省略时默认"en"。
-      数据字段: card.name(cn/zh)/description/coreKeyword/meaning.upright.reversed
-               /readingAspects(currentSituation/innerState/rootCause/development/advice)
-               /contextualMeanings(love/work/interpersonal/others)
+      数据字段: card.id/name.en/name.zh/arcana(大阿卡那|小阿卡那)/suit(花色|null)/number(编号)
+               /description{en,zh}/coreKeyword{en,zh}  ← 无正逆位,单一画面描述
+               /meaning.upright.{en,zh}/meaning.reversed.{en,zh}
+               /readingAspects: currentSituation/innerState/rootCause/development/advice,
+                 每层{upright:{en,zh}, reversed:{en,zh}}
+               /contextualMeanings: love/work/interpersonal/others,
+                 每层{upright:{en,zh}, reversed:{en,zh}}
       所有字段均有en+zh双语, 0占位符
       ⚠️ 无内置牌阵。drawCards(N)只返回N张裸牌,无位置语义。
          牌阵可手工定义(如抽3张=过去/现在/未来),或搭配arcanite的牌阵系统确定位置。
