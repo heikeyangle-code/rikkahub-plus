@@ -98,7 +98,7 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
 
   【奇门三式】
   奇门遁甲            →  QimenEngine(JS,7局法+断语,拆补+茅山+置闰×时/日/月/年4流派+十干克应)  日家自包含(推荐),时家需先有日家baseChart
-  大六壬              →  kinliuren                                               生日可选
+  大六壬              →  [首选] LiuRen(JS,eval_javascript)一键排盘字段全  [备选] kinliuren(Python,需手动节气/干支)  生日可选
   小六壬(马前课)       →  lunar_python取月日时→6掌诀推算(大安/留连/速喜/赤口/小吉/空亡)                           无需出生（需月日时）
 
   【象数易】
