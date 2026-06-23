@@ -807,7 +807,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │ STEP 0: 导入                                         │
                        │   from arcanite.core import TarotDeck                │
                        │   from arcanite.core.spread import load_spread       │
-                       │   from tarot_elemental_engine import EE              │
+                       │   from tarot_elemental_engine import ElementalDignityEngine as EE  │
                        │                                                      │
                        │ STEP 1: arcanite 抽牌 + 加载牌阵                      │
                        │   deck = TarotDeck.load(system="tarot")              │
