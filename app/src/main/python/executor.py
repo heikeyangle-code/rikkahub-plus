@@ -392,6 +392,9 @@ kemadrumaAt 带日期, varga 裸经度版, 各种 lord/active 原子函数。
   引擎: eval_javascript(action='load', library='node-jhora-engine')
   已自包含 JPL DE440 星历 (1849–2150, 32MB), 加载即用, 零 init。
   ⚠️ 所有函数/类/常量挂在 NodeJhora 命名空间, 必须加 NodeJhora. 前缀。
+  ✅ Intl API 已在引擎入口 polyfill, DateTime.fromISO() 在 QuickJS 下可用。
+     凭据: jhora_entry_quickjs.mjs 顶部藏了轻量 Intl 垫片, 覆盖
+     luxon 的 systemLocale() 调用 (~15行, 无ICU数据)。
      例: NodeJhora.EphemerisEngine.getInstance()
          NodeJhora.calculateShadbala({...})
          NodeJhora.Ashtakavarga.calculateSAV(planets)
