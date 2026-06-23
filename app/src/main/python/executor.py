@@ -1151,95 +1151,89 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                         统计: d.analyze_draw(items) → {count, upright_count, reversed_count, all_upright, all_reversed, pattern, cards}; 需自行从cards统计: 电荷分布(positive/neutral/negative) / 速度分布(fast/moderate/slow等) / 人物卡(category=person的牌)
 
                         【雷诺曼输出】雷诺曼=现实事件模拟器
-                         权威来源（以下书籍经 OpenLibrary 验证存在）:
-                           Rana George → 《The Essential Lenormand》(2014)
-                           Caitlín Matthews → 《The Complete Lenormand Oracle Handbook》(2014)
-                           Andy Boroveshengra → 《Lenormand: Thirty-Six Cards》(2014)
-                           Sylvie Steinbach → 《The Secrets of the Lenormand Oracle》(2007)
-                           Iris Treppner → 德国大桌课程体系
-                           Mary K. Greer → 博客教学(marykgreer.com) — 本模板中实际引用的解读案例来源
+                         来源说明:
+                           本模板的解读方法取自 Mary K. Greer 博客文章：
+                           「Linda Marson Interviews Mary on Using Lenormand Cards」
+                           「Ex Machina – Lenormand and Artificial Intelligence」
+                           「Learn Lenormand Webinar」
+                           以下书籍经 OpenLibrary 验证存在但内容未直接引用:
+                           Rana George《The Essential Lenormand》(2014)
+                           Caitlín Matthews《The Complete Lenormand Oracle Handbook》(2014)
+                           Andy Boroveshengra《Lenormand: Thirty-Six Cards》(2014)
+                           Sylvie Steinbach《The Secrets of the Lenormand Oracle》(2007)
 
                          核心原则:
                            ① 牌从不单独解读——每张牌都在组合中形成含义
-                           ② 指示牌(Man/Woman)锚定全盘——所有牌以它为参照点
-                           ③ Boroveshengra距离法: 牌离指示牌越近=对问卜者影响越大越直接
-                           ④ Boroveshengra方向法: 牌面人物/动物的视线方向=能量流向
-                           ⑤ 第一张牌=主题/开头, 末张=结果/收束
-                           ⑥ Greer: 传统雷诺曼=直觉+知识——先懂牌义，再凭直觉串成故事
+                           ② 指示牌(Man/Woman)锚定全盘，其他牌以它为参照（Greer传统法: Man=男问卜者，女问卜者则Man=她的重要他人）
+                           ③ 首牌=主题，距指示牌越近=影响越大越直接
+                           ④ 牌面人物视线方向=能量流向
+                           ⑤ Greer: 传统雷诺曼=先懂牌义再凭直觉串——"传统读者非常直觉，他们看一眼就知道牌在说什么，再用原义核实"
 
                          ── 开读 ──
                            确定牌阵类型: 线型(line-3/5/7/9) 还是 Grand Tableau?
                            线型→ 从左到右读成一句话
                            GT→ 先定位指示牌(Man/Woman), 以它为原点展开
-                           话术:
-                             "5张牌从左到右: 【A】开头→【B】推进→【C】转折→【D】发展→【E】结果"
+                           Greer两步法（来自Ex Machina实际解读）:
+                             第一步: 每张牌翻译为关键词 → 形成一句基本意思
+                             第二步: 将这句话展开为与问卜者情境相关的完整叙事
 
                          ── A. 总体印象 ──
                            【问题】用户原问
                            【牌阵】名称
                            【一眼直觉】
-                             指示牌在哪里？什么牌离它最近？（Boroveshengra: 近=强影响力）
+                             指示牌在哪里？什么牌在它旁边？（首牌=主题）
                              正负电荷比例→ 整体能量偏向
                              速度牌分布→ 事件节奏快/慢
                              人物卡出现→ 谁登场了
-                             视线方向→ 牌面人物在看哪张牌？（Boroveshengra: 视线=注意力流向）
                            话术:
                              "【女人】旁紧贴【心】——感情是核心议题"
-                             "快速牌占多数——这件事比你想象中快"
 
-                         ── B. 逐牌解读（Steinbach: 上下文决定牌义; Greer: 先关键词→再叙事）──
-                           每张牌:
-                             位置｜牌名
-                             core(关键词/类别/主题) — 牌的本义
-                             as_person — 代表谁(人物类牌)
-                             modifier_behavior — 在组合中是描述/放大/反转/转折
-                             topic_context — 按用户问题(love/career等)取具体含义
-                           Greer实际解读法: 先逐张翻译关键词→再串成故事
-                             例: "Rider(到达)+Mice(偷窃)+Sun(成功)+Mountain(障碍)+Child(新的/年轻的)"
-                             → "随着一位客人的到来(骑手)，发生了对成功(太阳)的窃取(老鼠)，以及对新事物(小孩)的阻碍(山)"
-                           Steinbach心理法: 同张牌在不同问题中有不同解读
-                             棺材在感情=关系结束, 在事业=项目终结
+                         ── B. 逐牌解读（Greer两步法）──
+                           第一步·关键词翻译:
+                             每张牌先给出它的核心关键词
+                             Greer实际示例: "Coffin means illness, financial loss, endings"
+                             按topic_context取具体含义（同牌不同义）
+                           第二步·串成句子:
+                             把每张牌的关键词串成一句基本意思
+                             Greer示例: "With the arrival of a guest (Rider) comes a theft (Mice) of success (Sun) and an obstacle (Mountain) to something new (Child)"
+                           然后展开为完整叙事:
+                             "What the spread points to is the arrival of [人物] at/in [场景]. They must overcome [障碍] to [目标]"
                            话术:
-                             "【狐狸】在【男人】旁——不是单纯狐狸,它在修饰这个男人：可能在耍心机"
+                             "【骑手+老鼠+太阳+山+小孩】→ 一位客人的到来，带来了对成功的窃取，以及对新事物的阻碍"
 
-                         ── C. 组合链（Rana George: 系统双卡组合法）──
+                         ── C. 组合链（Greer: 线型牌阵读成一句话）──
                            线型牌阵:
                              每对相邻牌形成"名词+修饰语"组合
                              A+B→含义, B+C→推进, 整条链形成句子
-                             组合语法（引擎数据: 描述/放大/反转/转折）:
-                               描述=牌B描述牌A的属性
-                               放大=牌B增强牌A的能量
-                               反转=牌B否定牌A
-                               转折=牌B改变方向
-                             固定组合: 引擎预置16组固定组合(含with/with_number/category)
+                             相邻牌=B修饰A的属性
+                             固定组合: 引擎预置16组固定组合数据
                            话术:
                              "【花园+船】—社交引向旅行"
                              "【棺材+花束】—结束中带希望"
 
-                         ── D. 牌阵互动（Matthews GT系统 + Boroveshengra距离法）──
+                         ── D. 牌阵互动（Greer: 传统法 vs 现代法）──
+                           传统法（来自Greer采访原文）:
+                             "The first card on the left is the subject"
+                             "The nearer Coffin is to the person (Man) the more serious the situation"
+                             左=主题, 右=发展: "Cards to the left of Coffin show what is lost, while cards to the right show future"
+                           现代传统法:
+                             在传统基础上增加灵活度，"core meanings should always show through"
                            线型补充:
                              首牌=主题, 末牌=结果
                              三牌一组: 开始→发展→结果
-                             距离法(Boroveshengra): 
-                               紧邻指示牌的牌=当下最关键的事
-                               距指示牌3+格的牌=外围/长远影响
-                             方向法(Boroveshengra):
-                               牌面人物视线指向哪张牌=注意力/能量流向
-                           Grand Tableau (Matthews/Treppner):
-                             镜像(Mirror): 对角线对称位置的牌互为提示和补充
-                             骑士跳(Knight's Move): 象棋马步跳跃产生隐藏关联
-                             内九宫格(Inner Ring): 任意牌周围3×3区域形成局部叙事
-                             主题线(Theme Line): 同花色/同数字/同主题的牌形成潜在线索
-                             级联链(House Chaining): 落宫传递——牌落入什么宫位就叠加那个宫位的含义
-                           话术:
-                             "【星星】和【棺材】隔空对话——结束的同时有方向引领"
-                             "牌面人物都在向右看——能量在推向未来"
+                           Grand Tableau (Greer课程内容):
+                             先找指示牌 → 读它周围的牌 → 行读(每行一个故事) → 列读(每列一个主题)
+                             镜像(Mirror): 对称位置的牌互为提示
+                             骑士跳(Knight's Move): 马步跳跃产生隐藏关联
+                             内九宫格(Inner Ring): 任意牌周围3×3局部叙事
+                             级联链(House Chaining): 落宫叠加含义
 
-                         ── E. 事件故事（现实事件模拟器）──
-                           把整局翻译成现实事件流程:
-                             按时间: 起因→发展→转折→结果
-                             按人物: 谁→对谁→做什么→结果
-                             按逻辑: 消息→行动→互动→达成
+                         ── E. 事件故事（Greer: 把组合链展开为叙事）──
+                           Greer两步法第三步: 将关键词句子展开为现实事件
+                             从"Rider+Mice+Sun+Mountain+Child"
+                             → "一位年轻人来到孤山别墅，必须跨越一切障碍去偷一个全新的存在"
+                           按时间: 起因→发展→转折→结果
+                           按人物: 谁→对谁→做什么→结果
                            话术:
                              "这5张牌的故事: 收到消息【骑手】→对话【花园】→犹豫【云】→决定【百合】→达成【锚】"
 
