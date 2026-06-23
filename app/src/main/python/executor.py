@@ -1276,7 +1276,9 @@ NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-en
   返回 JSON，AI 基于真实数据解读。
 
 TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', code="TarotKit.drawCards(3)")
-      优点: ① readingAspects 是5个独立顶级字段(currentSituation/innerState/rootCause/development/advice),
+      优点: ① readingAspects 是5个独立顶级字段
+               currentSituation(当前状况)/innerState(内心状态)/rootCause(根因)
+               /development(发展)/advice(建议),
             arcanite的同类数据埋在7类×5-8子位的3层深处,AI取用需逐层导航。
             ② 每牌有专属 description(画面描述) 和 coreKeyword(一词总结), arcanite无此字段。
             ③ 所有20个文本块均有正/逆位两个版本,结构一致无例外。
