@@ -781,6 +781,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
 
                        ╔══════════════════ 塔罗 ══════════════════╗
  塔罗/韦特           →  arcanite(Python,78张+牌阵+正逆位), 规则见下
+                        TarotKit(JS,中英双语要点式,drawCards裸抽无牌阵,5独立读牌面字段) 规则见JS引擎段
                         【抽牌即含9层数据, 勿只给简单解读, 按用户场景取对应层】
                         1.core_meanings      正位(upright)+逆位(reversed)核心含义(各6组关键词+详细解读, 调时传 reversed=bool 匹配正逆位)
                         2.position_interpretations 7种牌位(调时传 rag_mapping="类别.子路径"+reversed=bool): 类别=temporal_positions(时间) / challenge_and_growth(挑战) / guidance_and_action(行动) / emotional_and_internal(情感) / external_influences(外部) / outcome_and_result(结果) / relationships(关系); 子路径如 .past/.present/.future/.advice/.challenge/.outcome等。示例: rag_mapping="temporal_positions.past"
