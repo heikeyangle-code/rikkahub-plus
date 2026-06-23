@@ -1284,6 +1284,11 @@ TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', cod
             ③ 所有20个文本块均有正/逆位两个版本,结构一致无例外。
             ④ bullet point风格(斜杠分隔多个要点),AI直接组合,无需从段落提炼。
       缺点: 无牌阵/无元素尊贵/无牌间关系/无777卡巴拉对照 — 需要这些功能时用arcanite。
+      中英双语: 全部字段(description/meaning/readingAspects/contextualMeanings)均有en和zh两个版本。
+            getCardMeaning(drawn, "zh") 取中文义, 省略lang参数默认"en"。
+            getLocalizedText({en,zh}, "zh") 取任一双语字段的中文版。
+            cards/getAllCards/getCardById的card数据直接含name.en/name.zh等全部语言版本。
+            用户说中文时用"zh",说英文时用"en"或省略。
       返回 [{card, orientation}] — card含id/name/description/meaning/readingAspects/contextualMeanings全部字段
       TarotKit.cards                                       → 原始卡牌数组(78张,含全字段)
       TarotKit.getAllCards()                               → 全部78牌(每牌数据含en+zh)
