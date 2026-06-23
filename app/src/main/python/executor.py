@@ -783,7 +783,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
  塔罗/韦特           →  arcanite(Python,78张+牌阵+正逆位), 规则见下
                         【抽牌即含9层数据, 勿只给简单解读, 按用户场景取对应层】
                         1.core_meanings      正位(upright)+逆位(reversed)核心含义(各6组关键词+详细解读, 调时传 reversed=bool 匹配正逆位)
-                        2.position_interpretations 7种牌位(调时传 rag_mapping+reversed=bool): temporal_positions(时间维度: 过去/现在/未来及其细分) | challenge_and_growth(挑战成长) | guidance_and_action(行动建议) | emotional_and_internal(情感内在) | external_influences(外部影响) | outcome_and_result(结果) | relationships(人际关系)
+                        2.position_interpretations 7种牌位(调时传 rag_mapping="类别.子路径"+reversed=bool): 类别=temporal_positions(时间) / challenge_and_growth(挑战) / guidance_and_action(行动) / emotional_and_internal(情感) / external_influences(外部) / outcome_and_result(结果) / relationships(关系); 子路径如 .past/.present/.future/.advice/.challenge/.outcome等。示例: rag_mapping="temporal_positions.past"
                         3.question_contexts  5种场景(调时传 question_type+reversed=bool): love(爱情) | career(事业) | spiritual(灵性) | financial(财务) | health(健康) — 每个含3种解读(关键词/详细/建议)
                         4.elemental_correspondences 10项: element元素 | zodiac星座 | hebrew_letter希伯来字母 | numerology灵数 | planet行星 | season季节 | time_of_day时辰 | colors颜色 | crystals水晶 | herbs草药
                         5.symbols            牌面符号逐个解读(每牌5-8个符号)
@@ -795,7 +795,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
 
  arcanite            →  塔罗: from arcanite.core import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
-                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols() / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段)
+                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols()→遍历.items()(返回dict非list) / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段)
 
                        【塔罗输出】塔罗=人生故事生成器
                          【问题】
@@ -821,7 +821,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        ╔══════════════════ 塔罗数据 ═════════════════╗
                        【塔罗数据使用规则】
                          必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping, reversed=) / get_question_context(question_type, reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / .raw_data(含meditation_focus等全部原始字段)
-                         用于润色：get_symbols() / get_elemental_correspondences() (取element,astrology等)
+                         用于润色：get_symbols()→for k,v in .items()(返回dict) / get_elemental_correspondences() (取element,astrology等)
                          结构分析(仅【牌阵结构】): statistics + composition.major_arcana_ratio + composition.court_card_ratio + composition.repeated_numbers + composition.repeated_suits + reversal.blocked_energy_signal
                          完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
                        ╚════════════════════════════════════════════╝
