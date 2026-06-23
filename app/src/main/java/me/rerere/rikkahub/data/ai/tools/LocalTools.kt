@@ -160,6 +160,14 @@ class LocalTools(private val context: Context, private val eventBus: AppEventBus
                         "warn:function(){for(var i=0;i<arguments.length;i++)__console_logs.push('[WARN] '+String(arguments[i]))}," +
                         "info:function(){for(var i=0;i<arguments.length;i++)__console_logs.push('[INFO] '+String(arguments[i]))}};"
                     )
+
+                    // ── Device timezone (IANA name) → JS global, for Intl polyfill ──
+                    // E.g. "Asia/Shanghai", "America/New_York", "Europe/London"
+                    // The Intl polyfill in engine entry files reads this variable to
+                    // return the correct timezone from resolvedOptions().timeZone,
+                    // instead of hardcoding "UTC".
+                    val deviceTz = java.util.TimeZone.getDefault().getID()
+                    jsContext!!.evaluate("var __device_timezone = '$deviceTz';")
                 }
             }
         }

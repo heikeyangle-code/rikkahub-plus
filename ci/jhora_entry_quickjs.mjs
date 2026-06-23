@@ -2,18 +2,23 @@
  *
  *  luxon's systemLocale() calls new Intl.DateTimeFormat().resolvedOptions().locale
  *  during DateTime construction. Without this, any luxon DateTime instantiation
- *  throws "'Intl' is not defined".
+ *  throws "'Intl' is not defined'.
  *
  *  This lightweight polyfill covers only what luxon actually uses. It does NOT
  *  load ICU data — locale-aware formatting (toLocaleString, etc.) returns
  *  defaults ('en-US'). For astrometric calculations this is irrelevant; all
  *  planetary computations use pure number math, never locale-dependent formatting.
+ *
+ *  The timezone is read from __device_timezone (injected by Kotlin from
+ *  TimeZone.getDefault().getID()), so DateTimes created without an explicit
+ *  offset use the device's actual local timezone — matching Node.js behavior.
  */
 if (typeof Intl === 'undefined') {
+  var _tz = typeof __device_timezone !== 'undefined' ? String(__device_timezone) : 'UTC';
   var Intl$ = {
     DateTimeFormat: function (locale, opts) {
       return {
-        resolvedOptions: function () { return { locale: locale || 'en-US', timeZone: 'UTC' }; },
+        resolvedOptions: function () { return { locale: locale || 'en-US', timeZone: _tz }; },
         format: function (d) { return d ? d.toISOString ? d.toISOString() : String(d) : ''; },
         formatToParts: function (d) { return [{ type: 'year', value: String(d.getFullYear?.() || 0) }]; }
       };
