@@ -861,12 +861,14 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        └──────────────────────────────────────────────────────┘
 
                        【塔罗输出】塔罗=生命故事生成器
-                         融合大师核心理念:
-                           Rachel Pollack → 大牌=灵魂旅程, 每牌=故事角色
-                           Mary K. Greer → 元素互动, 逆位能量方向
-                           Joan Bunning → 对立/强化成对阅读, Fool's Journey
+                         融合权威来源:
+                           Eden Gray → Fool's Journey (大牌22站旅程)
+                           Rachel Pollack → 每牌=故事角色, 大牌=灵魂archetype
+                           Joan Bunning → 能量水位(逆位), 对立/强化成对阅读
+                           Mary K. Greer → 花色叙事流(小牌逐卡讲故事), 逆位系统全盘研究
                            Benebell Wen → 概览→分析→综合三阶段
                          重要: 以下7层是框架不是铁律。Joan Bunning说"先放下所有原则，让故事自然流出"
+                           Mary K. Greer说"没有规则，所有规则都可以打破"
                            AI 先感受牌阵整体，再用7层结构组织语言
                            不是每层都必须填——有的阅读一张牌就说明了一切
                            叙事比结构更重要——宁缺一节，不凑一段
@@ -971,6 +973,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            心理挖掘: core_meanings.psychological + practical
                            象征点缀: get_symbols 选一个最有张力的符号展开
                            元素印记: elemental_correspondences 取元素/星座/灵数增强语气
+                           宫廷牌（Mary K. Greer: 代表人物特征/态度/成熟度, 有时是行动信号）
                            暗线关联: card_relationships 与前后牌的增幅/挑战
                            每张 3-5 句，像速写一个角色，不是罗列数据
                            话术示例（融会 Joan Bunning + Mary K. Greer）:
@@ -1033,9 +1036,10 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            数字序列:
                              连续数字 → 进展信号
                              重复数字(EE.doubling) → 执念/强调
-                           花色对话:
+                           花色对话（Mary K. Greer: 花色叙事流——同花色逐卡讲故事）:
                              同花色→ 同一个生活领域被强调
                              元素冲突→ 内心/外界矛盾
+                             同一花色的数字序列(如宝剑3→4→5)→ 这个领域的故事在推进
                            缺席元素（EE.absence）:
                              完全没出现的花色 → 被忽略的领域
 
@@ -1105,7 +1109,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        ╚════════════════════════════════════════════╝
 
 【塔罗卡巴拉全对应】arcanite抽牌→查本表→Kaabalah.buildKaabalisticMapData()一键拿全映射(源质+字母+路径+行星对应). 来自Crowley 777/黄金黎明.
- 大牌(22): 序号=KeyScale, 字母=希伯来字母, 路径=生命之树路径, Fool's Journey阶段
+ 大牌(22): 序号=KeyScale, 字母=希伯来字母, 路径=生命之树路径, Fool's Journey阶段(Eden Gray创始)
     0=Fool(Aleph,11,出发) 1=Magician(Beth,12,创造) 2=HighPriestess(Gimel,13,直觉)
     3=Empress(Daleth,14,丰饶) 4=Emperor(Heh,15,秩序) 5=Hierophant(Vau,16,导师)
     6=Lovers(Zain,17,结合) 7=Chariot(Cheth,18,掌控) 8=Strength(Teth,19,勇气)
