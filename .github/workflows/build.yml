@@ -487,6 +487,10 @@ jobs:
           # Patch source files for QuickJS: remove fs/path deps, add buffer support
           python3 ${GITHUB_WORKSPACE}/ci/patch_nodejhora_quickjs.py node_modules
 
+          # Patch ASC formula: atan(y/x)+if cos>0→+180 misses cos<0 cases (nighttime).
+          # Replace with Swiss Ephemeris standard atan2(cos, -(sin*cos+tan*sin))
+          python3 ${GITHUB_WORKSPACE}/ci/patch_nodejhora_asc.py node_modules
+
           # Use QuickJS entry file (reads __nodejhora_bsp global injected by Kotlin)
           cp ${GITHUB_WORKSPACE}/ci/jhora_entry_quickjs.mjs ./jhora-entry.mjs
 
