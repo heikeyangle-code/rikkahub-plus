@@ -1159,12 +1159,13 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            Mary K. Greer → 传统雷诺曼法则 + 逆位试验
                            Iris Treppner → 大桌高级技巧
 
-                         核心原则（通用，各家共识）:
+                         核心原则:
                            ① 牌从不单独解读——每张牌都在组合中形成含义
                            ② 指示牌(Man/Woman)锚定全盘——所有牌以它为参照点
                            ③ Boroveshengra距离法: 牌离指示牌越近=对问卜者影响越大越直接
                            ④ Boroveshengra方向法: 牌面人物/动物的视线方向=能量流向
                            ⑤ 第一张牌=主题/开头, 末张=结果/收束
+                           ⑥ Greer: 传统雷诺曼=直觉+知识——先懂牌义，再凭直觉串成故事
 
                          ── 开读 ──
                            确定牌阵类型: 线型(line-3/5/7/9) 还是 Grand Tableau?
@@ -1186,15 +1187,18 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                              "【女人】旁紧贴【心】——感情是核心议题"
                              "快速牌占多数——这件事比你想象中快"
 
-                         ── B. 逐牌解读（Steinbach: 上下文决定牌义）──
+                         ── B. 逐牌解读（Steinbach: 上下文决定牌义; Greer: 先关键词→再叙事）──
                            每张牌:
                              位置｜牌名
                              core(关键词/类别/主题) — 牌的本义
                              as_person — 代表谁(人物类牌)
                              modifier_behavior — 在组合中是描述/放大/反转/转折
                              topic_context — 按用户问题(love/career等)取具体含义
-                           Greer传统法: "Coffin means illness, financial loss, endings"
-                           Steinbach心理法: 同张牌在不同问题中有不同解读——棺材在感情=关系结束,在事业=项目终结
+                           Greer实际解读法: 先逐张翻译关键词→再串成故事
+                             例: "Rider(到达)+Mice(偷窃)+Sun(成功)+Mountain(障碍)+Child(新的/年轻的)"
+                             → "随着一位客人的到来(骑手)，发生了对成功(太阳)的窃取(老鼠)，以及对新事物(小孩)的阻碍(山)"
+                           Steinbach心理法: 同张牌在不同问题中有不同解读
+                             棺材在感情=关系结束, 在事业=项目终结
                            话术:
                              "【狐狸】在【男人】旁——不是单纯狐狸,它在修饰这个男人：可能在耍心机"
 
