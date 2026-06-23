@@ -1276,6 +1276,9 @@ NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-en
   返回 JSON，AI 基于真实数据解读。
 
 TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', code="TarotKit.drawCards(3)")
+      优点: readingAspects(currentSituation/innerState/rootCause/development/advice) 是5个独立顶级字段,
+            AI直接取用不分层。每牌20个要点块,斜杠分隔的bullet point风格,AI无需提炼直接组合成解读。
+      缺点: 无牌阵/无元素尊贵/无牌间关系/无777卡巴拉对照 — 需要这些功能时用arcanite。
       返回 [{card, orientation}] — card含id/name/description/meaning/readingAspects/contextualMeanings全部字段
       TarotKit.cards                                       → 原始卡牌数组(78张,含全字段)
       TarotKit.getAllCards()                               → 全部78牌(每牌数据含en+zh)
