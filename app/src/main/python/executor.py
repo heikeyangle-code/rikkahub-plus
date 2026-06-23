@@ -802,7 +802,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols()→遍历.items()(返回dict非list) / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段)
 
                        ┌─ 互补模式（arcanite + TarotKit 强强联合）──────────────┐
-                       │ 当用户说"全面""两个都看"或 AI 判断双方各有所长时:     │
+                       │ 标准步骤,根据数据需要取对应引擎的字段:                │
                        │                                                      │
                        │ STEP 0: 导入                                         │
                        │   from arcanite.core import TarotDeck                │
@@ -972,7 +972,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            当前处境: 位置含义 + position_interpretations(rag)
                            心理挖掘: core_meanings.psychological + practical
                            象征点缀: get_symbols 选一个最有张力的符号展开
-                           元素印记: elemental_correspondences 取元素/星座/灵数增强语气
+                           元素印记: elemental_correspondences 取元素/星座/行星/希伯来字母/灵数/季节/时间/颜色/水晶/草药共10项增强语气
                            宫廷牌（Mary K. Greer: 代表人物特征/态度/成熟度, 有时是行动信号）
                            暗线关联: card_relationships 与前后牌的增幅/挑战
                            每张 3-5 句，像速写一个角色，不是罗列数据
@@ -1032,7 +1032,8 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                               架桥: 某元素连续出现3+张 → 该生活领域被强烈强调
                               孤岛: 某牌元素与全阵无一相同 → 警示信号/被忽视的声音
                            牌间关系（get_relationships 交叉检查）:
-                             本局哪些牌之间有增幅/挑战/澄清关系
+                             本局哪些牌之间有增幅/挑战/澄清/同频/对冲/学习序列(learning_sequence)关系
+                             学习序列 = 能量从低到高的自然进化路径(如宝剑3→5→8: 心碎→冲突→困境升级)
                            数字序列:
                              连续数字 → 进展信号
                              重复数字(EE.doubling) → 执念/强调
@@ -1076,10 +1077,10 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
 
                        ╔══════════════════ 塔罗数据 ═════════════════╗
                        【塔罗数据使用规则】
-                         必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping, reversed=) / get_question_context(question_type, reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / .raw_data(含meditation_focus等全部原始字段)
-                         用于润色：get_symbols()→for k,v in .items()(返回dict) / get_elemental_correspondences() (取element,astrology等)
+                         必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping, reversed=) / get_question_context(question_type, reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / meditation_focus / .raw_data(全部原始字段)
+                         用于润色：get_symbols()→for k,v in .items()(返回dict) / get_elemental_correspondences() (共10项: element/zodiac/planet/hebrew_letter/numerology/season/time_of_day/colors/crystals/herbs)
                          结构分析(仅【牌阵结构】): statistics + composition.major_arcana_ratio + composition.court_card_ratio + composition.repeated_numbers + composition.repeated_suits + reversal.blocked_energy_signal
-                         完全隐藏：hebrew_letters / tree_of_life / 777 / four_worlds / sephiroth
+                         秘传附录(Kaabalah JS引擎按需调用:hebrew_letters/tree_of_life/777/four_worlds/sephiroth，不在正文展开，仅当NNL确认与解读相关时取用)
                        ╚════════════════════════════════════════════╝
 
                        ╔══════════════════ 逆位解读（基于 Joan Bunning《Learning the Tarot》理念）══════╗
@@ -1100,12 +1101,6 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        ╔══════════════════ 塔罗牌阵 ═════════════════╗
                        from tarot_elemental_engine import ElementalDignityEngine as EE; from arcanite.core.spread import list_spreads, load_spread
                          list_spreads() → 塔罗11牌阵: single-focus / past-present-future / mind-body-spirit / situation-action-outcome / five-card-cross / four-card-decision / relationship-spread / horseshoe-traditional / horseshoe-apex / celtic-cross / year-ahead
-                       ╚════════════════════════════════════════════╝
-                       ╔══════════════════ 塔罗模式 ═════════════════╗
-                         默认=故事叙事,不调用EE引擎
-                         Pro(用户说"深入/详细"): 塔罗+EE.full_analysis(cards)取spread_dignity(元素尊贵法,三张一组+架桥+链式/孤岛扩展)+statistics(元素分布)+composition(大牌/宫廷占比+重复数字花色)
-                         Master(用户说"大师/秘传/777"): 塔罗+EE.full_analysis(cards)全字段(Pro基础上追加numerology数字学加总+absence缺席读法+doubling重复数字共振+reversal正逆位统计)+秘传分析(生命之树/777/四世界,查Kaabalah.buildKaabalisticMapData())
-                         切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
                        ╚════════════════════════════════════════════╝
 
 【塔罗卡巴拉全对应】arcanite抽牌→查本表→Kaabalah.buildKaabalisticMapData()一键拿全映射(源质+字母+路径+行星对应). 来自Crowley 777/黄金黎明.
@@ -1248,8 +1243,8 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                         【雷诺曼数据使用规则】
                           必须使用：core / keywords / combination_rules / modifier_behavior / line_reading
                           用于润色：timing
-                          playing_cards 默认隐藏，Master附录显示
-                          as_person → 抽到人物类卡(骑手/男人/女人/小孩等)时激活，写入该牌解读中
+                          playing_cards → GT专用的扑克牌数值附录
+                          as_person → 抽到人物类卡(骑手/男人/女人/小孩/熊/狗等)时激活，在该牌解读中展开角色描写
                         ╚════════════════════════════════════════════╝
 
                         ╔══════════════════ 雷诺曼牌阵 ═══════════════╗
@@ -1259,18 +1254,80 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                           Grand Tableau: 4×9网格,36宫role=house,sig=false(男人/女人牌游走) | 坐标计算一律调用FE方法,不在此处理:骑士跳→FE.calculate_knights_move 反射→FE.get_reflection 镜像→FE.get_gt_mirrors 内九宫格→FE.get_inner_9_ring 交叉→FE.get_intersection | 镜像位: pos.mirror_target | 指示牌: pos.is_significator
                           牌阵位置名对应输出的【位置｜牌名】，rag_mapping对应牌位解读层
                         ╚════════════════════════════════════════════╝
-                        ╔══════════════════ 雷诺曼模式 ═══════════════╗
-                          默认=事件链
-                          Pro(用户说"深入/详细"): 雷诺曼+话题分析/方向/速度
-                          Master(用户说"大师/秘传/"): 雷诺曼+Grand Tableau(Step1内九宫格→Step2 MOD近远法→Step3骑士步/镜像/反射[仅指示牌]→Step4宫位背景)+引擎调度+Pro全部(话题分析/方向/速度)
-                          切换: AI根据用户语气自动选级，也可显式说"用Pro模式"、"用Master模式"
-                        ╚════════════════════════════════════════════╝
+                        ╔══════════════════ 雷诺曼输出模板(权威版) ═══════════════╗
+                          输出(不分层,所有牌阵通用,引擎数据全开):
+                          【问题】— 问卜原句
+                          【牌阵】— 牌阵名称+张数
+                          【一句话答案】— 核心结论,开门见山
+                          【主题定性】— 先定基调(Greer:"先判断整体能量走向,再展开细节"),让问卜者立刻抓住解读的重点方向
+                          【能量色调】— 全局电荷正/中/负占比,定性整体能量是上升/下降/混合/矛盾; 同时检测"包围否定"效应:若某牌被周围两张相反电荷的牌夹击,其基础含义可能被削弱甚至反转(德传Kartenlegen:umliegende Karten negieren)
+                          【整体叙事】— 按照"故事的情节"构建(Greer原话:They best address what has/is/will happen, like the plot of a story):
+                            步骤1(Greer关键词法):先扫每张牌的核心含义——牌不单独读,以对和组形成意义
+                            步骤2(Greer叙事展开):把关键词串成与问卜者情境相关的完整故事段落
+                            序列规则(Greer语法):第一张左牌=主语/主题,后续牌=修饰语按"左→右"推进剧情
+                            整条牌链=一个故事,从左到右/从第一位置到最后一位置依次展开
+                          【逐牌解读】— 每张牌2~4句,按Greer体系:"card keywords integrated into fresh concepts according to a syntax or structure",包含:
+                            ①位置名+位置short_description(语境定调该牌的"叙事角色")
+                            ②核心含义(core/keywords)——重点是functional而非symbolic(Greer:the pictures are not read symbolically)
+                            ③modifier_behavior修饰(每张牌都被邻牌修饰,距离越近影响越大)
+                            ④与左右邻牌关系——用get_combination_with,注意方向语法:A左B右时A被B修饰
+                            ⑤德传Sach/Person区分——部分牌(Bär/Storch/Hund)可兼人物两性,标注"此牌在此处读作[人/物]"
+                            ⑥as_person激活时:角色出场描写(性格/在叙事中的角色/与邻牌人物的关系)
+                          【组合链】— 按Greer体系:"cards modify other cards according to explicit rules; look at the cards both as a sequence(in terms of what modifies what) and also as pairs"
+                            序列读法: A→B→C→D(左到右)=因果链/时间线推进,B修饰A,C修饰B
+                            配对读法: 每对相邻牌形成"修饰关系"(A+B读作"被B修饰的A")
+                            三对交叉(Greer案例): Coffin+Bear / Bear+Man / Coffin+Man 三对交叉验证,不是线性罗列
+                            核心:每对都要推动剧情/提供新信息,不是重复说同一件事
+                          【跨位关系网】— mirror_target跨位共鸣(因果链对应位置)+行间/列间/对角关联(非GT牌阵仍用首尾呼应概念)
+                            注意:镜像≠重复——镜像位揭示的是同一议题的"另一面",而非重复确认
+                          【人物视线方向(Blickrichtung)】— 德传Große Tafel核心技法:
+                            人物牌(女人29/男人28/小孩13/骑手1)的视线方向=能量流向
+                            两人物相向(面对面)=好感/开放交流; 背对背=拒绝/沟通断裂
+                            两人物之间的牌=这段关系的实质内容
+                            GT典型格局:Herr→Herz Park←Dame=情感开放公开场合; ←Dame Ruten Herr→=冲突争执
+                            非GT牌阵同样适用:首牌人物视线朝右=面向未来,朝左=回望过去
+                          【牌阵结构总结】— 电荷分布(正/中/负张数+占比)+速度牌分布(fast/neutral/slow张数)+人物卡激活清单(牌名+角色)+重复花色/重复数字(若有则标注:重复数字=该数字对应的事物的强调,重复花色=该花色元素领域被激活)
+                          【领域标识(Signifikatoren)】— 德传按特定牌定位人生领域:Anker(35)=职业,Ring(25)=关系,Kind(13)=子女,Schiff(3)=旅行,Haus(4)=家庭,Hund(18)=友谊,Brief(27)=消息
+                            解读时先看这些Signifikatorkarte出现在牌阵的哪个位置以及它们周围的牌,判断该领域的状态
+                          【时间框架】— 按牌阵位置划分时间:
+                            GT用四象限(行1=近未来天/周,行2=短期月,行3=中期季度,行4=长期年,Matthews法)
+                            或德传日历法:36格对应月份(1-31日+5补位)或星期(1-7×3周+15补位)
+                            非GT按牌序前半=过去/背景,后半=未来/发展
+                            各牌speed系数修正事件节奏:fast=日/周内显现,neutral=月尺度,slow=季度/年尺度(Boroveshengra)
+                          【结论】— 综合全盘后的最终判断,提炼出最核心的一条信息
+                          【建议≤3】— 不超过3条可操作建议,每条都要具体可执行,不空泛
+                          【反思问题】— 留一个让问卜者自省的问题(塔罗模板反思结构迁移)
+                          【箴言】— 一句收尾格言(源自Hechtel原版《Das Spiel der Hoffnung》每牌配一句人生箴言/格言的基因,提炼全盘最核心的教义,用牌面符号隐喻收束)
+                          GT追加模块(36张时自动激活):
+                            四角框架: {左上=起点/初衷,右上=远景期望,左下=隐藏根基,右下=最终结算}
+                            四角组合: 1+36和9+28两对角交叉验证整体叙事边界(德传Große Tafel: Eckkarten in Kombination)
+                            牌阵变体: 除标准4×9外,德国传统还使用4×8+4(下方4张=当前局势主陈述,Hauptaussage zur gegenwärtigen Situation)
+                            人物视线(Blickrichtung): 详见【人物视线方向】段,GT中人物卡的看向方向是关系解读的第一手线索
+                            Step1内九宫格: 指示牌3×3邻接按row/col/diag分组两两组句定调
+                            Step2 MOD近远法: Heart/Fish/Anchor/Cross/Tree按final_weight排序,最小=最快最强,direction(past/future)
+                            Step3深挖: 仅指示牌骑士步暗线+三维镜像(horizontal=表面映像/vertical=深层真相/diagonal=命运对称)+反射(35-idx隐藏本质)
+                            Step4宫位背景: 落宫改变牌义(Anchor落Rider宫≠Anchor落Child宫,牌义因宫位而变)+级联链追底层原因
+                            注意 Eigenes Haus(自家): 牌落在与自己编号相同的位置时,该牌性质无法施展——如Reiter(1)落1号位=不动/无消息(Häusersystem: Karte im eigenen Haus kommt nicht zur Geltung)
+                            交叉法: 指示牌所在整行+整列同轴叙事主线
+                            扑克牌附录: playing card对应+点数数值关系(可选展开)
+                          数据使用: 必须(core/keywords/combination_rules/modifier_behavior/line_reading) | 语气润色(timing) | 激活(as_person抽到人物卡时展开角色描写,不激活则隐藏) | 附录(playing_cards仅GT附录) | 禁止(_data裸访问)
+                          引擎输出=硬骨架,LLM只在其上叙事不篡改索引/权重/方向等事实字段
+                          核心原则:
+                            ① 先整体后局部:先给一句话结论,再展开逐牌细节
+                            ② 语法法则:相邻牌=名词+形容词组合(Greer课程原话:interpretative nouns and adjectives in card combinations)——左牌=名词/主语(谁/什么),右牌=形容词/修饰语(怎么样/结果);整条牌链从左到右读成一句话
+                            ③ 配对法则:牌不单独读,以对和组形成意义(Greer:interpreting Lenormand through pairs and combinations);每对都要推进剧情不重复
+                            ④ 语境法则:同一张牌在不同牌阵位置讲不同故事——位置=场景,牌=角色;Anchor在职业位vs感情位含义不同;落宫改变牌的"叙事角色"
+                            ⑤ 线索法则(GT):行=叙事的章节(第1行:开场,第2行:发展,第3行:转折,第4行:结局);列=贯穿同一主题;对角线=隐藏暗线
+                            ⑥ 速度法则:牌距指示牌越近=影响越直接越快,越远=越长期;speed系数修正节奏(fast=日/周,slow=季度/年)
+                            ⑦ Greer:每张牌都是故事的一个角色/事件,功能含义优先于象征含义(the pictures are not read symbolically)
+                            ⑧ 引擎输出=硬骨架,LLM负责叙事
+                        ╚══════════════════════════════════════════════════════════╝
 
                         【雷诺曼引擎调度】from lenormand_engine import LenormandFateEngine as FE
                           🟢必开(牌阵触发即用):
                             FE.parse_karmic_mirrors(spread.positions,items) — 所有有mirror_target的牌阵: line-3/5/7/9/cross/relationship/box-3x3/astrological-houses
                             FE.parse_portrait_3x3_cage(items, spread_id) — box-3x3/GT 钉四角(十字心仅box-3x3)
-                          🔵Master必开(Grand Tableau):
+                          🔵GT专属(Grand Tableau):
                             master=FE.parse_grand_tableau_master_mode(items,spread.positions,gender)
                             ← 返回Step1-4结构: step1_inner_ring(内九宫格定调) → step2_mod_ranking(MOD权重排序,含speed+direction) → step3_deep_dive(骑士步/镜像/反射,仅指示牌) → step4_house_background(落宫+级联链)。LLM必须按此顺序使用数据。
                           🟣工具箱(AI按需取):
