@@ -1277,15 +1277,21 @@ NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-en
 
 TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', code="TarotKit.drawCards(3)")
       返回 [{card, orientation}] — card含id/name/description/meaning/readingAspects/contextualMeanings全部字段
-      TarotKit.getAllCards("zh")                          → 全部78牌(中文)
-      TarotKit.getCardById("the-fool", "zh")              → 按ID查牌
-      TarotKit.drawRandomCard()                           → 抽1张 {card, orientation}
-      TarotKit.drawCards(3)                               → 抽3张 [{card, orientation}, ...]
-      TarotKit.getCardMeaning(drawn, "zh")                → 取正/逆位含义文本
+      TarotKit.cards                                       → 原始卡牌数组(78张)
+      TarotKit.getAllCards("zh")                           → 全部78牌(中文)
+      TarotKit.getCardById("the-fool", "zh")               → 按ID查牌
+      TarotKit.getCardsByArcana(cards, "major")             → 大阿卡那(22张)
+      TarotKit.getCardsByArcana(cards, "minor")             → 小阿卡那(56张)
+      TarotKit.drawRandomCard()                            → 抽1张 {card, orientation}
+      TarotKit.drawCards(3)                                → 抽3张 [{card, orientation}, ...]
+      TarotKit.getCardMeaning(drawn, "zh")                 → 取正/逆位含义文本
+      TarotKit.getLocalizedText(nameObj, "zh")             → 取本地化文本(如 card.name)
+      TarotKit.validateUniqueCardIds()                     → 验证牌ID唯一性
       数据字段: card.name(cn/zh)/description/coreKeyword/meaning.upright.reversed
                /readingAspects(currentSituation/innerState/rootCause/development/advice)
                /contextualMeanings(love/work/interpersonal/others)
       所有字段均有en+zh双语, 0占位符
+      注意: lang参数省略时默认为"en"; drawCards(N)返回不重复牌, 每张正逆位50%随机
       (零随机,确定性抽牌)
 
 LiuRen(大六壬) → eval_javascript(library='liuren-engine', code="LiuRen.getLiuRenByDate(new Date(2026,5,19,12,0))")
@@ -1299,9 +1305,36 @@ LiuRen(大六壬) → eval_javascript(library='liuren-engine', code="LiuRen.getL
         jianChu           → 兼初
         shenSha           → [{name,value,description}] 神煞数组
         yinYangGuiRen     → {yangGuiRen(阳贵人), yinGuiRen(阴贵人)} 天将分布
-      也可: LiuRen.getLiuRenBySiZhu("甲辰","丙寅","戊午","庚申")  → 通过四柱起课
-           LiuRen.getNianMing(new Date(1990,5,15), "男")       → 虚岁流年
+      原子函数(可单独调用于局部计算或调试):
+        LiuRen.getTianDiPan(date)                   → 天地盘(地盘/天盘/天将)
+        LiuRen.getSiKe(date, tianDiPan)             → 四课
+        LiuRen.getSanChuan(siKe, tianDiPan)         → 三传(初/中/末传)
+        LiuRen.fillSanChuan(sanChuan,tianDiPan,dunGan,riGan) → 补全三传+课体
+        LiuRen.getDunGan(date, tianDiPan)           → 遁干
+        LiuRen.getChuJian(date)                     → 初监
+        LiuRen.getFuJian(date)                      → 覆监
+        LiuRen.getJianChu(date, tianDiPan)          → 兼初
+        LiuRen.getShenSha(date)                     → 神煞
+        LiuRen.getYinYangGuiRen(date,tianDiPan)     → 阴阳贵人
+        LiuRen.getTianJiang(tianDiPan)              → 天将
+        LiuRen.getShangShen(siKe)                   → 上神
+        LiuRen.getXiaShen(siKe)                     → 下神
+        LiuRen.getGanZhi2Relation(gan, zhi)         → 干支关系
+        LiuRen.getGanZhi2WuXing(gan, zhi)           → 干支五行
+        LiuRen.getGongIndex(zhi)                    → 宫索引
+        LiuRen.getLiuQin(relation)                  → 六亲
+      快捷起课:
+        LiuRen.getLiuRenBySiZhu("甲辰","丙寅","戊午","庚申")  → 通过四柱起课
+        LiuRen.getNianMing(new Date(1990,5,15), "男")       → 虚岁流年
+      日期工具:
+        LiuRen.getDateByObj(new Date(...))           → Date→DateInfo
+        LiuRen.getDateBySiZhu(y,m,d,h)              → 四柱→DateInfo
+      拼音工具:
+        LiuRen.DiZhiPinyin("子")                     → "zi"
+        LiuRen.DiZhiToPinyin("子")                   → "zi"
+        LiuRen.PinyinToDiZhi("zi")                   → "子"
       十二宫key为拼音: zi/chou/yin/mao/chen/si/wu/wei/shen/you/xu/hai
+      getLiuRenByDate 一键起课最方便; 原子函数用于自定义组合或只查某项
       (零随机,纯确定性排盘)
 """
 
