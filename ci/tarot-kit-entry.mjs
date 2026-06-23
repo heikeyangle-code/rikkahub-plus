@@ -13,9 +13,11 @@
  *   TarotKit.validateUniqueCardIds()       → 验证所有牌ID唯一性
  *   TarotKit.getLocalizedText(text, lang)  → 取本地化文本
  *   TarotKit.cards                         → 原始卡牌数组(78张)
+ *
+ * ⚠️ 路径基于 tarot-kit npm 包解压后的 dist/ 目录结构
  */
-export { cards } from './data/cards.js';
-export { getAllCards, getCardById, getCardsByArcana } from './helpers/cards.js';
-export { drawRandomCard, drawCards, getCardMeaning } from './helpers/draw.js';
-export { validateUniqueCardIds } from './helpers/validate.js';
-export { getLocalizedText } from './helpers/localize.js';
+export { cards } from './dist/data/cards.js';
+export { getAllCards, getCardById, getCardsByArcana } from './dist/helpers/cards.js';
+export { drawRandomCard, drawCards, getCardMeaning } from './dist/helpers/draw.js';
+export { validateUniqueCardIds } from './dist/helpers/validate.js';
+export { getLocalizedText } from './dist/helpers/localize.js';
