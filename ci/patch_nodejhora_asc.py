@@ -30,29 +30,19 @@ def patch_file(path, old, new):
 
 
 def main():
-    candidates = []
-    if len(sys.argv) > 1:
-        candidates.append(sys.argv[1])
-    candidates += [
-        'node_modules/@node-jhora/core/dist/engine/coordinates.js',
-        'package/dist/engine/coordinates.js',
-        'dist/engine/coordinates.js',
-    ]
+    base = sys.argv[1] if len(sys.argv) > 1 else 'node_modules'
+    # Construct path relative to base dir (same pattern as patch_nodejhora_quickjs.py)
+    path = os.path.join(base, '@node-jhora', 'core', 'dist', 'engine', 'coordinates.js')
     
-    path = None
-    for c in candidates:
-        if os.path.exists(c):
-            path = c
-            break
+    if not os.path.isfile(path):
+        # Fallback: try relative to script dir
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        alt = os.path.join(script_dir, '..', c)
-        if os.path.exists(alt):
+        alt = os.path.join(script_dir, '..', path)
+        if os.path.isfile(alt):
             path = alt
-            break
-    
-    if not path:
-        print(f"❌ Could not find coordinates.js. Searched: {candidates}")
-        sys.exit(1)
+        else:
+            print(f"❌ Could not find coordinates.js. Searched: {path}")
+            sys.exit(1)
     
     print(f"Patching {path}...")
     
