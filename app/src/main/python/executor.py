@@ -793,7 +793,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                         9.card_relationships 6种牌间关系: amplifies(增幅) | challenges(挑战) | clarifies(澄清) | similar_energy(同类) | opposite_energy(对立) | learning_sequence(学习序列)
                         搭配: 深度→查777表→Kaabalah.buildKaabalisticMapData()(JS,全映射:源质+字母+路径+行星)
 
- arcanite            →  塔罗: d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
+ arcanite            →  塔罗: from arcanite.core import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
                        深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols() / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段)
 
@@ -868,7 +868,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                         无需出生
 
                         ╔══════════════════ 雷诺曼 ═════════════════╗
-                        雷诺曼: d=LenormandDeck.load(); items=d.draw_with_data(N)
+                        雷诺曼: from arcanite.core import LenormandDeck; d=LenormandDeck.load(); items=d.draw_with_data(N)
                         [print(item.card_id,item.card_name) for item in items]
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
                         深度: [item.get_core() for item in items] — 一步直接调语义getter
