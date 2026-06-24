@@ -884,6 +884,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                          ── 1. 总体基调（Benebell Wen 第一阶段：概览）──
                          【问题】用户原问
                          【牌阵】名称 + 位置含义列表
+                         【画面定调】第一张牌的 Waite desc → 定下整局阅读的色调和氛围
                          【总体印象】牌阵的第一眼直觉
                            大牌 vs 小牌比例（Joan Bunning: 大牌=深层/决定性/长期能量, 小牌=日常/表层/短周期）
                            大牌出现时标注Fool's Journey阶段
@@ -901,7 +902,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
 
                            First Pass — 直觉扫描（不看手册，先感受）:
                              看牌阵整体氛围：颜色/情绪/第一直觉
-                             用 TarotKit description 感受画面冲击
+                             用 Waite desc 感受画面冲击，TarotKit description 互补
                              记下第一句浮现在脑海的话——那是潜意识在说话
 
                            Second Pass — 分析穿透（4层深度，从浅到深）:
@@ -1052,7 +1053,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            缺席元素（EE.absence）:
                              完全没出现的花色 → 被忽略的领域
 
-                         ── 6. 秘传（可选，用户要求 777/大师/秘传 时加入）──
+                         ── 6. 秘传（按需展开，不预设隐藏）──
                          【进阶数据】
                            Fool's Journey 总览:
                              本局出现的大牌按旅程排序 → 灵魂当前在哪个阶段
@@ -1079,7 +1080,9 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                          【建议】≤3条（readingAspects.advice + affirmations 融合）
                          【肯定语】1条 affirmations 鼓舞收尾
                          【反思问题】1条 journaling_prompts
-                         【箴言】1条 coreKeyword 或 essence，留一句能带走的话
+                         【箴言】用牌面符号做隐喻收束——不从字面重复牌义，而是将整局最核心的启示提炼成一个画面、一个类比、一句能带走的话：
+                           例: 死神牌不要写"结束就是新开始"，而是"像蛇蜕皮一样，你得先松开那张旧皮，新的才能长出来"
+                           例: 星星牌不要写"希望"，而是"深夜赶路的人抬头看见北斗星——方向不是终点，但知道往哪走"
 
 
 
