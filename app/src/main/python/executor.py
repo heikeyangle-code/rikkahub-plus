@@ -881,7 +881,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            不是每层都必须填——有的阅读一张牌就说明了一切
                            叙事比结构更重要——宁缺一节，不凑一段
 
-                         ── 1. 总体基调（Benebell Wen 第一阶段：概览）──
+                         ── 1. 总体基调──
                          【问题】用户原问
                          【牌阵】名称 + 位置含义列表
                          【画面定调】第一张牌的 Waite desc → 定下整局阅读的色调和氛围
