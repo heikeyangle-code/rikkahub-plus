@@ -849,7 +849,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │ STEP 4: Waite 原版画面描述 + 占卜意义（主画面描述源）    │
                        │   waite = json.load(open('waite_card_data.json'))['cards']│
                        │   cw = next(c for c in waite if c['name'] == dc.card_name)│
-                       │   → cw['desc']             Waite画面描述(200~354字)       │
+                       │   → cw['desc']             Waite画面描述                     │
                        │   → cw['meaning_up']       Waite原版正位占卜意义          │
                        │   → cw['meaning_rev']      Waite原版逆位占卜意义          │
                        │                                                      │
