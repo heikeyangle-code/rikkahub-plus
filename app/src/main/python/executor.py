@@ -846,7 +846,14 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │     dc.archetype                                     │
                        │     dc.raw_data["meditation_focus"]                 │
                        │                                                      │
-                       │ STEP 4: TarotKit 补充独有字段                         │
+                       │ STEP 4: Waite 原版画面描述 + 占卜意义（主画面描述源）    │
+                       │   waite = json.load(open('waite_card_data.json'))['cards']│
+                       │   cw = next(c for c in waite if c['name'] == dc.card_name)│
+                       │   → cw['desc']             Waite画面描述(200~354字)       │
+                       │   → cw['meaning_up']       Waite原版正位占卜意义          │
+                       │   → cw['meaning_rev']      Waite原版逆位占卜意义          │
+                       │                                                      │
+                       │ STEP 5: TarotKit 补充独有字段                         │
                        │   for dc in drawn:                                   │
                        │     js_id = dc.card_id.replace('_', '-')             │
                        │     jscard = TarotKit.getCardById(js_id)             │
@@ -855,7 +862,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │     → readingAspects         5层阅读(正逆位中英)     │
                        │     → contextualMeanings     4语境(正逆位中英)       │
                        │                                                      │
-                       │ STEP 5: Kaabalah 卡巴拉映射（秘传时调用）              │
+                       │ STEP 6: Kaabalah 卡巴拉映射（秘传时调用）              │
                        │   全量: buildKaabalisticMapData({numerology: ee.numerology})│
                        │   查表: SPHERES/HEBREW_LETTERS/LURIANIC_PATHS        │
                        └──────────────────────────────────────────────────────┘
@@ -1726,6 +1733,8 @@ TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', cod
       ⚠️ 无内置牌阵。drawCards(N)只返回N张裸牌,无位置语义。
          牌阵可手工定义(如抽3张=过去/现在/未来),或搭配arcanite的牌阵系统确定位置。
       (硬件真随机, 不支持种子复现)
+      Waite原版画面描述+占卜意义(本地文件 waite_card_data.json,按 cw['name'] == dc.card_name 匹配):
+        cw['desc'] / cw['meaning_up'] / cw['meaning_rev']  | 详见互补模式 STEP 4
 
 LiuRen(大六壬) → eval_javascript(library='liuren-engine', code="LiuRen.getLiuRenByDate(new Date(2026,5,19,12,0))")
       返回 LiuRenResult 含:
