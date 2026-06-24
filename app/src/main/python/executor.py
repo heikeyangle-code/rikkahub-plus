@@ -1080,9 +1080,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                          【建议】≤3条（readingAspects.advice + affirmations 融合）
                          【肯定语】1条 affirmations 鼓舞收尾
                          【反思问题】1条 journaling_prompts
-                         【箴言】用牌面符号做隐喻收束——不从字面重复牌义，而是将整局最核心的启示提炼成一个画面、一个类比、一句能带走的话：
-                           例: 死神牌不要写"结束就是新开始"，而是"像蛇蜕皮一样，你得先松开那张旧皮，新的才能长出来"
-                           例: 星星牌不要写"希望"，而是"深夜赶路的人抬头看见北斗星——方向不是终点，但知道往哪走"
+                         【箴言】从 coreKeyword 或 essence 提炼成一句隐喻式收尾——不直接重复牌义,而是用牌面符号(如get_symbols)做一个画面类比,让问卜者带走一个能反复回味的意象
 
 
 
