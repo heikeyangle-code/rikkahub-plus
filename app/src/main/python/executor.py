@@ -875,8 +875,8 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            Joan Bunning → 能量水位(逆位), 对立/强化成对阅读
                            Mary K. Greer → 花色叙事流(小牌逐卡讲故事), 逆位系统全盘研究
                            Benebell Wen → 概览→分析→综合三阶段
-                         重要: 以下7层是框架不是铁律。Joan Bunning说"先放下所有原则，让故事自然流出"
-                           Mary K. Greer说"没有规则，所有规则都可以打破"
+                         重要: 以下7层是框架不是铁律。
+                           Rachel Pollack《Seventy-Eight Degrees of Wisdom》:在掌握牌义基础后,允许牌与牌之间形成自然叙事——牌阵是活的结构,不是死记硬背关键词
                            AI 先感受牌阵整体，再用7层结构组织语言
                            不是每层都必须填——有的阅读一张牌就说明了一切
                            叙事比结构更重要——宁缺一节，不凑一段
