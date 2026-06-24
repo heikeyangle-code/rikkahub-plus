@@ -933,7 +933,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            宫廷牌=人格面具（你自己或他人正在戴的面具）
 
                            开篇（画面入境）:
-                             用 TarotKit description 的画面描绘打开场景
+                             优先用 Waite desc 展开画面，辅以 TarotKit description 互补
                              第一张牌的 colors/tone 定下整个阅读的情绪基调
                              话术示例（Joan Bunning 原话风格）:
                                "这一张【XX】，描绘的是……——它恰好道出了你此刻的状态"
