@@ -1304,6 +1304,8 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                             非GT按牌序前半=过去/背景,后半=未来/发展
                             各牌speed系数修正事件节奏:fast=日/周内显现,neutral=月尺度,slow=季度/年尺度(Boroveshengra)
                           【结论】— 综合全盘后的最终判断,提炼出最核心的一条信息
+                          【时间确认】— 结合时间框架的定位,用一句话告诉问卜者事态的大概节奏:牌离指示牌近=数天/周内显现,远=数月后;speed=fast=进展快,slow=要等;GT可用日历法定位到月份或星期
+                          【末牌收束】— 回到牌面上来收束——用最后一对组合(C+D)或最后一张牌收束整个叙事,让回答回归卡牌本身,不飘到抽象道理上
                           【建议≤3】— 不超过3条可操作建议。从 modifier_behavior 判断行动方向（negator=建议停止/释放, descriptor/amplifier=建议加强）,从组合链中友好组合=建议推进的路径,冲突组合=建议回避的领域,charge=建议的能量基调,每条要具体可执行
                           【反思问题】— 1条让问卜者自省的问题。盯着全牌阵中最矛盾的组合（冲突组合或 mirror_target 跨位张力）或 Blickrichtung 中人物背对的方向——那里藏着问卜者最该面对但还没面对的事
                           【箴言】— 一句收尾格言(源自Hechtel原版《Das Spiel der Hoffnung》每牌配一句人生箴言/格言的基因,提炼全盘最核心的教义,用牌面符号隐喻收束)
