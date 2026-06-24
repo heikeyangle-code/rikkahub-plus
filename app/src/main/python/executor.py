@@ -998,7 +998,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                              用 currentSituation/temporal_positions.past 铺陈背景
                              大牌出现→插入Fool's Journey注释
                              话术示例(故事线·第一幕启程——建立背景,说明如何发展到当前阶段,过去经验/模式/选择如何塑造现状):
-                               优先观察:①起点(问题从哪里开始) ②已形成因素(哪些能量已经存在/哪些影响已累积)
+                               优先观察:①起点(问题从哪里开始) ②已形成因素(哪些能量已存在/哪些影响已累积)
                                  ③旧模式(是否存在重复行为/关系/思维方式) ④过去如何影响现在(当前局面从何而来)
                                输出要求:回答过去发生了什么/哪些因素延续至今/为什么会来到当前阶段。禁止直接跳到结果
                                参考表达(非固定):
@@ -1009,7 +1009,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                                  "过去的经历正在塑造现在的选择。"
                                  "某种模式正在重复出现。"
                                  "这张牌揭示了整个故事的起点。"
-                               最终目标:建立背景,让现状变得有因可循
+                               最终目标:建立背景
 
                            第二幕·试炼（中段位置 — 制造张力）:
                              用 challenge_and_growth / rootCause 制造张力和冲突
