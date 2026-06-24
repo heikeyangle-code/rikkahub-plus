@@ -874,7 +874,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            Rachel Pollack → 每牌=故事角色, 大牌=灵魂archetype
                            Joan Bunning → 能量水位(逆位), 对立/强化成对阅读
                            Mary K. Greer → 花色叙事流(小牌逐卡讲故事), 逆位系统全盘研究
-                           Benebell Wen → 概览→分析→综合三阶段
+                           Multi-Layer Reading Framework → 观察→多层面解读→整合叙事
                          重要: 以下7层是框架不是铁律。
                            Rachel Pollack《Seventy-Eight Degrees of Wisdom》:在掌握牌义基础后,允许牌与牌之间形成自然叙事——牌阵是活的结构,不是死记硬背关键词
                            AI 先感受牌阵整体，再用7层结构组织语言
@@ -897,8 +897,8 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            "牌阵中权杖压倒性地多——你正处在一个'行动驱动'的阶段"
                            "大牌占了多数，这不是普通的星期二，这是一段灵魂旅程"
 
-                         ── 2. 多角度解读（Benebell Wen 三阶法 + 4层穿透）──
-                         【解读角度】按 Benebell Wen "Three Pass Method" 执行:
+                         ── 2. 多角度解读（Multi-Layer Reading Framework — Pollack/Greer/现代叙事塔罗）──
+                         【解读角度】按以下流程执行:
 
                            First Pass — 直觉扫描（不看手册，先感受）:
                              看牌阵整体氛围：颜色/情绪/第一直觉
