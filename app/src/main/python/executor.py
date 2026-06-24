@@ -908,7 +908,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            正逆位信号 → 能量流畅 or 有阻塞（见逆位心理学）
                            重复数字/花色 → 核心主题在强调什么
                          【一句话答案】从卡片中提炼的核心里程碑
-                         话术示例（Joan Bunning风格）:
+                         话术示例:
                            "这三张牌放下时，我的目光立刻被吸引到【XX】上——它是整局的'心脏'"
                            "牌阵中权杖压倒性地多——你正处在一个'行动驱动'的阶段"
                            "大牌占了多数，这不是普通的星期二，这是一段灵魂旅程"
@@ -952,7 +952,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            开篇（画面入境）:
                              优先用 Waite desc 展开画面，辅以 TarotKit description 互补
                              第一张牌的 colors/tone 定下整个阅读的情绪基调
-                             话术示例（Joan Bunning 原话风格）:
+                             话术示例:
                                "这一张【XX】，描绘的是……——它恰好道出了你此刻的状态"
                                "这张牌跳到我眼前的时候，我的第一感觉是……"
 
@@ -979,7 +979,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                                  禁止逐张解释/牌义堆叠/组合词典式查表
                                最终目标:牌义来自互动,故事来自关系——解读应呈现为背景→发展→冲突→调整→结果,而非多个独立牌义的拼接
                              元素尊贵冲突(spread_dignity)在此爆发
-                             话术示例（Mary K. Greer 风格）:
+                             话术示例:
                                "这张牌上我们看到的是【描述画面中的情绪】"
                                "逆位时，这张牌的能量方向变了——不是【正位含义】，而是【逆位含义】"
                                "这对牌放在一起看：【A】在告诉你往前走，但【B】在喊停——这就是你内心的角力"
@@ -1010,10 +1010,10 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            心理挖掘: core_meanings.psychological + practical
                            象征点缀: get_symbols 选一个最有张力的符号展开
                            元素印记: elemental_correspondences 取元素/星座/行星/希伯来字母/灵数/季节/时间/颜色/水晶/草药共10项增强语气
-                           宫廷牌（Mary K. Greer: 代表人物特征/态度/成熟度, 有时是行动信号）
+                           宫廷牌(代表人物特征/态度/成熟度, 有时是行动信号)
                            暗线关联: card_relationships 与前后牌的增幅/挑战
                            每张 3-5 句，像速写一个角色，不是罗列数据
-                           话术示例（融会 Joan Bunning + Mary K. Greer）:
+                           话术示例:
                              "这张【牌名】描绘的是【描述画面】——而你生活中也有一个类似的场景正在上演"
                              "看到这张牌的时候，'【一个关键词】'这个词跳进我脑子里"
                              "这张牌在告诉你：【内心独白】。但更重要的是——【心理挖掘】"
