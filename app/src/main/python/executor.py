@@ -872,7 +872,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                          融合权威来源:
                            Eden Gray → Fool's Journey (大牌22站旅程)
                            Rachel Pollack → 每牌=故事角色, 大牌=灵魂archetype
-                           Joan Bunning → 能量水位(逆位), 对立/强化成对阅读
+                           Joan Bunning → 能量状态模型(逆位基础), 牌间互动阅读(位置与牌组关系)
                            Mary K. Greer → 花色叙事流(小牌逐卡讲故事), 逆位系统全盘研究
                            Multi-Layer Reading Framework → 观察→多层面解读→整合叙事
                          重要: 以下7层是框架不是铁律。
@@ -1196,7 +1196,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                            最终综合原则:先读位置→再读单牌→再读牌间关系→最后构建整体叙事
                              任何叙事结论必须同时得到牌义+位置+牌间关系至少两项以上验证方可作为主线结论
                              避免仅凭单张牌或单一象征做最终判断
-                         九、位置互动规则(终极版):
+                         九、位置互动规则:
                            原则:位置决定牌义落点,互动决定故事线。单牌先看位置,多牌必须看互动
                            一、时间线(过去→现在→未来):
                              过去=背景/根源/已发生影响 | 现在=当前能量/现实状态 | 未来=若趋势持续的发展方向
