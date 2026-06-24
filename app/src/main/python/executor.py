@@ -1022,18 +1022,14 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                              例：左上（外部期望）vs 右下（真实渴望）→ 角色冲突
                            镜像牌反射:
                              对称位置的牌互为镜子 → 同一个问题的两面
-                           元素尊贵格局（EE spread_dignity + Mary K. Greer 元素反应规则）:
-                             基础规则——元素相遇产生"化学反应":
-                               Fire+Fire=加速(行动力凝聚,但易过热)
-                               Fire+Air=燎原(创意爆发,想法变行动)
-                               Fire+Water=蒸汽(张力巨大——要么转化要么冲突)
-                               Fire+Earth=焚尽(热情被现实消耗,需补充)
-                               Air+Air=散逸(过度思考,信息过载)
-                               Air+Water=搅动(情绪被想法裹挟,混乱或灵感)
-                               Air+Earth=干涸(想法脱离实际,纸上谈兵)
-                               Water+Water=泛滥(情绪深但易淹没)
-                               Water+Earth=孕育(情感在现实中扎根,成长)
-                               Earth+Earth=固化(稳定但易僵化)
+                           元素尊贵格局(Golden Dawn元素尊贵 + EE spread_dignity):
+                             传统规则(Golden Dawn标准):
+                               亲和:火+风,风+火 / 水+土,土+水
+                               中性:火+土,土+火 / 水+风,风+水
+                               敌对:火+水,水+火 / 风+土,土+风
+                             现代教学比喻(仅辅助理解,非传统规则):
+                               火+风=得风助燃 | 火+水=被浇灭
+                               水+土=扎根生长 | 风+土=脱离实际
                              组合规则:
                                EE spread_dignity 的三张一组:
                                互补(和谐)=相邻牌元素相生 → 能量顺畅
