@@ -1080,7 +1080,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                          【建议】≤3条（readingAspects.advice + affirmations 融合）
                          【肯定语】1条 affirmations 鼓舞收尾
                          【反思问题】1条 journaling_prompts
-                         【箴言】从 coreKeyword / essence / affirmations 中选最合适的一句，不直接重复牌义，用牌面符号做画面类比收尾——让问卜者带走一个能反复回味的意象
+                         【箴言】从 coreKeyword / essence / affirmations 中提炼成一句隐喻式收尾——不直接重复牌义，用牌面符号做画面类比——让问卜者带走一个能反复回味的意象
 
 
 
