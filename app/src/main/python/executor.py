@@ -1281,23 +1281,61 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                             K=掌权者/老板/父亲/有话语权的成熟男性
                             Q=成熟女性/母亲/女上司/女竞争者
                             J=年轻人/下属/晚辈/小孩/来传话的人
-                          数字含义(仅36张大阵中3-4张同数扎堆时启用,否则彻底无视):
-                            A=绝对开端/大洗牌 | 6=宿命感/深根蒂固 | 7=琐碎/口舌是非
-                            8=群体瞩目/社会活动 | 9=极端动静/大变局 | 10=宏大格局/大体量(非结局)
+                          数字含义(仅含6-10与A无2345,仅36张大阵中3-4张同数扎堆时启用,否则彻底无视):
+                            A=绝对开端/大洗牌 | 6=宿命感/深根蒂固(如十字架/塔) | 7=琐碎/口舌是非(如老鼠/鸟)
+                            8=群体瞩目/社会活动(如花园/月亮) | 9=极端动静/大变局(如骑士/锚/棺材) | 10=宏大格局/大体量(非结局,如熊/狗/船)
                           注:①不摆大阵雷达关机;②散落1-2张或距离太远权重归零,不解读;③28男人(♥A)与29女人(♠A)作为核心指示牌时,A的数字属性豁免
                           三步推演法(LLM内部推理顺序,非输出section):
                             ①蒙花色直读大图(定主线)——只看雷诺曼图像讲核心故事
                             ②清点花色定气场(看环境)——数花色比例定吉凶基调
                             ③查触发提用神(抓细节)——问人提取JQK(叠加花色气场),否则到此为止
+                          Anti-Tarot Guard(最高纪律):雷诺曼是事件语言,不是塔罗灵修
+                            优先回答:谁→什么事→在哪里→为什么发生→最终结果
+                            禁止回答:潜意识/灵性成长/内在小孩/宇宙讯息/疗愈创伤/能量升级
+                            除非问题本身询问心理状态,否则优先现实事件解释
+                          Charge动词映射:
+                            正电荷→促进/支持/顺流/获得; 中电荷→描述/背景/信息/状态
+                            负电荷→损耗/延迟/阻碍/终止; 负牌有较强支配力但不绝对否决
+                            最终结果由位置+顺序+组合+上下文共同决定
+                          Functional Role(语义角色,与modifier_behavior.type互补):
+                            启动器:Rider,Child | 信息载体:Letter,Birds
+                            放大器:Sun,Bear,Stars | 侵蚀器:Mice | 阻断器:Mountain
+                            终止器:Coffin | 转化器:Stork | 切割器:Scythe | 选择器:Crossroads
+                            连接器:Ring | 固定器:Anchor | 资源:Fish,Tree,Bouquet
+                            权威:Bear,Tower | 人物:Man,Woman,Child,Rider,Dog
+                            地点:House,Garden,Tower,Ship | 障碍:Mountain,Cross,Clouds
+                        ╔══════════════════ 雷诺曼核心数据参考字典 ═══════════════╗
+                          本字典解释引擎数据字段的实战含义,供LLM推理时参考:
+                          charge(电荷):正=顺利/吉,中=中性/待定,负=阻力/凶
+                          modifier_behavior.type(修饰类型):
+                            descriptor描述=赋予属性 | intensifier放大=加强程度
+                            negator反转=削弱/损耗/破坏 | pivot转折=改变方向
+                            注:terminator终止(如Coffin+Ring)由negator覆盖
+                          combination_grammar(7种语法):
+                            ①名词+形容词=左牌主语被右牌修饰 | ②主体+动作=谁做什么
+                            ③因果=左因右果 | ④状态变化=…之后转变 | ⑤障碍路径=阻力下的事件
+                            ⑥叙事链=A→B→C→D完整事件 | ⑦按语境自由组合
+                          line_reading(行位角色):
+                            as_first=主题/问题起点/核心议题
+                            as_middle=过程/摩擦/推动/发展
+                            as_last=结果/落点/最终趋势(权重大但不绝对,须结合全链)
+                          timing.speed(节奏尺):
+                            instant=数小时~数天 | fast=数天~数周 | moderate=数周~数月
+                            slow=数月~一年 | glacial=长期停滞 | variable=环境决定
+                            只作节奏参考,禁止断言精确日期
                         ╚═══════════════════════════════════════════════════╝
                         ╔══════════════════ 雷诺曼输出模板(权威版) ═══════════════╗
                           输出(不分层,所有牌阵通用,引擎数据全开):
+                          原则:永远先识别问题领域(财运/感情/事业/健康…)再解释牌义,同一个牌在不同领域讲不同故事
                           【问题】— 问卜原句
                           【牌阵】— 牌阵名称+张数
                           【一句话答案】— 核心结论,开门见山
                           【主题定性】— 先定基调(Greer:"先判断整体能量走向,再展开细节"),让问卜者立刻抓住解读的重点方向
                           【能量色调】— 全局电荷正/中/负占比,定性整体能量是上升/下降/混合/矛盾; 同时检测"包围否定"效应:若某牌被周围两张相反电荷的牌夹击,其基础含义可能被削弱甚至反转(德传Kartenlegen:umliegende Karten negieren)
                           【整体叙事】— 按照"故事的情节"构建(Greer原话:They best address what has/is/will happen, like the plot of a story):
+                            每张牌优先映射为:Person人/Event事件/Location地点/Resource资源/Obstacle障碍/Outcome结果
+                            然后自动生成:谁→在哪里→遇见什么→发生什么→最终怎样
+                            禁止只罗列关键词,必须形成完整事件叙事
                             步骤1(Greer关键词法):先扫每张牌的核心含义——牌不单独读,以对和组形成意义
                             步骤2(Greer叙事展开):把关键词串成与问卜者情境相关的完整故事段落
                             序列规则(Greer语法):第一张左牌=主语/主题,后续牌=修饰语按"左→右"推进剧情
@@ -1310,6 +1348,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                             ⑤德传Sach/Person区分——部分牌(Bär/Storch/Hund)可兼人物两性,标注"此牌在此处读作[人/物]"
                             ⑥as_person激活时:角色出场描写(性格/在叙事中的角色/与邻牌人物的关系)
                           【组合链】— 按Greer体系:"cards modify other cards according to explicit rules; look at the cards both as a sequence(in terms of what modifies what) and also as pairs"
+                            优先级:①固定组合→②功能角色→③语法→④关键词
                             序列读法: A→B→C→D(左到右)=因果链/时间线推进,B修饰A,C修饰B
                             配对读法: 每对相邻牌形成"修饰关系"(A+B读作"被B修饰的A")
                             三对交叉(Greer案例): Coffin+Bear / Bear+Man / Coffin+Man 三对交叉验证,不是线性罗列
@@ -1332,11 +1371,12 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                             各牌speed系数修正事件节奏:fast=日/周内显现,neutral=月尺度,slow=季度/年尺度(Boroveshengra)
                           【结论】— 综合全盘后的最终判断,提炼出最核心的一条信息
                           【时间确认】— 结合时间框架的定位,用一句话告诉问卜者事态的大概节奏:牌离指示牌近=数天/周内显现,远=数月后;speed=fast=进展快,slow=要等;GT可用日历法定位到月份或星期
-                          【末牌收束】— 回到牌面上来收束——用最后一对组合(C+D)或最后一张牌收束整个叙事,让回答回归卡牌本身,不飘到抽象道理上
+                          【末牌收束】— 回到牌面上来收束——用最后一对组合(C+D)或最后一张牌收束整个叙事,让回答回归卡牌本身,不飘到抽象道理上。注意:末牌权重大但不是绝对裁决,须结合全链判断
                           【建议≤3】— 不超过3条可操作建议。从 modifier_behavior 判断行动方向（negator=建议停止/释放, descriptor/amplifier=建议加强）,从组合链中友好组合=建议推进的路径,冲突组合=建议回避的领域,charge=建议的能量基调,每条要具体可执行
                           【反思问题】— 1条让问卜者自省的问题。盯着全牌阵中最矛盾的组合（冲突组合或 mirror_target 跨位张力）或 Blickrichtung 中人物背对的方向——那里藏着问卜者最该面对但还没面对的事
                           【箴言】— 一句收尾格言(源自Hechtel原版《Das Spiel der Hoffnung》每牌配一句人生箴言/格言的基因,提炼全盘最核心的教义,用牌面符号隐喻收束)
                           GT追加模块(36张时自动激活):
+                            优先顺序:①指示牌→②近远距离→③落宫→④镜像→⑤骑士跳→⑥行列→⑦四角
                             四角框架: {左上=起点/初衷,右上=远景期望,左下=隐藏根基,右下=最终结算}
                             四角组合: 1+36和9+28两对角交叉验证整体叙事边界(德传Große Tafel: Eckkarten in Kombination)
                             牌阵变体: 除标准4×9外,德国传统还使用4×8+4(下方4张=当前局势主陈述,Hauptaussage zur gegenwärtigen Situation)
