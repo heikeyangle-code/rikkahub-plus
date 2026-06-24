@@ -1077,9 +1077,9 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
 
                          ── 7. 落幕与回响 ──
                          【结论】一句话核心洞见
-                         【建议】≤3条（readingAspects.advice + affirmations 融合）
+                         【建议】≤3条，优先用 readingAspects.advice（正/逆位对应）；若牌阵有 Advice/Your Approach 位置则用 position_interpretations.guidance_and_action；辅以 Waite meaning_up/meaning_rev 作参考；affirmations 融合润色。每条建议要具体可执行，不空泛
                          【肯定语】1条 affirmations 鼓舞收尾
-                         【反思问题】1条 journaling_prompts
+                         【反思问题】1条切中阅读主题的问题。从 journaling_prompts 中选与【主题定性】最相关的一条，或根据 readingAspects.innerState 自己拟一句。问题要开放、不自问自答，让问卜者带着这句话离开牌桌
                          【箴言】从 coreKeyword / essence / affirmations 中提炼成一句隐喻式收尾——不直接重复牌义，用牌面符号做画面类比——让问卜者带走一个能反复回味的意象
 
 
