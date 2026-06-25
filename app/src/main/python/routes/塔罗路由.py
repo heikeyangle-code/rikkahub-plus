@@ -412,25 +412,21 @@ AI禁止逐张翻译后简单拼接,
                               【反思问题】1条切中阅读主题的问题。从 journaling_prompts 中选与【主题定性】最相关的一条，或根据 readingAspects.innerState 自己拟一句。问题要开放、不自问自答，让问卜者带着这句话离开牌桌
                               【箴言】从 coreKeyword / get_core_meaning(reversed=...)["essence"] / affirmations 中提炼成一句隐喻式收尾——不直接重复牌义，用牌面符号做画面类比——让问卜者带走一个能反复回味的意象
 ╔══════════════════ 塔罗数据 ═════════════════╗
-【塔罗数据使用规则】 必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping,reversed=) / get_question_context(question_type,
-reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / meditation_focus / .raw_data(全部原始字段) 用于润色：get_symbols()→for k,
-v in .items()(返回dict)
-  / get_elemental_correspondences() (共10项:
-    element/zodiac/planet/hebrew_letter
-    /numerology/season/time_of_day
-    /colors/crystals/herbs)
-结构分析(仅【牌阵结构】):
-  statistics + composition.major_arcana_ratio
-  + composition.court_card_ratio
-  + composition.repeated_numbers
-  + composition.repeated_suits
-  + reversal.blocked_energy_signal 秘传附录(Kaabalah JS引擎按需调用:hebrew_letters/tree_of_life/777/four_worlds/sephiroth，不在正文展开，仅当NNL确认与解读相关时取用)
+【塔罗数据使用规则】
+  必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping,reversed=) / get_question_context(question_type,reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / meditation_focus / .raw_data(全部原始字段)
+  用于润色：get_symbols()→for k, v in .items()(返回dict) / get_elemental_correspondences() (共10项: element/zodiac/planet/hebrew_letter/numerology/season/time_of_day/colors/crystals/herbs)
+  结构分析(仅【牌阵结构】):
+    statistics + composition.major_arcana_ratio + composition.court_card_ratio
+    + composition.repeated_numbers + composition.repeated_suits
+    + reversal.blocked_energy_signal
+  秘传附录(Kaabalah JS引擎按需调用:hebrew_letters/tree_of_life/777/four_worlds/sephiroth，不在正文展开，仅当NNL确认与解读相关时取用)
 ╚══════════════════ 塔罗数据 ═════════════════╝
 
 ╔══════════════════ 塔罗核心参考字典 ═══════════════╗
-本字典为LLM内部参考,
-不直接输出。
-花色/数字/宫廷牌/逆位/元素/叙事补充规则: 一、花色人格与领域(Suit Personalities,基于Tarot.com): Wands=火→行动与激情(权杖多=行动驱动阶段) Cups=水→情感与直觉(圣杯多=情感主导期) Swords=风→理智与思考(宝剑多=脑内博弈期) Pentacles=土→物质与现实(钱币多=物质聚焦期) 二、数字成长链(Ace→10每条花色通用的叙事逻辑): Ace=Potential(潜力) | 2=Polarization(极化/对立)
+本字典为LLM内部参考, 不直接输出。
+花色/数字/宫廷牌/逆位/元素/叙事补充规则:
+一、花色人格与领域(Suit Personalities,基于Tarot.com): Wands=火→行动与激情(权杖多=行动驱动阶段) Cups=水→情感与直觉(圣杯多=情感主导期) Swords=风→理智与思考(宝剑多=脑内博弈期) Pentacles=土→物质与现实(钱币多=物质聚焦期)
+二、数字成长链(Ace→10每条花色通用的叙事逻辑): Ace=Potential(潜力) | 2=Polarization(极化/对立)
 3=Expansion(扩张) | 4=Stabilization(稳定)
 5=Disruption(瓦解) | 6=Adjustment(调整)
 7=Testing(考验) | 8=Development(发展)
