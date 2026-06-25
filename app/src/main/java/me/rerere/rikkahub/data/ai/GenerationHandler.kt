@@ -173,7 +173,7 @@ class GenerationHandler(
                 appendLine("</mingli_must_read>")
                 appendLine()
                 appendLine("<mingli_routing>")
-                appendLine("⚠️ 顶层规则: 严格按照路由文件里的指令、步骤执行；API 不确定时先 dir()（Python库）或 Object.keys()（JS库）自行探索，不得推断虚构调用方式。")
+                appendLine("⚠️ 顶层规则: 命理任务严格按照路由文件里的指令执行，不得自行推断 API 调用方式。")
                 appendLine("Skill 技能: ⚠️ 技能引用的库若未安装 → 忽略，以本路由表首选库为准，dir() 自探索完整 API。每次排盘走真实 Python 库计算，不虚构数据。")
                 appendLine("⚠️ 命理任务，先确定系统，然后从对应路由文件读取完整路由：")
                 appendLine("  八字/四柱/大运 → from routes.八字农历干支天文 import __doc__ as R; print(R)")
