@@ -387,25 +387,30 @@ AI禁止逐张翻译后简单拼接,
   "这组牌揭示了你当前最重要的内在拉扯。"
   "当这些牌连起来看时,可以清楚看到能量的发展轨迹。"
   "牌阵真正的重点不在单张牌,而在这些牌彼此如何回应对方。"
-禁止:仅罗列单张牌义/固定套用同一句模板/强行制造冲突或共振——所有关系必须来自实际牌面、位置与牌阵结构 ── 6. 秘传（按需展开，不预设隐藏）── 【进阶数据】 Fool's Journey 总览: 本局出现的大牌按旅程排序 → 灵魂当前在哪个阶段 卡巴拉映射: 大牌→希伯来字母→生命之树路径 数字牌→源质(1=Ace=Kether ... 10=Malkuth) 牌组→四世界(Wands=Atziluth ...) 
-数字学（Pythagorean + 塔罗数字序列）: EE.numerology 加总 → 核心数字 数字含义: 1=开始/独立(魔术师/王牌),
-2=对立/平衡(女祭司/恋人),
-3=创造/表达(皇后/三牌),
-4=稳定/秩序(皇帝/四牌),
-5=变化/冲突(教皇/五牌),
-6=和谐/选择(恋人/六牌),
-7=内省/智慧(战车/七牌),
-8=力量/因果(力量/八牌),
-9=完成/转化(隐士/九牌),
-10=循环/命运(命运之轮/10牌) 11(22)=大师数(直觉/灵性),
-33=大师数(慈悲/服务),
-44=大师数(物质显化) 重复数字意义: 加总结果=某牌的编号 → 那张牌是本局的核心密钥 Master Number(11/22/33/44)保留不约分 → 灵性级课题 ── 7. 落幕与回响 ── 【结论】一句话核心洞见 【建议】≤3条，优先用 readingAspects.advice（正/逆位对应）；
-若牌阵有 Advice/Your Approach 位置则用 position_interpretations.guidance_and_action；
-辅以 Waite meaning_up/meaning_rev 作参考；
-affirmations 融合润色。
-每条建议要具体可执行，不空泛 【肯定语】1条 affirmations 鼓舞收尾 【反思问题】1条切中阅读主题的问题。
-从 journaling_prompts 中选与【主题定性】最相关的一条，或根据 readingAspects.innerState 自己拟一句。
-问题要开放、不自问自答，让问卜者带着这句话离开牌桌 【箴言】从 coreKeyword / get_core_meaning(reversed=...)["essence"] / affirmations 中提炼成一句隐喻式收尾——不直接重复牌义，用牌面符号做画面类比——让问卜者带走一个能反复回味的意象
+                                禁止:仅罗列单张牌义/固定套用同一句模板/强行制造冲突或共振——所有关系必须来自实际牌面、位置与牌阵结构
+
+                              ── 6. 秘传（按需展开，不预设隐藏）──
+                              【进阶数据】
+                              Fool's Journey 总览: 本局出现的大牌按旅程排序 → 灵魂当前在哪个阶段
+                              卡巴拉映射: 大牌→希伯来字母→生命之树路径 数字牌→源质(1=Ace=Kether ... 10=Malkuth) 牌组→四世界(Wands=Atziluth ...)
+
+                              数字学（Pythagorean + 塔罗数字序列）:
+                                EE.numerology 加总 → 核心数字
+                                数字含义:
+                                  1=开始/独立(魔术师/王牌), 2=对立/平衡(女祭司/恋人), 3=创造/表达(皇后/三牌),
+                                  4=稳定/秩序(皇帝/四牌), 5=变化/冲突(教皇/五牌), 6=和谐/选择(恋人/六牌),
+                                  7=内省/智慧(战车/七牌), 8=力量/因果(力量/八牌), 9=完成/转化(隐士/九牌),
+                                  10=循环/命运(命运之轮/10牌)
+                                  11(22)=大师数(直觉/灵性), 33=大师数(慈悲/服务), 44=大师数(物质显化)
+                                重复数字意义: 加总结果=某牌的编号 → 那张牌是本局的核心密钥
+                                Master Number(11/22/33/44)保留不约分 → 灵性级课题
+
+                              ── 7. 落幕与回响 ──
+                              【结论】一句话核心洞见
+                              【建议】≤3条，优先用 readingAspects.advice（正/逆位对应）；若牌阵有 Advice/Your Approach 位置则用 position_interpretations.guidance_and_action；辅以 Waite meaning_up/meaning_rev 作参考；affirmations 融合润色。每条建议要具体可执行，不空泛
+                              【肯定语】1条 affirmations 鼓舞收尾
+                              【反思问题】1条切中阅读主题的问题。从 journaling_prompts 中选与【主题定性】最相关的一条，或根据 readingAspects.innerState 自己拟一句。问题要开放、不自问自答，让问卜者带着这句话离开牌桌
+                              【箴言】从 coreKeyword / get_core_meaning(reversed=...)["essence"] / affirmations 中提炼成一句隐喻式收尾——不直接重复牌义，用牌面符号做画面类比——让问卜者带走一个能反复回味的意象
 ╔══════════════════ 塔罗数据 ═════════════════╗
 【塔罗数据使用规则】 必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping,reversed=) / get_question_context(question_type,
 reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / meditation_focus / .raw_data(全部原始字段) 用于润色：get_symbols()→for k,
