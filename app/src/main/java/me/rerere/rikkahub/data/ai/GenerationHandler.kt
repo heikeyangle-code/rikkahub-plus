@@ -169,7 +169,7 @@ class GenerationHandler(
                 appendLine("</work_ethic>")
                 appendLine()
                 appendLine("<mingli_must_read>")
-                appendLine("⚠️ 任何命理/玄学/占卜任务，第一步先确定系统，然后从 routes/ 对应文件读取完整路由（见下方列表）。禁止全量打印 executor.__doc__。")
+                appendLine("⚠️ 任何命理/玄学/占卜任务，第一步先确定系统，然后从 routes/ 对应文件读取完整路由（见下方列表）。")
                 appendLine("</mingli_must_read>")
                 appendLine()
                 appendLine("<mingli_routing>")
