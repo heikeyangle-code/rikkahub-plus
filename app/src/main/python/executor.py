@@ -847,7 +847,8 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │     dc.raw_data["meditation_focus"]                 │
                        │                                                      │
                        │ STEP 4: Waite 原版画面描述 + 占卜意义（主画面描述源）    │
-                       │   waite = json.load(open('waite_card_data.json'))['cards']│
+                       │   _wp = os.path.join(os.path.dirname(__file__), 'waite_card_data.json')│
+                       │   waite = json.load(open(_wp))['cards']│
                        │   cw = next(c for c in waite if c['name'] == dc.card_name)│
                        │   ⚠️ 2张卡名不同: Strength=Fortitude, Judgement=The Last Judgment│
                        │   → cw['desc']             Waite画面描述                     │

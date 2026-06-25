@@ -39,30 +39,47 @@
                        │                                                      │
                        │ STEP 1: arcanite 抽牌 + 加载牌阵                      │
                        │   deck = TarotDeck.load(system="tarot")              │
-                       │   drawn = deck.draw(N)     → DrawnCard × N          │
                        │   spread = load_spread("牌阵ID")                      │
-                       │   # 牌阵位置→rag_mapping 按语义匹配: │
-                       │   # "Past" → temporal_positions.past │
-                       │   # "Present" → temporal_positions.present │
-                       │   # "Future" → temporal_positions.future │
-                       │   # "Challenge" → challenge_and_growth.challenge │
-                       │   # "Advice/Your Approach" → guidance_and_action │
-                       │   # "Outcome" → outcome_and_result │
-                       │   # "External" → external_influences │
-                       │   # "Hopes and Fears" → emotional_and_internal │
-                       │   # "Relationship" → relationships │
-                       │   # 无匹配 → 只用 get_core_meaning │
+                       │   N = len(spread.positions)   # 位置数=抽牌数        │
+                       │   drawn = deck.draw(N)     → DrawnCard × N          │
+                       │   # ⚠️ 抽牌机制（必须理解，否则解读全错）:                │
+                       │   #   draw() 每次从完整78张重新洗牌, 不消耗牌堆.      │
+                       │   #   不同 execute_python 调用 = 重新 load() = 全新的牌.│
+                       │   #   真随机(secrets.SystemRandom), seed 参数无效.    │
+                       │   #   强制: 抽牌→分析→输出 必须在一次 execute_python  │
+                       │   #   调用内完成, 不可拆到多步.                      │
+                       │   # rag_mapping 直接用 pos.rag_mapping 读取（对象是权威来源）│
+                       │   #   for i, pos in enumerate(spread.positions):       │
+                       │   #     rag = pos.rag_mapping                          │
+                       │   # 以下为各牌阵实际 rag_mapping 值参考（不覆盖对象值）: │
+                       │   # Celtic Cross: present_situation/cross/distant_past │
+                       │   #   /recent_past/possible_outcome/near_future       │
+                       │   #   /your_approach/external_influences/hopes_fears  │
+                       │   #   /final_outcome                                  │
+                       │   # 3P: past/present/future                           │
+                       │   # Horseshoe: past/present/hidden_influences         │
+                       │   #   /your_approach/others/hopes_fears/final_outcome │
+                       │   # 5-Cross: present_situation/challenge/past/future  │
+                       │   #   /advice                                         │
+                       │   # Relationship Spread: emotional_state/others       │
+                       │   #   /present_situation/distant_past/present/future  │
                        │                                                      │
                        │ STEP 2: EE 全量分析（不分级，一次出全）                │
                        │   ee = EE.full_analysis(drawn)                       │
-                       │   → spread_dignity / statistics / composition        │
-                       │     (major_arcana_ratio/court_card_ratio             │
-                       │      /repeated_numbers/repeated_suits)               │
-                       │   → numerolog / absence / doubling / reversal        │
+                       │   → ee['spread_dignity'] 是 list[dict], 每个元素:     │
+                       │     sd['card'] / sd['dignity_zh'] / sd['rank']       │
+                       │     sd['primary_element'] / sd['secondary_element']   │
+                       │     for sd in ee['spread_dignity']: 遍历使用          │
+                       │   → ee['chain_analysis']  元素能量链方向              │
+                       │   → ee['island_detection'] 元素孤岛检测              │
+                       │   → ee['statistics']    元素分布统计                  │
+                       │   → ee['composition']   大牌/宫廷比例+重复数字花色    │
+                       │   → ee['numerology'] / ee['absence']                │
+                       │   → ee['doubling'] / ee['reversal']                 │
                        │                                                      │
                        │ STEP 3: arcanite 逐牌全字段                           │
                        │   for i, dc in enumerate(drawn):                     │
-                       │     rag = 按位置语义匹配rag_mapping                    │
+                       │     rag = spread.positions[i].rag_mapping                    │
                        │     dc.get_core_meaning(reversed=...)                │
                        │     dc.get_interpretation(rag, reversed=...)         │
                        │     dc.get_question_context(type, ...)               │
@@ -75,7 +92,9 @@
                        │     dc.raw_data["meditation_focus"]                 │
                        │                                                      │
                        │ STEP 4: Waite 原版画面描述 + 占卜意义（主画面描述源）    │
-                       │   waite = json.load(open('waite_card_data.json'))['cards']│
+                       │   # ⚠️ waite_card_data.json 在 routes/ 父目录                    │
+                       │   _wp = os.path.join(os.path.dirname(__file__), '..', 'waite_card_data.json')│
+                       │   waite = json.load(open(_wp))['cards']│
                        │   WAITE_NAME_MAP = {"Strength": "Fortitude", "Judgement": "The Last Judgment"}│
                        │   waite_name = WAITE_NAME_MAP.get(dc.card_name, dc.card_name)│
                        │   cw = next(c for c in waite if c['name'] == waite_name)│
