@@ -33,16 +33,23 @@ class GenerationForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        // 尽早调 startForeground，避免 Android 12+ 超时崩溃
+        // 这里先用默认通知，onStartCommand 会更新为实际内容
+        try {
+            startForeground(NOTIFICATION_ID, buildDefaultNotification())
+        } catch (e: Exception) {
+            Log.e(TAG, "startForeground in onCreate failed", e)
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
                 title = intent.getStringExtra(EXTRA_TITLE) ?: "正在生成回复"
                 conversationId = intent.getStringExtra(EXTRA_CONVERSATION_ID) ?: ""
-                try {
-                    startForeground(NOTIFICATION_ID, buildNotification())
-                } catch (e: Exception) {
-                    Log.e(TAG, "startForeground failed", e)
-                }
+                updateNotification()
             }
             ACTION_UPDATE -> {
                 text = intent.getStringExtra(EXTRA_TEXT) ?: text
@@ -54,6 +61,16 @@ class GenerationForegroundService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    private fun buildDefaultNotification(): Notification {
+        return NotificationCompat.Builder(this, CHAT_GENERATION_FOREGROUND_CHANNEL_ID)
+            .setContentTitle("正在生成回复")
+            .setContentText("准备中...")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
     }
 
     private fun buildNotification(): Notification {
