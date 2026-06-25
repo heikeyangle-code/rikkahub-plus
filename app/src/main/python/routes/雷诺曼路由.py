@@ -17,10 +17,7 @@
   | combination_grammar → get_combination_grammar() → dict
   | combinations → get_combinations() → list[dict]
   | grand_tableau → get_grand_tableau() → dict{as_house, near_significator, far_from_significator, diagonal_or_corner}
-访问: d.get_card(c.card_id).get_core() / get_timing() / get_as_person()
-  / get_modifier_behavior() / get_playing_card() / get_topic_contexts()
-  / get_line_reading() / get_combination_grammar() / get_combinations()
-  / get_grand_tableau() — 语义getter, 禁止 raw_data 裸访问
+访问: d.get_card(c.card_id).get_core() / get_timing() / get_as_person() / get_modifier_behavior() / get_playing_card() / get_topic_contexts() / get_line_reading() / get_combination_grammar() / get_combinations() / get_grand_tableau() — 语义getter, 禁止 raw_data 裸访问
 组合: card.get_combination_with("the_clover", position="left")
   → 自动含方向+语法回退
 无需出生
@@ -35,9 +32,7 @@
 统计: d.analyze_draw(items) → {count, upright_count, reversed_count,
   all_upright, all_reversed, pattern, cards};
 需自行从cards统计:
-  电荷分布(positive/neutral/negative)
-  / 速度分布(fast/moderate/slow等)
-  / 人物卡(category=person的牌)
+  电荷分布(positive/neutral/negative) / 速度分布(fast/moderate/slow等) / 人物卡(category=person的牌)
 
 【雷诺曼输出】雷诺曼=现实事件模拟器
 来源说明: 本模板的解读方法取自 Mary K. Greer 博客文章：
@@ -148,13 +143,10 @@ as_person → 抽到人物类卡(骑手/男人/女人/小孩/熊/狗等)时激�
 ╔══════════════════ 雷诺曼牌阵 ═══════════════╗
 from arcanite.core.spread import list_spreads, load_spread
 list_spreads(system="lenormand") → 雷诺曼:
-  line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张)
-  / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张)
-  / astrological-houses(12张) / relationship(5张关系)
+  line-3(3张) / line-5(5张) / line-7(7张) / line-9(9张) / grand-tableau(36张全盘) / box-3x3(9张) / cross(5张) / astrological-houses(12张) / relationship(5张关系)
 load_spread(spread_id, system="lenormand")
   → SpreadDefinition(positions=...) 按位置数决定draw(N)
-Grand Tableau: 4×9网格, 36宫role=house, sig=false
-  (男人/女人牌游走)
+Grand Tableau: 4×9网格, 36宫role=house, sig=false (男人/女人牌游走)
 坐标计算一律调用FE方法, 不在此处理:
   骑士跳→FE.calculate_knights_move
   反射→FE.get_reflection
@@ -277,16 +269,15 @@ timing["speed"](节奏尺):
 【能量色调】— 全局电荷正/中/负占比,
   定性整体能量是上升/下降/混合/矛盾;
   同时检测"包围否定"效应:
-  若某牌被周围两张相反电荷的牌夹击,
-  其基础含义可能被削弱甚至反转
-  (德传Kartenlegen: umliegende Karten negieren)
+    若某牌被周围两张相反电荷的牌夹击,
+    其基础含义可能被削弱甚至反转
+    (德传Kartenlegen: umliegende Karten negieren)
 
 【整体叙事】— 按照"故事的情节"构建
   (Greer原话: They best address what has/is/will happen,
    like the plot of a story):
   每张牌优先映射为:
-  Person人 / Event事件 / Location地点
-  / Resource资源 / Obstacle障碍 / Outcome结果
+  Person人 / Event事件 / Location地点 / Resource资源 / Obstacle障碍 / Outcome结果
   然后自动生成: 谁→在哪里→遇见什么→发生什么→最终怎样
   禁止只罗列关键词, 必须形成完整事件叙事
   步骤1(Greer关键词法): 先扫每张牌的核心含义
@@ -413,8 +404,7 @@ GT追加模块(36张时自动激活):
 四角组合: 1+36和9+28两对角交叉验证整体叙事边界
   (德传Große Tafel: Eckkarten in Kombination)
 牌阵变体: 除标准4×9外, 德国传统还使用4×8+4
-  (下方4张=当前局势主陈述,
-  Hauptaussage zur gegenwärtigen Situation)
+  (下方4张=当前局势主陈述, Hauptaussage zur gegenwärtigen Situation)
 人物视线(Blickrichtung): 详见【人物视线方向】段,
   GT中人物卡的看向方向是关系解读的第一手线索
 Step1内九宫格: 指示牌3×3邻接按row/col/diag分组两两组句定调
