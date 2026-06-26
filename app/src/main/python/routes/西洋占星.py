@@ -147,7 +147,16 @@ Caelus.unitVector(lonDeg,latDeg)→[x,y,z]
 Caelus.angularSeparation3d(lonA,latA,lonB,latB)→度
 常量: DEFAULT_BODIES/SIGNS/BODIES/EXTRA_BODIES/ASPECTS/DEFAULT_ORBS/DOMICILE/EXALTATION/ HOUSE_SYSTEMS/TROPICAL_YEAR/DEG/ARCSEC/J2000/LIGHT_TIME_AU 
 ── ④ Astronomy（精度备份+仲裁） ──
-调它只有两种情况: ① Caelus和NatalEngine对同一行星输出不同星座时，以它为准(仲裁) ② 问日食月食精确到秒的时刻时，用它拿秒级时间(Caelus返回类型+时间范围) 其余不调。CAELUS_VSOP87 != ASTRONOMY_VSOP87 (6弧秒算法差<400弧秒位置模糊, 调了等于没调)。 调用: var t=new Astronomy.MakeTime(new Date(Date.UTC(y,m-1,d,h,m))); Astronomy.EclipticLongitude(Astronomy.Body.Mercury,t) → 黄经 Sun用Astronomy.SunPosition(t).elon, Moon用new Astronomy.Ecliptic(Astronomy.GeoMoon(t)).elon Astronomy.SearchLunarEclipse(new Date(...)) / SearchGlobalSolarEclipse(...) Astronomy.SearchRiseSet(Astronomy.Body.Sun,new Astronomy.Observer(lat,lon,0),1,new Date(...),1) Astronomy.Seasons(2026) / Astronomy.MoonPhase(new Date(...)) 
+调它只有两种情况:
+① Caelus和NatalEngine对同一行星输出不同星座时，以它为准(仲裁)
+② 问日食月食精确到秒的时刻时，用它拿秒级时间(Caelus返回类型+时间范围)
+其余不调。CAELUS_VSOP87 != ASTRONOMY_VSOP87 (6弧秒算法差<400弧秒位置模糊, 调了等于没调)。
+调用: var t=new Astronomy.MakeTime(new Date(Date.UTC(y,m-1,d,h,m)));
+Astronomy.EclipticLongitude(Astronomy.Body.Mercury,t) → 黄经
+Sun用Astronomy.SunPosition(t).elon, Moon用new Astronomy.Ecliptic(Astronomy.GeoMoon(t)).elon
+Astronomy.SearchLunarEclipse(new Date(...)) / SearchGlobalSolarEclipse(...)
+Astronomy.SearchRiseSet(Astronomy.Body.Sun,new Astronomy.Observer(lat,lon,0),1,new Date(...),1)
+Astronomy.Seasons(2026) / Astronomy.MoonPhase(new Date(...)) 
 ── ⑤ HoroscopeJS（已被Caelus完全覆盖，不再推荐） ── 
 ⚠️ 日期参数是date不是day: {year,month,date,hour,minute} ╔══════════════════ 参数坑 ══════════════════╗ ║ vargaAt(e,jd,9) ← 数字,不是"D9" ║ ║ hasAspect({})(ctx) ← 柯里化,不是(chart) ║ ║ lots(e,jd,lat,lon) ← 不是hermeticLots ║ ║ firdariaAt 必须传 targetJd ║ ║ compositeLongitudes(e,jdA,jdB,bodies) ║ ║ dignities("sun",2) ← sign是0-11索引 ║ ║ almuten(84.13) ← 裸经度不是body名 ║ ║ outOfBounds(e,body,jd)← 不是(body,decl) ║ ╚═════════════════════════════════════════════╝
  其余 200+ 函数用 dir(Caelus) 自探索: 底层天文(sunApparent/nutation/precessEcliptic), 尊贵原子(dignityScore/faceRuler/termRuler/signRuler), 组合器(matchAll/matchAny), 特殊点(meanNode→弧度/57.2958转度/meanLilith/trueLilith/vertexEastPoint), lotFortune/lotSpirit/hermeticLots, 探测(houseCusp/angles/gmst/gast/normalizeHouseSystem)等。
