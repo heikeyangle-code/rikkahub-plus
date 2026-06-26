@@ -171,7 +171,7 @@ jobs:
           pip install . --no-deps 2>&1
 
           # Rename files to match build.gradle.kts expectations (hyphen→underscore, version pin)
-          mkdir -p app/offline_pkgs
+          mkdir -p ${GITHUB_WORKSPACE}/app/offline_pkgs
           for f in /tmp/pypi-offline/*.tar.gz; do
             fname=$(basename "$f")
             # lunar-python → lunar_python (if any lunar-python files appear)
@@ -179,24 +179,29 @@ jobs:
             fname="${fname//python-dateutil/python_dateutil}"
             fname="${fname//requests-cache/requests_cache}"
             fname="${fname//url-normalize/url_normalize}"
-            cp "$f" "app/offline_pkgs/$fname"
+            cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/$fname"
           done
           # No .whl files (all C extensions deleted) — skip
           # Rename unpinned packages to stable names for build.gradle.kts
-          for f in app/offline_pkgs/pydantic-*.tar.gz; do cp "$f" "app/offline_pkgs/pydantic-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/lunar_python-*.tar.gz; do cp "$f" "app/offline_pkgs/lunar_python-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/markupsafe-*.tar.gz; do cp "$f" "app/offline_pkgs/markupsafe-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/pyyaml-*.tar.gz; do cp "$f" "app/offline_pkgs/pyyaml-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/pydantic-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/pydantic-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/lunar_python-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/lunar_python-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/markupsafe-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/markupsafe-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/pyyaml-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/pyyaml-latest.tar.gz" 2>/dev/null || true; done
           # simple_ascii_tables: .whl 改名会破坏 PEP 427 命名规范,保持原名 (resolve via fileTree glob in build.gradle.kts)
-          for f in app/offline_pkgs/attrs-*.tar.gz; do cp "$f" "app/offline_pkgs/attrs-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/cattrs-*.tar.gz; do cp "$f" "app/offline_pkgs/cattrs-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/platformdirs-*.tar.gz; do cp "$f" "app/offline_pkgs/platformdirs-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/url_normalize-*.tar.gz; do cp "$f" "app/offline_pkgs/url_normalize-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/urllib3-*.tar.gz; do cp "$f" "app/offline_pkgs/urllib3-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/cn2an-*.tar.gz; do cp "$f" "app/offline_pkgs/cn2an-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/proces-*.tar.gz; do cp "$f" "app/offline_pkgs/proces-latest.tar.gz" 2>/dev/null || true; done
-          for f in app/offline_pkgs/jinja2-*.tar.gz; do cp "$f" "app/offline_pkgs/jinja2-latest.tar.gz" 2>/dev/null || true; done
-          echo "Offline packages:" && ls app/offline_pkgs/
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/attrs-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/attrs-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/cattrs-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/cattrs-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/platformdirs-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/platformdirs-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/url_normalize-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/url_normalize-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/urllib3-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/urllib3-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/cn2an-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/cn2an-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/proces-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/proces-latest.tar.gz" 2>/dev/null || true; done
+          for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/jinja2-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/jinja2-latest.tar.gz" 2>/dev/null || true; done
+          echo "Offline packages:" && ls ${GITHUB_WORKSPACE}/app/offline_pkgs/
+          # arcanite-unified → arcanite-pydantic-v1 (build.gradle.kts expects the old name)
+          if [ -f "${GITHUB_WORKSPACE}/app/offline_pkgs/arcanite-unified.tar.gz" ]; then
+            cp "${GITHUB_WORKSPACE}/app/offline_pkgs/arcanite-unified.tar.gz" "${GITHUB_WORKSPACE}/app/offline_pkgs/arcanite-pydantic-v1.tar.gz"
+            echo "Linked arcanite-unified → arcanite-pydantic-v1 for build.gradle.kts compatibility"
+          fi
       - name: Compile QiMen TS engine (bigfishmarquis-qimen)
         run: |
           git clone --depth 1 https://github.com/perfhelf/bigfishmarquis-qimen.git /tmp/qimen_ts
