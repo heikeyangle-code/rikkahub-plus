@@ -158,7 +158,16 @@ jobs:
           python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_relationship.py "$dir/arcanite/spreads/lenormand-spreads.json"
           python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_enhance_line3.py "$dir/arcanite/spreads/lenormand-spreads.json"
           python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_enhance_line5.py "$dir/arcanite/spreads/lenormand-spreads.json"
-          # Now install (patched spreads will be included)
+          # Strip unused modules (images, LLM, PDF, typst - not needed for AI runtime)
+          rm -rf arcanite/images arcanite/interpretation arcanite/render
+          rm -rf arcanite/templates arcanite/prompts arcanite/__pycache__
+          rm -f arcanite/cards/update_card_positions.py
+          # Comment out imports for removed modules
+          sed -i 's/from arcanite\.interpretation/### from arcanite.interpretation/' arcanite/__init__.py
+          sed -i 's/from arcanite\.render/### from arcanite.render/' arcanite/__init__.py
+          sed -i 's/from arcanite\.prompts/### from arcanite.prompts/' arcanite/__init__.py
+          sed -i 's/from arcanite\.templates/### from arcanite.templates/' arcanite/__init__.py
+          # Now install (patched spreads + stripped)
           pip install . --no-deps 2>&1
 
           # Rename files to match build.gradle.kts expectations (hyphen→underscore, version pin)
