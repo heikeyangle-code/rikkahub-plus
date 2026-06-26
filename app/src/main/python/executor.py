@@ -846,20 +846,20 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │     dc.archetype                                     │
                        │     dc.raw_data["meditation_focus"]                 │
                        │                                                      │
-                       │ STEP 4: 统一引擎(arcanite-unified)内置字段              │
-                       │     dc.description          → 画面描述                  │
-                       │       ["waite"] = 韦特1910年原版英文(诗意/细节丰富)     │
-                       │       ["tk_en"] = 现代英文版(简洁/易懂)                │
-                       │       ["tk_zh"] = 现代中文版(简洁/易懂)                            │
-                       │     dc.get_waite_meaning(orientation) → 韦特原版占卜意义(古典措辞)│
-                       │     dc.get_tk_meaning(orientation, lang)  → 现代双语解读(通俗易懂)    │
-                       │     dc.get_core_meaning(False) 还新增:                  │
-                       │       tk_core_keyword_en/zh → 核心词(一词总结)          │
-                       │     dc.reading_aspects      → 5层阅读                   │
-                       │       (currentSituation处境/innerState内心             │
-                       │        /rootCause根源/development发展/advice建议)       │
-                       │     dc.contextual_meanings  → 4语境                    │
-                       │       (love感情/work事业/interpersonal人际/others其他)  │
+                       │ STEP 4: 统一引擎新增字段(调用示例)              │
+                       │     dc.description["waite"]  # 韦特原版画面描述(英文)   │
+                       │     dc.description["tk_en"]  # 现代画面描述(英文)       │
+                       │     dc.description["tk_zh"]  # 现代画面描述(中文)       │
+                       │     dc.get_waite_meaning("upright")  # 韦特正位意义    │
+                       │     dc.get_waite_meaning("reversed") # 韦特逆位意义    │
+                       │     dc.get_tk_meaning("upright","en")  # 现代正位英文  │
+                       │     dc.get_tk_meaning("upright","zh")  # 现代正位中文  │
+                       │     dc.get_tk_meaning("reversed","en") # 现代逆位英文  │
+                       │     dc.get_tk_meaning("reversed","zh") # 现代逆位中文  │
+                       │     dc.get_core_meaning(False)["tk_core_keyword_en"] # 核心词英│
+                       │     dc.get_core_meaning(False)["tk_core_keyword_zh"] # 核心词中│
+                       │     dc.reading_aspects  # 5层阅读                     │
+                       │     dc.contextual_meanings  # 4语境                    │
                        │                                                      │
                        │ STEP 6: Kaabalah 卡巴拉映射（秘传时调用）              │
                        │   全量: buildKaabalisticMapData({numerology: ee.numerology})│
