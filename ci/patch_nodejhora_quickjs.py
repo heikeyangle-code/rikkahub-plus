@@ -129,6 +129,53 @@ def main():
         "    }\n"
         "}")
     print("  [1/1] Lazy init with buffer support")
+
+    # ── Extra exports ─────────────────────────────────────────────────────────
+    # 补上 npm 包 index.js 未导出但路由已使用的内部函数
+    # 用 re-export 形式追加在文件末尾（ESM 缓存机制保证不重复加载）
+    analytics_idx = os.path.join(node_modules, '@node-jhora', 'analytics', 'dist', 'index.js')
+    if os.path.isfile(analytics_idx):
+        with open(analytics_idx, 'r') as f:
+            content = f.read()
+        extras = ""
+        for imp, exps in [
+            ("'./aspects.js'", "calculateDrishtiValue, calculateDrigBala"),
+            ("'./shadbala_time.js'", "calculateDigBala, calculateNatonataBala, calculatePakshaBala, calculateTribhagaBala, calculateAyanabala, calculateChestaBala"),
+            ("'./shadbala.js'", "calculateUchchaBala, calculateKendraBala, calculateOjayugmarasyamsaBala, calculateSaptavargajaBala"),
+        ]:
+            if f"export {{ {exps} }}" not in content:
+                extras += f"export {{ {exps} }} from {imp};\n"
+        if extras:
+            with open(analytics_idx, 'a') as f:
+                f.write("\n// Extra exports for route compatibility\n" + extras)
+            print(f"  [analytics] added extra exports")
+
+    core_idx = os.path.join(node_modules, '@node-jhora', 'core', 'dist', 'index.js')
+    if os.path.isfile(core_idx):
+        with open(core_idx, 'r') as f:
+            content = f.read()
+        extras = ""
+        for imp, exps in [
+            ("'./vedic/houses.js'", "calculateBhavaSandhi"),
+            ("'./core/relationships.js'", "getTatkalikaMaitri"),
+            ("'./core/math.js'", "midpoint"),
+            ("'./core/precise.js'", "NAKSHATRA_SPAN_N"),
+        ]:
+            if f"export {{ {exps} }}" not in content:
+                extras += f"export {{ {exps} }} from {imp};\n"
+        if extras:
+            with open(core_idx, 'a') as f:
+                f.write("\n// Extra exports for route compatibility\n" + extras)
+            print(f"  [core] added extra exports")
+
+    pred_idx = os.path.join(node_modules, '@node-jhora', 'prediction', 'dist', 'index.js')
+    if os.path.isfile(pred_idx):
+        with open(pred_idx, 'r') as f:
+            content = f.read()
+        if "DASHA_DURATIONS" not in content:
+            with open(pred_idx, 'a') as f:
+                f.write("\n// Extra exports for route compatibility\nexport { DASHA_DURATIONS, DASHA_ORDER } from './dasha.js';\n")
+            print(f"  [prediction] added DASHA_DURATIONS, DASHA_ORDER")
     
     print("\n✅ All patches applied successfully")
 
