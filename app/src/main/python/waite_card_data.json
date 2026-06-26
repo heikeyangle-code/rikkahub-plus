@@ -74,7 +74,7 @@
     {
       "type": "major",
       "name_short": "ar08",
-      "name": "Fortitude",
+      "name": "Strength",
       "value": "8",
       "value_int": 8,
       "meaning_up": "Power, energy, action, courage, magnanimity; also complete success and honours.",
@@ -94,7 +94,7 @@
     {
       "type": "major",
       "name_short": "ar10",
-      "name": "Wheel Of Fortune",
+      "name": "Wheel of Fortune",
       "value": "10",
       "value_int": 10,
       "meaning_up": "Destiny, fortune, success, elevation, luck, felicity.",
@@ -194,7 +194,7 @@
     {
       "type": "major",
       "name_short": "ar20",
-      "name": "The Last Judgment",
+      "name": "Judgement",
       "value": "20",
       "value_int": 20,
       "meaning_up": "Change of position, renewal, outcome. Another account specifies total loss though lawsuit.",

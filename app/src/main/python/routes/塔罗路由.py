@@ -96,12 +96,14 @@
                        │                                                      │
                        │ STEP 4: Waite 原版画面描述 + 占卜意义（主画面描述源）    │
                        │   # ⚠️ waite_card_data.json 在 routes/ 父目录                    │
-                       │   _wp = os.path.join(os.path.dirname(__file__), '..', 'waite_card_data.json')│
+                       │   _wp = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'waite_card_data.json'))│
                        │   waite = json.load(open(_wp))['cards']│
-                       │   WAITE_NAME_MAP = {"Strength": "Fortitude", "Judgement": "The Last Judgment"}│
-                       │   waite_name = WAITE_NAME_MAP.get(dc.card_name, dc.card_name)│
-                       │   cw = next(c for c in waite if c['name'] == waite_name)│
-                       │   ⚠️ 已通过WAITE_NAME_MAP自动处理: Strength=Fortitude, Judgement=The Last Judgment│
+                       │   cw = None                                                   │
+                       │   for c in waite:                                            │
+                       │       if c['name'] == dc.card_name:                          │
+                       │           cw = c                                              │
+                       │           break                                               │
+                       │   if cw is None: continue  # 找不到则跳过，不崩│
                        │   → cw['desc']             Waite画面描述                     │
                        │   → cw['meaning_up']       Waite原版正位占卜意义          │
                        │   → cw['meaning_rev']      Waite原版逆位占卜意义          │
