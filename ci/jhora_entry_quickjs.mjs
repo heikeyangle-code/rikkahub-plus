@@ -70,3 +70,13 @@ export { DateTime } from 'luxon';
 export * from '@node-jhora/core';
 export * from '@node-jhora/analytics';
 export * from '@node-jhora/prediction';
+
+// 补导出 npm 包未公开但路由已使用的内部函数
+export * from '@node-jhora/analytics/dist/aspects.js';
+export * from '@node-jhora/analytics/dist/shadbala_time.js';
+export { calculateBhavaSandhi } from '@node-jhora/core/dist/vedic/houses.js';
+export { getTatkalikaMaitri } from '@node-jhora/core/dist/core/relationships.js';
+export { midpoint } from '@node-jhora/core/dist/core/math.js';
+export { calculateUchchaBala, calculateKendraBala, calculateOjayugmarasyamsaBala, calculateSaptavargajaBala } from '@node-jhora/analytics/dist/shadbala.js';
+export { NAKSHATRA_SPAN_N } from '@node-jhora/core/dist/core/precise.js';
+export { DASHA_DURATIONS, DASHA_ORDER } from '@node-jhora/prediction/dist/dasha.js';

@@ -468,12 +468,9 @@ NodeJhora.calculatePanchanga(sunLon, moonLon, dt, sunriseHour=6.0)
 
 NodeJhora.calculateVarga(lon, division)  // division: 1=D1..60=D60
   → {longitude, sign, degree, deity?}    // sign: 1-12 (Aries=1), degree: 0-30
-便捷别名 (均返回同上 VargaPoint):
-NodeJhora.calculateD1(lon) / calculateD2 / calculateD3 / calculateD4
-NodeJhora.calculateD7 / calculateD9 / calculateD10 / calculateD12
-NodeJhora.calculateD16 / calculateD20 / calculateD24 / calculateD27
-NodeJhora.calculateD30 / calculateD40 / calculateD45 / calculateD60
-NodeJhora.calculateShashtyamsa(lon) → 同 calculateD60
+// 无 D1~D60 便捷别名。统一用 calculateVarga(lon, division) 代替:
+//   calculateVarga(moonLon, 9)  = D9  /  calculateVarga(sunLon, 60)  = D60
+NodeJhora.calculateShashtyamsa(lon) → 同 D60 (便捷别名)
 支持全部分盘: D1 D2 D3 D4 D7 D9 D10 D12 D16 D20 D24 D27 D30 D40 D45 D60
 
 ━━━ 四、大运 / Dasha (时间维度) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
