@@ -850,9 +850,9 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │     dc.description          → 画面描述                  │
                        │       ["waite"] = 韦特1910年原版英文(诗意/细节丰富)     │
                        │       ["tk_en"] = 现代英文版(简洁/易懂)                │
-                       │       ["tk_zh"] = 现代中文版                            │
-                       │     dc.get_waite_meaning(o) → 韦特原版占卜意义(古典措辞)│
-                       │     dc.get_tk_meaning(o,l)  → 现代双语解读(通俗易懂)    │
+                       │       ["tk_zh"] = 现代中文版(简洁/易懂)                            │
+                       │     dc.get_waite_meaning(orientation) → 韦特原版占卜意义(古典措辞)│
+                       │     dc.get_tk_meaning(orientation, lang)  → 现代双语解读(通俗易懂)    │
                        │     dc.get_core_meaning(False) 还新增:                  │
                        │       tk_core_keyword_en/zh → 核心词(一词总结)          │
                        │     dc.reading_aspects      → 5层阅读                   │
