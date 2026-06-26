@@ -847,13 +847,19 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │     dc.raw_data["meditation_focus"]                 │
                        │                                                      │
                        │ STEP 4: 统一引擎(arcanite-unified)内置字段              │
-                       │     dc.description          → 画面描述(原文/中/英)    │
-                       │     dc.get_waite_meaning(o) → 原版正逆位占卜意义      │
-                       │     dc.get_tk_meaning(o,l)  → 现代双语正逆位意义      │
-                       │     dc.get_core_meaning(False) 下的新增字段:            │
-                       │       tk_core_keyword_en/zh → 核心词(英/中)           │
-                       │     dc.reading_aspects      → 5层阅读(处境/内心/根源/发展/建议)│
-                       │     dc.contextual_meanings  → 4语境(爱情/工作/人际/其他)│
+                       │     dc.description          → 画面描述                  │
+                       │       ["waite"] = 韦特1910年原版英文(诗意/细节丰富)     │
+                       │       ["tk_en"] = 现代英文版(简洁/易懂)                │
+                       │       ["tk_zh"] = 现代中文版                            │
+                       │     dc.get_waite_meaning(o) → 韦特原版占卜意义(古典措辞)│
+                       │     dc.get_tk_meaning(o,l)  → 现代双语解读(通俗易懂)    │
+                       │     dc.get_core_meaning(False) 还新增:                  │
+                       │       tk_core_keyword_en/zh → 核心词(一词总结)          │
+                       │     dc.reading_aspects      → 5层阅读                   │
+                       │       (currentSituation处境/innerState内心             │
+                       │        /rootCause根源/development发展/advice建议)       │
+                       │     dc.contextual_meanings  → 4语境                    │
+                       │       (love感情/work事业/interpersonal人际/others其他)  │
                        │                                                      │
                        │ STEP 6: Kaabalah 卡巴拉映射（秘传时调用）              │
                        │   全量: buildKaabalisticMapData({numerology: ee.numerology})│
