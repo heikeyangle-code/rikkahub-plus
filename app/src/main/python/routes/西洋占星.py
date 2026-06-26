@@ -32,7 +32,12 @@ NatalEngine.searchPlaces("Beijing") → [{name,latitude,longitude,timezone,count
 ⚠️ searchPlaces 是 async, 返回 Promise — 用 .then(r=>{...}) 或 await 
 ── ③ Caelus（深度分析，231+ 函数） ──
 初始化: // 用户报地名→searchPlaces拿时区→resolveUtcOffset拿偏移→拼ISO字符串 var e=new 
-Caelus.Engine(Caelus.embeddedData); var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00"); // +08:00是示例, isoToJd内部转UT; 已知UT可直接用 julianDay(y,m,d,h,m,s) var natalJd=jd; var targetJd=Caelus.julianDay(2026,6,22,12,0,0); var chart=e.chartAt(jd,lat,lon,{}); // 默认Placidus+热带 var ctx=Caelus.interpretationContext(chart); 
+Caelus.Engine(Caelus.embeddedData);
+var jd=Caelus.isoToJd("1990-06-15T12:00:00+08:00"); // +08:00是示例, isoToJd内部转UT
+var natalJd=jd;
+var targetJd=Caelus.julianDay(2026,6,22,12,0,0);
+var chart=e.chartAt(jd,lat,lon,{}); // 默认Placidus+热带
+var ctx=Caelus.interpretationContext(chart); 
 ── 本命(18个) ──
 chart.bodies.sun → {lon,sign,signDeg,house,retrograde,dignities,speed,lat,dist,ra,dec} 可选: sun/moon/mercury/venus/mars/jupiter/saturn/uranus/neptune/pluto/chiron/mean_node/true_node 扩展: mean_lilith/true_lilith (Caelus.EXTRA_BODIES) 
 Caelus.isDayChart(e,jd,lat,lon) → 昼夜盘 
@@ -69,11 +74,14 @@ Caelus.firdariaAt(e,natalJd,targetJd,lat,lon) → {day,major,sub}
 Caelus.firdaria(day,natalJd) → 完整周期表 ZR: 
 Caelus.zrAt(e,natalJd,targetJd,lat,lon) → {lot,lot_sign,day,l1?,l2?,l3?,l4?} 主限: 
 Caelus.primaryDirections(e,jd,lat,lon,bodies?,key?,maxYears?,yearLength?) → [{body,angle:"MC"|"IC"|"ASC"|"DSC",arc,years,jd}] 时间键 KEYS:{naibod:0.9856,ptolemy:1.0,brahe:0.986,cardan:0.985,simmonite:0.985} 世俗: 
-Caelus.mundaneDirections(e,natalJd,lat,lonEast,bodies?,key?,maxYears?,yearLength?) → [{promissor,significator,arc,years,jd}] Placidus半弧, 行星到行星 太阳弧:Caelus.solarArc(e,natalJd,targetJd,yearLength?,zodiac?) → 度数值 等价: 
+Caelus.mundaneDirections(e,natalJd,lat,lonEast,bodies?,key?,maxYears?,yearLength?) → [{promissor,significator,arc,years,jd}]
+太阳弧:Caelus.solarArc(e,natalJd,targetJd,yearLength?,zodiac?) → 度数值
+等价: 
 Caelus.directedLongitude(e,body,natalJd,targetJd,key?,zodiac?) 次限: 
 Caelus.progressedLongitude(e,"sun",natalJd,targetJd,yearLength?,zodiac?) → 经度 
 Caelus.progressedJd(natalJd,targetJd,yearLength?) → 数值,传chartAt得整盘次限 小限: 
-Caelus.profectionAt(e,natalJd,targetJd,lat,lon) → {age_years,month,annual:{sign,sign_index,house,lord},monthly:{sign,sign_index,house,lord}} 回归: 
+Caelus.profectionAt(e,natalJd,targetJd,lat,lon) → {age_years,month,annual:{sign,sign_index,house,lord},monthly:{sign,sign_index,house,lord}}
+回归: 
 Caelus.solarReturn(e,natalJd,start,end,zodiac?)/lunarReturn → [jd,...] 
 Caelus.returns(e,body,natalJd,start,end,zodiac?,maxHits?) → [jd,...] 
 Caelus.stations(e,"saturn",jdStart,jdEnd) → [[jd,"retrograde"|"direct"],...] 
@@ -126,7 +134,8 @@ Caelus.modality(sign)→"cardinal"|...
 Caelus.quadrant(house)→1-4 
 Caelus.angularity(house)→"angular"|"succedent"|"cadent" 
 Caelus.unitVector(lonDeg,latDeg)→[x,y,z] 
-Caelus.angularSeparation3d(lonA,latA,lonB,latB)→度 常量: DEFAULT_BODIES/SIGNS/BODIES/EXTRA_BODIES/ASPECTS/DEFAULT_ORBS/DOMICILE/EXALTATION/ HOUSE_SYSTEMS/TROPICAL_YEAR/DEG/ARCSEC/J2000/LIGHT_TIME_AU 
+Caelus.angularSeparation3d(lonA,latA,lonB,latB)→度
+常量: DEFAULT_BODIES/SIGNS/BODIES/EXTRA_BODIES/ASPECTS/DEFAULT_ORBS/DOMICILE/EXALTATION/ HOUSE_SYSTEMS/TROPICAL_YEAR/DEG/ARCSEC/J2000/LIGHT_TIME_AU 
 ── ④ Astronomy（精度备份+仲裁） ──
 调它只有两种情况: ① Caelus和NatalEngine对同一行星输出不同星座时，以它为准(仲裁) ② 问日食月食精确到秒的时刻时，用它拿秒级时间(Caelus返回类型+时间范围) 其余不调。CAELUS_VSOP87 != ASTRONOMY_VSOP87 (6弧秒算法差<400弧秒位置模糊, 调了等于没调)。 调用: var t=new Astronomy.MakeTime(new Date(Date.UTC(y,m-1,d,h,m))); Astronomy.EclipticLongitude(Astronomy.Body.Mercury,t) → 黄经 Sun用Astronomy.SunPosition(t).elon, Moon用new Astronomy.Ecliptic(Astronomy.GeoMoon(t)).elon Astronomy.SearchLunarEclipse(new Date(...)) / SearchGlobalSolarEclipse(...) Astronomy.SearchRiseSet(Astronomy.Body.Sun,new Astronomy.Observer(lat,lon,0),1,new Date(...),1) Astronomy.Seasons(2026) / Astronomy.MoonPhase(new Date(...)) 
 ── ⑤ HoroscopeJS（已被Caelus完全覆盖，不再推荐） ── 
@@ -142,7 +151,10 @@ Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=n
 双星相位: Caelus.aspectBetween(e, bodyA, bodyB, jd, zodiac?, orbs?)
    → {kind, orb, strength} | null
 Gauquelin: Caelus.gauquelinSector(e, body, jd, lat, lon) → sector(1-36) | null
-又 lots(e,jd,lat,lon) 又 firdariaAt(e,jd,targetJd,lat,lon) 又 primaryDirections 又 solarArc
+又 lots(e,jd,lat,lon)
+又 firdariaAt(e,jd,targetJd,lat,lon)
+又 primaryDirections
+又 solarArc
 又 detectYogas(e,jd,lat,lon) 又 vargaAt(e,jd,9) 又 ashtottariAt 又 yoginiAt
 又 declinationAspects(e,bodies,jd,orb) 又 outOfBounds(e,body,jd)
 (零依赖VSOP87D,231函数,先new Engine; ⚠️varga用数字9不是"D9"; lots不是hermeticLots)
