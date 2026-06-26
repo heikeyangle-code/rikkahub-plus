@@ -148,16 +148,6 @@ jobs:
           cd /tmp/arcanite_unified_build
           tar xzf /tmp/pypi-offline/arcanite-unified.tar.gz --strip=1
           dir=/tmp/arcanite_unified_build
-          # Apply lenormand spread patches BEFORE install
-          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_grand_tableau.py "$dir/arcanite/spreads/lenormand-spreads.json"
-          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_line7.py "$dir/arcanite/spreads/lenormand-spreads.json"
-          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_line9.py "$dir/arcanite/spreads/lenormand-spreads.json"
-          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_box3x3.py "$dir/arcanite/spreads/lenormand-spreads.json"
-          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_cross.py "$dir/arcanite/spreads/lenormand-spreads.json"
-          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_houses12.py "$dir/arcanite/spreads/lenormand-spreads.json"
-          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_relationship.py "$dir/arcanite/spreads/lenormand-spreads.json"
-          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_enhance_line3.py "$dir/arcanite/spreads/lenormand-spreads.json"
-          python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_enhance_line5.py "$dir/arcanite/spreads/lenormand-spreads.json"
           # Strip unused modules (images, LLM, PDF, typst - not needed for AI runtime)
           rm -rf arcanite/images arcanite/interpretation arcanite/render
           rm -rf arcanite/templates arcanite/prompts arcanite/__pycache__
