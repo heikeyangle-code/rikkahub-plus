@@ -170,7 +170,7 @@ jobs:
           # Now install (patched spreads + stripped)
           pip install . --no-deps 2>&1
           # Fix pydantic version: v2→v1 (Chaquopy uses pydantic<2.0 pure Python, no C extensions)
-          sed -i 's/"pydantic>=2.0"/"pydantic<2.0"/' arcanite/pyproject.toml
+          sed -i 's/"pydantic>=2.0"/"pydantic<2.0"/' pyproject.toml
           # Re-pack patched tarball (overwrite original — Chaquopy installs from file path)
           cd /tmp/arcanite_unified_build
           tar czf /tmp/pypi-offline/arcanite-unified.tar.gz --exclude=".git" .
