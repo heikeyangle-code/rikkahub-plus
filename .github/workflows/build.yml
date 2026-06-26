@@ -197,11 +197,6 @@ jobs:
           for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/proces-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/proces-latest.tar.gz" 2>/dev/null || true; done
           for f in ${GITHUB_WORKSPACE}/app/offline_pkgs/jinja2-*.tar.gz; do cp "$f" "${GITHUB_WORKSPACE}/app/offline_pkgs/jinja2-latest.tar.gz" 2>/dev/null || true; done
           echo "Offline packages:" && ls ${GITHUB_WORKSPACE}/app/offline_pkgs/
-          # arcanite-unified → arcanite-pydantic-v1 (build.gradle.kts expects the old name)
-          if [ -f "${GITHUB_WORKSPACE}/app/offline_pkgs/arcanite-unified.tar.gz" ]; then
-            cp "${GITHUB_WORKSPACE}/app/offline_pkgs/arcanite-unified.tar.gz" "${GITHUB_WORKSPACE}/app/offline_pkgs/arcanite-pydantic-v1.tar.gz"
-            echo "Linked arcanite-unified → arcanite-pydantic-v1 for build.gradle.kts compatibility"
-          fi
       - name: Compile QiMen TS engine (bigfishmarquis-qimen)
         run: |
           git clone --depth 1 https://github.com/perfhelf/bigfishmarquis-qimen.git /tmp/qimen_ts

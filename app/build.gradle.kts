@@ -35,7 +35,7 @@ chaquopy {
             install("bidict")            // bazi_china 所需
             install("colorama")           // bazi_china 所需
             install(file("offline_pkgs/meihua-yi-patched.tar.gz").absolutePath) // 梅花易数
-            install(file("offline_pkgs/arcanite-pydantic-v1.tar.gz").absolutePath) // 塔罗(已降级pydantic v1,零C扩展)
+            install(file("offline_pkgs/arcanite-unified.tar.gz").absolutePath) // 统一塔罗引擎(arcanite+Waite+TarotKit,零C扩展)
             install("setuptools")
             // arcanite 依赖链 (纯Python, 零C扩展)
             install(file("offline_pkgs/pydantic-latest.tar.gz").absolutePath)
