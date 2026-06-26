@@ -68,12 +68,17 @@ engine.heliocentric("mars",jdUt) → {lon,lat,dist} (Engine实例, 不是Caelus.
 Caelus.solarPhase(e,"mercury",jd) → "cazimi"|"combust"|"under_beams"|null 
 Caelus.planetaryHour(e,jd,lat,lon) → {ruler,kind,hour,start,end} 
 Caelus.chartBrief(ctx,{limit?,kinds?,minSalience?}) → {jdUt,zodiac,facts:[{id,kind,text,salience}],prompt} 
-── 推运(7种,18个) ── 法达: 
+── 推运(7种,18个) ──
+法达: 
 Caelus.firdariaAt(e,natalJd,targetJd,lat,lon) → {day,major,sub} 
 ⚠️ 必须传targetJd; 75年外返回{null,null} 
-Caelus.firdaria(day,natalJd) → 完整周期表 ZR: 
-Caelus.zrAt(e,natalJd,targetJd,lat,lon) → {lot,lot_sign,day,l1?,l2?,l3?,l4?} 主限: 
-Caelus.primaryDirections(e,jd,lat,lon,bodies?,key?,maxYears?,yearLength?) → [{body,angle:"MC"|"IC"|"ASC"|"DSC",arc,years,jd}] 时间键 KEYS:{naibod:0.9856,ptolemy:1.0,brahe:0.986,cardan:0.985,simmonite:0.985} 世俗: 
+Caelus.firdaria(day,natalJd) → 完整周期表
+ZR: 
+Caelus.zrAt(e,natalJd,targetJd,lat,lon) → {lot,lot_sign,day,l1?,l2?,l3?,l4?}
+主限: 
+Caelus.primaryDirections(e,jd,lat,lon,bodies?,key?,maxYears?,yearLength?) → [{body,angle:"MC"|"IC"|"ASC"|"DSC",arc,years,jd}]
+时间键 KEYS:{naibod:0.9856,ptolemy:1.0,brahe:0.986,cardan:0.985,simmonite:0.985}
+世俗: 
 Caelus.mundaneDirections(e,natalJd,lat,lonEast,bodies?,key?,maxYears?,yearLength?) → [{promissor,significator,arc,years,jd}]
 太阳弧:Caelus.solarArc(e,natalJd,targetJd,yearLength?,zodiac?) → 度数值
 等价: 
@@ -91,7 +96,8 @@ Caelus.synastryOverlays(chartA,chartB) → {aInB:{body:house},bInA:{body:house}}
 Caelus.compositeLongitudes(e,jdA,jdB,bodies,zodiac?) ← 不是(chartA,chartB) 
 Caelus.compositePlacements(e,jdA,jdB,bodies?,zodiac?) → [{body,lon,sign,signDeg},...] 戴维森: 
 Caelus.davisonParams(jdA,latA,lonA,jdB,latB,lonB) → [midJd,midLat,midLon] 增强: 
-Caelus.enrichSynastryOptions(e,chartA,chartB,{orb?,zodiac?}) → {synastry,composite} 合并到 ctx: interpretationContext(chartA,{...enrichSynastryOptions(...)}) 
+Caelus.enrichSynastryOptions(e,chartA,chartB,{orb?,zodiac?}) → {synastry,composite}
+合并到 ctx: interpretationContext(chartA,{...enrichSynastryOptions(...)}) 
 ── 行运(12个) ── 
 Caelus.transitAspects(natalChart,e,transitJd,{maxOrb?,zodiac?,orbs?,bodies?}) → [{transit,natal,aspect,orb,phase,strength,natalHouse}] 
 Caelus.scan({start,end,step,onProgress?,progressEvery?},fn) → 批次扫描 
