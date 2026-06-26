@@ -41,11 +41,14 @@
                        │   deck = TarotDeck.load(system="tarot")              │
                        │   spread = load_spread("牌阵ID")                      │
                        │   N = len(spread.positions)   # 位置数=抽牌数        │
-                       │   drawn = deck.draw(N)     → DrawnCard × N          │
+                       │   drawn = deck.draw(N, seed=42)   # seed可换任意int, 同seed复现  │
                        │   # ⚠️ 抽牌机制（必须理解，否则解读全错）:                │
                        │   #   draw() 每次从完整78张重新洗牌, 不消耗牌堆.      │
                        │   #   不同 execute_python 调用 = 重新 load() = 全新的牌.│
-                       │   #   真随机(secrets.SystemRandom), seed 参数无效.    │
+                       │   #   不加 seed: secrets.SystemRandom 真随机           │
+                       │   #   加 seed(int): random.Random(seed) 可复现         │
+                       │   #     同 seed→同牌序+同正逆位, 出错重试不换牌       │
+                       │   #     推荐: 第一次抽牌时记录 seed, 崩了重试用同seed  │
                        │   #   强制: 抽牌→分析→输出 必须在一次 execute_python  │
                        │   #   调用内完成, 不可拆到多步.                      │
                        │   # rag_mapping 直接用 pos.rag_mapping 读取（对象是权威来源）│

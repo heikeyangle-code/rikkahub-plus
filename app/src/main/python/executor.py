@@ -811,7 +811,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │                                                      │
                        │ STEP 1: arcanite 抽牌 + 加载牌阵                      │
                        │   deck = TarotDeck.load(system="tarot")              │
-                       │   drawn = deck.draw(N)     → DrawnCard × N          │
+                       │   drawn = deck.draw(N, seed=42)   # seed可换任意int, 同seed复现  │
                        │   spread = load_spread("牌阵ID")                      │
                        │   # 牌阵位置→rag_mapping 按语义匹配:                   │
                        │   #   "Past" → temporal_positions.past               │

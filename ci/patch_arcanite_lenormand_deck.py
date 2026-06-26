@@ -266,7 +266,8 @@ class LenormandDeck(TarotDeck):
     """Lenormand deck — reuses ALL TarotDeck shuffle/draw logic unchanged.
 
     The only difference from TarotDeck is the default system="lenormand".
-    shuffle() → secrets.SystemRandom().shuffle() (hardware entropy)
+    shuffle() → seed=None: secrets.SystemRandom (hardware entropy)
+                 seed=int:  random.Random(seed) (reproducible)
     draw()    → same shuffling + 50% reversal chance
     """
 
