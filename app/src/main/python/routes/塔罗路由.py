@@ -27,7 +27,7 @@
 
  arcanite            →  塔罗: from arcanite.core import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
-                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols()→遍历.items()(返回dict非list) / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段)
+                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols()→遍历.items()(返回dict非list) / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段) / description{waite,tk_en,tk_zh}画面描述 / get_waite_meaning(orient)原版意义 / get_tk_meaning(orient,lang)现代意义 / reading_aspects 5层 / contextual_meanings 4语境
 
                        ┌─ 互补模式（arcanite + TarotKit 强强联合）──────────────┐
                        │ 标准步骤,根据数据需要取对应引擎的字段:                │
@@ -448,7 +448,7 @@ AI 先感受牌阵整体，再用7层结构组织语言
                               【箴言】从 coreKeyword / get_core_meaning(reversed=...)["essence"] / affirmations 中提炼成一句隐喻式收尾——不直接重复牌义，用牌面符号做画面类比——让问卜者带走一个能反复回味的意象
 ╔══════════════════ 塔罗数据 ═════════════════╗
 【塔罗数据使用规则】
-  必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping,reversed=) / get_question_context(question_type,reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / meditation_focus / .raw_data(全部原始字段)
+  必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping,reversed=) / get_question_context(question_type,reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / meditation_focus / .raw_data(全部原始字段) / description{waite,tk_en,tk_zh} / get_waite_meaning(orient) / get_tk_meaning(orient,lang) / reading_aspects / contextual_meanings
   用于润色：get_symbols()→for k, v in .items()(返回dict) / get_elemental_correspondences() (共10项: element/zodiac/planet/hebrew_letter/numerology/season/time_of_day/colors/crystals/herbs)
   结构分析(仅【牌阵结构】):
     statistics + composition.major_arcana_ratio + composition.court_card_ratio
