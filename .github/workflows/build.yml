@@ -501,17 +501,6 @@ jobs:
           echo "Iztro JS engine compiled: $(wc -c < iztro-engine.js) bytes"
 
 
-      - name: Compile TarotKit JS engine (@cometpisces/tarot-kit — 78张Rider-Waite塔罗, 中英双语, 0占位符)
-        run: |
-          mkdir -p /tmp/tarotkit_build
-          cd /tmp && npm pack @cometpisces/tarot-kit --pack-destination /tmp/tarotkit_build 2>&1
-          cd /tmp/tarotkit_build && tar xzf cometpisces-tarot-kit-*.tgz && cd package
-          cp ${GITHUB_WORKSPACE}/ci/tarot-kit-entry.mjs ./entry.mjs
-          npx esbuild entry.mjs --bundle --platform=node --format=iife --global-name=TarotKit --target=es2020 --tree-shaking=false --outfile=tarotkit-engine.js 2>&1 | tail -3
-          mkdir -p ${GITHUB_WORKSPACE}/app/src/main/assets/
-          cp tarotkit-engine.js ${GITHUB_WORKSPACE}/app/src/main/assets/
-          echo "TarotKit JS engine compiled: $(wc -c < tarotkit-engine.js) bytes"
-
       - name: Compile LiuRen JS engine (look-fate/liuren-ts-lib ⭐9 — 大六壬排盘 TS)
         run: |
           mkdir -p /tmp/liuren_build
