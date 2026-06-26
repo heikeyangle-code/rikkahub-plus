@@ -1429,12 +1429,15 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
     17=Star(Tzaddi,28,希望) 18=Moon(Qoph,29,恐惧)
     19=Sun(Resh,30,喜悦) 20=Judgement(Shin,31,觉醒)
     21=World(Tau,32,圆满)
-    查法: Kaabalah.HEBREW_LETTERS_DATA[letter] 又 Kaabalah.LURIANIC_PATHS[path] 又 Kaabalah.SPHERES[name]
+    查法: Kaabalah.HEBREW_LETTERS_DATA[letter.upper()] 又 Kaabalah.SPHERES_DATA[name.upper()]
+    ⚠️ LURIANIC_PATHS 是名称→编号映射, 不能直接按编号查。拿完整路径数据用:
+    buildKaabalisticMapData({}).paths → 数组,每条含 from/to/meaning
+    Kaabalah编号1-22 = Crowley路径11-32 (减10)
  数字牌(40): Ace=1=Kether,2=Chokmah,3=Binah,4=Chesed,5=Geburah,6=Tiphareth,7=Netzach,8=Hod,9=Yesod,10=Malkuth
     牌组→世界: Wands=Atziluth, Cups=Briah, Swords=Yetzirah, Pentacles=Assiah
-    查法: Kaabalah.SPHERES["Kether"] 又 Kaabalah.FOUR_WORLDS["ATZILUTH"]
+    查法: Kaabalah.SPHERES_DATA["KETHER"] 又 Kaabalah.FOUR_WORLDS["ATZILUTH"]
  宫廷牌(16): King→Chokmah, Queen→Binah, Knight→Tiphareth, Page→Malkuth
-    牌组→世界同上, 查法: Kaabalah.SPHERES["Chokmah"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
+    牌组→世界同上, 查法: Kaabalah.SPHERES_DATA["CHOKMAH"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
 
   • 塔罗: arcanite(Python)78张+牌阵+正逆位,洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
                        ╚══════════════════ 塔罗 ══════════════════╝
