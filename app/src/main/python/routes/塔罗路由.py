@@ -97,6 +97,8 @@
                        │     dc.description          → waite/TarotKit画面描述    │
                        │     dc.get_waite_meaning(o) → Waite原版正逆位意义      │
                        │     dc.get_tk_meaning(o,l)  → TarotKit双语意义         │
+                       │     dc.get_core_meaning(False) 下的新增字段:            │
+                       │       tk_core_keyword_en/zh → TarotKit核心词           │
                        │     dc.reading_aspects      → 5层阅读                   │
                        │     dc.contextual_meanings  → 4语境                    │
                        │                                                      │
