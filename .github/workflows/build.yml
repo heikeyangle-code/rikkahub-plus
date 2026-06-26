@@ -141,37 +141,8 @@ jobs:
           cd /tmp && rm -rf /tmp/meihua_patch
           echo "Added meihua-yi-patched.tar.gz (random → secrets)"
 
-          # arcanite: 塔罗引擎, 删掉LLM+PDF+图片以外的内容 + pydantic v2→v1 patch
-          pip download --no-deps --no-binary :all: "arcanite==0.2.0" -d /tmp/pypi-offline 2>&1
-          cd /tmp/pypi-offline
-          sdist=$(ls arcanite-*.tar.gz | head -1)
-          dir="${sdist%.tar.gz}"
-          tar xfz "$sdist" && rm "$sdist"
-          rm -rf "$dir/src/arcanite/interpretation"
-          rm -rf "$dir/src/arcanite/render"
-          rm -rf "$dir/src/arcanite/templates"
-          rm -rf "$dir/src/arcanite/prompts"
-          rm -f "$dir/src/arcanite/cards/update_card_positions.py"
-          rm -rf "$dir/src/arcanite/images"
-          rm -rf "$dir/examples"
-          # 真随机: random.Random(seed) → secrets.SystemRandom() (seed=None 时走硬件熵)
-          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_random.py "$dir/src/arcanite/core/deck.py"
-          # pydantic v2→v1: 降级 models.py 以消除 pydantic_core Rust C扩展依赖
-          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_pydantic_v1.py "$dir/src/arcanite/core/models.py"
-          # pydantic metadata: 改 dependency 声明避免 pip 解析冲突 (sed 避 yaml colon)
-          sed -i 's/"pydantic>=2.0"/"pydantic<2.0"/' "$dir/pyproject.toml"
-          # Lenormand card_id/id 兼容: 塔罗用card_id, 雷诺曼用id (字段名不同, 都需支持)
-          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_lenormand.py "$dir/src/arcanite/core/deck.py"
-          # LenormandCard + LenormandDeck + load_lenormand_deck() (10 semantic getters)
-          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_lenormand_deck.py "$dir/src/arcanite/core/deck.py"
-          # Lenormand __init__ exports + lenormand/ subpackage (fix ImportError + ModuleNotFoundError)
-          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_lenormand_init.py "$dir/src/arcanite/core/__init__.py" "$dir/src/arcanite"
-          # SpreadPosition 4 optional fields: index, key, is_significator, mirror_target
-          python3 ${GITHUB_WORKSPACE}/ci/patch_spread_position_fields.py "$dir/src/arcanite/core/models.py" "$dir/src/arcanite/core/spread.py"
-          # Spread system parameter: list_spreads(system=) + load_spread(id, system=) (fix TypeError + KeyError)
-          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_spread.py "$dir/src/arcanite/core/spread.py"
-          # DrawnCard proxy: _deck_ref + TarotCard methods (get_affirmations etc.) on DrawnCard
-          python3 ${GITHUB_WORKSPACE}/ci/patch_arcanite_drawncard_proxy.py "$dir/src/arcanite/core/models.py" "$dir/src/arcanite/core/deck.py"
+          # arcanite-unified: 统一塔罗引擎 (arcanite+Waite+TarotKit, seed条件分支, Lenormand, DrawnCard proxy 已内置)
+          pip install git+https://github.com/heikeyangle-code/arcanite-unified.git 2>&1
           # Grand Tableau spread: register 36 houses as formal spread in lenormand-spreads.json
           python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_grand_tableau.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
           # line-7 spread: 7-card extended linear reading

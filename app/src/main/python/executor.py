@@ -846,20 +846,12 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │     dc.archetype                                     │
                        │     dc.raw_data["meditation_focus"]                 │
                        │                                                      │
-                       │ STEP 4: Waite 原版画面描述 + 占卜意义（主画面描述源）    │
-                       │   _wp = os.path.join(os.path.dirname(__file__), 'waite_card_data.json')│
-                       │   waite = json.load(open(_wp))['cards']│
-                       │   cw = next(c for c in waite if c['name'] == dc.card_name)│
-                       │   → cw['desc']             Waite画面描述                     │
-                       │   → cw['meaning_up']       Waite原版正位占卜意义          │
-                       │   → cw['meaning_rev']      Waite原版逆位占卜意义          │
-                       │                                                      │
-                       │ STEP 5: TarotKit 补充独有字段                         │
-                       │   for dc in drawn:                                   │
-                       │     js_id = dc.card_id.replace('_', '-')             │
-                       │     jscard = TarotKit.getCardById(js_id)             │
-                       │     → description{zh,en}    画面描述(arcanite无)     │
-                       │     → coreKeyword{zh,en}     核心词(arcanite无)      │
+                       │ STEP 4: 统一引擎(arcanite-unified)内置字段              │
+                       │     dc.description          → waite/TarotKit画面描述    │
+                       │     dc.get_waite_meaning(o) → Waite原版正逆位意义      │
+                       │     dc.get_tk_meaning(o,l)  → TarotKit双语意义         │
+                       │     dc.reading_aspects      → 5层阅读                   │
+                       │     dc.contextual_meanings  → 4语境                    │
                        │     → readingAspects         5层阅读(正逆位中英)     │
                        │     → contextualMeanings     4语境(正逆位中英)       │
                        │                                                      │
@@ -1968,7 +1960,7 @@ Astronomy 仅需要 NASA 级精度时选配
   • 印度吠陀: NatalEngine(Rasi+27宿+Dasha+文本) → Caelus(26Yoga+7分盘+Ashtottari+Yogini+Kemadruma)
   • 人类图+基因钥匙: NatalEngine 唯一
   • 卡巴拉/灵数/Gematria/Ifá: Kaabalah 唯一
-【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine | iztro-engine | natalengine-engine(西洋+吠陀+人类图) | tarotkit-engine(塔罗,中英双语) | liuren-engine(大六壬)
+【JS 引擎调用】首次使用需 eval_javascript(action='load', library='xxx') 加载库，后续直接 eval。对照模式→JS先随机→提取关键值→Python同值排盘。库名: qimen-engine | ziwei-nihai | iching-shifa-engine | taixuan-engine | lunar-engine | astronomy-engine | horoscope-engine | kaabalah-engine | caelus-engine | iztro-engine | natalengine-engine(西洋+吠陀+人类图) |  | liuren-engine(大六壬)
   QimenEngine → eval_javascript(library='qimen-engine', code='QimenEngine.generate({...})')
       可用type:
         {type:"rijia", year:2026, month:6, day:19}       → 日家,自包含(推荐)
@@ -2070,7 +2062,7 @@ NatalEngine(西洋+吠陀+人类图) → eval_javascript(library='natalengine-en
       (零随机,纯确定性算法)
   返回 JSON，AI 基于真实数据解读。
 
-TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', code="TarotKit.drawCards(3)")
+
       优点: ① readingAspects 是5个独立顶级字段
                currentSituation(当前状况)/innerState(内心状态)/rootCause(根因)
                /development(发展)/advice(建议),
@@ -2106,7 +2098,7 @@ TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', cod
       ⚠️ 无内置牌阵。drawCards(N)只返回N张裸牌,无位置语义。
          牌阵可手工定义(如抽3张=过去/现在/未来),或搭配arcanite的牌阵系统确定位置。
       (硬件真随机, 不支持种子复现)
-      Waite原版画面描述+占卜意义(本地文件 waite_card_data.json,按 cw['name'] == dc.card_name 匹配):
+      画面描述+占卜意义(统一引擎arcanite-unified内置, dc.description / dc.get_waite_meaning):
         cw['desc'] / cw['meaning_up'] / cw['meaning_rev']  | 详见互补模式 STEP 4
 
 LiuRen(大六壬) → eval_javascript(library='liuren-engine', code="LiuRen.getLiuRenByDate(new Date(2026,5,19,12,0))")
