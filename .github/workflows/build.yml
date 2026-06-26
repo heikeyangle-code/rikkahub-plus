@@ -142,7 +142,13 @@ jobs:
           echo "Added meihua-yi-patched.tar.gz (random → secrets)"
 
           # arcanite-unified: 统一塔罗引擎 (arcanite+Waite+TarotKit, seed条件分支, Lenormand, DrawnCard proxy 已内置)
-          pip install git+https://github.com/heikeyangle-code/arcanite-unified.git 2>&1
+          cd /tmp/pypi-offline
+          curl -sL https://github.com/heikeyangle-code/arcanite-unified/archive/master.tar.gz -o arcanite-unified.tar.gz 2>&1
+          mkdir -p /tmp/arcanite_unified_build
+          cd /tmp/arcanite_unified_build
+          tar xzf /tmp/pypi-offline/arcanite-unified.tar.gz --strip=1
+          pip install . --no-deps 2>&1
+          dir=/tmp/arcanite_unified_build
           # Grand Tableau spread: register 36 houses as formal spread in lenormand-spreads.json
           python3 ${GITHUB_WORKSPACE}/ci/patch_lenormand_grand_tableau.py "$dir/src/arcanite/spreads/lenormand-spreads.json"
           # line-7 spread: 7-card extended linear reading
