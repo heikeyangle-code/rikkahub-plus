@@ -159,7 +159,13 @@ Astronomy.SearchRiseSet(Astronomy.Body.Sun,new Astronomy.Observer(lat,lon,0),1,n
 Astronomy.Seasons(2026) / Astronomy.MoonPhase(new Date(...)) 
 ── ⑤ HoroscopeJS（已被Caelus完全覆盖，不再推荐） ── 
 ⚠️ 日期参数是date不是day: {year,month,date,hour,minute} ╔══════════════════ 参数坑 ══════════════════╗ ║ vargaAt(e,jd,9) ← 数字,不是"D9" ║ ║ hasAspect({})(ctx) ← 柯里化,不是(chart) ║ ║ lots(e,jd,lat,lon) ← 不是hermeticLots ║ ║ firdariaAt 必须传 targetJd ║ ║ compositeLongitudes(e,jdA,jdB,bodies) ║ ║ dignities("sun",2) ← sign是0-11索引 ║ ║ almuten(84.13) ← 裸经度不是body名 ║ ║ outOfBounds(e,body,jd)← 不是(body,decl) ║ ╚═════════════════════════════════════════════╝
- 其余 200+ 函数用 dir(Caelus) 自探索: 底层天文(sunApparent/nutation/precessEcliptic), 尊贵原子(dignityScore/faceRuler/termRuler/signRuler), 组合器(matchAll/matchAny), 特殊点(meanNode→弧度/57.2958转度/meanLilith/trueLilith/vertexEastPoint), lotFortune/lotSpirit/hermeticLots, 探测(houseCusp/angles/gmst/gast/normalizeHouseSystem)等。
+ 其余 200+ 函数用 dir(Caelus) 自探索:
+底层天文(sunApparent/nutation/precessEcliptic),
+尊贵原子(dignityScore/faceRuler/termRuler/signRuler),
+组合器(matchAll/matchAny),
+特殊点(meanNode→弧度/57.2958转度/meanLilith/trueLilith/vertexEastPoint),
+lotFortune/lotSpirit/hermeticLots,
+探测(houseCusp/angles/gmst/gast/normalizeHouseSystem)等。
 Caelus(西洋+吠陀) → eval_javascript(library="caelus-engine", code="var e=new Caelus.Engine(Caelus.embeddedData); var jd=Caelus.isoToJd('1990-06-15T12:00:00+08:00'); e.chartAt(jd,39.9,116.4,{})")
    chartAt(jd,lat,lon,opts) → {bodies, cusps:[12], angles:{asc,mc}, aspects, ...}
    bodies[name] → {lon, sign, signDeg, house(1-12), retrograde, lat, speed, dignities}
