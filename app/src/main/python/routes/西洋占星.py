@@ -82,15 +82,18 @@ Caelus.primaryDirections(e,jd,lat,lon,bodies?,key?,maxYears?,yearLength?) → [{
 Caelus.mundaneDirections(e,natalJd,lat,lonEast,bodies?,key?,maxYears?,yearLength?) → [{promissor,significator,arc,years,jd}]
 太阳弧:Caelus.solarArc(e,natalJd,targetJd,yearLength?,zodiac?) → 度数值
 等价: 
-Caelus.directedLongitude(e,body,natalJd,targetJd,key?,zodiac?) 次限: 
+Caelus.directedLongitude(e,body,natalJd,targetJd,key?,zodiac?)
+次限: 
 Caelus.progressedLongitude(e,"sun",natalJd,targetJd,yearLength?,zodiac?) → 经度 
-Caelus.progressedJd(natalJd,targetJd,yearLength?) → 数值,传chartAt得整盘次限 小限: 
+Caelus.progressedJd(natalJd,targetJd,yearLength?) → 数值,传chartAt得整盘次限
+小限: 
 Caelus.profectionAt(e,natalJd,targetJd,lat,lon) → {age_years,month,annual:{sign,sign_index,house,lord},monthly:{sign,sign_index,house,lord}}
 回归: 
 Caelus.solarReturn(e,natalJd,start,end,zodiac?)/lunarReturn → [jd,...] 
 Caelus.returns(e,body,natalJd,start,end,zodiac?,maxHits?) → [jd,...] 
 Caelus.stations(e,"saturn",jdStart,jdEnd) → [[jd,"retrograde"|"direct"],...] 
-── 合盘(3种,5个) ── 比较: 
+── 合盘(3种,5个) ──
+比较: 
 Caelus.synastryAspects(chartA,chartB,maxOrb?,orbs?) → [{a,b,aspect,orb,strength}] 
 Caelus.synastryOverlays(chartA,chartB) → {aInB:{body:house},bInA:{body:house}} 组合: 
 Caelus.compositeLongitudes(e,jdA,jdB,bodies,zodiac?) ← 不是(chartA,chartB) 
@@ -123,7 +126,8 @@ Caelus.crossings(e,body,targetLon,jdStart,jdEnd,zodiac?,maxHits?) → [jd,...]
 Caelus.stations(e,"saturn",jdStart,jdEnd) → [[jd,"retrograde"|"direct"],...] 
 ── 宫位(12种制式) ──
 e.chartAt(jd,lat,lon,{houseSystem:"koch"}) 切换制式 
-Caelus.normalizeHouseSystem("whole sign") → "whole_sign" 容错输入 有效值: placidus/koch/regiomontanus/campanus/porphyry/equal/ whole_sign/alcabitius/morinus/meridian/polich_page/vehlow 
+Caelus.normalizeHouseSystem("whole sign") → "whole_sign"
+有效值: placidus/koch/regiomontanus/campanus/porphyry/equal/ whole_sign/alcabitius/morinus/meridian/polich_page/vehlow 
 Caelus.houseOf(lon,cusps)/Caelus.houseLord(ascSign,n) (ascSign=热带0-11) 
 ── 上下文增强 ── 
 Caelus.enrichContextOptions(e,chart,{jd,lat,lonEast,zodiac?}, {transits?,timelords?,vedic?,transitOrb?}) → {transits,timelords,vedic} 合并到 interpretationContext(chart,{...base,...extras}) 
