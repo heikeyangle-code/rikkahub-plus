@@ -94,13 +94,13 @@
                        │     dc.archetype                                     │
                        │     dc.raw_data["meditation_focus"]                 │
                        │     # 统一引擎(arcanite-unified)内置字段:             │
-                       │     dc.description          → waite/TarotKit画面描述    │
-                       │     dc.get_waite_meaning(o) → Waite原版正逆位意义      │
-                       │     dc.get_tk_meaning(o,l)  → TarotKit双语意义         │
+                       │     dc.description          → 画面描述(原文/中/英)    │
+                       │     dc.get_waite_meaning(o) → 原版正逆位占卜意义      │
+                       │     dc.get_tk_meaning(o,l)  → 现代双语正逆位意义      │
                        │     dc.get_core_meaning(False) 下的新增字段:            │
-                       │       tk_core_keyword_en/zh → TarotKit核心词           │
-                       │     dc.reading_aspects      → 5层阅读                   │
-                       │     dc.contextual_meanings  → 4语境                    │
+                       │       tk_core_keyword_en/zh → 核心词(英/中)           │
+                       │     dc.reading_aspects      → 5层阅读(处境/内心/根源/发展/建议)│
+                       │     dc.contextual_meanings  → 4语境(爱情/工作/人际/其他)│
                        │                                                      │
                        │                                                      │
                        │ STEP 4: Kaabalah 卡巴拉映射（秘传时调用）              │
