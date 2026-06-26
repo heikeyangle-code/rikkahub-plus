@@ -799,7 +799,7 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
 
  arcanite            →  塔罗: from arcanite.core import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
-                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols()→遍历.items()(返回dict非list) / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段)
+                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols()→遍历.items()(返回dict非list) / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段) / .card_number / .suit
 
                        ┌─ 互补模式（arcanite + TarotKit 强强联合）──────────────┐
                        │ 标准步骤,根据数据需要取对应引擎的字段:                │
@@ -835,7 +835,12 @@ HD行运   →  NatalEngine.calculateTransitGates() → {date, gates, activeGate
                        │ STEP 3: arcanite 逐牌全字段                           │
                        │   for i, dc in enumerate(drawn):                     │
                        │     rag = 按位置语义匹配rag_mapping                    │
-                       │     dc.get_core_meaning(reversed=...)                │
+                       │     dc.card_number / dc.suit                        │
+                       │     cm = dc.get_core_meaning(reversed=...)           │
+                       │     # cm 键: essence / keywords / waite_meaning      │
+                       │     #    psychological / spiritual / practical / shadow      │
+                       │     #    tk_meaning_en/zh / tk_coreKeyword_en/zh     │
+                       │     # ⚠️ tk_coreKeyword_* 只有正位有                 │
                        │     dc.get_interpretation(rag, reversed=...)         │
                        │     dc.get_question_context(type, ...)               │
                        │     dc.get_elemental_correspondences()               │

@@ -27,7 +27,7 @@
 
  arcanite            →  塔罗: from arcanite.core import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
-                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols()→遍历.items()(返回dict非list) / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段) / description{waite,tk_en,tk_zh}画面描述 / get_waite_meaning(orient)原版意义 / get_tk_meaning(orient,lang)现代意义 / reading_aspects 5层 / contextual_meanings 4语境
+                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols()→遍历.items()(返回dict非list) / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段) / .card_number / .suit / description{waite,tk_en,tk_zh}画面描述 / get_waite_meaning(orient)原版意义 / get_tk_meaning(orient,lang)现代意义 / reading_aspects 5层 / contextual_meanings 4语境
 
                        ┌─ 互补模式（arcanite + TarotKit 强强联合）──────────────┐
                        │ 标准步骤,根据数据需要取对应引擎的字段:                │
@@ -70,7 +70,8 @@
                        │ STEP 2: EE 全量分析（不分级，一次出全）                │
                        │   ee = EE.full_analysis(drawn)                       │
                        │   → ee['spread_dignity'] 是 list[dict], 每个元素:     │
-                       │     sd['card'] / sd['dignity_zh'] / sd['rank']       │
+                       │     sd['card'](str) / sd['dignity_zh'] / sd['rank']  │
+                       │     sd['note'] / sd['cancellation']                  │
                        │     sd['primary_element'] / sd['secondary_element']   │
                        │     for sd in ee['spread_dignity']: 遍历使用          │
                        │   → ee['chain_analysis']  元素能量链方向              │
@@ -83,7 +84,14 @@
                        │ STEP 3: arcanite 逐牌全字段                           │
                        │   for i, dc in enumerate(drawn):                     │
                        │     rag = spread.positions[i].rag_mapping                    │
-                       │     dc.get_core_meaning(reversed=...)                │
+                       │     dc.card_number / dc.suit   # 数字编号+花色       │
+                       │     cm = dc.get_core_meaning(reversed=...)           │
+                       │     # cm 包含以下键（正位11个，逆位9个）:                │
+                       │     #   essence / keywords(list) / waite_meaning     │
+                       │     #   psychological / spiritual / practical / shadow           │
+                       │     #   tk_meaning_en / tk_meaning_zh                │
+                       │     #   tk_coreKeyword_en / tk_coreKeyword_zh        │
+                       │     # ⚠️ tk_coreKeyword_* 只有正位有，逆位缺→KeyError │
                        │     dc.get_interpretation(rag, reversed=...)         │
                        │     dc.get_question_context(type, ...)               │
                        │     dc.get_elemental_correspondences()               │
