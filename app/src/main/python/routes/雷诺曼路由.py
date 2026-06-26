@@ -24,11 +24,7 @@
 
 ╔══════════════════ 雷诺曼 ═════════════════╗
 雷诺曼: from arcanite.core import LenormandDeck; d=LenormandDeck.load()
-  items = d.draw_with_data(N, seed=42)   # seed可换任意int, 同seed复现
-  # ⚠️ 抽牌机制: draw_with_data() 每次从完整36张重新洗牌, 不消耗牌堆
-  #   不加 seed: secrets.SystemRandom 真随机
-  #   加 seed(int): random.Random(seed) 可复现, 同seed同牌序+同正逆位
-  #   推荐: 第一次抽牌时记录 seed, 崩了重试用同 seed
+  items = d.draw_with_data(N)
   [print(item.card_id, item.card_name) for item in items]
   ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
 深度: [item.get_core() for item in items] — 一步直接调语义getter
