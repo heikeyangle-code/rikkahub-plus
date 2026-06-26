@@ -27,7 +27,7 @@
 
  arcanite            →  塔罗: from arcanite.core import TarotDeck; d=TarotDeck.load(system="tarot"); cards=d.draw(N); [print(c.card_id,c.card_name,c.orientation.value) for c in cards]
                        ⚠️ print仅取数据。解读正文必须写在回复里，不准在Python里print解读
-                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols()→遍历.items()(返回dict非list) / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段)
+                       深度: DrawnCard已代理全部TarotCard方法: cards[i].get_core_meaning(reversed=False) / get_interpretation(rag_mapping, reversed=False) / get_question_context(question_type, reversed=False) / get_elemental_correspondences() / get_symbols()→遍历.items()(返回dict非list) / get_affirmations() / get_journaling_prompts() / get_relationships() / .raw_data (含meditation_focus等全部原始字段) / .card_number / .suit / description{waite,tk_en,tk_zh}画面描述 / get_waite_meaning(orient)原版意义 / get_tk_meaning(orient,lang)现代意义 / reading_aspects 5层 / contextual_meanings 4语境
 
                        ┌─ 互补模式（arcanite + TarotKit 强强联合）──────────────┐
                        │ 标准步骤,根据数据需要取对应引擎的字段:                │
@@ -70,7 +70,8 @@
                        │ STEP 2: EE 全量分析（不分级，一次出全）                │
                        │   ee = EE.full_analysis(drawn)                       │
                        │   → ee['spread_dignity'] 是 list[dict], 每个元素:     │
-                       │     sd['card'] / sd['dignity_zh'] / sd['rank']       │
+                       │     sd['card'](str) / sd['dignity_zh'] / sd['rank']  │
+                       │     sd['note'] / sd['cancellation']                  │
                        │     sd['primary_element'] / sd['secondary_element']   │
                        │     for sd in ee['spread_dignity']: 遍历使用          │
                        │   → ee['chain_analysis']  元素能量链方向              │
@@ -83,7 +84,14 @@
                        │ STEP 3: arcanite 逐牌全字段                           │
                        │   for i, dc in enumerate(drawn):                     │
                        │     rag = spread.positions[i].rag_mapping                    │
-                       │     dc.get_core_meaning(reversed=...)                │
+                       │     dc.card_number / dc.suit   # 数字编号+花色       │
+                       │     cm = dc.get_core_meaning(reversed=...)           │
+                       │     # cm 包含以下键（正位11个，逆位9个）:                │
+                       │     #   essence / keywords(list) / waite_meaning     │
+                       │     #   psychological / spiritual / practical / shadow           │
+                       │     #   tk_meaning_en / tk_meaning_zh                │
+                       │     #   tk_coreKeyword_en / tk_coreKeyword_zh        │
+                       │     # ⚠️ tk_coreKeyword_* 只有正位有，逆位缺→KeyError │
                        │     dc.get_interpretation(rag, reversed=...)         │
                        │     dc.get_question_context(type, ...)               │
                        │     dc.get_elemental_correspondences()               │
@@ -93,31 +101,23 @@
                        │     dc.get_relationships()                           │
                        │     dc.archetype                                     │
                        │     dc.raw_data["meditation_focus"]                 │
+                       │     # 统一引擎新增字段(调用示例):                │
+                       │     dc.description["waite"]  # 韦特原版画面描述(英文)   │
+                       │     dc.description["tk_en"]  # 现代画面描述(英文)       │
+                       │     dc.description["tk_zh"]  # 现代画面描述(中文)       │
+                       │     dc.get_waite_meaning("upright")  # 韦特正位意义    │
+                       │     dc.get_waite_meaning("reversed") # 韦特逆位意义    │
+                       │     dc.get_tk_meaning("upright","en")  # 现代正位英文  │
+                       │     dc.get_tk_meaning("upright","zh")  # 现代正位中文  │
+                       │     dc.get_tk_meaning("reversed","en") # 现代逆位英文  │
+                       │     dc.get_tk_meaning("reversed","zh") # 现代逆位中文  │
+                       │     dc.get_core_meaning(False)["tk_core_keyword_en"] # 核心词英│
+                       │     dc.get_core_meaning(False)["tk_core_keyword_zh"] # 核心词中│
+                       │     dc.reading_aspects  # 5层阅读                     │
+                       │     dc.contextual_meanings  # 4语境                    │
                        │                                                      │
-                       │ STEP 4: Waite 原版画面描述 + 占卜意义（主画面描述源）    │
-                       │   # ⚠️ waite_card_data.json 在 routes/ 父目录                    │
-                       │   _wp = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'waite_card_data.json'))│
-                       │   waite = json.load(open(_wp))['cards']│
-                       │   cw = None                                                   │
-                       │   for c in waite:                                            │
-                       │       if c['name'] == dc.card_name:                          │
-                       │           cw = c                                              │
-                       │           break                                               │
-                       │   if cw is None: continue  # 找不到则跳过，不崩│
-                       │   → cw['desc']             Waite画面描述                     │
-                       │   → cw['meaning_up']       Waite原版正位占卜意义          │
-                       │   → cw['meaning_rev']      Waite原版逆位占卜意义          │
                        │                                                      │
-                       │ STEP 5: TarotKit 补充独有字段                         │
-                       │   for dc in drawn:                                   │
-                       │     js_id = dc.card_id.replace('_', '-')             │
-                       │     jscard = TarotKit.getCardById(js_id)             │
-                       │     → description{zh,en}    画面描述(arcanite无)     │
-                       │     → coreKeyword{zh,en}     核心词(arcanite无)      │
-                       │     → readingAspects         5层阅读(正逆位中英)     │
-                       │     → contextualMeanings     4语境(正逆位中英)       │
-                       │                                                      │
-                       │ STEP 6: Kaabalah 卡巴拉映射（秘传时调用）              │
+                       │ STEP 4: Kaabalah 卡巴拉映射（秘传时调用）              │
                        │   全量: buildKaabalisticMapData({numerology: ee.numerology})│
                        │   查表: SPHERES/HEBREW_LETTERS/LURIANIC_PATHS        │
                        └──────────────────────────────────────────────────────┘
@@ -456,7 +456,7 @@ AI 先感受牌阵整体，再用7层结构组织语言
                               【箴言】从 coreKeyword / get_core_meaning(reversed=...)["essence"] / affirmations 中提炼成一句隐喻式收尾——不直接重复牌义，用牌面符号做画面类比——让问卜者带走一个能反复回味的意象
 ╔══════════════════ 塔罗数据 ═════════════════╗
 【塔罗数据使用规则】
-  必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping,reversed=) / get_question_context(question_type,reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / meditation_focus / .raw_data(全部原始字段)
+  必须使用：get_core_meaning(reversed=) / get_interpretation(rag_mapping,reversed=) / get_question_context(question_type,reversed=) / get_relationships() / get_affirmations() / get_journaling_prompts() / meditation_focus / .raw_data(全部原始字段) / description{waite,tk_en,tk_zh} / get_waite_meaning(orient) / get_tk_meaning(orient,lang) / reading_aspects / contextual_meanings
   用于润色：get_symbols()→for k, v in .items()(返回dict) / get_elemental_correspondences() (共10项: element/zodiac/planet/hebrew_letter/numerology/season/time_of_day/colors/crystals/herbs)
   结构分析(仅【牌阵结构】):
     statistics + composition.major_arcana_ratio + composition.court_card_ratio
@@ -657,7 +657,10 @@ Fool's Journey阶段(Eden Gray创始)
 19=Sun(Resh, 30, 喜悦)
 20=Judgement(Shin, 31, 觉醒)
 21=World(Tau, 32, 圆满)
-查法: Kaabalah.HEBREW_LETTERS_DATA[letter] 又 Kaabalah.LURIANIC_PATHS[path] 又 Kaabalah.SPHERES[name]
+查法: Kaabalah.HEBREW_LETTERS_DATA[letter.upper()] 又 Kaabalah.SPHERES_DATA[name.upper()]
+⚠️ LURIANIC_PATHS 是名称→编号映射, 不能直接按编号查。拿完整路径数据用:
+buildKaabalisticMapData({}).paths → 数组,每条含 from/to/meaning
+Kaabalah编号1-22 = Crowley路径11-32 (减10)
 
 数字牌(40): Ace=1=Kether,
 2=Chokmah,
@@ -673,54 +676,25 @@ Fool's Journey阶段(Eden Gray创始)
 Cups=Briah,
 Swords=Yetzirah,
 Pentacles=Assiah
-查法: Kaabalah.SPHERES["Kether"] 又 Kaabalah.FOUR_WORLDS["ATZILUTH"]
+查法: Kaabalah.SPHERES_DATA["KETHER"] 又 Kaabalah.FOUR_WORLDS["ATZILUTH"]
 宫廷牌(16): King→Chokmah,
 Queen→Binah,
 Knight→Tiphareth,
 Page→Malkuth
 牌组→世界同上,
-查法: Kaabalah.SPHERES["Chokmah"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
+查法: Kaabalah.SPHERES_DATA["CHOKMAH"] + Kaabalah.FOUR_WORLDS["ATZILUTH"]
 
 • 塔罗: arcanite(Python)78张+牌阵+正逆位,
 洗牌抽牌解读 | 深度→查777表→Kaabalah(JS,
 SPHERES_DATA/FOUR_WORLDS/HEBREW_LETTERS)取卡巴拉对应 | 都硬件真随机
 ╚══════════════════ 塔罗 ══════════════════╝
 
-TarotKit(塔罗,中英双语) → eval_javascript(library='tarotkit-engine', code="TarotKit.drawCards(3)")
-      优点: ① readingAspects 是5个独立顶级字段
-               currentSituation(当前状况)/innerState(内心状态)/rootCause(根因)
-               /development(发展)/advice(建议),
-            arcanite的同类数据埋在7类×5-8子位的3层深处,AI取用需逐层导航。
-            ② 每牌有专属 description(画面描述) 和 coreKeyword(一词总结), arcanite无此字段。
-            ③ 所有20个文本块(meaning×2+readingAspects×10+contextualMeanings×8)均有正/逆位两个版本,结构一致无例外。
-            ④ bullet point风格(斜杠分隔多个要点),AI直接组合,无需从段落提炼。
-      互补→见 arcanite 输出模板【互补模式】，STEP 4 按 dc.card_id.replace('_','-')→getCardById(js_id) 补独家字段
-      缺点: 无牌阵/无元素尊贵/无牌间关系/无777卡巴拉对照 — 需要这些功能时用arcanite。
-      中英双语: getCardMeaning/getLocalizedText第二个参数传"zh"取中文版,省略默认"en"。
-      返回 [{card, orientation}] — card含id/name/description/meaning/readingAspects/contextualMeanings全部字段
-      TarotKit.cards                                       → 原始卡牌数组(78张,含全字段)
-      TarotKit.getAllCards()                               → 全部78牌(每牌数据含en+zh)
-      TarotKit.getCardById("the-fool")                     → 按ID查牌
-      TarotKit.getCardsByArcana(cards, "major")             → 大阿卡那(22张)
-      TarotKit.getCardsByArcana(cards, "minor")             → 小阿卡那(56张)
-      TarotKit.drawRandomCard()                            → 抽1张 {card, orientation}
-      TarotKit.drawCards(3)                                → 抽3张 [{card, orientation}, ...]
-      TarotKit.getCardMeaning(drawn, "zh")                 → 取正/逆位含义文本(lang默认为en)
-      TarotKit.getLocalizedText(nameObj, "zh")             → 取本地化文本(如 card.name)
-      TarotKit.validateUniqueCardIds()                     → 验证牌ID唯一性
-      注意: cards/getAllCards/getCardById 返回的card含所有语言的原始数据
-            (如 name.en/name.zh)。lang参数仅 getCardMeaning/getLocalizedText 支持,
-            省略时默认"en"。
-      数据字段: card.id/name.en/name.zh/arcana(大阿卡那|小阿卡那)/suit(花色|null)/number(编号)
-               /description{en,zh}/coreKeyword{en,zh}  ← 无正逆位,单一画面描述
-               /meaning.upright.{en,zh}/meaning.reversed.{en,zh}
-               /readingAspects: currentSituation/innerState/rootCause/development/advice,
-                 每层{upright:{en,zh}, reversed:{en,zh}}
-               /contextualMeanings: love/work/interpersonal/others,
-                 每层{upright:{en,zh}, reversed:{en,zh}}
-      所有字段均有en+zh双语, 0占位符
-      ⚠️ 无内置牌阵。drawCards(N)只返回N张裸牌,无位置语义。
-         牌阵可手工定义(如抽3张=过去/现在/未来),或搭配arcanite的牌阵系统确定位置。
-      (硬件真随机, 不支持种子复现)
-      Waite原版画面描述+占卜意义(本地文件 waite_card_data.json,按 cw['name'] == dc.card_name 匹配):
-        cw['desc'] / cw['meaning_up'] / cw['meaning_rev']  | 详见互补模式 STEP 4"""
+统一引擎 arcanite-unified 已内置所有数据,无需额外调用:
+      dc.description          → {waite(原文), tk_en, tk_zh} 画面描述
+      dc.get_waite_meaning(o) → Waite原版正逆位占卜意义
+      dc.get_tk_meaning(o,l)  → TarotKit双语正逆位意义
+      dc.core_meanings        → 包含 waite_meaning + tk_meaning_{en,zh} + tk_coreKeyword_{en,zh}
+      dc.reading_aspects      → 5层阅读: currentSituation/innerState/rootCause/development/advice
+      dc.contextual_meanings  → 4语境: love/work/interpersonal/others
+      所有字段正逆位双语完整, 0额外文件 0JS引擎调用
+        dc.description / dc.get_waite_meaning(orientation) / dc.get_tk_meaning(orientation, lang)  | 统一引擎内置"""
