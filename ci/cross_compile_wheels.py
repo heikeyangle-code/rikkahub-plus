@@ -530,7 +530,7 @@ def ensure_ephe_data(src_dir: str, pkg_name: str) -> None:
         # Download Swiss Ephemeris data files from GitHub mirror
         GH_BASE = "https://raw.githubusercontent.com/aloistr/swisseph/master/ephe"
         EPHE_FILES = ["sepl_18.se1", "semo_18.se1", "seas_18.se1",
-                       "seplm48.se1"]
+                       "seplm18.se1"]
         log(f"Downloading {len(EPHE_FILES)} ephemeris files to {ephe_cache}...")
         import urllib.request
         for fname in EPHE_FILES:
