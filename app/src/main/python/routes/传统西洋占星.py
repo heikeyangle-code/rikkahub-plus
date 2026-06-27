@@ -290,12 +290,10 @@ from flatlib.lists import GenericList, ObjectList, HouseList, FixedStarList
 ── 属性标签 Props ──
 from flatlib.props import base, sign, object, house, aspect, fixedStar, houseSystem
 base.name                            → 属性名称
-sign(SIGN_LEO).name                  → "Leo"
-sign(SIGN_LEO).element               → "Fire"
-sign(SIGN_LEO).gender                → "Masculine"
-sign(SIGN_LEO).faction               → "Diurnal"
-object(SUN).name                     → "Sun"
-object(SUN).element                  → "Fire"
+sign.element["Leo"]                  → "Fire"    (星座元素, 键用星座名字符串)
+sign.gender["Leo"]                   → "Masculine"
+object.orb["Sun"]                    → 15        (容许度)
+object.element["Sun"]                → "Fire"
 house(1).name                        → "House 1"
 aspect(0).name                       → "Conjunction"
 houseSystem("P").name                → "Placidus"
@@ -341,9 +339,9 @@ GeoPos.toFloat(lat_str)          → 39.9   (字符串转浮点)
 chart = Chart(dt, pos)
 
 sun = chart.getObject(const.SUN)
-print(ruler(sun.sign, sun.signlon))           # 庙
-print(score(const.SUN, sun.sign, sun.signlon)) # 尊贵总分
+print(ruler(sun.sign))                           # 庙 (只传星座名)
+print(score(const.SUN, sun.sign, sun.signlon))   # 尊贵总分
 print(isPeregrine(const.SUN, sun.sign, sun.signlon))  # 外来?
 ad = AccidentalDignity(sun, chart)
-print(ad.isCombust, ad.score(), ad.orientality)
+print(ad.isCombust(), ad.score(), ad.orientality())
 """
