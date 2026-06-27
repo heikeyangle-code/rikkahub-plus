@@ -11,9 +11,13 @@ from flatlib.datetime import Datetime, Date, Time
 from flatlib.geopos import GeoPos
 from flatlib import const
 
-dt = Datetime("2024/01/15", "12:00", "+08:00")   # yyyy/MM/dd, HH:mm, TZ
+# 时区: 字符串偏移, 如 "+08:00" 或 "-05:00" 或 "0"
+# flatlib 内部自动转 UTC 计算
+dt = Datetime("2024/01/15", "12:00", "+08:00")   # yyyy/MM/dd, HH:mm, TZ偏移
+dt = Datetime("2024/01/15", "12:00", 8)          # 也可以用浮点数(小时)
 d  = Date("2024/01/15")                            # 仅日期
 t  = Time("12:00")                                 # 仅时间
+dt.getUTC()                                        → Datetime(UTC)  (自动计算)
 pos = GeoPos(39.9, 116.4)
 GeoPos.toFloat(lat_str)          → 39.9   (字符串转浮点)                           # lat, lon
 chart = Chart(dt, pos)                              # 默认Placidus
@@ -213,11 +217,11 @@ pd.D(ID)                              → 赤经差
 pd.S(ID)                              → 赤经敏感点
 pd.N()                                → 北赤极
 pd.getArc(prom, sig)                  → 主限弧
-pd.getList()                          → 主限列表
-pd.view()                             → 可视化数据
-pd.bySignificator(sig)                → 按征象星查询
-pd.byPromissor(prom)                  → 按应期星查询
-(PDTable 同PrimaryDirections, 表格形式输出)
+(PDTable 表格化输出:)
+pdt = PDTable(chart)
+pdt.view()                            → 可视化主限表
+pdt.bySignificator(sig)               → 按征象星查询
+pdt.byPromissor(prom)                 → 按应期星查询
 arc(pRA, pDecl, sRA, sDecl, mcRA, lat)    → 计算主限弧
 getArc(prom, sig, mc, pos, zerolat)        → 简化主限弧
 

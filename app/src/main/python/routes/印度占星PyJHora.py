@@ -21,9 +21,15 @@ from jhora.panchanga import drik
 from jhora import utils
 
 # Date 是 namedtuple(year, month, day), 不是类
-date = drik.Date(year, month, day)       # 创建日期
+date = drik.Date(year, month, day)       # 创建日期(本地日期)
 date.year, date.month, date.day          # 访问年/月/日
-utils.julian_day_number(drik.Date(y,m,d), (hh,mm,ss))  → JD (儒略日)
+
+# 时区: Place的timezone字段是浮点小时偏移, 如 8.0(北京), -5.0(纽约)
+# pyjhora 内部自动转 UTC (jd_utc = local_jd - timezone/24)
+# 用户输入的是本地时间, 库自行做时区转换
+place = drik.Place("Beijing", 39.9, 116.4, 8.0)   # 名/纬/经/时区(浮点小时)
+jd_local = utils.julian_day_number(drik.Date(y,m,d), (hh,mm,ss))  # 本地JD
+jd_utc = jd_local - place.timezone / 24.0           # 转UTC JD(库自动做)
 utils.gregorian_to_jd(drik.Date(y,m,d))  → JD (公历转儒略日)
 
 ── 星历计算 ──
