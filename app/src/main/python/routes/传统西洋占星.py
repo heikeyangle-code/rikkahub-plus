@@ -24,8 +24,8 @@ from flatlib.geopos import toFloat
 toFloat(lat_str)                  → 39.9
 chart = Chart(dt, pos)                              # 默认Placidus
 chart = Chart(dt, pos, hsys=const.HOUSES_WHOLE_SIGN) # 指定宫位制
-# 模块级函数(不在类上): dateJDN, jdnDate (需 from flatlib.datetime import dateJDN, jdnDate)
-dateJDN(year, month, day)          → 儒略日(整数)
+# 模块级函数(不在类上): dateJDN, jdnDate (需 from flatlib.datetime import dateJDN, jdnDate, GREGORIAN)
+dateJDN(2024, 1, 15, GREGORIAN)   → 儒略日(整数, 第4参数传日历制常量)
 jdnDate(jdn)                       → [year, month, day]  (整数转日期列表)
 d.toList()                         → ['+', 2024, 1, 15]  (带符号位)
 d.toString()                       → "2024/01/15"
@@ -38,6 +38,11 @@ dt.time                            → Time 对象 (属性, 不可调用)
 星座(字符串): ARIES="Aries", TAURUS="Taurus" ... PISCES="Pisces"
 星体(字符串): SUN="Sun", MOON="Moon", MERCURY="Mercury", VENUS="Venus", MARS="Mars", JUPITER="Jupiter", SATURN="Saturn", URANUS="Uranus", NEPTUNE="Neptune", PLUTO="Pluto", CHIRON="Chiron", NORTH_NODE="North Node", SOUTH_NODE="South Node"
 注: chart.getObject() 只返回传统七曜(日月至土星)+南北交。三王星(天王/海王/冥)和凯龙在 SWE_OBJECTS 映射表里但不参与排盘。
+# 三王星经度/坐标取法:
+from flatlib.ephem import ephem
+ephem.getObject(const.URANUS, dt, pos)  → Object (通过ephem取, 不在默认chart.objects中)
+# 如需三王星入盘(做相位计算), 建chart时传 IDs=const.LIST_OBJECTS:
+chart = Chart(dt, pos, IDs=const.LIST_OBJECTS)
 宫位制(15种, 均为字符串): HOUSES_PLACIDUS='P', HOUSES_KOCH='K', HOUSES_PORPHYRIUS='O', HOUSES_REGIOMONTANUS='R', HOUSES_CAMPANUS='C', HOUSES_EQUAL='A', HOUSES_EQUAL_2='E', HOUSES_VEHLOW_EQUAL='V', HOUSES_WHOLE_SIGN='W', HOUSES_MERIDIAN='X', HOUSES_AZIMUTHAL='H', HOUSES_POLICH_PAGE='T', HOUSES_ALCABITUS='B', HOUSES_MORINUS='M', HOUSES_TOPO='T'
 基本品质: HOT, COLD, DRY, HUMID (字符串)
 四元素: FIRE, EARTH, AIR, WATER (字符串)
@@ -75,8 +80,9 @@ angle.slistStr(['+', 10, 30])    → "+10:30:00" (带符号列表转字符串)
 angle.slistFloat(['+', 10, 30])  → 10.5   (带符号列表转浮点)
 angle.floatSlist(10.5)           → ['+', 10, 30, 0, 0] (浮点转带符号列表)
 angle.toFloat("10:30:00")        → 10.5   (通用转浮点)
-angle.toList("10:30:00")         → ['+', 10, 30, 0]
-angle.toString([10.5, 20.25])    → "10°30' 20°15'"
+angle.toList(10.5)               → ['+', 10, 30, 0]    (浮点转列表)
+angle.strSlist("10:30:00")       → ['+', 10, 30, 0]    (字符串转列表)
+angle.toString(10.5)             → "+10:30:00"         (浮点转字符串)
 
 
 ── 星体属性 object ──
@@ -121,6 +127,9 @@ isPeregrine(SUN, "Leo", 5.5)         → True/False   (外来)
 score(SUN, "Leo", 5.5)               → 5            (尊贵总分, 庙+5)
 almutem("Leo", 5.5)                  → 综合Almutem主星
 getInfo("Leo", 5.5)                  → {ruler, exalt, dayTrip, nightTrip, term, face, exile, fall} dict
+                                  每个值都是str(行星名,如"Jupiter"/"Saturn")或None
+                                  term: 返回值类型str(界主星名, 经度越界时返回None)
+                                  face: 返回值类型str(面主星名)
 
 # EssentialInfo类实际返回裸dict, getDignities等方法不存在
 
@@ -192,7 +201,9 @@ scores(factors)                                        → 总分
 
 ── Almutem 主星 ──
 from flatlib.protocols.almutem import compute
-almutem_rows = compute(chart)         → {id: {string, score}, ...} (dict 8个key)
+almutem_rows = compute(chart)         → {point: {planet: {string, score}}} 三层嵌套
+                                  key: Sun/Moon/Asc/Pars Fortuna/Syzygy/Houses/Rulers/Score 共8key
+                                  每层: planet→{string: str, score: int}
 newRow()                             → 空行(构建表格用)
 
 ── 星体行为 ──
@@ -201,13 +212,15 @@ behavior_data = compute(chart)
 
 ── 小限 Profections ──
 from flatlib.predictives.profections import compute
-prof_chart = compute(chart, date)                  → 小限Chart
-prof_chart = compute(chart, date, fixedObjects=True) → 星体固定位置
+# ⚠ date参数必须传Datetime(含时分秒和时区), 不能传Date(只有jdn无jd属性)
+prof_chart = compute(chart, dt)                  → 小限Chart
+prof_chart = compute(chart, dt, fixedObjects=True) → 星体固定位置
 
 ── 太阳回归 Solar Returns ──
 from flatlib.predictives.returns import nextSolarReturn, prevSolarReturn
-next_chart = nextSolarReturn(chart, date)           → 下次太阳返照
-prev_chart = prevSolarReturn(chart, date)           → 上次太阳返照
+# ⚠ date参数必须传Datetime, 原因同上(.jd属性)
+next_chart = nextSolarReturn(chart, dt)           → 下次太阳返照
+prev_chart = prevSolarReturn(chart, dt)           → 上次太阳返照
 
 ── 主限向运 Primary Directions ──
 from flatlib.predictives.primarydirections import (PrimaryDirections, arc, getArc)
