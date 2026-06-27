@@ -9,238 +9,205 @@
 from jhora import const, utils
 # 语言默认 'en', 切换: utils.set_language('en')  # en/hi/ta/te/ml/ka
 
-── 核心数据结构 ──
-jhora.const 模块:
-  行星ID: SUN=0, MOON=1, MARS=2, MERCURY=3, JUPITER=4, VENUS=5, SATURN=6, RAHU=7, KETU=8
-  星座: ARIES=0..PISCES=11 (ARIES,TAURUS,GEMINI,CANCER,LEO,VIRGO,LIBRA,SCORPIO,SAGITTARIUS,CAPRICORN,AQUARIUS,PISCES)
-  宫位制: WHOLE_SIGN(默认), EQUAL, PLACIDUS, KOCH
-  _DATE_FORMAT, _TIME_FORMAT, _DEFAULT_LANGUAGE='en'
+── 核心常量 const ──
+const._SUN=0, _MOON=1, _MARS=2, _MERCURY=3, _JUPITER=4, _VENUS=5, _SATURN=6, _RAHU=7, _KETU=8
+const._ARIES=0.._PISCES=11
+const._ascendant_symbol = 'L'  # 上升在字典中的键
+const._DEFAULT_LANGUAGE = 'en'
 
-── 日期时间 ──
+── 日期与地理位置 ──
 from jhora.panchanga import drik
 from jhora import utils
 
-# Date 是 namedtuple(year, month, day), 不是类
-date = drik.Date(year, month, day)       # 创建日期(本地日期)
-date.year, date.month, date.day          # 访问年/月/日
+# Date 是 namedtuple(year, month, day)
+date = drik.Date(year, month, day)
+date.year, date.month, date.day
 
-# 时区: Place的timezone字段是浮点小时偏移, 如 8.0(北京), -5.0(纽约)
-# pyjhora 内部自动转 UTC (jd_utc = local_jd - timezone/24)
-# 用户输入的是本地时间, 库自行做时区转换
-place = drik.Place("Beijing", 39.9, 116.4, 8.0)   # 名/纬/经/时区(浮点小时)
-jd_local = utils.julian_day_number(drik.Date(y,m,d), (hh,mm,ss))  # 本地JD
-jd_utc = jd_local - place.timezone / 24.0           # 转UTC JD(库自动做)
-utils.gregorian_to_jd(drik.Date(y,m,d))  → JD (公历转儒略日)
+# 时区: Place 的 timezone 字段是浮点小时偏移, 正=东
+# 输入本地时间, 库内部转 UTC: jd_utc = jd - place.timezone/24
+place = drik.Place("Beijing", 39.9, 116.4, 8.0)  # (名, 纬, 经, 时区偏移)
+# 或直接从地名反查:
+utils.get_place_timezone_offset(lat, lon)          → float (自动检测时区)
+# JD计算:
+jd_local = utils.julian_day_number(drik.Date(y,m,d), (h,min,s))  # 本地时间→JD
+jd_utc = jd_local - place.timezone / 24.0
 
-── 星历计算 ──
-pyswisseph 自动初始化和读取 ephe 文件。
-from jhora.panchanga import drik
-# 获取日/月/行星位置
-drik.sun_longitude(jd)                   → 太阳黄经(度)
-drik.moon_longitude(jd)                  → 月亮黄经(度)
-drik.planet_longitude(jd, planet_id)     → 行星黄经
-drik.planet_longitudes(jd)               → 所有行星黄经列表
-drik.sunrise(jd, lat, lon)               → 日出时间(JD)
-drik.sunset(jd, lat, lon)                → 日落时间(JD)
-drik.moon_phase(jd)                      → 月相
-
-── Panchanga (五支) ──
-from jhora.panchanga import drik
-jd = drik.Date(2024, 1, 15).jd
-panchanga = drik.Panchanga(jd, lat, lon)  → Panchanga实例
-panchanga.vaara                           → 星期
-panchanga.tithi                           → 太阴日
-panchanga.nakshatra                       → 27宿
-panchanga.yoga                            → 宿命瑜伽
-panchanga.karana                          → 半太阴日
-drik.nakshatra(jd)                        → 27宿
-drik.tithi(jd)                            → 太阴日
-drik.panchanga(jd, lat, lon)              → {'vaara','tithi','nakshatra','yoga','karana'}
-
-── 本命盘 ──
-from jhora.panchanga import drik
-from jhora import utils, const
-from jhora.horoscope.chart import house
-
-place = drik.Place("CityName", lat, lon, tz)   # 地名/纬度/经度/时区
-jd = utils.julian_day_number(drik.Date(y,m,d), (hh,mm,ss))  # 出生JD
-
-# 排盘: 获取行星位置和上升
-planet_positions = drik.dhasavarga(jd, place, divisional_chart_factor=1)  
-  # → [(planet_id, (house_number, longitude)), ...]  (D1本命盘)
-  # divisional_chart_factor: 1(D1), 2(Hora), 3(Drekkana), 9(Navamsa)...
-ascendant_longitude = drik.ascendant(jd, place)[1]  # 上升经度
-asc_house, asc_long = drik.dasavarga_from_long(ascendant_longitude, divisional_chart_factor)
+── 星历与行星位置 ──
+# 单个行星黄经
+sidereal_long = drik.sidereal_longitude(jd_utc, const._SUN)  # 太阳黄经
+# 所有行星位置
+planet_positions = drik.planetary_positions(jd_utc, place)    # [(id, lon, lat, speed), ...]
+# 分盘行星位置 (D1=本命, D9=Navamsa, D60=Shashtiamsa等)
+planet_positions = drik.dhasavarga(jd_utc, place, divisional_chart_factor=1)
+  # → [(planet_id, (house_number, longitude)), ...]  (排盘后行星在宫位)
+  # divisional_chart_factor: 1(D1),2(Hora),3(Drekkana),9(Navamsa)...
+# 上升
+ascendant_longitude = drik.ascendant(jd_utc, place)[1]   # 上升经度
+asc_house, asc_long = drik.dasavarga_from_long(ascendant_longitude, 1)
   # → (house_number, longitude)
 
-# 行星→宫位 和 宫位→行星 字典
 planet_positions += [[const._ascendant_symbol, (asc_house, asc_long)]]
-p_to_h = {p:h for p,(h,_) in planet_positions}           # {planet_id: house}
+p_to_h = {p:h for p,(h,_) in planet_positions}  # {planet_id: house_number}
 h_to_p = utils.get_house_planet_list_from_planet_positions(planet_positions)  # {house: "p1/p2/..."}
 
+── Panchanga (五支) ──
+drik.tithi(jd_utc, place)                   → (tithi_index, tithi_end_time)
+drik.nakshatra(jd_utc, place)              → (nak_index, nak_end_time)
+drik.yogam(jd_utc, place)                  → (yoga_index, yoga_end_time)
+drik.karanam(jd_utc, place)                → 半太阴日
+drik.vaara(jd_utc, place)                  → 星期(0=周日)
+drik.sunrise(jd_utc, place)                → (jd, hour, minute, second)
+drik.sunset(jd_utc, place)                 → (jd, hour, minute, second)
+drik.moonrise(jd_utc, place)               → (jd, hour, minute, second)
+drik.moonset(jd_utc, place)                → (jd, hour, minute, second)
+
+── 宫位与四轴 ──
+from jhora.horoscope.chart import house
+house.quadrants(asc_house)                 → [1,4,7,10] 等 (角宫)
+house.trikonas(asc_house)                  → [1,5,9] (三方宫)
+house.dushthanas(asc_house)                → [6,8,12] (凶宫)
+house.kendras(asc_house)                   → 同 quadrants
+house.get_planets_in_quadrants(p_to_h)     → 在角宫的行星
+house.get_planets_in_trines(p_to_h)        → 在三方宫的行星
+house.get_planets_in_dushthanas(p_to_h)    → 在凶宫的行星
+
 ── 分盘 Vargas ──
-# 通过 drik.dhasavarga(jd, place, divisional_chart_factor=N) 获取各分盘
+# drik.dhasavarga(jd, place, divisional_chart_factor=N)
 # N=1(D1本命),2(Hora),3(Drekkana),4(Chaturthamsa),7(Saptamsa),
 #   9(Navamsa),10(Dasamsa),12(Dwadasamsa),16(Shodasamsa),
 #   20(Vimsamsa),24(Chaturvimsamsa),27(Saptavimsamsa),
 #   30(Trimsamsa),40(Khavedamsa),45(Akshavedamsa),60(Shashtiamsa)
 
-── 宫位计算 ──
-from jhora.horoscope.chart import house
-house.house_planet_positions(planet_positions)     → 行星所在宫位
-house.house_planet_positions_from_longitude(positions)  → 从经度算宫位
-house.raasi_planet_positions(planet_positions)     → 星座位置
-house.house_strength(house_planets)                 → 宫位强度
-
-── 星体力量 ──
-from jhora.horoscope.chart import strength
-strength.shad_bala(planet_data)           → 六力(Shadbala) {sthana,dig,bala,kala,chesta,naisargika,drig}
-strength.bhava_bala(house_data)            → 宫位力量
-strength.graha_bala(planet_data)           → 星体力量
-
 ── Ashtakavarga (八分力) ──
 from jhora.horoscope.chart import ashtakavarga
-ashtakavarga.compute_ashtakavarga(planet_data)  → BAV (Bhava Ashtakavarga)
-ashtakavarga.compute_sarvashtakavarga(all_data)  → SAV (Sarva Ashtakavarga)
+ashtakavarga.get_ashtaka_varga(jd, place)  → BAV八分力数据
+ashtakavarga.sodhaya_pindas(...)           → 扣除后的分数
+
+── Shadbala (六力) ──
+from jhora.horoscope.chart import strength
+strength.shad_bala(jd, place, planet_positions)    → 六力结果
+strength.bhava_bala(jd, place, planet_positions)  → 宫位力量
+strength.bhava_drishti_bala(...)                   → 宫位相位力
+strength.pancha_vargeeya_bala(...)                 → 五分力
 
 ── Raja Yoga (贵格) ──
 from jhora.horoscope.chart import raja_yoga
-raja_yoga.identify_raja_yogas(data)      → Raja Yoga列表 [{yoga_name, planets_involved, description, ...}]
+raja_yoga.get_raja_yoga_details(jd, place, planet_positions)  → Raja Yoga列表
+raja_yoga.dharma_karmadhipati_raja_yoga(jd, place, ...)      → DKP Yoga检测
+raja_yoga.vipareetha_raja_yoga(jd, place, ...)               → VRY瑜伽
+raja_yoga.neecha_bhanga_raja_yoga(jd, place, ...)            → 落陷破坏格
 
-── Yoga (星体组合) ── (735KB, 774个函数, 此处不逐一列出)
+── Yoga (星体组合, 774个) ──
 from jhora.horoscope.chart import yoga
-# 用 dir(yoga) 或 help(yoga) 查看所有可用函数
-yoga.identify_all_yogas(planet_positions, house_positions)  → 全Yoga列表
-yoga.identify_graha_yogas(data)          → Graha Yoga
-yoga.identify_chandra_yogas(data)       → Chandra Yoga (月相关)
-yoga.rachana_yoga(data)                 → 特殊Yoga组合
-# 所有774个yoga检测函数: gaja_kesari_yoga, amala_yoga, dharma_karmadhipati_yoga, ...
+yoga.get_yoga_details(jd, place, planet_positions)  → 全Yoga列表
+# 特定Yoga (以 _from_planet_positions 后缀调用):
+yoga.vesi_yoga_from_planet_positions(p_to_h)
+# 用 dir(yoga) 查看所有774个瑜伽函数
 
 ── Arudha (映像) ──
 from jhora.horoscope.chart import arudhas
-arudhas.compute_arudhas(house_data)      → Arudha pada列表
-arudhas.compute_pada(house_num, data)    → 单宫Arudha
+arudhas.arudha_from_planet_positions(planet_positions)  → Arudha pada
 
 ── Dosha (缺陷) ──
 from jhora.horoscope.chart import dosha
-dosha.identify_doshas(data)              → Dosha列表 {manglik, kalasarpa, ...}
-dosha.mangal_dosha(data)                 → Mangal(火星)缺陷
-
-── D1-D60 分盘 ──
-from jhora.horoscope.chart import charts
-charts.get_all_vargas(data)              → 所有16种分盘
-charts.get_varga_name(varga_num)         → 分盘名称
+dosha.mangala_dosha(planet_positions)        → Mangal Dosha检测
 
 ── Sphuta (特殊点) ──
 from jhora.horoscope.chart import sphuta
-sphuta.compute_sphutas(planet_data)      → 特殊点 {indumalam, sree_lagna, ...}
+sphuta.sphuta_from_planet_positions(planet_positions)  → 特殊点列表
 
 ── Dasha (大运系统) ──
-# 通用接口
-from jhora.horoscope.dhasa import sudharsana_chakra as sc
-sc.compute_chakra(data)                  → Sudarshana Chakra
-
-# Vimshottari Dasha (120年系统, 最主流)
+# Vimshottari Dasha (120年, 最主流)
 from jhora.horoscope.dhasa.graha import vimsottari
-vimsottari.vimsottari_mahadasa(jd, birth_data)  → 主运 {planet, start, end}
-vimsottari.compute_vimsottari_dhasa_bhukthi(jd, data)  → 运+小运完整列表
+vimsottari.get_vimsottari_dhasa_bhukthi(jd, planet_positions)     → [(主运,次运,起止JD)]
+vimsottari.vimsottari_mahadasa(jd, planet_positions)              → 当前主运
+vimsottari.get_running_dhasa_for_given_date(jd, planet_positions) → 当前运行大运
 
 # Ashtottari Dasha (108年)
 from jhora.horoscope.dhasa.graha import ashtottari
-ashtottari.ashtottari_mahadasa(jd, data)
+ashtottari.get_ashtottari_dhasa_bhukthi(jd, planet_positions)
 
 # Yogini Dasha (36年)
 from jhora.horoscope.dhasa.graha import yogini
-yogini.yogini_mahadasa(jd, data)
+yogini.get_dhasa_bhukthi(jd, planet_positions)
 
 # Narayana Dasha (Rasi-based)
 from jhora.horoscope.dhasa.raasi import narayana
-narayana.narayana_dasha(data)
+narayana.narayana_dhasa_for_rasi_chart(jd, planet_positions)      # Rasi盘
+narayana.narayana_dhasa_for_divisional_chart(jd, c, dcf)          # 分盘
 
 # Kalachakra Dasha
 from jhora.horoscope.dhasa.raasi import kalachakra
-kalachakra.kalachakra_dasha(data)
+kalachakra.kalachakra_dhasa(jd, planet_positions)
 
 # Chara Dasha
 from jhora.horoscope.dhasa.raasi import chara
-chara.chara_dasha(data)
+chara.get_dhasa_antardhasa(jd, planet_positions)
 
-# 其他大运系统 (共54个):
-# dhasa.graha: aayu, applicability, ashtaka_varga, buddhi_gathi, chathuraaseethi_sama,
-#   dwadasottari, dwisatpathi, kaala, karaka, karana_chathuraaseethi_sama, moola,
-#   naisargika, panchottari, rashmi, saptharishi_nakshathra, sataatbika, shastihayani,
-#   shattrimsa_sama, shodasottari, tara, tithi_ashtottari, tithi_yogini, yoga_vimsottari
-# dhasa.raasi: brahma, chakra, chathurvidha_utthara, drig, karaka_kendraadhi,
-#   kendradhi_rasi, lagna_kendraadhi, lagnamsaka, mandooka, moola, navamsa,
-#   nirayana, niryaana, padhanadhamsa, paryaaya, raashiyanka, sandhya, shoola,
-#   sthira, sudasa, tara_lagna, trikona, varnada, yogardha
-# dhasa.annual: mudda (年运大运), patyayini
+# Sudarshana Chakra
+from jhora.horoscope.dhasa import sudharsana_chakra as sc
+sc.sudharshana_chakra_chart(jd, planet_positions)
+sc.get_dhasa_bhukthi(jd, planet_positions)
+
+# 其他大运系统 (54种, 同名调用模式相同)
 
 ── 匹配 (Match Making) ──
 from jhora.horoscope.match import compatibility
-comp = compatibility.Matchmaking(data1, data2)
-comp.porutham()                          → 10种匹配 {nakshatra, ganam, yoni, ...}
+# 10种 Porutham 匹配
 
 ── 推运 (Transit) ──
 from jhora.horoscope.transit import tajaka
-tajaka.compute_varshaphal(jd, data)      → 年运(Varshaphal)
-tajaka.tajaka_aspects(data)              → Tajaka相位
+tajaka(计算年运的Tajaka系统, 函数名如 trinal_aspects_of_the_raasi 等)
 
 from jhora.horoscope.transit import saham
-saham.compute_sahams(jd, data)           → 阿拉伯点(印度版)
-
-from jhora.horoscope.transit import tajaka_yoga
-tajaka_yoga.identify_tajaka_yogas(data)  → Tajaka Yoga
+saham.punya_saham(jd, place)               → 功德点
+# 其他38种Saham同名调用
 
 ── 预测 (Prediction) ──
 from jhora.horoscope.prediction import general
-general.get_general_predictions(data)    → 通用预测
+general.get_prediction_details(jd, place, planet_positions)  → 通用预测
 
 from jhora.horoscope.prediction import longevity
-longevity.compute_longevity(data)        → 寿命推算
+longevity.life_span_range(jd, place, planet_positions)  → 寿命范围
 
-── 择时 (Muhurta) ──
-# pyjhora 去UI版没有独立的择时模块
-# 择时逻辑在 jhora.panchanga.drik 的 vratha 模块中
+── 择时 (Muhurta/Vratha) ──
 from jhora.panchanga import vratha
-vratha.compute_vratha(jd, lat, lon)     → 吉日/Auspicious times
+vratha.special_vratha_dates(jd, place)     → 吉日/Vratha日期
+vratha.get_festivals_between_the_dates(start_jd, end_jd, place) → 节日列表
 
-── 数据辅助 ──
+── 地点搜索 ──
 from jhora import place_db
-place_db.find_place(city_name)          → [{name, lat, lon, tz, country}]
-place_db.get_nearest_place(lat, lon)    → 最近地名
+place_db.search_places_contains("Mumbai")  → [(ID, 地名, 国家, 纬度, 经度, 时区)]
+place_db.get_place(place_id)               → 地点信息
 
-── 配置 ──
-from jhora import config
-config.set_ayanamsa(mode)                → 设置岁差模式(0=LAHIRI, 1=RAMAN, 2=KRISHNAMURTI)
-config.get_ayanamsa()                    → 当前岁差值
-config.set_language('en')                → 设置语言(en/hi/ta/te/ml/ka)
-config.set_house_system('whole_sign')    → 设置宫位制
+── 岁差设置 ──
+drik.set_ayanamsa_mode(mode)               # 0=LAHIRI, 1=RAMAN, 2=KRISHNAMURTI
+drik.get_ayanamsa_value(jd)                → 当前岁差值
 
 ── 应用示例 ──
 from jhora import const, utils
 from jhora.panchanga import drik
-from jhora.horoscope.chart import house, strength, yoga
+from jhora.horoscope.chart import house, strength, raja_yoga
 
 place = drik.Place("Beijing", 39.9, 116.4, 8.0)
-jd = utils.julian_day_number(drik.Date(1990, 6, 15), (12, 0, 0))
+jd_local = utils.julian_day_number(drik.Date(1990, 6, 15), (12, 0, 0))
+jd_utc = jd_local - place.timezone / 24.0
 
 # 排盘
-planet_positions = drik.dhasavarga(jd, place, divisional_chart_factor=1)
-asc_ll = drik.ascendant(jd, place)
+planet_positions = drik.dhasavarga(jd_utc, place, divisional_chart_factor=1)
+asc_ll = drik.ascendant(jd_utc, place)
 asc_house, asc_long = drik.dasavarga_from_long(asc_ll[1], 1)
 planet_positions += [[const._ascendant_symbol, (asc_house, asc_long)]]
 p_to_h = {p:h for p,(h,_) in planet_positions}
-h_to_p = utils.get_house_planet_list_from_planet_positions(planet_positions)
 
 # Panchanga
-p = drik.Panchanga(jd, place.latitude, place.longitude)
-print(p.tithi, p.nakshatra)
+tithi = drik.tithi(jd_utc, place)
+nakshatra = drik.nakshatra(jd_utc, place)
 
 # Vimshottari Dasha
 from jhora.horoscope.dhasa.graha import vimsottari
-dashas = vimsottari.compute_vimsottari_dhasa_bhukthi(jd, planet_positions)
+dashas = vimsottari.get_vimsottari_dhasa_bhukthi(jd_local, planet_positions)
 
-# 所有Yoga
-all_yogas = yoga.identify_all_yogas(planet_positions, p_to_h)
+# Raja Yoga
+yogas = raja_yoga.get_raja_yoga_details(jd_utc, place, planet_positions)
 """
