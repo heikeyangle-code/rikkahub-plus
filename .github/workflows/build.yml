@@ -529,7 +529,7 @@ jobs:
       - name: Patch flatlib sweNextTransit (pyswisseph 2.10.x geopos API)
         run: |
           cd /tmp
-          tar xfz ${GITHUB_WORKSPACE}/app/offline_pkgs/flatlib-0.2.3-py3-none-any.whl
+          unzip -q ${GITHUB_WORKSPACE}/app/offline_pkgs/flatlib-0.2.3-py3-none-any.whl -d flatlib-0.2.3
           python3 ${GITHUB_WORKSPACE}/ci/patch_flatlib_swetransit.py flatlib-0.2.3
           cd flatlib-0.2.3
           zip -qr ${GITHUB_WORKSPACE}/app/offline_pkgs/flatlib-0.2.3-py3-none-any.whl .
