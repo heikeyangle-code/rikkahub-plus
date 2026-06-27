@@ -18,10 +18,13 @@ jhora.const 模块:
 
 ── 日期时间 ──
 from jhora.panchanga import drik
+from jhora import utils
+
+# Date 是 namedtuple(year, month, day), 不是类
 date = drik.Date(year, month, day)       # 创建日期
-date.to_date()                           → datetime.date
-date.jd                                  → 儒略日
-drik.Date(year, month, day, as_gregorian=True/False)  # 公历/印度历
+date.year, date.month, date.day          # 访问年/月/日
+utils.julian_day_number(drik.Date(y,m,d), (hh,mm,ss))  → JD (儒略日)
+utils.gregorian_to_jd(drik.Date(y,m,d))  → JD (公历转儒略日)
 
 ── 星历计算 ──
 pyswisseph 自动初始化和读取 ephe 文件。
@@ -49,20 +52,32 @@ drik.tithi(jd)                            → 太阴日
 drik.panchanga(jd, lat, lon)              → {'vaara','tithi','nakshatra','yoga','karana'}
 
 ── 本命盘 ──
-from jhora.horoscope import main as hm
-chart = hm.HoroscopeData()                → 创建本命盘
-chart.get_planet_positions(jd, lat, lon)  → 行星位置列表 [{id,longitude,sign,house,...}]
-chart.get_ascendant(jd, lat, lon)         → 上升星座/度数
-chart.get_houses(jd, lat, lon)            → 宫位列表
-chart.get_house_positions(jd, lat, lon)   → 行星在宫位
+from jhora.panchanga import drik
+from jhora import utils, const
+from jhora.horoscope.chart import house
+
+place = drik.Place("CityName", lat, lon, tz)   # 地名/纬度/经度/时区
+jd = utils.julian_day_number(drik.Date(y,m,d), (hh,mm,ss))  # 出生JD
+
+# 排盘: 获取行星位置和上升
+planet_positions = drik.dhasavarga(jd, place, divisional_chart_factor=1)  
+  # → [(planet_id, (house_number, longitude)), ...]  (D1本命盘)
+  # divisional_chart_factor: 1(D1), 2(Hora), 3(Drekkana), 9(Navamsa)...
+ascendant_longitude = drik.ascendant(jd, place)[1]  # 上升经度
+asc_house, asc_long = drik.dasavarga_from_long(ascendant_longitude, divisional_chart_factor)
+  # → (house_number, longitude)
+
+# 行星→宫位 和 宫位→行星 字典
+planet_positions += [[const._ascendant_symbol, (asc_house, asc_long)]]
+p_to_h = {p:h for p,(h,_) in planet_positions}           # {planet_id: house}
+h_to_p = utils.get_house_planet_list_from_planet_positions(planet_positions)  # {house: "p1/p2/..."}
 
 ── 分盘 Vargas ──
-from jhora.horoscope.chart import charts
-charts.get_amsa(chart_data, division)     → 分盘数据 (D1-D60)
-  division=1(D1本命),2(Hora),3(Drekkana),4(Chaturthamsa),7(Saptamsa),
-           9(Navamsa),10(Dasamsa),12(Dwadasamsa),16(Shodasamsa),
-           20(Vimsamsa),24(Chaturvimsamsa),27(Saptavimsamsa),
-           30(Trimsamsa),40(Khavedamsa),45(Akshavedamsa),60(Shashtiamsa)
+# 通过 drik.dhasavarga(jd, place, divisional_chart_factor=N) 获取各分盘
+# N=1(D1本命),2(Hora),3(Drekkana),4(Chaturthamsa),7(Saptamsa),
+#   9(Navamsa),10(Dasamsa),12(Dwadasamsa),16(Shodasamsa),
+#   20(Vimsamsa),24(Chaturvimsamsa),27(Saptavimsamsa),
+#   30(Trimsamsa),40(Khavedamsa),45(Akshavedamsa),60(Shashtiamsa)
 
 ── 宫位计算 ──
 from jhora.horoscope.chart import house
@@ -199,29 +214,27 @@ config.set_house_system('whole_sign')    → 设置宫位制
 ── 应用示例 ──
 from jhora import const, utils
 from jhora.panchanga import drik
-from jhora.horoscope import main as hm
 from jhora.horoscope.chart import house, strength, yoga
 
-utils.set_language('en')
-
-date = drik.Date(2024, 1, 15)
-jd = date.jd
-lat, lon = 39.9, 116.4  # 北京
+place = drik.Place("Beijing", 39.9, 116.4, 8.0)
+jd = utils.julian_day_number(drik.Date(1990, 6, 15), (12, 0, 0))
 
 # 排盘
-chart = hm.HoroscopeData()
-planet_pos = chart.get_planet_positions(jd, lat, lon)
-ascendant = chart.get_ascendant(jd, lat, lon)
-house_pos = house.house_planet_positions(planet_pos)
+planet_positions = drik.dhasavarga(jd, place, divisional_chart_factor=1)
+asc_ll = drik.ascendant(jd, place)
+asc_house, asc_long = drik.dasavarga_from_long(asc_ll[1], 1)
+planet_positions += [[const._ascendant_symbol, (asc_house, asc_long)]]
+p_to_h = {p:h for p,(h,_) in planet_positions}
+h_to_p = utils.get_house_planet_list_from_planet_positions(planet_positions)
 
 # Panchanga
-p = drik.Panchanga(jd, lat, lon)
+p = drik.Panchanga(jd, place.latitude, place.longitude)
 print(p.tithi, p.nakshatra)
 
 # Vimshottari Dasha
 from jhora.horoscope.dhasa.graha import vimsottari
-dashas = vimsottari.compute_vimsottari_dhasa_bhukthi(jd, planet_pos)
+dashas = vimsottari.compute_vimsottari_dhasa_bhukthi(jd, planet_positions)
 
 # 所有Yoga
-all_yogas = yoga.identify_all_yogas(planet_pos, house_pos)
+all_yogas = yoga.identify_all_yogas(planet_positions, p_to_h)
 """
