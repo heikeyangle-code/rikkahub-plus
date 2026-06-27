@@ -514,7 +514,8 @@ def ensure_ephe_data(src_dir: str, pkg_name: str) -> None:
     """Copy Swiss Ephemeris data files into the package source tree.
     
     PyPI sdists DO NOT include the ephe/ data files. These are downloaded
-    once in CI to /tmp/ephe_cache/ and copied to both pyswisseph + PyJHora.
+    from the Swiss Ephemeris GitHub mirror (aloistr/swisseph) on first run
+    and cached in /tmp/ephe_cache/ for subsequent builds.
     Core files (seas_18, semo_18, sepl_18) cover 1800-2400 AD.
     """
     ephe_dest = os.path.join(src_dir, "swisseph", "ephe")
@@ -523,8 +524,28 @@ def ensure_ephe_data(src_dir: str, pkg_name: str) -> None:
         return
     
     ephe_cache = os.environ.get("EPHE_CACHE", "/tmp/ephe_cache")
-    if not os.path.isdir(ephe_cache) or not os.listdir(ephe_cache):
-        log(f"WARNING: {ephe_cache} not found, ephemeris data will be missing!")
+    os.makedirs(ephe_cache, exist_ok=True)
+    
+    if not os.listdir(ephe_cache):
+        # Download Swiss Ephemeris data files from GitHub mirror
+        GH_BASE = "https://raw.githubusercontent.com/aloistr/swisseph/master/ephe"
+        EPHE_FILES = ["sepl_18.se1", "semo_18.se1", "seas_18.se1"]
+        log(f"Downloading {len(EPHE_FILES)} ephemeris files to {ephe_cache}...")
+        import urllib.request
+        for fname in EPHE_FILES:
+            url = f"{GH_BASE}/{fname}"
+            dest = os.path.join(ephe_cache, fname)
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                resp = urllib.request.urlopen(req, timeout=60)
+                with open(dest, "wb") as f:
+                    f.write(resp.read())
+                log(f"  ✅ {fname} ({os.path.getsize(dest)//1024}KB)")
+            except Exception as e:
+                log(f"  ❌ {fname}: {e}")
+    
+    if not os.listdir(ephe_cache):
+        log(f"WARNING: no ephemeris files available, skipping")
         return
     
     os.makedirs(ephe_dest, exist_ok=True)
