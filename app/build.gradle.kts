@@ -26,7 +26,8 @@ chaquopy {
             install("tabulate")
             install("python-dateutil")
             // === 吠陀占星引擎 (PyJHora 4.8.7, 去UI版) ===
-            install(file("offline_pkgs/pyjhora-4.8.7-py3-none-any.whl").absolutePath)
+            // 注意: 使用 .tar.gz (源码包)而非 .whl, Chaquopy对源码包目录结构处理更完整
+            install(file("offline_pkgs/pyjhora-4.8.7.tar.gz").absolutePath)
             install("numpy")
             install("geocoder")
             install("geopy")
