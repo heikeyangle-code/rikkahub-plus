@@ -119,10 +119,10 @@ def patch_utils(pyjhora_src_dir):
     # Build the replacement code for _read_resource_lists_from_file
     read_lists_replacement = f'''def _read_resource_lists_from_file(language_list_file):
     # [PATCHED] Embedded English data to avoid file I/O at module init.
-    import os as _os
+    import os as _os, sys as _sys
     _basename = _os.path.basename(language_list_file) if language_list_file else ''
     if 'en.txt' in _basename or _basename == '':
-        _EMBEDDED_LIST_VALUES.update_globals(sys.modules[__name__])
+        _EMBEDDED_LIST_VALUES.update_globals(_sys.modules[__name__])
         return
     if not _os.path.exists(language_list_file):
         raise FileNotFoundError(f"The file {{language_list_file}} does not exist.")

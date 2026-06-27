@@ -19,17 +19,20 @@ d  = Date("2024/01/15")                            # 仅日期
 t  = Time("12:00")                                 # 仅时间
 dt.getUTC()                                        → Datetime(UTC)  (自动计算)
 pos = GeoPos(39.9, 116.4)
-GeoPos.toFloat(lat_str)          → 39.9   (字符串转浮点)                           # lat, lon
+# 字符串经纬度转浮点 (模块级函数, 不在GeoPos类上)
+from flatlib.geopos import toFloat
+toFloat(lat_str)                  → 39.9
 chart = Chart(dt, pos)                              # 默认Placidus
 chart = Chart(dt, pos, hsys=const.HOUSES_WHOLE_SIGN) # 指定宫位制
-dt.dateJDN(year, month, day)    → 儒略日(整数)
-dt.jdnDate(jdn)                 → (year, month, day)  (整数转日期)
-d.toList()       → [2024, 1, 15]
-d.toString()     → "2024/01/15"
-t.toList()       → [12, 0]
-t.toString()     → "12:00"
-dt.getUTC()      → Datetime(UTC)
-dt.time()        → Time 对象
+# 模块级函数(不在类上): dateJDN, jdnDate (需 from flatlib.datetime import dateJDN, jdnDate)
+dateJDN(year, month, day)          → 儒略日(整数)
+jdnDate(jdn)                       → [year, month, day]  (整数转日期列表)
+d.toList()                         → ['+', 2024, 1, 15]  (带符号位)
+d.toString()                       → "2024/01/15"
+t.toList()                         → ['+', 12, 0, 0]  (带符号位+秒)
+t.toString()                       → "12:00:00"
+dt.getUTC()                        → Datetime(UTC)
+dt.time                            → Time 对象 (属性, 不可调用)
 
 ── 常量 const ──
 星座(字符串): ARIES="Aries", TAURUS="Taurus" ... PISCES="Pisces"
@@ -44,9 +47,10 @@ dt.time()        → Time 对象
 ── Chart 方法 ──
 chart = Chart(dt, pos)
 chart.getObject(SUN)            → {id, lon, lat, lonspeed, latspeed, sign, signlon}  (星体)
-chart.getObjectList([SUN, MOON]) → 多个星体
-chart.getHouse(1)                → House对象(.id="House1", .lon, .size, .sign, .signlon, .condition, .gender, .isAboveHorizon, .inHouse)
-                                  注: 用 int(chart.getHouse(1).id.replace('House','')) 取宫号
+chart.objects.get(SUN)           → Object (从chart.objects ObjectList取)
+ephem.getObjectList([SUN, MOON], dt, pos)  → [Object, Object] (ephem模块取多个星体)
+chart.getHouse(const.HOUSE1)       → House对象(.id="House1", .lon, .size, .sign, .signlon, .condition, .gender, .isAboveHorizon, .inHouse)
+                                  注: 参数传字符串"House1"或const.HOUSE1，用 int(id.replace('House','')) 取宫号
 chart.getAngle(ASC)              → {id, lon, sign, signlon}
 chart.getFixedStar("Sirius")     → 恒星数据
 chart.getFixedStars()            → 所有恒星
@@ -56,49 +60,47 @@ chart.isHouse1Asc()              → True/False 第1宫=上升
 chart.isHouse10MC()              → True/False 第10宫=MC
 chart.isDiurnal()                → True/False 昼/夜生
 chart.getMoonPhase()             → 月相
-chart.solarReturn(date)          → 太阳返照盘
+chart.solarReturn(year)              → 太阳返照盘 (参数传年份整数)
 
 ── 角度计算 angle ──
 from flatlib import angle
 angle.norm(370)                  → 10.0   (归一化0-360)
-angle.znorm(-10)                 → 350.0  (归一化0-360)
-angle.distance(10, 350)          → 20.0   (最短距离)
+angle.znorm(-10)                 → -10    (归一化-180~180)
+angle.distance(10, 350)          → 340    (逆时针方向距, 非最短距)
 angle.closestdistance(10, 350)   → 20.0   (带符号最短距离)
-angle.strFloat("10°30'")         → 10.5   (字符串转浮点)
-angle.floatStr(10.5)             → "10°30'" (浮点转字符串)
-angle.strSlist("10°30' 20°15'") → [10.5, 20.25] (列表字符串转浮点列表)
-angle.slistStr([10.5, 20.25])    → "10°30' 20°15'" (浮点列表转字符串)
-angle.slistFloat([10.5, 20.25])  → [10.5, 20.25] (安全转浮点列表)
-angle.floatSlist([10.5, 20.25])  → [10.5, 20.25] (同上)
-angle.toFloat("10°30'")          → 10.5   (通用转浮点)
-angle.toList("10°30' 20°15'")    → [10.5, 20.25]
+angle.strFloat("10:30:00")       → 10.5   (字符串转浮点, 仅认hh:mm:ss格式)
+angle.floatStr(10.5)             → "+10:30:00" (浮点转字符串)
+angle.strSlist("10:30:00")       → ['+', 10, 30, 0] (字符串转带符号列表)
+angle.slistStr(['+', 10, 30])    → "+10:30:00" (带符号列表转字符串)
+angle.slistFloat(['+', 10, 30])  → 10.5   (带符号列表转浮点)
+angle.floatSlist(10.5)           → ['+', 10, 30, 0, 0] (浮点转带符号列表)
+angle.toFloat("10:30:00")        → 10.5   (通用转浮点)
+angle.toList("10:30:00")         → ['+', 10, 30, 0]
 angle.toString([10.5, 20.25])    → "10°30' 20°15'"
 
 
 ── 星体属性 object ──
 from flatlib.object import Object, GenericObject, FixedStar
 (obj = chart.getObject(SUN) 返回的是Object实例)
+# Object实例可用方法:
 obj.lon / obj.lat / obj.sign / obj.signlon    → 位置属性
-obj.isPlanet()                                → True/False
+obj.isPlanet()                                → True/False (含南北交)
 obj.isDirect() / obj.isRetrograde()           → 逆行状态
 obj.isStationary() / obj.isFast()             → 速度状态
 obj.movement()                                → "Direct"/"Retrograde"/"Stationary"
 obj.meanMotion()                              → 平均日行
-obj.gender()                                  → "Masculine"/"Feminine"
+obj.gender()                                  → "Masculine"/"Feminine" (七曜可用, 南北交KeyError)
 obj.faction()                                 → "Diurnal"/"Nocturnal"
-obj.element()                                 → "Fire"/"Earth"/"Air"/"Water"
-obj.condition()                               → 状态描述
-obj.num()                                     → 数字编号
-obj.isAboveHorizon()                          → True/False 地平上
-obj.inHouse()                                 → 所在宫位 House
+obj.element()                                 → "Fire"/"Earth"/"Air"/"Water" (七曜可用, 南北交KeyError)
 obj.eqCoords()                                → 赤经赤纬
 obj.relocate(lat, lon)                        → 迁盘位置
 obj.antiscia()                                → 映点经度
 obj.cantiscia()                               → 反映点经度
 obj.orb()                                     → 容许度
-obj.aspects()                                 → 相位列表
-obj.fromDict(data)                            → 从字典构建
-obj.hasObject(ID)                             → 是否包含某星体
+# House对象特有 (chart.getHouse返回):
+# .condition(), .num(), .isAboveHorizon(), .inHouse(lon), .hasObject(obj)
+# FixedStar对象特有 (chart.getFixedStar返回):
+# .aspects(obj)
 
 ── 本质尊贵 Essential Dignities ──
 from flatlib.dignities.essential import (ruler, exalt, exaltDeg, dayTrip, nightTrip, partTrip,
@@ -118,11 +120,9 @@ face("Leo", 5.5)                      → {id, ...}               (面, 星座�
 isPeregrine(SUN, "Leo", 5.5)         → True/False   (外来)
 score(SUN, "Leo", 5.5)               → 5            (尊贵总分, 庙+5)
 almutem("Leo", 5.5)                  → 综合Almutem主星
-getInfo("Leo", 5.5)                  → EssentialInfo对象
+getInfo("Leo", 5.5)                  → {ruler, exalt, dayTrip, nightTrip, term, face, exile, fall} dict
 
-EssentialInfo(sign, lon).getInfo()    → 详细信息
-EssentialInfo(sign, lon).getDignities() → 尊贵列表
-EssentialInfo(sign, lon).isPeregrine()  → True/False
+# EssentialInfo类实际返回裸dict, getDignities等方法不存在
 
 ── 界系统表 dignities.tables ──
 from flatlib.dignities.tables import termLons
@@ -174,7 +174,7 @@ cd.receives("Sun", "Moon")             → 接纳 (星体A是否被星体B接纳
 cd.disposits("Sun", "Moon")            → 派遣
 cd.mutualReceptions("Sun", "Moon")     → 互容
 cd.reMutualReceptions("Sun", "Moon")   → 实际互容
-cd.validAspects("Sun", const.MAJOR_ASPECTS)   → 星体有效相位列表
+cd.validAspects("Sun", const.MAJOR_ASPECTS)   → [{id, asp}] 应期列表(每个元素是dict)
 cd.aspectsByCat("Sun", const.MAJOR_ASPECTS)   → 按分类列相位
 cd.immediateAspects("Sun", const.MAJOR_ASPECTS) → 即时相位(不含虚点)
 cd.isVOC("Moon")                       → True/False   (月亮空亡)
@@ -192,7 +192,7 @@ scores(factors)                                        → 总分
 
 ── Almutem 主星 ──
 from flatlib.protocols.almutem import compute
-almutem_rows = compute(chart)         → [{id, name, score, ...}, ...]
+almutem_rows = compute(chart)         → {id: {string, score}, ...} (dict 8个key)
 newRow()                             → 空行(构建表格用)
 
 ── 星体行为 ──
@@ -284,7 +284,7 @@ ephem.nextLunarEclipse(dt)            → 下次月食
 
 ── 列表工具 Lists ──
 from flatlib.lists import GenericList, ObjectList, HouseList, FixedStarList
-自chart.getObjectList()等返回
+自 chart.objects 等返回
 .add(obj), .get(ID), .copy(), .getObjectsInHouse(3), .getObjectsAspecting(SUN), .getHouseByLon(120.5), .getObjectHouse(SUN)
 
 ── 属性标签 Props ──
@@ -296,7 +296,7 @@ object.orb["Sun"]                    → 15        (容许度)
 object.element["Sun"]                → "Fire"
 house(1).name                        → "House 1"
 aspect(0).name                       → "Conjunction"
-houseSystem("P").name                → "Placidus"
+# houseSystem 类为空占位, 不使用
 
 ── 几何辅助 utils ──
 from flatlib.utils import ascdiff, dnarcs, isAboveHorizon, eqCoords
@@ -335,7 +335,6 @@ from flatlib.dignities.accidental import AccidentalDignity
 
 dt = Datetime("1990/06/15", "12:00", "+08:00")
 pos = GeoPos(39.9, 116.4)
-GeoPos.toFloat(lat_str)          → 39.9   (字符串转浮点)
 chart = Chart(dt, pos)
 
 sun = chart.getObject(const.SUN)

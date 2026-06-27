@@ -63,10 +63,10 @@ drik.moonset(jd_utc, place)                → (jd, hour, minute, second)
 
 ── 宫位与四轴 ──
 from jhora.horoscope.chart import house
-house.quadrants(asc_house)                 → [1,4,7,10] 等 (角宫)
-house.trikonas(asc_house)                  → [1,5,9] (三方宫)
-house.dushthanas(asc_house)                → [6,8,12] (凶宫)
-house.kendras(asc_house)                   → 同 quadrants
+house.quadrants()                          → 所有宫的角宫列表 (索引=asc_house-1)
+house.trikonas()                           → 所有宫的三方宫列表
+house.dushthanas()                         → 所有宫的凶宫列表
+house.kendras()                            → 同 quadrants
 house.get_planets_in_quadrants(p_to_h)     → 在角宫的行星
 house.get_planets_in_trines(p_to_h)        → 在三方宫的行星
 house.get_planets_in_dushthanas(p_to_h)    → 在凶宫的行星
@@ -106,15 +106,15 @@ yoga.vesi_yoga_from_planet_positions(p_to_h)
 
 ── Arudha (映像) ──
 from jhora.horoscope.chart import arudhas
-arudhas.arudha_from_planet_positions(planet_positions)  → Arudha pada
+arudhas.bhava_arudhas_from_planet_positions(planet_positions)  → Bhava Arudha pada
 
 ── Dosha (缺陷) ──
 from jhora.horoscope.chart import dosha
-dosha.mangala_dosha(planet_positions)        → Mangal Dosha检测
+dosha.manglik(planet_positions)             → Mangal Dosha检测
 
 ── Sphuta (特殊点) ──
 from jhora.horoscope.chart import sphuta
-sphuta.sphuta_from_planet_positions(planet_positions)  → 特殊点列表
+sphuta.tri_sphuta(dob, tob, place)         → 三星特殊点 (最常用, 其他sphuta同名模式)
 
 ── Dasha (大运系统) ──
 # Vimshottari Dasha (120年, 最主流)
