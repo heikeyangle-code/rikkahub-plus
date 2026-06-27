@@ -7,9 +7,7 @@
 
 ── 初始化 ──
 from jhora import const, utils
-from jhora.panchanga import drik
-# 必须先设语言
-utils.set_language('en')
+# 语言默认 'en', 切换: utils.set_language('en')  # en/hi/ta/te/ml/ka
 
 ── 核心数据结构 ──
 jhora.const 模块:
@@ -88,8 +86,9 @@ ashtakavarga.compute_sarvashtakavarga(all_data)  → SAV (Sarva Ashtakavarga)
 from jhora.horoscope.chart import raja_yoga
 raja_yoga.identify_raja_yogas(data)      → Raja Yoga列表 [{yoga_name, planets_involved, description, ...}]
 
-── Yoga (星体组合) ── (735KB, 774个函数)
+── Yoga (星体组合) ── (735KB, 774个函数, 此处不逐一列出)
 from jhora.horoscope.chart import yoga
+# 用 dir(yoga) 或 help(yoga) 查看所有可用函数
 yoga.identify_all_yogas(planet_positions, house_positions)  → 全Yoga列表
 yoga.identify_graha_yogas(data)          → Graha Yoga
 yoga.identify_chandra_yogas(data)       → Chandra Yoga (月相关)
