@@ -518,6 +518,14 @@ jobs:
           python3 ci/cross_compile_wheels.py 2>&1
           echo "=== offline_pkgs for pyjhora ==="
           ls -la app/offline_pkgs/pyswisseph-*.whl 2>/dev/null
+      - name: Patch pyjhora lang resources (embed English strings for Chaquopy)
+        run: |
+          cd /tmp
+          tar xfz ${GITHUB_WORKSPACE}/app/offline_pkgs/pyjhora-4.8.7.tar.gz
+          python3 ${GITHUB_WORKSPACE}/ci/patch_pyjhora_lang.py pyjhora-4.8.7
+          cd pyjhora-4.8.7
+          tar czf ${GITHUB_WORKSPACE}/app/offline_pkgs/pyjhora-4.8.7.tar.gz .
+          echo "✅ pyjhora patched: lang resources embedded in utils.py"
       - name: Build
         run: |
           chmod +x gradlew

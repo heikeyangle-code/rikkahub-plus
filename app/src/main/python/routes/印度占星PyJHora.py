@@ -1,8 +1,8 @@
 """
-【印度占星PyJHora】 pyjhora v4.8.7  纯Python(125模块) + pyswisseph
+【印度占星PyJHora】 pyjhora v4.8.7  纯Python(125模块) + swisseph
 ═══════════════════════════════════════════════════════════════
 吠陀占星引擎: 本命盘/Panchanga/Dhasa大运/匹配/推运/择时
-依赖: pyswisseph(星历), numpy, geopy/geocoder(地点), pytz, python-dateutil
+依赖: swisseph(星历), numpy, geopy/geocoder(地点), pytz, python-dateutil
 ═══════════════════════════════════════════════════════════════
 
 ── 初始化 ──
