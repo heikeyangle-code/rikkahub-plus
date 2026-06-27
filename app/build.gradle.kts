@@ -15,7 +15,7 @@ plugins {
 // Python 引擎配置 — Chaquopy 新 DSL
 chaquopy {
     defaultConfig {
-        version = "3.14"
+        version = "3.12"
         pip {
             install("requests")
             install("beautifulsoup4")
@@ -24,7 +24,16 @@ chaquopy {
             install("openpyxl")
             install("markdownify")
             install("tabulate")
-            // === 命理计算引擎 (全纯Python, 已删 sxtwl/pyswisseph/ephem 三个C扩展及其下游库) ===
+            // === 吠陀占星引擎 (PyJHora 4.8.7, 去UI版) ===
+            install(file("offline_pkgs/pyjhora-4.8.7-stripped-py3-none-any.whl").absolutePath)
+            install("numpy")
+            install("geocoder")
+            install("geopy")
+            install("pytz")
+            install("timezonefinder")
+            // pyswisseph 由 CI 交叉编译后放入 offline_pkgs
+            install(file("offline_pkgs/pyswisseph-2.10.3.2-cp312-cp312-android_21_arm64_v8a.whl").absolutePath)
+            // === 八字/命理引擎 ===
             install(file("offline_pkgs/lunar_python-latest.tar.gz").absolutePath)
             install("cnlunar")
             install(file("offline_pkgs/ichingshifa-src.tar.gz").absolutePath) // 周易筮法/六爻

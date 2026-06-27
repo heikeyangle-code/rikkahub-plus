@@ -18,7 +18,7 @@ jobs:
           java-version: '21'
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: '3.12'
       - name: Upgrade pip & setuptools (required for git+ packages)
         run: pip install --upgrade pip setuptools wheel
       - name: Force full Python reinstall (auto-update all packages)
@@ -510,7 +510,12 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :app:extractReleasePython --no-daemon 2>&1 | tail -10
-          ls -la app/build/python/env/release/include/python3.14/ 2>/dev/null && echo "✅ Chaquopy Python headers available" || echo "⚠️ Chaquopy headers not found, will fall back to python.org"
+          ls -la app/build/python/env/release/include/python3.12/ 2>/dev/null && echo "✅ Chaquopy Python headers available" || echo "⚠️ Chaquopy headers not found, will fall back to python.org"
+      - name: Cross-compile pyswisseph for Android ARM64
+        run: |
+          python3 ci/cross_compile_wheels.py 2>&1 | tail -50
+          echo "=== offline_pkgs for pyjhora ==="
+          ls -la app/offline_pkgs/pyswisseph-*.whl 2>/dev/null
       - name: Build
         run: |
           chmod +x gradlew

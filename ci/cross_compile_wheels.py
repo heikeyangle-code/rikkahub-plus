@@ -9,9 +9,9 @@ Usage:
 import os, sys, subprocess, glob, shutil, hashlib, io, tarfile
 from pathlib import Path
 
-PY_VER = "3.14"
-PY_TAG = "cp314"
-ABI_TAG = "cp314"
+PY_VER = "3.12"
+PY_TAG = "cp312"
+ABI_TAG = "cp312"
 PLAT = "android_21_arm64_v8a"
 ANDROID_PYTHON_URL = (
     f"https://www.python.org/ftp/python/{PY_VER}.3/"
