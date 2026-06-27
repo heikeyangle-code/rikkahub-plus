@@ -577,7 +577,18 @@ def main():
          ],
          "extra_py_files": ["swisseph/swisseph.py"],
          "data_dirs": [("swisseph/ephe", "ephe")],
-         "init_content": "from .swisseph import *\n",
+         "init_content": (
+             "import importlib.util, os, sys, glob\n"
+             "_d = os.path.dirname(__file__)\n"
+             "_so = glob.glob(os.path.join(_d, 'swisseph*.so'))\n"
+             "if _so:\n"
+             "    _spec = importlib.util.spec_from_file_location('swisseph', _so[0])\n"
+             "    if _spec and _spec.loader:\n"
+             "        _mod = importlib.util.module_from_spec(_spec)\n"
+             "        _spec.loader.exec_module(_mod)\n"
+             "        sys.modules['swisseph'] = _mod\n"
+             "        globals().update({k:v for k,v in vars(_mod).items() if not k.startswith('_')})\n"
+         ),
         },
     ]
 
