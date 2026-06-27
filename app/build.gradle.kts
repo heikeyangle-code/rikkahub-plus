@@ -33,6 +33,8 @@ chaquopy {
             install("timezonefinder")
             // pyswisseph 由 CI 交叉编译后放入 offline_pkgs
             install(file("offline_pkgs/pyswisseph-2.10.3.2-cp312-cp312-android_21_arm64_v8a.whl").absolutePath)
+            // === 传统西洋占星 (flatlib, 纯Python, 自带Moshier星历) ===
+            install(file("offline_pkgs/flatlib-0.2.3-py3-none-any.whl").absolutePath)
             // === 八字/命理引擎 ===
             install(file("offline_pkgs/lunar_python-latest.tar.gz").absolutePath)
             install("cnlunar")
