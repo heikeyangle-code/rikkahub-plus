@@ -120,8 +120,6 @@ for arg in "$@"; do
         *hostedtoolcache*) continue ;;
         *--rpath=*)        continue ;;
         *Python*ROOT*)     continue ;;
-        -lpython*)         continue ;;  # embedded Android: no libpython.so
-        -L*[Pp]ython*)     continue ;;  # Python lib dirs (host or cross)
     esac
     ARGS+=("$arg")
 done
@@ -140,8 +138,6 @@ for arg in "$@"; do
         *hostedtoolcache*) continue ;;
         *--rpath=*)        continue ;;
         *Python*ROOT*)     continue ;;
-        -lpython*)         continue ;;  # embedded Android: no libpython.so
-        -L*[Pp]ython*)     continue ;;  # Python lib dirs (host or cross)
     esac
     ARGS+=("$arg")
 done
@@ -192,8 +188,8 @@ def setup_env(ndk_path, android_python):
         "AR": ar,
         "CFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
         "CXXFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
-        "LDFLAGS": f"--target=aarch64-linux-android21",
-        "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared",
+        "LDFLAGS": f"--target=aarch64-linux-android21 -L{py_lib}",
+        "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared -L{py_lib}",
         "_PYTHON_HOST_PLATFORM": "aarch64-linux-android",
         "ANDROID_NDK_HOME": ndk_path,
         # PyO3/maturin cross-compilation (Rust build only, handles Android correctly)
@@ -328,10 +324,9 @@ def compile_c_package(pkg, env):
     if pkg_name == "pyswisseph":
         ensure_ephe_data(src_dir, pkg_name)
 
-    # Cross-compile with NDK + official Android Python headers.
-    # NOTE: Do NOT link -lpython — on embedded Android (Chaquopy), libpython.so
-    # does not exist as a separate shared library. Python symbols are resolved
-    # by the embedding process. The compiler wrapper strips -lpython* flags.
+    # Cross-compile with NDK + Chaquopy Python headers.
+    # -L{py_lib} lets the linker find libpython3.12.so so the resulting .so
+    # has NEEDED libpython3.12.so — without it the .so is an empty shell.
     build_cmd = (
         f"cd '{src_dir}' && "
         f"CC='{env['CC']}' CXX='{env['CXX']}' "
