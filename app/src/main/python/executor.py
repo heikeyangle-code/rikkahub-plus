@@ -297,9 +297,10 @@ bazi_china   = 神煞断语 + 调候用神 + 古诀解盘
 尊贵原子(dignityScore/faceRuler/termRuler/signRuler), 组合器(matchAll/matchAny),
 特殊点(meanNode→弧度/57.2958转度/meanLilith/trueLilith/vertexEastPoint),
 lotFortune/lotSpirit/hermeticLots, 探测(houseCusp/angles/gmst/gast/normalizeHouseSystem)等。
-【印度/吠陀】 (仅JS)
+【印度/吠陀】 (Python+JS)
 
 ╔══════════════════ 速览 ══════════════════╗
+║ PyJHora 4.8.7 → Python 吠陀占星 (新, 替代JS) ║
 ║ NatalEngine → Rasi + 27宿 + Dasha + 文本 ║
 ║ Caelus     → 26种Yoga + 7分盘            ║
 ║ Caelus     → Ashtottari + Yogini 大运    ║
