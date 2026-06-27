@@ -191,14 +191,17 @@ def setup_env(ndk_path, android_python):
         "AR": ar,
         "CFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
         "CXXFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
-        "LDFLAGS": f"--target=aarch64-linux-android21 -L{py_lib} -lpython3.12",
-        "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared -L{py_lib} -lpython3.12",
+        "LDFLAGS": f"--target=aarch64-linux-android21 -L{py_lib}",
+        "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared -L{py_lib}",
         "_PYTHON_HOST_PLATFORM": "aarch64-linux-android",
         "ANDROID_NDK_HOME": ndk_path,
         # PyO3/maturin cross-compilation (Rust build only, handles Android correctly)
         "PYO3_CROSS_LIB_DIR": py_lib,
         "PYO3_CROSS_PYTHON_VERSION": PY_VER,
         "PYO3_CROSS_INCLUDE_DIR": py_include,
+        # Store paths for compile_c_package to access
+        "_HERMES_PY_LIB": py_lib,
+        "_HERMES_PY_INCLUDE": py_include,
     })
     log(f"Android Python include: {py_include}")
     log(f"Android Python lib: {py_lib}")
@@ -328,13 +331,29 @@ def compile_c_package(pkg, env):
         ensure_ephe_data(src_dir, pkg_name)
 
     # Cross-compile with NDK + Chaquopy Python headers.
-    # -L{py_lib} lets the linker find libpython3.12.so so the resulting .so
-    # has NEEDED libpython3.12.so — without it the .so is an empty shell.
+    # We need libpython3.12.so at link time so the .so gets a DT_NEEDED entry.
+    # Chaquopy's extracted Python env doesn't have it (statically linked),
+    # so we download python.org's Android ARM64 Python and use its lib.
+    # At runtime, Chaquopy's own libpython3.12.so fulfills the NEEDED entry.
+    py_lib_chaq = env.get("_HERMES_PY_LIB") or os.path.join(WORKSPACE, "app", "build", "python", "env", "release", "lib")
+    org_lib = os.path.join("/tmp/android-python", "prefix", "lib", f"libpython{PY_VER}.so")
+    if not os.path.exists(org_lib):
+        log("python.org Android Python not found, downloading...")
+        download_android_python()
+    org_lib_dir = os.path.join("/tmp/android-python", "prefix", "lib")
+    if os.path.exists(os.path.join(org_lib_dir, f"libpython{PY_VER}.so")):
+        log(f"Using python.org libpython{PY_VER}.so from {org_lib_dir} for linking")
+        py_lib_full = f"-L{py_lib_chaq} -L{org_lib_dir} -lpython3.12"
+    else:
+        log(f"WARNING: python.org libpython{PY_VER}.so not found, linking without it")
+        py_lib_full = f"-L{py_lib_chaq} -lpython3.12"
+    
     build_cmd = (
         f"cd '{src_dir}' && "
         f"CC='{env['CC']}' CXX='{env['CXX']}' "
         f"CFLAGS='{env['CFLAGS']}' CXXFLAGS='{env['CXXFLAGS']}' "
-        f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
+        f"LDFLAGS='{env['LDFLAGS']} {py_lib_full}' "
+        f"LDSHARED='{env['LDSHARED']} {py_lib_full}' "
         f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
         f"python setup.py build_ext --inplace 2>&1"
     )
@@ -345,7 +364,8 @@ def compile_c_package(pkg, env):
             f"cd '{src_dir}' && "
             f"CC='{env['CC']}' CXX='{env['CXX']}' "
             f"CFLAGS='{env['CFLAGS']}' CXXFLAGS='{env['CXXFLAGS']}' "
-            f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
+            f"LDFLAGS='{env['LDFLAGS']} {py_lib_full}' "
+            f"LDSHARED='{env['LDSHARED']} {py_lib_full}' "
             f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
             f"python setup.py build 2>&1",
             check=False, timeout=300)
