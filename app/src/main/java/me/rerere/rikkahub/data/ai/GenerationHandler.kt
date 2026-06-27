@@ -192,6 +192,8 @@ class GenerationHandler(
                 appendLine("    (NatalEngine吠陀:Rasi/27宿/Dasha/文本 · Caelus:Vimshottari+Ashtottari+Yogini 3大运体系 · YogasAt+raja+kemadruma 4类Yoga · 7分盘 · 27宿 · 岁差 · 尊贵)")
                 appendLine("    深度版NodeJhora → from routes.印度占星深度版 import __doc__ as R; print(R)")
                 appendLine("    (JPL DE440星历 · Shadbala全量六力 · Ashtakavarga八分力 · Jaimini:CharaKaraka+CharaDasha+Arudha · KP亚主星 · Transit行运 · Yogini+Narayana大运 · 8特殊Lagna · Upagraha · Panchanga)")
+                appendLine("  印度占星PyJHora(Python) → from routes.印度占星PyJHora import __doc__ as R; print(R)")
+                appendLine("    (pyjhora v4.8.7纯Python:Vimshottari/Ashtottari/Yogini/Narayana/Kalachakra等54种大运 · Panchanga五支 · 分盘D1-D60 · Arudha/Ashtakavarga/Shadbala · RajaYoga和774种Yoga检测 · Tajaka年运 · 匹配10法 · 依赖pyswisseph)")
                 appendLine("  人类图/基因钥匙 → from routes.人类图路由 import __doc__ as R; print(R)")
                 appendLine("    (NatalEngine:类型/权威/能量中心(defined/undefined/open)/通道/闸门/轮回交叉/profile/circuitAnalysis · 基因钥匙activationSequence全4序列+pearl+pathways)")
                 appendLine("  灵数/卡巴拉/Gematria/Ifá → from routes.灵数卡巴拉数秘 import __doc__ as R; print(R)")
