@@ -465,10 +465,12 @@ jobs:
           echo "NodeJhora compiled: $(wc -c < node-jhora-engine.js) bytes"
 
           # Download de440s.bsp separately (NASA JPL, 32MB) — Kotlin injects on demand
-          curl -sL "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440s.bsp" \
+          # 注意: NASA 服务器可能限流 CI IP，下载失败不应阻断构建
+          # APK 运行时 kotlin 会处理缺失情况
+          curl -sL --max-time 60 "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440s.bsp" \
             -o ${GITHUB_WORKSPACE}/app/src/main/assets/de440s.bsp \
             && echo "  ✅ de440s.bsp: $(wc -c < ${GITHUB_WORKSPACE}/app/src/main/assets/de440s.bsp) bytes" \
-            || { echo "  ❌ de440s.bsp download failed"; exit 1; }
+            || echo "  ⚠️ de440s.bsp download failed (non-fatal, Kotlin will handle)"
 
       - name: Compile Iztro JS engine (SylarLong/iztro ⭐3841 — 紫微斗数权威引擎)
         run: |
