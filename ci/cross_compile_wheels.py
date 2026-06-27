@@ -371,6 +371,7 @@ def compile_c_package(pkg, env):
     for src, _ in so_files:
         result = run(f"file '{src}'", check=False, capture_output=True)
         output = result.stdout.decode() if hasattr(result, 'stdout') and result.stdout else ""
+        log(f"  file output: {output.strip()[:200]}")
         if "aarch64" in output or "ARM" in output or "ARM64" in output:
             log(f"  ✅ {os.path.basename(src)}: ARM64")
         else:
@@ -528,14 +529,6 @@ def main():
     run("pip install maturin 2>&1 | tail -3", check=False)
 
     PACKAGES = [
-        {"name": "sxtwl", "version": "2.0.6", "py_pkg": "sxtwl", "type": "c",
-         "extra_py_files": ["sxtwl.py"],
-         "init_content": "from .sxtwl import *\n",
-         "patches": [
-             ("sed -i 's/from distutils import ccompiler//' setup.py", False),
-             ("sed -i 's/if ccompiler.get_default_compiler() == \"msvc\":/"
-              "if platform.system() == \"Windows\":/' setup.py", False),
-         ]},
         {"name": "pyswisseph", "version": "2.10.3.2", "py_pkg": "swisseph", "type": "c",
          "patches": [
              ("sed -i 's/swe_detection = True/swe_detection = False/' setup.py", True),
@@ -544,11 +537,6 @@ def main():
          "extra_py_files": ["swisseph/swisseph.py"],
          "data_dirs": [("swisseph/ephe", "ephe")],
          "init_content": "from .swisseph import *\n",
-        },
-        {"name": "pydantic-core", "version": "2.46.4", "py_pkg": "pydantic_core", "type": "rust"},
-        {"name": "ephem", "version": "4.2.1", "py_pkg": "ephem", "type": "c",
-         "patches": [],
-         "extra_py_files": [("ephem/__init__.py", "__init__.py")],
         },
     ]
 
