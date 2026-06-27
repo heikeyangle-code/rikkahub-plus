@@ -513,7 +513,7 @@ jobs:
           ls -la app/build/python/env/release/include/python3.12/ 2>/dev/null && echo "✅ Chaquopy Python headers available" || echo "⚠️ Chaquopy headers not found, will fall back to python.org"
       - name: Cross-compile pyswisseph for Android ARM64
         run: |
-          python3 ci/cross_compile_wheels.py 2>&1 | tail -50
+          python3 ci/cross_compile_wheels.py 2>&1
           echo "=== offline_pkgs for pyjhora ==="
           ls -la app/offline_pkgs/pyswisseph-*.whl 2>/dev/null
       - name: Build
