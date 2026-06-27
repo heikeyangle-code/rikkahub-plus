@@ -331,29 +331,11 @@ def compile_c_package(pkg, env):
         ensure_ephe_data(src_dir, pkg_name)
 
     # Cross-compile with NDK + Chaquopy Python headers.
-    # We need libpython3.12.so at link time so the .so gets a DT_NEEDED entry.
-    # Chaquopy's extracted Python env doesn't have it (statically linked),
-    # so we download python.org's Android ARM64 Python and use its lib.
-    # At runtime, Chaquopy's own libpython3.12.so fulfills the NEEDED entry.
-    py_lib_chaq = env.get("_HERMES_PY_LIB") or os.path.join(WORKSPACE, "app", "build", "python", "env", "release", "lib")
-    org_lib = os.path.join("/tmp/android-python", "prefix", "lib", f"libpython{PY_VER}.so")
-    if not os.path.exists(org_lib):
-        log("python.org Android Python not found, downloading...")
-        download_android_python()
-    org_lib_dir = os.path.join("/tmp/android-python", "prefix", "lib")
-    if os.path.exists(os.path.join(org_lib_dir, f"libpython{PY_VER}.so")):
-        log(f"Using python.org libpython{PY_VER}.so from {org_lib_dir} for linking")
-        py_lib_full = f"-L{py_lib_chaq} -L{org_lib_dir} -lpython3.12"
-    else:
-        log(f"WARNING: python.org libpython{PY_VER}.so not found, linking without it")
-        py_lib_full = f"-L{py_lib_chaq} -lpython3.12"
-    
     build_cmd = (
         f"cd '{src_dir}' && "
         f"CC='{env['CC']}' CXX='{env['CXX']}' "
         f"CFLAGS='{env['CFLAGS']}' CXXFLAGS='{env['CXXFLAGS']}' "
-        f"LDFLAGS='{env['LDFLAGS']} {py_lib_full}' "
-        f"LDSHARED='{env['LDSHARED']} {py_lib_full}' "
+        f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
         f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
         f"python setup.py build_ext --inplace 2>&1"
     )
@@ -364,8 +346,7 @@ def compile_c_package(pkg, env):
             f"cd '{src_dir}' && "
             f"CC='{env['CC']}' CXX='{env['CXX']}' "
             f"CFLAGS='{env['CFLAGS']}' CXXFLAGS='{env['CXXFLAGS']}' "
-            f"LDFLAGS='{env['LDFLAGS']} {py_lib_full}' "
-            f"LDSHARED='{env['LDSHARED']} {py_lib_full}' "
+            f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
             f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
             f"python setup.py build 2>&1",
             check=False, timeout=300)
