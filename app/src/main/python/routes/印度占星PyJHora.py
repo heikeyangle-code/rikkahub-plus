@@ -80,26 +80,26 @@ house.get_planets_in_dushthanas(p_to_h)    → 在凶宫的行星
 
 ── Ashtakavarga (八分力) ──
 from jhora.horoscope.chart import ashtakavarga
-ashtakavarga.get_ashtaka_varga(jd, place)  → BAV八分力数据
-ashtakavarga.sodhaya_pindas(...)           → 扣除后的分数
+ashtakavarga.get_ashtaka_varga(p_to_h)  → BAV八分力数据 (参数传house_to_planet_list)
+ashtakavarga.sodhaya_pindas(binna_ashtaka_varga, p_to_h)  → 扣除后的分数
 
 ── Shadbala (六力) ──
 from jhora.horoscope.chart import strength
-strength.shad_bala(jd, place, planet_positions)    → 六力结果
-strength.bhava_bala(jd, place, planet_positions)  → 宫位力量
-strength.bhava_drishti_bala(...)                   → 宫位相位力
-strength.pancha_vargeeya_bala(...)                 → 五分力
+strength.shad_bala(jd, place)                   → 六力结果 (内部自动算行星位置)
+strength.bhava_bala(jd, place)                  → 宫位力量
+strength.bhava_drishti_bala(jd, place)          → 宫位相位力
+strength.pancha_vargeeya_bala(jd, place)        → 五分力
 
 ── Raja Yoga (贵格) ──
 from jhora.horoscope.chart import raja_yoga
-raja_yoga.get_raja_yoga_details(jd, place, planet_positions)  → Raja Yoga列表
-raja_yoga.dharma_karmadhipati_raja_yoga(jd, place, ...)      → DKP Yoga检测
-raja_yoga.vipareetha_raja_yoga(jd, place, ...)               → VRY瑜伽
-raja_yoga.neecha_bhanga_raja_yoga(jd, place, ...)            → 落陷破坏格
+raja_yoga.get_raja_yoga_details(jd, place, divisional_chart_factor=1)  → Raja Yoga列表
+raja_yoga.dharma_karmadhipati_raja_yoga(jd, place, ...)               → DKP Yoga检测
+raja_yoga.vipareetha_raja_yoga(jd, place, ...)                        → VRY瑜伽
+raja_yoga.neecha_bhanga_raja_yoga(jd, place, ...)                     → 落陷破坏格
 
 ── Yoga (星体组合, 774个) ──
 from jhora.horoscope.chart import yoga
-yoga.get_yoga_details(jd, place, planet_positions)  → 全Yoga列表
+yoga.get_yoga_details(jd, place, divisional_chart_factor=1)  → 全Yoga列表
 # 特定Yoga (以 _from_planet_positions 后缀调用):
 yoga.vesi_yoga_from_planet_positions(p_to_h)
 # 用 dir(yoga) 查看所有774个瑜伽函数
@@ -209,5 +209,5 @@ from jhora.horoscope.dhasa.graha import vimsottari
 dashas = vimsottari.get_vimsottari_dhasa_bhukthi(jd_local, planet_positions)
 
 # Raja Yoga
-yogas = raja_yoga.get_raja_yoga_details(jd_utc, place, planet_positions)
+yogas = raja_yoga.get_raja_yoga_details(jd_utc, place)
 """
