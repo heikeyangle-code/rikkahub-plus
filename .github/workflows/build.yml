@@ -526,6 +526,14 @@ jobs:
           cd pyjhora-4.8.7
           tar czf ${GITHUB_WORKSPACE}/app/offline_pkgs/pyjhora-4.8.7.tar.gz .
           echo "✅ pyjhora patched: lang resources embedded in utils.py"
+      - name: Patch flatlib sweNextTransit (pyswisseph 2.10.x geopos API)
+        run: |
+          cd /tmp
+          tar xfz ${GITHUB_WORKSPACE}/app/offline_pkgs/flatlib-0.2.3-py3-none-any.whl
+          python3 ${GITHUB_WORKSPACE}/ci/patch_flatlib_swetransit.py flatlib-0.2.3
+          cd flatlib-0.2.3
+          zip -qr ${GITHUB_WORKSPACE}/app/offline_pkgs/flatlib-0.2.3-py3-none-any.whl .
+          echo "✅ flatlib patched: sweNextTransit uses geopos tuple"
       - name: Build
         run: |
           chmod +x gradlew

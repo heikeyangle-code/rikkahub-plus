@@ -32,19 +32,21 @@ dt.getUTC()      → Datetime(UTC)
 dt.time()        → Time 对象
 
 ── 常量 const ──
-星座(0-11): SIGN_ARIES=0, SIGN_TAURUS=1, ... SIGN_PISCES=11
-星体: SUN=0, MOON=1, MERCURY=2, VENUS=3, MARS=4, JUPITER=5, SATURN=6, URANUS=7, NEPTUNE=8, PLUTO=9, CHIRON=15, NORTH_NODE=10
-宫位制(15种): HOUSES_PLACIDUS, HOUSES_KOCH, HOUSES_PORPHYRIUS, HOUSES_REGIOMONTANUS, HOUSES_CAMPANUS, HOUSES_EQUAL, HOUSES_EQUAL_2, HOUSES_VEHLOW_EQUAL, HOUSES_WHOLE_SIGN, HOUSES_MERIDIAN, HOUSES_AZIMUTHAL, HOUSES_POLICH_PAGE, HOUSES_ALCABITUS, HOUSES_MORINUS, HOUSES_TOPO
-基本品质: HOT, COLD, DRY, HUMID
-四元素: FIRE, EARTH, AIR, WATER
-四气质: CHOLERIC, MELANCHOLIC, SANGUINE, PHLEGMATIC
-列表: LIST_SIGNS=[ARIES..PISCES], LIST_OBJECTS=[SUN..PLUTO], LIST_HOUSES=[1..12], LIST_ANGLES=[ASC,MC,DESC,IC]
+星座(字符串): ARIES="Aries", TAURUS="Taurus" ... PISCES="Pisces"
+星体(字符串): SUN="Sun", MOON="Moon", MERCURY="Mercury", VENUS="Venus", MARS="Mars", JUPITER="Jupiter", SATURN="Saturn", URANUS="Uranus", NEPTUNE="Neptune", PLUTO="Pluto", CHIRON="Chiron", NORTH_NODE="North Node", SOUTH_NODE="South Node"
+注: chart.getObject() 只返回传统七曜(日月至土星)+南北交。三王星(天王/海王/冥)和凯龙在 SWE_OBJECTS 映射表里但不参与排盘。
+宫位制(15种, 均为字符串): HOUSES_PLACIDUS='P', HOUSES_KOCH='K', HOUSES_PORPHYRIUS='O', HOUSES_REGIOMONTANUS='R', HOUSES_CAMPANUS='C', HOUSES_EQUAL='A', HOUSES_EQUAL_2='E', HOUSES_VEHLOW_EQUAL='V', HOUSES_WHOLE_SIGN='W', HOUSES_MERIDIAN='X', HOUSES_AZIMUTHAL='H', HOUSES_POLICH_PAGE='T', HOUSES_ALCABITUS='B', HOUSES_MORINUS='M', HOUSES_TOPO='T'
+基本品质: HOT, COLD, DRY, HUMID (字符串)
+四元素: FIRE, EARTH, AIR, WATER (字符串)
+四气质: CHOLERIC, MELANCHOLIC, SANGUINE, PHLEGMATIC (字符串)
+列表: LIST_SIGNS=[ARIES..PISCES], LIST_OBJECTS=[SUN..PLUTO], LIST_HOUSES=['House1'..'House12'], LIST_ANGLES=[ASC,MC,DESC,IC]
 
 ── Chart 方法 ──
 chart = Chart(dt, pos)
 chart.getObject(SUN)            → {id, lon, lat, lonspeed, latspeed, sign, signlon}  (星体)
 chart.getObjectList([SUN, MOON]) → 多个星体
-chart.getHouse(1)                → {id, lon, size, sign, signlon}                     (宫位)
+chart.getHouse(1)                → House对象(.id="House1", .lon, .size, .sign, .signlon, .condition, .gender, .isAboveHorizon, .inHouse)
+                                  注: 用 int(chart.getHouse(1).id.replace('House','')) 取宫号
 chart.getAngle(ASC)              → {id, lon, sign, signlon}
 chart.getFixedStar("Sirius")     → 恒星数据
 chart.getFixedStars()            → 所有恒星
@@ -102,21 +104,15 @@ obj.hasObject(ID)                             → 是否包含某星体
 from flatlib.dignities.essential import (ruler, exalt, exaltDeg, dayTrip, nightTrip, partTrip,
                                          exile, fall, fallDeg, term, face, isPeregrine, score,
                                          almutem, getInfo, setFaces, setTerms, EssentialInfo)
-ruler(SIGN_LEO)                       → SUN          (庙)
-exalt(SIGN_LEO)                       → None         (旺)
-exaltDeg(SIGN_LEO)                    → None         (旺度数)
-dayTrip(SIGN_WATER)                   → VENUS        (昼三分)
-nightTrip(SIGN_WATER)                 → MARS         (夜三分)
-partTrip(SIGN_WATER)                  → MOON         (参与三分)
-exile(SIGN_LEO)                       → SATURN       (陷)
-fall(SIGN_LEO)                        → None         (弱)
-fallDeg(SIGN_LEO)                     → None         (弱度数)
-term(SUN, 5.5)                        → {id, start, end, ...}   (界)
-face(5.5, SIGN_LEO)                   → {id, ...}               (面)
-isPeregrine(SUN, SIGN_LEO, 5.5)      → True/False   (外来)
-score(SUN, SIGN_LEO, 5.5)            → 5            (尊贵总分, 庙+5)
-almutem(SIGN_LEO, 5.5)               → 综合Almutem主星
-getInfo(SIGN_LEO, 5.5)               → EssentialInfo对象
+ruler("Leo")                          → "Sun"         (庙, 参数传星座名)
+exalt("Leo")                          → None          (旺)
+exaltDeg("Leo")                       → None          (旺度数)
+term("Leo", 5.5)                      → {id, start, end, ...}   (界, 星座名+经度)
+face("Leo", 5.5)                      → {id, ...}               (面, 星座名+经度)
+isPeregrine(SUN, "Leo", 5.5)         → True/False   (外来)
+score(SUN, "Leo", 5.5)               → 5            (尊贵总分, 庙+5)
+almutem("Leo", 5.5)                  → 综合Almutem主星
+getInfo("Leo", 5.5)                  → EssentialInfo对象
 
 EssentialInfo(sign, lon).getInfo()    → 详细信息
 EssentialInfo(sign, lon).getDignities() → 尊贵列表
@@ -165,16 +161,17 @@ haiz(obj, chart)                      → True/False
 
 ── 星盘动态 ChartDynamics ──
 from flatlib.tools.chartdynamics import ChartDynamics
+from flatlib import const
 cd = ChartDynamics(chart)
-cd.inDignities()                      → 尊贵列表
-cd.receives()                         → 接纳
-cd.disposits()                        → 派遣
-cd.mutualReceptions()                 → 互容
-cd.reMutualReceptions()               → 实际互容
-cd.validAspects()                     → 有效相位
-cd.aspectsByCat()                     → 按分类相位
-cd.immediateAspects()                 → 即时相位
-cd.isVOC()                            → True/False   (月亮空亡)
+cd.inDignities("Sun", "Moon")          → 尊贵关系: 一个星体尊贵另一个
+cd.receives("Sun", "Moon")             → 接纳 (星体A是否被星体B接纳)
+cd.disposits("Sun", "Moon")            → 派遣
+cd.mutualReceptions("Sun", "Moon")     → 互容
+cd.reMutualReceptions("Sun", "Moon")   → 实际互容
+cd.validAspects("Sun", const.MAJOR_ASPECTS)   → 星体有效相位列表
+cd.aspectsByCat("Sun", const.MAJOR_ASPECTS)   → 按分类列相位
+cd.immediateAspects("Sun", const.MAJOR_ASPECTS) → 即时相位(不含虚点)
+cd.isVOC("Moon")                       → True/False   (月亮空亡)
 
 ── 气质 Temperament ──
 from flatlib.protocols.temperament import Temperament
@@ -234,12 +231,13 @@ objLon(const.SUN, chart)              → 星体经度
 
 ── 相位 Aspects ──
 from flatlib.aspects import (hasAspect, getAspect, isAspecting, aspectType, Aspect, AspectObject)
-hasAspect(obj1, obj2, chart)          → True/False
-getAspect(obj1, obj2, chart)          → Aspect或None
-isAspecting(obj1, obj2, chart)        → True/False (星体1是否相位星体2)
-aspectType(obj1, obj2, chart)         → "Conjunction"/"Opposition"/...
+from flatlib import const
+aspect_list = const.MAJOR_ASPECTS   # [0, 60, 90, 120, 180] 数字列表
+hasAspect(obj1, obj2, aspect_list)   → True/False    (第三个参数传相位度数列表)
+getAspect(obj1, obj2, aspect_list)   → Aspect或None
+isAspecting(obj1, obj2, aspect_list) → True/False
+aspectType(obj1, obj2, aspect_list)  → 120/"Conjunction"/... (返回吻合的度数或CONJUNCTION=0)
 Aspect对象: .exists(), .movement(), .mutualAspect(), .getRole(), .inOrb()
-AspectObject: 同上
 
 ── 行星时 Planetary Hours ──
 from flatlib.tools.planetarytime import hourTable, getHourTable, HourTable
