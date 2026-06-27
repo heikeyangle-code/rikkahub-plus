@@ -14,9 +14,12 @@ from flatlib import const
 dt = Datetime("2024/01/15", "12:00", "+08:00")   # yyyy/MM/dd, HH:mm, TZ
 d  = Date("2024/01/15")                            # 仅日期
 t  = Time("12:00")                                 # 仅时间
-pos = GeoPos(39.9, 116.4)                           # lat, lon
+pos = GeoPos(39.9, 116.4)
+GeoPos.toFloat(lat_str)          → 39.9   (字符串转浮点)                           # lat, lon
 chart = Chart(dt, pos)                              # 默认Placidus
 chart = Chart(dt, pos, hsys=const.HOUSES_WHOLE_SIGN) # 指定宫位制
+dt.dateJDN(year, month, day)    → 儒略日(整数)
+dt.jdnDate(jdn)                 → (year, month, day)  (整数转日期)
 d.toList()       → [2024, 1, 15]
 d.toString()     → "2024/01/15"
 t.toList()       → [12, 0]
@@ -57,6 +60,14 @@ angle.distance(10, 350)          → 20.0   (最短距离)
 angle.closestdistance(10, 350)   → 20.0   (带符号最短距离)
 angle.strFloat("10°30'")         → 10.5   (字符串转浮点)
 angle.floatStr(10.5)             → "10°30'" (浮点转字符串)
+angle.strSlist("10°30' 20°15'") → [10.5, 20.25] (列表字符串转浮点列表)
+angle.slistStr([10.5, 20.25])    → "10°30' 20°15'" (浮点列表转字符串)
+angle.slistFloat([10.5, 20.25])  → [10.5, 20.25] (安全转浮点列表)
+angle.floatSlist([10.5, 20.25])  → [10.5, 20.25] (同上)
+angle.toFloat("10°30'")          → 10.5   (通用转浮点)
+angle.toList("10°30' 20°15'")    → [10.5, 20.25]
+angle.toString([10.5, 20.25])    → "10°30' 20°15'"
+
 
 ── 星体属性 object ──
 from flatlib.object import Object, GenericObject, FixedStar
@@ -102,11 +113,14 @@ isPeregrine(SUN, SIGN_LEO, 5.5)      → True/False   (外来)
 score(SUN, SIGN_LEO, 5.5)            → 5            (尊贵总分, 庙+5)
 almutem(SIGN_LEO, 5.5)               → 综合Almutem主星
 getInfo(SIGN_LEO, 5.5)               → EssentialInfo对象
-setFaces("chaldean")                  → 设置面系统
-setTerms("egyptian")                  → 设置界系统
+
 EssentialInfo(sign, lon).getInfo()    → 详细信息
 EssentialInfo(sign, lon).getDignities() → 尊贵列表
 EssentialInfo(sign, lon).isPeregrine()  → True/False
+
+── 界系统表 dignities.tables ──
+from flatlib.dignities.tables import termLons
+termLons("Egyptian")                   → 埃及界数据表(5种: Egyptian/Ptolemaic/Dorothean/Italian/Porphyry)
 
 ── 偶然尊贵 Accidental Dignities ──
 from flatlib.dignities.accidental import (AccidentalDignity, sunRelation, light, orientality,
@@ -164,10 +178,15 @@ t = Temperament(chart)
 t.getFactors()                        → 各因素列表
 t.getModifiers()                      → 修饰因素
 t.getScore()                          → 四体液分数
+(顶层函数同样可用:)
+singleFactor(factors, chart, factor, obj, aspect)     → 单因素得分
+modifierFactor(chart, factor, factorObj, otherObj, aspList)  → 修饰因素得分
+scores(factors)                                        → 总分
 
 ── Almutem 主星 ──
 from flatlib.protocols.almutem import compute
 almutem_rows = compute(chart)         → [{id, name, score, ...}, ...]
+newRow()                             → 空行(构建表格用)
 
 ── 星体行为 ──
 from flatlib.protocols.behavior import compute
@@ -198,6 +217,7 @@ pd.getList()                          → 主限列表
 pd.view()                             → 可视化数据
 pd.bySignificator(sig)                → 按征象星查询
 pd.byPromissor(prom)                  → 按应期星查询
+(PDTable 同PrimaryDirections, 表格形式输出)
 arc(pRA, pDecl, sRA, sDecl, mcRA, lat)    → 计算主限弧
 getArc(prom, sig, mc, pos, zerolat)        → 简化主限弧
 
@@ -229,6 +249,12 @@ ht.indexInfo(index)                   → 某小时信息
 nthRuler(n, dow)                      → 第n小时守护星
 
 ── 天文计算 Ephem (高级) ──
+# 三层导入路径任选:
+from flatlib.ephem import ephem      # 高级接口(Datetime/GeoPos入参)
+from flatlib.ephem import eph        # 中层接口(JD/lat/lon入参)
+from flatlib.ephem import swe        # 底层接口(直接调swisseph C库)
+from flatlib.ephem import tools      # 工具函数
+
 from flatlib.ephem import ephem
 ephem.getObject(SUN, dt, pos)         → 星体数据
 ephem.getHouses(dt, pos, hsys)        → 宫位
@@ -254,7 +280,8 @@ from flatlib.lists import GenericList, ObjectList, HouseList, FixedStarList
 .add(obj), .get(ID), .copy(), .getObjectsInHouse(3), .getObjectsAspecting(SUN), .getHouseByLon(120.5), .getObjectHouse(SUN)
 
 ── 属性标签 Props ──
-from flatlib.props import sign, object, house, aspect, fixedStar, houseSystem
+from flatlib.props import base, sign, object, house, aspect, fixedStar, houseSystem
+base.name                            → 属性名称
 sign(SIGN_LEO).name                  → "Leo"
 sign(SIGN_LEO).element               → "Fire"
 sign(SIGN_LEO).gender                → "Masculine"
@@ -271,6 +298,18 @@ ascdiff(decl, lat)                   → 赤经差
 dnarcs(decl, lat)                    → 半弧
 isAboveHorizon(ra, decl, mcRA, lat)  → True/False
 eqCoords(lon, lat)                   → (ra, decl)
+
+── 底层swisseph接口 (swe, 直接调C库) ──
+from flatlib.ephem import swe
+swe.setPath("/path/to/ephe")              → 设置星历路径
+swe.sweObject(SUN, jd)                    → {lon, lat, lonspeed, latspeed} (raw C数据)
+swe.sweObjectLon(SUN, jd)                → 经度(浮点)
+swe.sweHouses(jd, lat, lon, hsys)        → ([house1..12], [asc, mc, desc, ic])
+swe.sweHousesLon(jd, lat, lon, hsys)     → 仅宫位经度
+swe.sweFixedStar("Sirius", jd)           → 恒星数据
+swe.sweNextTransit(SUN, jd, lat, lon, "RISE") → 下次日出JD
+swe.solarEclipseGlobal(jd, backward)      → 日食
+swe.lunarEclipseGlobal(jd, backward)      → 月食
 
 ── 星历工具 Ephem Tools ──
 from flatlib.ephem import tools
@@ -290,6 +329,7 @@ from flatlib.dignities.accidental import AccidentalDignity
 
 dt = Datetime("1990/06/15", "12:00", "+08:00")
 pos = GeoPos(39.9, 116.4)
+GeoPos.toFloat(lat_str)          → 39.9   (字符串转浮点)
 chart = Chart(dt, pos)
 
 sun = chart.getObject(const.SUN)
