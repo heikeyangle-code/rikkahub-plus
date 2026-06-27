@@ -24,6 +24,7 @@ chaquopy {
             install("openpyxl")
             install("markdownify")
             install("tabulate")
+            install("python-dateutil")
             // === 吠陀占星引擎 (PyJHora 4.8.7, 去UI版) ===
             install(file("offline_pkgs/pyjhora-4.8.7-py3-none-any.whl").absolutePath)
             install("numpy")
