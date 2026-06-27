@@ -117,9 +117,10 @@ def create_compiler_wrapper(cc_path, android_python_root):
 ARGS=()
 for arg in "$@"; do
     case "$arg" in
-        *hostedtoolcache*) continue ;;
-        *--rpath=*)        continue ;;
-        *Python*ROOT*)     continue ;;
+        *hostedtoolcache*lib*) continue ;;
+        *hostedtoolcache*-l*)  continue ;;
+        *--rpath=*)            continue ;;
+        *Python*ROOT*)         continue ;;
     esac
     ARGS+=("$arg")
 done
@@ -135,9 +136,10 @@ exec {cc_path} "${{ARGS[@]}}"
 ARGS=()
 for arg in "$@"; do
     case "$arg" in
-        *hostedtoolcache*) continue ;;
-        *--rpath=*)        continue ;;
-        *Python*ROOT*)     continue ;;
+        *hostedtoolcache*lib*) continue ;;
+        *hostedtoolcache*-l*)  continue ;;
+        *--rpath=*)            continue ;;
+        *Python*ROOT*)         continue ;;
     esac
     ARGS+=("$arg")
 done
