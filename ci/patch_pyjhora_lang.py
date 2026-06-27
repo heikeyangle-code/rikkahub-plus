@@ -204,7 +204,7 @@ class _EMBEDDED_LIST_VALUES:
 
     # 3. Replace _read_resource_lists_from_file
     old_func2_start = 'def _read_resource_lists_from_file(language_list_file):'
-    old_func2_end = '# Convert 23d'
+    old_func2_end = 'def get_resource_lists('
 
     idx2_start = insert_content.find(old_func2_start)
     idx2_end = insert_content.find(old_func2_end)
