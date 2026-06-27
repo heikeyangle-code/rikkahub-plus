@@ -34,7 +34,7 @@ jd_utc = jd_local - place.timezone / 24.0
 
 ── 星历与行星位置 ──
 # 单个行星黄经
-sidereal_long = drik.sidereal_longitude(jd_utc, const.SUN_ID)  # 太阳黄经
+sidereal_long = drik.sidereal_longitude(jd_utc, const._SUN)  # 太阳黄经 (参数用 _SUN 非 SUN_ID — swe 值)
 # 注: drik.planetary_positions() 已废弃(内部dict.index bug), 走 dhasavarga 替代
 # 所有行星位置: dhasavarga 返回 [(planet_id, (house_number, longitude)), ...]
 #   planet_id = SUN_ID(0)..KETU_ID(8)
@@ -161,7 +161,7 @@ from jhora.horoscope.transit import tajaka
 tajaka(计算年运的Tajaka系统, 函数名如 trinal_aspects_of_the_raasi 等)
 
 from jhora.horoscope.transit import saham
-saham.punya_saham(jd, place)               → 功德点
+saham.punya_saham(planet_positions)          → 功德点
 # 其他38种Saham同名调用
 
 ── 预测 (Prediction) ──
