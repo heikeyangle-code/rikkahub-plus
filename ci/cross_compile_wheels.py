@@ -101,14 +101,15 @@ def create_compiler_wrapper(cc_path, android_python_root):
     """Create a compiler/linker wrapper that strips host Python paths.
     
     The host Python's sysconfig data causes setuptools to add:
-      - -I/opt/hostedtoolcache/Python/.../x64/include/python3.14  (host headers)
-      - -L/opt/hostedtoolcache/Python/.../x64/lib                (host libs)
-      - -Wl,--rpath=/opt/hostedtoolcache/Python/.../x64/lib      (host rpath)
-      - -lpython3.14                                               (host libpython)
+      - -I/opt/hostedtoolcache/Python/.../x64/include/python3.12  (host headers)
+      - -L/opt/hostedtoolcache/Python/.../x64/lib                 (host libs, x86_64 wrong arch)
+      - -Wl,--rpath=/opt/hostedtoolcache/Python/.../x64/lib       (host rpath, x86_64)
+      - -lpython3.12                                               (host libpython, x86_64)
     
-    On embedded Android (Chaquopy), libpython.so does not exist as a separate
-    shared library — Python symbols are resolved by the embedding process.
-    Linking against libpython creates a DT_NEEDED entry that fails at dlopen.
+    The wrapper strips these host-toolcache paths (x86_64, wrong arch for ARM64).
+    Chaquopy DOES provide libpython3.12.so in its Python lib dir (ARM64),
+    linked explicitly via -lpython3.12 in LDFLAGS/LDSHARED so the .so gets
+    a DT_NEEDED entry. Without it, PyFloat_Type etc. can't resolve at dlopen.
     """
     wrapper_path = "/tmp/compiler-wrapper.sh"
     with open(wrapper_path, "w") as f:
@@ -190,8 +191,8 @@ def setup_env(ndk_path, android_python):
         "AR": ar,
         "CFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
         "CXXFLAGS": f"--target=aarch64-linux-android21 -O2 -fPIC -I{py_include}",
-        "LDFLAGS": f"--target=aarch64-linux-android21 -L{py_lib}",
-        "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared -L{py_lib}",
+        "LDFLAGS": f"--target=aarch64-linux-android21 -L{py_lib} -lpython3.12",
+        "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared -L{py_lib} -lpython3.12",
         "_PYTHON_HOST_PLATFORM": "aarch64-linux-android",
         "ANDROID_NDK_HOME": ndk_path,
         # PyO3/maturin cross-compilation (Rust build only, handles Android correctly)
