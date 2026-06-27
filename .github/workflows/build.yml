@@ -519,6 +519,7 @@ jobs:
       - name: Build
         run: |
           chmod +x gradlew
+          rm -rf app/build/python/  # 清理之前失败构建的脏缓存
           ./gradlew assembleRelease -x :web:buildWebUi --no-build-cache --stacktrace 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
       - name: Upload build log
