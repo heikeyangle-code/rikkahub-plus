@@ -193,7 +193,6 @@ def setup_env(ndk_path, android_python):
         "LDFLAGS": f"--target=aarch64-linux-android21 -L{py_lib}",
         "LDSHARED": f"{cxx_wrapper} --target=aarch64-linux-android21 -shared -L{py_lib}",
         "_PYTHON_HOST_PLATFORM": "aarch64-linux-android",
-        "_PYTHON_SYSCONFIGDATA_NAME": "_sysconfigdata__android_aarch64-linux-android",
         "ANDROID_NDK_HOME": ndk_path,
         # PyO3/maturin cross-compilation (Rust build only, handles Android correctly)
         "PYO3_CROSS_LIB_DIR": py_lib,
@@ -336,7 +335,6 @@ def compile_c_package(pkg, env):
         f"CFLAGS='{env['CFLAGS']}' CXXFLAGS='{env['CXXFLAGS']}' "
         f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
         f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
-        f"_PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__android_aarch64-linux-android "
         f"python setup.py build_ext --inplace 2>&1"
     )
     result = run(build_cmd, check=False, timeout=300)
@@ -348,7 +346,6 @@ def compile_c_package(pkg, env):
             f"CFLAGS='{env['CFLAGS']}' CXXFLAGS='{env['CXXFLAGS']}' "
             f"LDFLAGS='{env['LDFLAGS']}' LDSHARED='{env['LDSHARED']}' "
             f"_PYTHON_HOST_PLATFORM=aarch64-linux-android "
-            f"_PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__android_aarch64-linux-android "
             f"python setup.py build 2>&1",
             check=False, timeout=300)
         if result.returncode != 0:
