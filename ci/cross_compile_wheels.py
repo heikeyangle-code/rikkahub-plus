@@ -367,6 +367,24 @@ def compile_c_package(pkg, env):
         log(f"No .so found for {pkg_name}")
         return False
 
+    # Add DT_NEEDED libpython3.12.so so the .so can find PyFloat_Type at runtime
+    # Chaquopy bundles libpython3.12.so in the APK but doesn't load it with RTLD_GLOBAL
+    # Without DT_NEEDED, dlopen can't resolve Python C-API symbols
+    run("pip install patchelf 2>&1 | tail -1", check=False)
+    for src, name in so_files:
+        result = run(f"patchelf --add-needed libpython3.12.so '{src}' 2>&1", check=False)
+        if result.returncode == 0:
+            log(f"  ✅ {name}: added NEEDED libpython3.12.so")
+        else:
+            # patchelf might not be available, try apt
+            alt = run("sudo apt-get update -qq && sudo apt-get install -y -qq patchelf 2>&1 | tail -3", check=False)
+            if alt.returncode == 0:
+                run(f"patchelf --add-needed libpython3.12.so '{src}' 2>&1", check=False)
+                log(f"  ✅ {name}: added NEEDED via apt patchelf")
+            else:
+                log(f"  ⚠️  Could not add NEEDED libpython3.12.so to {name} (patchelf unavailable)")
+                log(f"  ⚠️  PyFloat_Type may fail at runtime")
+
     log(f"Found .so: {[s for s, _ in so_files]}")
 
     # Verify .so is ARM64 architecture
