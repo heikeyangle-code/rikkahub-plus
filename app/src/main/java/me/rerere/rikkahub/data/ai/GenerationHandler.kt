@@ -186,6 +186,8 @@ class GenerationHandler(
                 appendLine("    (arcanite 36张语义getter · Greer两步法+语法体系 · 扑克插片字典(花色/数字/宫廷用神) · FE引擎6方法:parse_karmic_mirrors/GT_portrait/骑士步/镜像/反射/mod/intersection)")
                 appendLine("  西洋占星 → from routes.西洋占星 import __doc__ as R; print(R)")
                 appendLine("    (NatalEngine:本命+合盘+ACG+时区+文本 · Caelus 231函数:本命18/推运7/合盘3/行运12/恒星2/天文5/宫位12制式 · Astronomy VSOP87仲裁)")
+                appendLine("  传统西洋占星(flatlib) → from routes.传统西洋占星 import __doc__ as R; print(R)")
+                appendLine("    (flatlib v0.2.3 Python:本质尊贵17函数+偶然尊贵27方法+Almutem+气质+小限+主限向运+阿拉伯点+映点+ChartDynamics互容接纳 · 依赖pyswisseph C扩展 · 每个子模块需显式import)")
                 appendLine("  印度占星普通 → from routes.印度占星普通 import __doc__ as R; print(R)")
                 appendLine("    (NatalEngine吠陀:Rasi/27宿/Dasha/文本 · Caelus:Vimshottari+Ashtottari+Yogini 3大运体系 · YogasAt+raja+kemadruma 4类Yoga · 7分盘 · 27宿 · 岁差 · 尊贵)")
                 appendLine("    深度版NodeJhora → from routes.印度占星深度版 import __doc__ as R; print(R)")
