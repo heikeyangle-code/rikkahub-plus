@@ -497,11 +497,47 @@ private fun ChatPageContent(
                         messageNodes = convo.messageNodes.map { if (it.id == node.id) node else it }
                     ))
                 },
-                onClickSuggestion = { vm.handleMessageSend(listOf(UIMessagePart.Text(it))) },
-                onTranslate = { msg, locale -> vm.translateMessage(msg, locale) },
-                onClearTranslation = { vm.clearTranslationField(it.id) },
-                onToolApproval = { callId, approved, reason ->
-                    vm.handleToolApproval(callId, approved, reason)
+                onUpdateMessage = { newNode ->
+                    vm.updateConversation(
+                        conversation.copy(
+                            messageNodes = conversation.messageNodes.map { node ->
+                                if (node.id == newNode.id) {
+                                    newNode
+                                } else {
+                                    node
+                                }
+                            }
+                        ))
+                    vm.saveConversationAsync()
+                },
+                onClickSuggestion = { suggestion ->
+                    inputState.editingMessage = null
+                    inputState.setMessageText(suggestion)
+                },
+                onTranslate = { message, locale ->
+                    vm.translateMessage(message, locale)
+                },
+                onClearTranslation = { message ->
+                    vm.clearTranslationField(message.id)
+                },
+                onJumpToMessage = { index ->
+                    previewMode = false
+                    scope.launch {
+                        chatListState.requestScrollToItem(index)
+                    }
+                },
+                onToolApproval = { toolCallId, approved, reason ->
+                    vm.handleToolApproval(toolCallId, approved, reason)
+                },
+                onToolAnswer = { toolCallId, answer ->
+                    vm.handleToolAnswer(toolCallId, answer)
+                },
+                onToggleFavorite = { node ->
+                    vm.toggleMessageFavorite(node)
+                },
+                onConversationSystemPromptChange = { newPrompt ->
+                    vm.updateConversation(conversation.copy(customSystemPrompt = newPrompt))
+                    vm.saveConversationAsync()
                 },
                 onToolAnswer = { callId, answer -> vm.handleToolAnswer(callId, answer) },
                 onToggleFavorite = { vm.toggleMessageFavorite(it) },
