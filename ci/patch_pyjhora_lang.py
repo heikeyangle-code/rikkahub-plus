@@ -1,259 +1,246 @@
 #!/usr/bin/env python3
 """
-Patch PyJHora's utils.py to embed English language resources inline.
-Chaquopy's SourcelessAssetLoader only extracts .pyc files, so .txt resource
-files under lang/ are missing at runtime. This causes utils.py module-level
-get_resource_messages() to call exit() and kill the interpreter.
+Patch PyJHora to embed ALL English language resources inline for Chaquopy.
+
+Chaquopy's SourcelessAssetLoader only extracts .pyc files, so .txt and .json
+resource files under lang/ are missing at runtime. Swiss Ephemeris .se1 files
+in data/ephe/ are also missing.
 
 This patch:
-1. Reads msg_strings_en.txt and list_values_en.txt from the pyjhora source
-2. Embeds them as Python dicts directly in utils.py
-3. Replaces _read_resource_messages_from_file and _read_resource_lists_from_file
-   to use embedded data for English (default language), falling back to file
-   I/O for other languages
-4. Removes the exit() call on missing files
+1. Embeds msg_strings_en.txt and list_values_en.txt in utils.py (existing)
+2. Embeds English .json resource files as Python dicts in utils.py
+3. Patches 5 resource-loading functions to use embedded data for 'en'
+4. Copies Swiss Ephemeris .se1 files into data/ephe/ directory
 
 Usage:
   python3 ci/patch_pyjhora_lang.py <pyjhora_src_dir>
 """
+import os, sys, re, json, pprint, shutil, urllib.request
 
-import os
-import sys
-import re
+# English JSON files to embed (valid files only, referenced by pyjhora code)
+JSON_FILES = [
+    ("raja_yoga_msgs_en.json",   "_EMBEDDED_RAJA_YOGA_MSGS"),
+    ("yoga_msgs_en.json",        "_EMBEDDED_YOGA_MSGS"),
+    ("dosha_msgs_en.json",       "_EMBEDDED_DOSHA_MSGS"),
+    ("prediction_msgs_en.json",  "_EMBEDDED_PREDICTION_MSGS"),
+    ("amsa_rulers_en.json",      "_EMBEDDED_AMSA_RULERS"),
+]
 
+# Modules whose resource-loading functions need patching
+MODULES_TO_PATCH = [
+    ("horoscope/chart/raja_yoga.py",    "get_raja_yoga_resources", "_EMBEDDED_RAJA_YOGA_MSGS",
+     "const._DEFAULT_RAJA_YOGA_JSON_FILE_PREFIX"),
+    ("horoscope/chart/yoga.py",         "get_yoga_resources",      "_EMBEDDED_YOGA_MSGS",
+     "const._DEFAULT_YOGA_JSON_FILE_PREFIX"),
+    ("horoscope/chart/dosha.py",        "get_dosha_resources",     "_EMBEDDED_DOSHA_MSGS",
+     "const._DEFAULT_DOSHA_JSON_FILE_PREFIX"),
+    ("horoscope/chart/charts.py",       "get_amsa_resources",      "_EMBEDDED_AMSA_RULERS",
+     '"amsa_rulers_"'),
+    ("horoscope/prediction/general.py", "get_prediction_resources","_EMBEDDED_PREDICTION_MSGS",
+     "const._DEFAULT_PREDICTION_JSON_FILE_PREFIX"),
+]
+
+# Swiss Ephemeris files to include
+EPHE_FILES = ["sepl_18.se1","semo_18.se1","seas_18.se1","seplm48.se1","sepl_36.se1"]
+EPHE_URL = "https://raw.githubusercontent.com/aloistr/swisseph/master/ephe"
+
+# ── .txt file parsing (existing) ─────────────────────────────────
 
 def parse_kv_file(filepath, sep='='):
-    """Parse a key=value file, skipping comments (#) and blank lines."""
     data = {}
     with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
-            if not line or line.startswith('#'):
-                continue
+            if not line or line.startswith('#'): continue
             if sep in line:
-                key, val = line.split(sep, 1)
-                data[key.strip()] = val.strip()
+                k, v = line.split(sep, 1); data[k.strip()] = v.strip()
     return data
-
 
 def parse_list_file(filepath, sep='='):
-    """Parse a key=value file where values are comma-separated lists."""
     data = {}
     with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
-            if not line or line.startswith('#'):
-                continue
+            if not line or line.startswith('#'): continue
             if sep in line:
-                key, val = line.split(sep, 1)
-                items = [v.strip() for v in val.split(',') if v.strip()]
-                data[key.strip()] = items
+                k, v = line.split(sep, 1)
+                data[k.strip()] = [x.strip() for x in v.split(',') if x.strip()]
     return data
 
-
 def format_dict_py(d, indent=4):
-    """Format a small Python dict literal with one entry per line."""
-    prefix = ' ' * indent
-    items = []
-    for k, v in d.items():
-        if isinstance(v, list):
-            # Format list values
-            list_str = ', '.join(repr(e) for e in v)
-            items.append(f"{prefix}{k!r}: [{list_str}]")
-        else:
-            items.append(f"{prefix}{k!r}: {v!r}")
+    p = ' ' * indent
+    items = [f"{p}{k!r}: {v!r}" for k, v in d.items()]
     return '{\n' + ',\n'.join(items) + '\n' + ' ' * (indent - 4) + '}'
 
+# ── JSON embedding ──────────────────────────────────────────────
+
+def fmt_json(data, indent=4):
+    p = ' ' * indent
+    txt = pprint.pformat(data, indent=2, width=120, compact=False)
+    lines = txt.split('\n')
+    if len(lines) <= 1: return p + txt
+    return '\n'.join(lines[0] if i == 0 else p + l for i, l in enumerate(lines))
+
+# ── Module replacement code ─────────────────────────────────────
+
+def mk_replacement(func_name, var_name, prefix):
+    return (
+        f'def {func_name}(language=\'en\'):\n'
+        f'    """\n'
+        f'        [PATCHED] Returns embedded English resources; falls through\n'
+        f'        to file I/O for other languages.\n'
+        f'    """\n'
+        f'    if language == "en":\n'
+        f'        from jhora import utils as _jh_utils\n'
+        f'        return _jh_utils.{var_name}.copy()\n'
+        f'    json_file = _lang_path + {prefix}+language+\'.json\'\n'
+        f'    import json as _json\n'
+        f'    f = open(json_file,"r",encoding="utf-8")\n'
+        f'    msgs = _json.load(f)\n'
+        f'    return msgs'
+    )
+
+# ── Ephemeris download ──────────────────────────────────────────
+
+def ensure_ephe(pyjhora_src_dir):
+    dest = os.path.join(pyjhora_src_dir, 'jhora', 'data', 'ephe')
+    os.makedirs(dest, exist_ok=True)
+    cache = os.environ.get('EPHE_CACHE', '/tmp/ephe_cache')
+    if os.path.isdir(cache):
+        for f in os.listdir(cache):
+            if f.endswith('.se1'):
+                shutil.copy2(os.path.join(cache, f), os.path.join(dest, f))
+        return
+    for fname in EPHE_FILES:
+        fpath = os.path.join(dest, fname)
+        if os.path.exists(fpath): continue
+        try:
+            req = urllib.request.Request(f"{EPHE_URL}/{fname}",
+                                         headers={"User-Agent": "Mozilla/5.0"})
+            with open(fpath, 'wb') as f:
+                f.write(urllib.request.urlopen(req, timeout=60).read())
+            print(f"  ✓ {fname} ({os.path.getsize(fpath)//1024}KB)")
+        except Exception as e:
+            print(f"  ⚠️  {fname}: {e}")
+
+# ── Main ────────────────────────────────────────────────────────
 
 def patch_utils(pyjhora_src_dir):
     utils_path = os.path.join(pyjhora_src_dir, 'jhora', 'utils.py')
-    if not os.path.exists(utils_path):
-        print(f"ERROR: {utils_path} not found")
-        sys.exit(1)
-
     lang_dir = os.path.join(pyjhora_src_dir, 'jhora', 'lang')
-    msg_file = os.path.join(lang_dir, 'msg_strings_en.txt')
-    list_file = os.path.join(lang_dir, 'list_values_en.txt')
+    if not os.path.exists(utils_path) or not os.path.isdir(lang_dir):
+        print("ERROR: utils.py or lang/ not found"); sys.exit(1)
 
-    if not os.path.exists(msg_file) or not os.path.exists(list_file):
-        print(f"ERROR: Language files not found in {lang_dir}")
-        sys.exit(1)
+    # Read .txt files
+    msg = parse_kv_file(os.path.join(lang_dir, 'msg_strings_en.txt'))
+    lst = parse_list_file(os.path.join(lang_dir, 'list_values_en.txt'))
+    print(f"Read {len(msg)} strings, {len(lst)} lists")
 
-    # Parse the language files
-    msg_data = parse_kv_file(msg_file)
-    list_data = parse_list_file(list_file)
+    # Read JSON files
+    json_blocks = []
+    for fname, vname in JSON_FILES:
+        fpath = os.path.join(lang_dir, fname)
+        if not os.path.exists(fpath):
+            print(f"WARNING: {fname} not found"); continue
+        with open(fpath, 'r', encoding='utf-8') as f:
+            json_blocks.append(f"{vname} = {fmt_json(json.load(f))}")
+        print(f"  ✓ {fname} → {vname}")
 
-    print(f"Read {len(msg_data)} message strings from msg_strings_en.txt")
-    print(f"Read {len(list_data)} list entries from list_values_en.txt")
-
-    # Generate the embedded data as Python code
-    msg_dict_str = format_dict_py(msg_data)
-    list_dict_str = format_dict_py(list_data)
+    # Build embedded data block
+    emb = (
+        "\n# === [PATCHED BY CI] Embedded English resources ===\n"
+        f"_EMBEDDED_MSG_STRINGS = {format_dict_py(msg)}\n\n"
+        "class _EMBEDDED_LIST_VALUES:\n"
+        f"    data = {format_dict_py(lst)}\n"
+        "    @classmethod\n"
+        "    def update_globals(cls, module):\n"
+        "        for n, v in cls.data.items():\n"
+        "            setattr(module, n, v)\n\n"
+        "# --- Embedded JSON resources ---\n"
+        + "\n\n".join(json_blocks) + "\n"
+    )
 
     with open(utils_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # Build the replacement code for _read_resource_messages_from_file
-    read_messages_replacement = f'''def _read_resource_messages_from_file(message_file):
-    # [PATCHED] Embedded English data to avoid file I/O at module init.
-    # Chaquopy strips .txt files, so file reads fail at runtime.
+    # Insert after last import
+    fd = content.find('\ndef ')
+    if fd < 0: fd = content.find('\nclass ')
+    insert = content[:fd] + '\n' + emb + '\n' + content[fd:]
+
+    # Replace _read_resource_messages_from_file
+    repl1 = '''def _read_resource_messages_from_file(message_file):
     import os as _os
     _basename = _os.path.basename(message_file) if message_file else ''
     if 'en.txt' in _basename or _basename == '':
         return _EMBEDDED_MSG_STRINGS.copy()
     if not _os.path.exists(message_file):
-        print('Warning: Message file ' + message_file + ' not found, using empty dict')
-        return {{}}
-    cal_key_list = {{}}
-    import codecs
+        print('Warning: Message file ' + message_file + ' not found, using empty dict'); return {}
+    cal_key_list = {}; import codecs
     with codecs.open(message_file, encoding='utf-8', mode='r') as fp:
-        line_list = fp.read().splitlines()
-    fp.close()
-    for line in line_list:
-        if line.replace("\\\\r\\\\n","").replace("\\\\r","").rstrip().lstrip()[0] == '#':
-            continue
-        splitLine = line.split('=')
-        cal_key_list[splitLine[0].strip()]=splitLine[1].strip()
+        for line in fp.read().splitlines():
+            if line.replace("\\\\r\\\\n","").replace("\\\\r","").rstrip().lstrip()[0] == '#': continue
+            k, v = line.split('=', 1); cal_key_list[k.strip()] = v.strip()
     return cal_key_list'''
 
-    # Build the replacement code for _read_resource_lists_from_file
-    read_lists_replacement = f'''def _read_resource_lists_from_file(language_list_file):
-    # [PATCHED] Embedded English data to avoid file I/O at module init.
+    # Replace _read_resource_lists_from_file
+    repl2 = '''def _read_resource_lists_from_file(language_list_file):
     import os as _os, sys as _sys
     _basename = _os.path.basename(language_list_file) if language_list_file else ''
     if 'en.txt' in _basename or _basename == '':
-        _EMBEDDED_LIST_VALUES.update_globals(_sys.modules[__name__])
-        return
+        _EMBEDDED_LIST_VALUES.update_globals(_sys.modules[__name__]); return
     if not _os.path.exists(language_list_file):
-        raise FileNotFoundError(f"The file {{language_list_file}} does not exist.")
+        raise FileNotFoundError(f"The file {language_list_file} does not exist.")
     with open(language_list_file, 'r', encoding='utf-8') as file:
-        import sys as _sys
         module = _sys.modules[__name__]
         for line in file:
             line = line.strip()
-            if line.startswith("###"):
-                continue
+            if line.startswith("###"): continue
             elif "=" in line:
-                var_name, var_value = line.split("=")
-                var_name = var_name.strip()
-                var_value = var_value.split(',')
-                setattr(module, var_name, var_value)'''
+                n, v = line.split("=", 1)
+                setattr(module, n.strip(), v.strip().split(','))'''
 
-    # Build the embedded data helper class
-    embedded_class = f'''
-# === [PATCHED BY CI] Embedded English language resources ===
-# These are normally loaded from lang/msg_strings_en.txt and lang/list_values_en.txt
-# but Chaquopy strips .txt files at build time, causing exit() at module load.
-_EMBEDDED_MSG_STRINGS = {msg_dict_str}
+    for os_func, end_mark, repl in [
+        ('def _read_resource_messages_from_file(message_file):', 'def get_resource_messages(', repl1),
+        ('def _read_resource_lists_from_file(language_list_file):', 'def get_resource_lists(', repl2),
+    ]:
+        s = insert.find(os_func); e = insert.find(end_mark)
+        if s >= 0 and e > s:
+            insert = insert[:s] + repl + '\n\n\n' + insert[e:]
 
-class _EMBEDDED_LIST_VALUES:
-    """Helper to set list values as module-level attributes."""
-    data = {list_dict_str}
-
-    @classmethod
-    def update_globals(cls, module):
-        for name, values in cls.data.items():
-            setattr(module, name, values)
-'''
-
-    # Apply patches
-    # 1. Insert the embedded data class after the imports
-    # Find a good insertion point - after the last top-level import line
-    import_end = -1
-    for m in re.finditer(r'^import |^from ', content, re.MULTILINE):
-        import_end = m.end()
-
-    # Better: find the first function definition after imports, insert before it
-    # Look for the first def at column 0
-    first_def = content.find('\ndef ')
-    if first_def < 0:
-        first_def = content.find('\nclass ')
-
-    if first_def >= 0:
-        # Check what comes before first def
-        before = content[:first_def]
-        # Find the last blank line before the def
-        insert_pos = before.rstrip().rfind('\n\n')
-        if insert_pos > 0:
-            insert_pos = before.rstrip().rfind('\n')
-            insert_pos = content.find('\n', insert_pos + 1)
-
-        insert_content = content[:first_def] + '\n' + embedded_class + '\n' + content[first_def:]
-    else:
-        insert_content = embedded_class + '\n' + content
-
-    # 2. Replace _read_resource_messages_from_file
-    # Match the function from def to the next def/class/module-level code
-    pattern1 = r'def _read_resource_messages_from_file\([^)]*\):.*?(?=\ndef |\nclass |\n# |\n[A-Za-z]+\s*=|\\Z)'
-    # Simpler approach: find by line numbers - replace by string matching
-    old_func_start = 'def _read_resource_messages_from_file(message_file):'
-    old_func_end = 'def get_resource_messages('
-
-    idx_start = insert_content.find(old_func_start)
-    idx_end = insert_content.find(old_func_end)
-
-    if idx_start >= 0 and idx_end > idx_start:
-        # Find where this function ends - look for 'def ' after the function body
-        # Actually just replace up to just before get_resource_messages
-        before_func = insert_content[:idx_start]
-        after_func = insert_content[idx_end:]
-        insert_content = before_func + read_messages_replacement + '\n\n\n' + after_func
-    else:
-        print("WARNING: Could not find _read_resource_messages_from_file function")
-        print(f"  idx_start={idx_start}, idx_end={idx_end}")
-
-    # 3. Replace _read_resource_lists_from_file
-    old_func2_start = 'def _read_resource_lists_from_file(language_list_file):'
-    old_func2_end = 'def get_resource_lists('
-
-    idx2_start = insert_content.find(old_func2_start)
-    idx2_end = insert_content.find(old_func2_end)
-
-    if idx2_start >= 0 and idx2_end > idx2_start:
-        before_func2 = insert_content[:idx2_start]
-        after_func2 = insert_content[idx2_end:]
-        insert_content = before_func2 + read_lists_replacement + '\n\n\n' + after_func2
-    else:
-        print("WARNING: Could not find _read_resource_lists_from_file function")
-        print(f"  idx2_start={idx2_start}, idx2_end={idx2_end}")
-
-    # 4. Remove the exit() call in the old _read_resource_messages_from_file
-    # (already handled by the replacement above)
-
-    # 5. Verify no exit() remains in the module initialization path
-    if 'exit()' in insert_content:
-        # Check if the remaining exit() is in __main__ block or test code
-        lines = insert_content.split('\n')
-        remaining_exits = []
-        for i, line in enumerate(lines, 1):
-            stripped = line.strip()
-            if stripped == 'exit()' or stripped.startswith('exit('):
-                # Check context - is it after if __name__?
-                context_start = max(0, i - 5)
-                context = '\n'.join(f'{j+1}: {lines[j]}' for j in range(context_start, i))
-                remaining_exits.append((i, context))
-
-        if remaining_exits:
-            for lineno, ctx in remaining_exits:
-                # Only worry about module-level exit(), not __main__ block
-                if '__name__' not in ctx:
-                    print(f"WARNING: exit() at line {lineno} may still be in module init path")
-                    print(ctx)
-
-    # Write the patched file
     with open(utils_path, 'w', encoding='utf-8') as f:
-        f.write(insert_content)
+        f.write(insert)
+    print(f"Patched utils.py: {len(msg)} strings, {len(lst)} lists, {len(json_blocks)} JSON")
 
-    print(f"Patched {utils_path}")
-    print("  ✓ Embedded msg_strings_en.txt (%d strings)" % len(msg_data))
-    print("  ✓ Embedded list_values_en.txt (%d lists)" % len(list_data))
-    print("  ✓ Replaced _read_resource_messages_from_file with embedded fallback")
-    print("  ✓ Replaced _read_resource_lists_from_file with embedded fallback")
-    print("  ✓ Removed exit() on missing file")
+def patch_modules(pyjhora_src_dir):
+    base = os.path.join(pyjhora_src_dir, 'jhora')
+    for rel_path, func_name, var_name, prefix in MODULES_TO_PATCH:
+        fpath = os.path.join(base, rel_path)
+        if not os.path.exists(fpath): continue
+        with open(fpath, 'r', encoding='utf-8') as f:
+            c = f.read()
+        old = f'def {func_name}(language=\'en\'):'
+        if old not in c: continue
+        idx = c.find(old)
+        rest = c[idx + len(old):]
+        nd = rest.find('\ndef ')
+        if nd < 0: nd = rest.find('\nclass ')
+        if nd < 0: nd = len(rest)
+        end = idx + len(old) + nd
+        while end > idx and c[end-1] in '\n \t': end -= 1
+        new = mk_replacement(func_name, var_name, prefix)
+        with open(fpath, 'w', encoding='utf-8') as f:
+            f.write(c[:idx] + new + c[end:])
+        print(f"  ✓ {rel_path}")
 
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python3 ci/patch_pyjhora_lang.py <pyjhora_src_dir>"); sys.exit(1)
+    d = sys.argv[1]
+    if not os.path.isdir(d): print(f"ERROR: {d} not found"); sys.exit(1)
+    print("=== Embedding resources ==="); patch_utils(d)
+    print("=== Patching modules ==="); patch_modules(d)
+    print("=== Ephemeris ==="); ensure_ephe(d)
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("Usage: python3 ci/patch_pyjhora_lang.py <pyjhora_src_dir>")
-        sys.exit(1)
-    patch_utils(sys.argv[1])
+    main()
