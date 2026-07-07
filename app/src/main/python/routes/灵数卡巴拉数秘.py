@@ -32,7 +32,7 @@ SPHERES["Kether"]  SPHERES_DATA["Kether"]  FOUR_WORLDS  FOUR_WORLDS_DATA
 HEBREW_LETTERS["Aleph"]  HEBREW_LETTERS_DATA["Aleph"]
 LURIANIC_PATHS["11"]  COLORS_DATA  MUSICAL_NOTES_DATA  PLANETS
 
-╔══════════════════ 参数坑 ══════════════════╗ ║ 日期: local noon构造 new Date(y,m-1,d,12) ║ ║ chart映射: sign是{name}对象 不是字符串 ║ ║ planets: 数组 不是对象 ║ ║ calculatePersonalMonths 需先有personalYear ║ ║ calculatePersonalCycles 需传firstName ║ ║ reverseGematria 单词库可能空 ║ ╚═════════════════════════════════════════════╝ 其余用 dir(Kaabalah) 自探索: getCanonicalTree / getTreeLayout / getTreeTopology / getAstrologyTreeMarkers / getGematriaTreeMarkers / getNumerologyTreeMarkers / getKaabalisticCorrespondenceTargets / TreeOfLife / TreeTopology 类, 常量: MASTER_NUMBERS / TREE_SPHERE_IDS / TREE_PATH_IDS 等。
+╔══════════════════ 参数坑 ══════════════════╗ ║ 日期: local noon构造 new Date(y,m-1,d,12) ║ ║ chart映射: sign是{name}对象 不是字符串 ║ ║ planets: 数组 不是对象 ║ ║ calculatePersonalMonths 需先有personalYear ║ ║ calculatePersonalCycles 需传firstName ║ ║ reverseGematria 单词库可能空 ║ ╚═════════════════════════════════════════════╝ 其余用 Object.keys(Kaabalah) 自探索: getCanonicalTree / getTreeLayout / getTreeTopology / getAstrologyTreeMarkers / getGematriaTreeMarkers / getNumerologyTreeMarkers / getKaabalisticCorrespondenceTargets / TreeOfLife / TreeTopology 类, 常量: MASTER_NUMBERS / TREE_SPHERE_IDS / TREE_PATH_IDS 等。
 
 【JS引擎调用】
 Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calculateKaabalisticLifePath(new Date(Date.UTC(1990,5,15)))')
