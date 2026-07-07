@@ -13,12 +13,28 @@ Kaabalah    → eval_javascript(library='kaabalah-engine', code='Kaabalah.calcul
 又 drawConsciousTarotSpread({spreadId, indices, shuffledDeck})  → 意识塔罗(用户选位)
 又 shuffleTarotDeck(cards, includeInverted)  → 洗牌支持逆位
 又 listTarotSpreads()  → 7牌阵列表  又 listTarotDecks()  → 5牌桌
-又 getTarotCardByNumber(n)  → 78张牌查  又 getTarotCardProfile(n)  → 牌信息+含义
-又 getTarotCorrespondenceProfile(n)  → 卡巴拉对应(路径+字母+Sephiroth)
-又 getTarotArchetype(n)  → 牌原型  又 getTarotRepresentation(n,deckId)  → 牌表示
-又 getKaabalisticCorrespondenceTargets({kind:"number", number:N})  → 通用对应查
-又 buildKaabalisticMapData({astrology, numerology, gematria})  → 全地图
-又 ARKANNUS(22大牌) 又 majorArcana(文件名) 又 TAROT_TREE_IDS(3树系统)
+又 getTarotCardByNumber(cardNumber)              → 按编号1-78查牌数据
+又 getTarotCardNumber({tarotCardName:"The Magician"})  → 牌名反查编号  又 getTarotCardNumber({tarotCardNumber:1}) → 取编号
+又 getTarotCardProfile({tarotCardNumber:n})       → 牌信息+含义(meaning+type+deck)
+又 getTarotCorrespondenceProfile({tarotCardNumber:n})  → 卡巴拉对应(路径+字母+Sephiroth)
+又 getTarotArchetype({tarotCardNumber:n})         → 牌原型(卡巴拉路径+占星+字母)
+又 getTarotRepresentation({tarotCardNumber:n}, deckId)   → 牌在指定牌桌下表示
+又 getTarotRepresentations({tarotCardNumber:n})          → 所有5牌桌下表示列表
+又 getTarotThemeProfile({tarotCardNumber:n})      → 卡巴拉主题对应(planet+zodiac+element)
+又 listTarotThemeProfiles()                       → 22张大牌对应概览
+又 getTarotSpread(spreadId)                       → 单个牌阵定义
+又 listTarotTrees()                               → ["kaabalah","hermetic-qabalah","lurianic-kabbalah"]
+又 getKaabalisticCorrespondenceTargets({kind:"number", number:N})  → 数字的卡巴拉对应(映射sphere/path)
+又 getKaabalisticCorrespondenceTargets({kind:"hebrewLetter", hebrewLetterId})  → 字母对应
+又 getKaabalisticCorrespondenceTargets({kind:"sign", sign:"aries"})           → 星座对应
+又 buildKaabalisticMapData({astrology, numerology, gematria})  → 全地图(占星+灵数+Gematria标记挂生命之树)
+又 getAstrologyTreeMarkers(planet)  → 行星在树上的标记
+又 getGematriaTreeMarkers(word)     → Gematria在树上的标记
+又 getNumerologyTreeMarkers(number) → 数字在树上的标记
+又 ARKANNUS(22大牌对象) 又 majorArcana(22文件名) 又 TAROT_TREE_IDS(3树系统) 又 DEFAULT_TAROT_TREE_ID("kaabalah")
+deckId可选: rider-waite | papus_pt(卡巴拉) | papus(占卜) | mythic(神话) | egyptian(埃及)
+7牌阵: quick-insight(单张) | conscious-reading(意识3层·仅大牌) | time-reading(过去现在未来·仅大牌)
+       dialectic-reading(正反合·仅大牌) | tree-of-life-reading(11位) | celtic-cross(经典10张) | event-reading(帕普斯)
 (零随机,纯JS; 🃏塔罗78张7牌阵drawTarotSpread+shuffle逆位+getTarotCardProfile→卡巴拉对应; SPHERES/FOUR_WORLDS/HEBREW_LETTERS/LURIANIC_PATHS)
 
 【引擎区别速查】
