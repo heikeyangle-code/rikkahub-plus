@@ -317,7 +317,6 @@ private fun ImageGenScreen(
     if (showSettingsSheet) {
         SettingsBottomSheet(
             vm = vm,
-            settings = settings,
             numberOfImages = numberOfImages,
             size = size,
             scope = scope,
@@ -684,7 +683,6 @@ private fun ImageGalleryScreen(
 @Composable
 private fun SettingsBottomSheet(
     vm: ImgGenVM,
-    settings: Settings,
     numberOfImages: Int,
     size: String,
     scope: CoroutineScope,
@@ -708,25 +706,6 @@ private fun SettingsBottomSheet(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-
-            FormItem(
-                label = { Text(stringResource(R.string.imggen_page_model_selection)) },
-                description = { Text(stringResource(R.string.imggen_page_model_selection_desc)) }
-            ) {
-                ModelSelector(
-                    modelId = settings.imageGenerationModelId,
-                    providers = settings.providers,
-                    type = ModelType.IMAGE,
-                    onlyIcon = false,
-                    onSelect = { model ->
-                        scope.launch {
-                            vm.settingsStore.update { oldSettings ->
-                                oldSettings.copy(imageGenerationModelId = model.id)
-                            }
-                        }
-                    }
-                )
-            }
 
             FormItem(
                 label = { Text(stringResource(R.string.imggen_page_generation_count)) },
