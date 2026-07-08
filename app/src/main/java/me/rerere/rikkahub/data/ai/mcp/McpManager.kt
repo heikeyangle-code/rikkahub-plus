@@ -238,6 +238,7 @@ class McpManager(
 
         transport.onError { error ->
             Log.e(TAG, "Transport error for ${config.commonOptions.name}: ${error.message}")
+            if (isSseStreamGiveUpError(error)) return@onError
             val currentStatus = syncingStatus.value[config.id]
             // 只有在已连接状态下才触发重连
             if (currentStatus == McpStatus.Connected) {
@@ -436,6 +437,7 @@ class McpManager(
 
         transport.onError { error ->
             Log.e(TAG, "Transport error for ${config.commonOptions.name}: ${error.message}")
+            if (isSseStreamGiveUpError(error)) return@onError
             val currentStatus = syncingStatus.value[config.id]
             if (currentStatus == McpStatus.Connected) {
                 scheduleReconnect(config)
@@ -462,13 +464,265 @@ class McpManager(
     }
 }
 
-internal val McpJson: Json by lazy {
-    Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-        isLenient = true
-        classDiscriminatorMode = ClassDiscriminatorMode.NONE
-        explicitNulls = false
+    // =====================================================================
+    // OAuth 2.1 授权 (MCP 规范 2025-11-25)
+    // =====================================================================
+
+    /**
+     * 发起 OAuth 授权流程：发现元数据 -> 动态注册 -> 浏览器授权 -> 交换令牌 -> 重新连接。
+     * 通过 [Context] 打开 Custom Tab，用户完成后经 deep link 回调继续。
+     */
+    fun startAuthorization(config: McpServerConfig, context: Context) {
+        // 若已有进行中的授权，先取消，避免并发的挂起协程互相覆盖状态
+        authorizationJobs.remove(config.id)?.cancel()
+        val job = appScope.launch {
+            setStatus(config, McpStatus.Authorizing)
+            runCatching { authorizeInternal(config, context.applicationContext) }
+                .onFailure {
+                    // 用户主动取消：状态由 cancelAuthorization 负责回退，这里不覆盖
+                    if (it is CancellationException) return@onFailure
+                    it.printStackTrace()
+                    setStatus(config, McpStatus.Error(it.message ?: "OAuth authorization failed"))
+                }
+        }
+        authorizationJobs[config.id] = job
+        job.invokeOnCompletion { authorizationJobs.remove(config.id, job) }
+    }
+
+    /** 取消进行中的 OAuth 授权（用户中止），并回退到需要授权状态。 */
+    fun cancelAuthorization(config: McpServerConfig) {
+        authorizationJobs.remove(config.id)?.cancel()
+        appScope.launch { setStatus(config, McpStatus.NeedsAuthorization) }
+    }
+
+    private suspend fun authorizeInternal(config: McpServerConfig, context: Context) =
+        withContext(Dispatchers.IO) {
+            val serverUrl = config.serverUrl
+            require(serverUrl.isNotBlank()) { "Server URL 为空，无法授权" }
+
+            // 1. 发现受保护资源 & 授权服务器元数据
+            val prm = oauthClient.discoverProtectedResource(serverUrl)
+            val issuer = prm.authorizationServers.firstOrNull()
+                ?: error("受保护资源未声明授权服务器")
+            val asMeta = oauthClient.discoverAuthorizationServer(issuer)
+            val authEndpoint = asMeta.authorizationEndpoint
+                ?: error("授权服务器缺少 authorization_endpoint")
+            val tokenEndpoint = asMeta.tokenEndpoint
+                ?: error("授权服务器缺少 token_endpoint")
+
+            // 2. 计算 scope
+            val scope = config.commonOptions.oauth?.scope
+                ?: prm.scopesSupported?.joinToString(" ")
+                ?: asMeta.scopesSupported?.joinToString(" ")
+
+            // 3. 客户端注册 (复用已注册的 client_id)
+            val existing = config.commonOptions.oauth
+            var clientId = existing?.clientId
+            var clientSecret = existing?.clientSecret
+            if (clientId.isNullOrBlank()) {
+                val regEndpoint = asMeta.registrationEndpoint
+                    ?: error("授权服务器不支持动态注册，且未预配置 client_id")
+                val reg = oauthClient.registerClient(
+                    registrationEndpoint = regEndpoint,
+                    clientName = config.commonOptions.name,
+                    redirectUri = MCP_OAUTH_REDIRECT_URI,
+                    scope = scope,
+                )
+                clientId = reg.clientId
+                clientSecret = reg.clientSecret
+            }
+
+            // 4. PKCE + state；持久化中间状态(端点/clientId)以便后续刷新
+            val pkce = oauthClient.generatePkce()
+            val state = oauthClient.generateState()
+            val resource = McpOAuthClient.canonicalResource(serverUrl)
+
+            persistOAuthState(
+                config.id,
+                (existing ?: McpOAuthState()).copy(
+                    enabled = true,
+                    clientId = clientId,
+                    clientSecret = clientSecret,
+                    authorizationEndpoint = authEndpoint,
+                    tokenEndpoint = tokenEndpoint,
+                    registrationEndpoint = asMeta.registrationEndpoint,
+                    scope = scope,
+                )
+            )
+
+            // 5. 打开浏览器授权
+            val authUrl = oauthClient.buildAuthorizationUrl(
+                authorizationEndpoint = authEndpoint,
+                clientId = clientId,
+                redirectUri = MCP_OAUTH_REDIRECT_URI,
+                pkce = pkce,
+                state = state,
+                scope = scope,
+                resource = resource,
+            )
+            // 6. 先建立回调订阅，再打开浏览器，避免快速回调在订阅生效前 emit 而丢失
+            //    (AppEventBus 的 SharedFlow replay=0，无订阅者时的事件不会补发)
+            val callback = coroutineScope {
+                val subscribed = CompletableDeferred<Unit>()
+                val awaitCallback = async {
+                    withTimeoutOrNull(OAUTH_CALLBACK_TIMEOUT) {
+                        appEventBus.events
+                            .onSubscription { subscribed.complete(Unit) }
+                            .filterIsInstance<AppEvent.McpOAuthCallback>()
+                            .first { it.state == state }
+                    }
+                }
+                subscribed.await() // 确保订阅已注册
+                withContext(Dispatchers.Main) { launchOAuthAuthorization(context, authUrl) }
+                awaitCallback.await()
+            } ?: error("OAuth 授权超时")
+            if (callback.error != null) error("授权失败: ${callback.error}")
+            val code = callback.code ?: error("授权失败: 未返回授权码")
+
+            // 7. 用授权码换取令牌
+            val token = oauthClient.exchangeCode(
+                tokenEndpoint = tokenEndpoint,
+                clientId = clientId,
+                clientSecret = clientSecret,
+                code = code,
+                codeVerifier = pkce.verifier,
+                redirectUri = MCP_OAUTH_REDIRECT_URI,
+                resource = resource,
+            )
+
+            // 8. 持久化令牌
+            persistOAuthState(
+                config.id,
+                McpOAuthState(
+                    enabled = true,
+                    clientId = clientId,
+                    clientSecret = clientSecret,
+                    authorizationEndpoint = authEndpoint,
+                    tokenEndpoint = tokenEndpoint,
+                    registrationEndpoint = asMeta.registrationEndpoint,
+                    scope = token.scope ?: scope,
+                    accessToken = token.accessToken,
+                    refreshToken = token.refreshToken,
+                    expiresAt = computeExpiry(token.expiresIn),
+                )
+            )
+
+            // 9. 使用最新配置重新连接
+            val freshConfig = settingsStore.settingsFlow.value.mcpServers.find { it.id == config.id }
+                ?: config
+            addClient(freshConfig)
+        }
+
+    /** 清除某个 Server 的 OAuth 授权状态（登出）。 */
+    suspend fun clearAuthorization(config: McpServerConfig) {
+        persistOAuthState(config.id, null)
+    }
+
+    /** 若令牌即将过期且存在 refresh_token，则提前刷新并持久化，返回更新后的配置。 */
+    private suspend fun ensureFreshToken(config: McpServerConfig): McpServerConfig {
+        val oauth = config.commonOptions.oauth ?: return config
+        if (!oauth.enabled || oauth.refreshToken.isNullOrBlank()) return config
+        val expired = oauth.expiresAt > 0 &&
+            System.currentTimeMillis() >= oauth.expiresAt - TOKEN_REFRESH_LEEWAY_MS
+        val needsRefresh = oauth.accessToken.isNullOrBlank() || expired
+        if (!needsRefresh) return config
+
+        val tokenEndpoint = oauth.tokenEndpoint ?: return config
+        val clientId = oauth.clientId ?: return config
+        return runCatching {
+            val token = oauthClient.refreshToken(
+                tokenEndpoint = tokenEndpoint,
+                clientId = clientId,
+                clientSecret = oauth.clientSecret,
+                refreshToken = oauth.refreshToken,
+                resource = McpOAuthClient.canonicalResource(config.serverUrl),
+                scope = oauth.scope,
+            )
+            val updated = oauth.copy(
+                accessToken = token.accessToken,
+                refreshToken = token.refreshToken ?: oauth.refreshToken,
+                expiresAt = computeExpiry(token.expiresIn),
+                scope = token.scope ?: oauth.scope,
+            )
+            persistOAuthState(config.id, updated)
+            config.clone(commonOptions = config.commonOptions.copy(oauth = updated))
+        }.getOrElse {
+            Log.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${it.message}")
+            config // 刷新失败仍用旧令牌尝试，失败会转为 NeedsAuthorization
+        }
+    }
+
+    private suspend fun persistOAuthState(configId: Uuid, oauth: McpOAuthState?) {
+        settingsStore.update { old ->
+            old.copy(
+                mcpServers = old.mcpServers.map { server ->
+                    if (server.id != configId) server
+                    else server.clone(commonOptions = server.commonOptions.copy(oauth = oauth))
+                }
+            )
+        }
+    }
+
+    private fun computeExpiry(expiresIn: Long?): Long =
+        if (expiresIn != null && expiresIn > 0) {
+            System.currentTimeMillis() + expiresIn * 1000
+        } else {
+            0L
+        }
+
+    /**
+     * 判断某次连接/同步失败是否应引导用户进行 OAuth 授权。
+     *
+     * 仅靠错误文本匹配 401/invalid_token 并不可靠：很多 MCP server 依赖用户手动填写
+     * Authorization header，缺失时同样返回 401。因此在文本预筛之上进一步区分：
+     * - 已开启 OAuth（此前授权过、令牌失效）→ 直接引导重新授权
+     * - 用户手动配置了 Authorization header → 视为普通错误，尊重手动登录模式
+     * - 其余情况 → 主动探测该 server 是否发布受保护资源元数据 (RFC 9728)，
+     *   能发现才认为其支持 OAuth、需要授权
+     */
+    private suspend fun needsAuthorization(config: McpServerConfig, error: Throwable): Boolean {
+        if (!looksUnauthorized(error)) return false
+        // 已开启 OAuth：令牌失效，直接引导重新授权
+        if (config.commonOptions.oauth?.enabled == true) return true
+        // 用户手动配置了 Authorization header：属于手动登录模式，header 无效是用户配置问题
+        val hasManualAuth = config.commonOptions.headers.any {
+            it.first.equals("Authorization", ignoreCase = true)
+        }
+        if (hasManualAuth) return false
+        // 主动探测：仅当 server 发布了受保护资源元数据 (protected resource metadata) 时才支持 OAuth
+        return runCatching { oauthClient.discoverProtectedResource(config.serverUrl) }
+            .onFailure { Log.i(TAG, "OAuth probe failed for ${config.commonOptions.name}: ${it.message}") }
+            .isSuccess
+    }
+
+    /**
+     * 是否为 Streamable HTTP 的 SSE 通知流重试耗尽错误。
+     *
+     * StreamableHttpClientTransport 除 POST 请求/响应外，还会额外开一条 GET 的 SSE 长连接
+     * 用于接收服务端主动推送。部分 server 不支持或会主动关闭该流，SDK 内部按退避重试若干次后
+     * 放弃，并向 onError emit "Maximum reconnection attempts exceeded"。
+     *
+     * 此时 POST 通道仍然健康（listTools/callTool 均可用），不应据此重建整个客户端——否则每次
+     * 整体重连都会成功并清零计数，同时又开启一条新 SSE 流再次失败，形成无限重连循环。
+     */
+    private fun isSseStreamGiveUpError(error: Throwable): Boolean {
+        val message = generateSequence(error) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString(" ")
+        return message.contains("Maximum reconnection attempts exceeded", ignoreCase = true)
+    }
+
+    /** 错误文本是否疑似未授权（HTTP 401 或 RFC 6750 定义的 OAuth token 错误）。 */
+    private fun looksUnauthorized(error: Throwable): Boolean {
+        val message = generateSequence(error) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString(" ")
+            .lowercase()
+        return message.contains("401") ||
+            message.contains("unauthorized") ||
+            message.contains("invalid_token") ||
+            message.contains("invalid access token") ||
+            message.contains("missing or invalid")
     }
 }
 
