@@ -52,10 +52,18 @@ def download_android_python():
 
     log(f"Downloading Android Python {PY_VER} from python.org...")
     import urllib.request
+    import urllib.error
     req = urllib.request.Request(ANDROID_PYTHON_URL, headers={"Accept": "application/octet-stream"})
-    resp = urllib.request.urlopen(req, timeout=120)
-    data = resp.read()
-    log(f"Downloaded {len(data)} bytes")
+    try:
+        resp = urllib.request.urlopen(req, timeout=120)
+        data = resp.read()
+        log(f"Downloaded {len(data)} bytes")
+    except urllib.error.HTTPError as e:
+        log(f"❌ python.org returned {e.code}: {ANDROID_PYTHON_URL}")
+        log(f"   Android Python 3.12 builds are no longer hosted on python.org.")
+        log(f"   Fix: ensure Chaquopy extractReleasePython succeeds, or install manually.")
+        raise RuntimeError(f"Cannot download Android Python {PY_VER}: HTTP {e.code}. "
+                           f"Chaquopy extractReleasePython must succeed to provide headers.")
 
     tf = tarfile.open(fileobj=io.BytesIO(data))
     tf.extractall(dest)

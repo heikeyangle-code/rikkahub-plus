@@ -511,8 +511,8 @@ jobs:
       - name: Extract Chaquopy Python target (for ABI-compatible cross-compile)
         run: |
           chmod +x gradlew
-          ./gradlew :app:extractReleasePython --no-daemon 2>&1 | tail -10
-          ls -la app/build/python/env/release/include/python3.12/ 2>/dev/null && echo "✅ Chaquopy Python headers available" || echo "⚠️ Chaquopy headers not found, will fall back to python.org"
+          ./gradlew :app:extractReleasePython --no-daemon 2>&1
+          ls -la app/build/python/env/release/include/python3.12/ 2>/dev/null && echo "✅ Chaquopy Python headers available" || { echo "⚠️ Chaquopy headers not found; cross-compile will try python.org fallback (may 404)"; echo "See: python-3.12.3 Android build no longer hosted on python.org"; }
       - name: Cross-compile pyswisseph for Android ARM64
         run: |
           python3 ci/cross_compile_wheels.py 2>&1
