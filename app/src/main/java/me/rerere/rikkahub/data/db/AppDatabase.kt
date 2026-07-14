@@ -77,6 +77,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun managedFileDao(): ManagedFileDAO
 
     abstract fun favoriteDao(): FavoriteDAO
+
+    abstract fun workspaceDao(): WorkspaceDAO
+
+    abstract fun folderDao(): FolderDAO
 }
 
 object TokenUsageConverter {
