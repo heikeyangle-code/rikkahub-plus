@@ -30,7 +30,7 @@ fun createShellTools(): List<Tool> {
                 Use for: logcat, device info, grep, zip.
                 Avoid: interactive commands (they will hang), long-running commands (30s timeout).
             """.trimIndent().replace("\n", " "),
-            needsApproval = false,
+            needsApproval = { false },
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {

@@ -24,7 +24,7 @@ fun createSleepTool(): Tool = Tool(
         "- Retrying failing commands in a loop (diagnose root cause)\n\n" +
         "Args:\n" +
         "- duration_ms: Milliseconds to sleep (1000 = 1s, max 30000 = 30s)",
-    needsApproval = false,
+    needsApproval = { false },
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

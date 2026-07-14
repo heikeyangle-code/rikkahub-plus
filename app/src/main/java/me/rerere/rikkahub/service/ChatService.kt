@@ -65,6 +65,7 @@ import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
+import me.rerere.rikkahub.data.ai.tools.createWorkspaceTools
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createAssetTool
 import me.rerere.rikkahub.data.ai.tools.createDataProcessTool
@@ -88,6 +89,7 @@ import me.rerere.rikkahub.data.ai.transformers.RegexOutputTransformer
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
+import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.AuthorsNoteTransformer
 import me.rerere.rikkahub.data.ai.transformers.SkillAutoTriggerTransformer
 import me.rerere.rikkahub.data.ai.transformers.KnowledgeBaseTransformer
@@ -106,9 +108,11 @@ import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.utils.applyPlaceholders
+import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.rikkahub.utils.sendNotification
 import me.rerere.rikkahub.utils.cancelNotification
 import java.time.Instant
@@ -157,6 +161,7 @@ class ChatService(
     private val settingsStore: SettingsStore,
     private val conversationRepo: ConversationRepository,
     private val memoryRepository: MemoryRepository,
+    private val workspaceRepository: WorkspaceRepository,
     private val generationHandler: GenerationHandler,
     private val templateTransformer: TemplateTransformer,
     private val providerManager: ProviderManager,
@@ -640,7 +645,7 @@ class ChatService(
                                 name = "mcp__" + tool.name,
                                 description = tool.description ?: "",
                                 parameters = { tool.inputSchema },
-                                needsApproval = tool.needsApproval,
+                                needsApproval = { tool.needsApproval },
                                 execute = {
                                     mcpManager.callTool(serverId, tool.name, it.jsonObject)
                                 },
@@ -655,7 +660,7 @@ class ChatService(
 Only the main agent should call this — sub-agents must NOT call sub_agent.
 The sub-agent runs a separate LLM call with no access to conversation history.
 Provide all needed context in the context parameter.""".trimIndent().replace("\n", " "),
-                                needsApproval = false,
+                                needsApproval = { false },
                                 parameters = {
                                     InputSchema.Obj(
                                         properties = buildJsonObject {
@@ -1151,7 +1156,7 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
                             name = "mcp__" + tool.name,
                             description = tool.description ?: "",
                             parameters = { tool.inputSchema },
-                            needsApproval = tool.needsApproval,
+                            needsApproval = { tool.needsApproval },
                             execute = {
                                 mcpManager.callTool(serverId, tool.name, it.jsonObject)
                             },

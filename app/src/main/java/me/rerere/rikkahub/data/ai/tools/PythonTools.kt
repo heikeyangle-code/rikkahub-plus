@@ -40,7 +40,7 @@ fun createPythonTool(context: Context, timeoutSec: Int = 30): Tool = Tool(
         "Args:\n" +
         "- code: Python code to execute. Last expression value returned. Use print() for debugging.\n" +
         "Code runs in an isolated Python environment on the device.",
-    needsApproval = false,
+    needsApproval = { false },
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

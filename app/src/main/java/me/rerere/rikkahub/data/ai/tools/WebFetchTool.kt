@@ -32,7 +32,7 @@ fun createWebFetchTool(): Tool = Tool(
         "- GET https://api.example.com/data\n" +
         "- POST https://api.example.com/submit with body={\"key\":\"value\"}\n" +
         "- Results truncated to 100KB for large responses",
-    needsApproval = false,
+    needsApproval = { false },
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

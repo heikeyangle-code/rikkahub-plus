@@ -150,7 +150,6 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            pickFirsts += "lib/*/libtermux.so"
         }
     }
     tasks.withType<KotlinCompile>().configureEach {
@@ -186,8 +185,6 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.browser)
     implementation(libs.androidx.profileinstaller)
-    implementation(libs.termux.terminal.view)
-    implementation(libs.guava.listenablefuture)
 
     // Compose
     implementation(libs.androidx.activity.compose)
@@ -238,9 +235,6 @@ dependencies {
     implementation(libs.ucrop)
     // pebble (template engine)
     implementation(libs.pebble)
-
-    // java-diff-utils (unified diff)
-    implementation(libs.diffutils)
 
     // coil
     implementation(libs.coil.compose)
