@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,6 +27,7 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,7 +59,6 @@ import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Clapping01
 import me.rerere.hugeicons.stroke.Database02
-import me.rerere.hugeicons.stroke.Developer
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.ImageUpload
 import me.rerere.hugeicons.stroke.InLove
@@ -146,17 +147,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     BackButton()
                 },
                 scrollBehavior = scrollBehavior,
-                actions = {
-                    if(settings.developerMode) {
-                        IconButton(
-                            onClick = {
-                                navController.navigate(Screen.Developer)
-                            }
-                        ) {
-                            Icon(HugeIcons.Developer, "Developer")
-                        }
-                    }
-                },
                 colors = CustomColors.topBarColors
             )
         },
@@ -366,15 +356,19 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
+                                var showQQGroupSheet by remember { mutableStateOf(false) }
                                 IconButton(
-                                    onClick = {
-                                        context.joinQQGroup("Qsm0whzbPsm1UyNpR683ulLyMZ2Pqrw0")
-                                    }
+                                    onClick = { showQQGroupSheet = true }
                                 ) {
                                     Icon(
                                         imageVector = TencentQQIcon,
                                         contentDescription = "QQ",
                                         tint = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                                if (showQQGroupSheet) {
+                                    QQGroupBottomSheet(
+                                        onDismiss = { showQQGroupSheet = false }
                                     )
                                 }
                                 IconButton(
@@ -393,7 +387,14 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_page_about)) },
                     )
                     item(
-                        onClick = { context.openUrl("https://docs.rikka-ai.com/docs/basic/get-started") },
+                        onClick = {
+                            val docUrl = if (java.util.Locale.getDefault().language == "zh") {
+                                "https://docs.rikka-ai.com/zh/introduction"
+                            } else {
+                                "https://docs.rikka-ai.com/introduction"
+                            }
+                            context.openUrl(docUrl)
+                        },
                         leadingContent = { Icon(HugeIcons.Book01, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_documentation_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_documentation)) },
@@ -598,6 +599,47 @@ private fun ProviderConfigWarningCard(navController: Navigator) {
                 }
             ) {
                 Text(stringResource(R.string.setting_page_config))
+            }
+        }
+    }
+}
+
+private data class QQGroup(
+    val name: String,
+    val key: String,
+)
+
+private val QQ_GROUPS = listOf(
+    QQGroup("RikkaHub 一群", "4POE46u9e_zoy1TkNfWdCvueR9CKFJdk"),
+    QQGroup("RikkaHub 二群", "Qsm0whzbPsm1UyNpR683ulLyMZ2Pqrw0"),
+    QQGroup("RikkaHub 三群", "Qc9oP-9tXioZeQEvEvI2_owWtBAIx3lS"),
+)
+
+@Composable
+private fun QQGroupBottomSheet(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            QQ_GROUPS.forEach { group ->
+                ListItem(
+                    headlineContent = { Text(group.name) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = TencentQQIcon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        context.joinQQGroup(group.key)
+                        onDismiss()
+                    }
+                )
             }
         }
     }
