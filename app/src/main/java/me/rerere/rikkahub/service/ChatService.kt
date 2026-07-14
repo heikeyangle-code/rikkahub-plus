@@ -606,6 +606,7 @@ class ChatService(
                     if (settings.enableWebSearch) {
                         addAll(createSearchTools(settings))
                     }
+                    addAll(createWorkspaceToolsIfReady(assistant.workspaceId?.toString(), null))
                     addAll(localTools.getTools(assistant.localTools))
                     if (assistant.localTools.contains(LocalToolOption.ShellTools)) {
                         addAll(createShellTools())
@@ -1293,7 +1294,13 @@ Provide all needed context in the context parameter.""".trimIndent().replace("\n
     }
 
     private fun getLiveUpdateNotificationId(conversationId: Uuid): Int {
-        return conversationId.hashCode() + 10000
+        return ("live_update_" + conversationId.toString()).hashCode().let { if (it == 0) 1 else it }
+    }
+
+    private suspend fun createWorkspaceToolsIfReady(workspaceId: String?, cwd: String? = null): List<Tool> {
+        if (workspaceId.isNullOrBlank()) return emptyList()
+        val workspace = workspaceRepository.getById(workspaceId) ?: return emptyList()
+        return createWorkspaceTools(workspaceId, workspaceRepository, cwd)
     }
 
     private fun sendLiveUpdateNotification(
