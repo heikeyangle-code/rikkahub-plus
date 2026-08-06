@@ -548,8 +548,9 @@ class GenerationHandler(
         val assistant = settings.presets
             .filter { it.id in assistant.presetIds }
             .fold(assistant) { acc, preset -> preset.applyTo(acc) }
-        // 官方 Start Reply With（script.js sendMessage）：value 拼到当前发送的用户消息前
-        val messages = if (assistant.startReplyWith.isNullOrBlank()) {
+        // 官方 Start Reply With（script.js sendMessage）：value 拼到当前发送的用户消息前。
+        // 只影响发送给模型的载荷（limitedChat），不写回已存历史，避免重生成时重复前置
+        val srwMessages = if (assistant.startReplyWith.isNullOrBlank()) {
             messages
         } else if (messages.isNotEmpty() && messages.last().role == MessageRole.USER) {
             val last = messages.last()
@@ -563,7 +564,7 @@ class GenerationHandler(
         } else {
             messages
         }
-        val limitedChat = messages.limitContext(assistant.contextMessageLimit)
+        val limitedChat = srwMessages.limitContext(assistant.contextMessageLimit)
         val internalMessages = buildList {
             val fallbackSystem = buildString {
                 // ── s10: 使用 SystemPromptAssembler 替代硬编码 ──
