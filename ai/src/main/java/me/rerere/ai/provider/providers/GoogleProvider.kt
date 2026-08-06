@@ -352,17 +352,19 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         messages: List<UIMessage>,
         params: TextGenerationParams
     ): JsonObject = buildJsonObject {
-        // System message if available
-        val systemMessage = messages.firstOrNull { it.role == MessageRole.SYSTEM }
-        if (systemMessage != null && !params.model.outputModalities.contains(Modality.IMAGE)) {
+        // System instruction：官方 google.js 把所有 system 内容合并进 systemInstruction.parts。
+        // 角色卡字段/世界书/人设/预设 jailbreak 都是独立 SYSTEM 消息，必须全部收集而非只取第一条
+        val systemParts = messages
+            .filter { it.role == MessageRole.SYSTEM }
+            .flatMap { it.parts.filterIsInstance<UIMessagePart.Text>() }
+        if (systemParts.isNotEmpty() && !params.model.outputModalities.contains(Modality.IMAGE)) {
             put("systemInstruction", buildJsonObject {
                 putJsonArray("parts") {
-                    add(buildJsonObject {
-                        put(
-                            "text",
-                            systemMessage.parts.filterIsInstance<UIMessagePart.Text>()
-                                .joinToString { it.text })
-                    })
+                    systemParts.forEach { part ->
+                        add(buildJsonObject {
+                            put("text", part.text)
+                        })
+                    }
                 }
             })
         }

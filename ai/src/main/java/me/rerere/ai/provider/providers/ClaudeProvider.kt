@@ -296,9 +296,11 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
 
             put("stream", stream)
 
-            // system prompt
-            val systemMessage = messages.firstOrNull { it.role == MessageRole.SYSTEM }
-            val systemTextParts = systemMessage?.parts?.filterIsInstance<UIMessagePart.Text>().orEmpty()
+            // system prompt：官方 claude.js 把所有 system 内容合并进 system block 数组。
+            // 角色卡字段/世界书/人设/预设 jailbreak 都是独立 SYSTEM 消息，必须全部收集而非只取第一条
+            val systemTextParts = messages
+                .filter { it.role == MessageRole.SYSTEM }
+                .flatMap { it.parts.filterIsInstance<UIMessagePart.Text>() }
             if (systemTextParts.isNotEmpty()) {
                 put("system", buildJsonArray {
                     systemTextParts.forEachIndexed { index, part ->
