@@ -50,6 +50,13 @@ data class ChatPreset(
     val systemPrompt: String? = null,      // SYSPROMPT: content
     val contextTemplate: String? = null,   // CONTEXT: story_string
     val messageTemplate: String? = null,   // INSTRUCT: input_sequence/output_sequence 拼接
+    // Reasoning 模板（prefix/suffix/separator：模型输出思维链的解析分隔符，官方 reasoning.js）
+    val reasoningPrefix: String? = null,
+    val reasoningSuffix: String? = null,
+    val reasoningSeparator: String? = null,
+    // Start Reply With（value/show：value 拼到发送的用户消息前，官方 script.js）
+    val startReplyValue: String? = null,
+    val startReplyShow: Boolean? = null,
     // 官方 Prompt Manager（openai.js settingsToUpdate 的 prompts/prompt_order 键）
     val prompts: List<PresetPrompt> = emptyList(),      // 自定义提示词条目（官方内容非默认的）
     val promptOrder: List<PresetPromptOrder> = emptyList(), // 官方 prompt_order（enabled 开关）

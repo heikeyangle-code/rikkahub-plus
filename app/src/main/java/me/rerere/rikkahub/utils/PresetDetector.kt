@@ -64,6 +64,21 @@ object PresetDetector {
                 ),
                 rawJson = raw,
             )
+            PresetType.REASONING -> ChatPreset(
+                name = name.ifBlank { fallback },
+                type = type,
+                reasoningPrefix = (root["prefix"] as? JsonPrimitive)?.contentOrNull,
+                reasoningSuffix = (root["suffix"] as? JsonPrimitive)?.contentOrNull,
+                reasoningSeparator = (root["separator"] as? JsonPrimitive)?.contentOrNull,
+                rawJson = raw,
+            )
+            PresetType.START_REPLY_WITH -> ChatPreset(
+                name = name.ifBlank { fallback },
+                type = type,
+                startReplyValue = (root["value"] as? JsonPrimitive)?.contentOrNull,
+                startReplyShow = (root["show"] as? JsonPrimitive)?.booleanOrNull,
+                rawJson = raw,
+            )
             else -> ChatPreset(
                 name = name.ifBlank { fallback },
                 type = type,
@@ -209,6 +224,10 @@ fun ChatPreset.applyTo(assistant: Assistant): Assistant = assistant.copy(
     presetPostHistory = this.jailbreakContent(),
     contextTemplate = this.contextTemplate ?: assistant.contextTemplate,
     messageTemplate = this.messageTemplate ?: assistant.messageTemplate,
+    reasoningPrefix = this.reasoningPrefix ?: assistant.reasoningPrefix,
+    reasoningSuffix = this.reasoningSuffix ?: assistant.reasoningSuffix,
+    reasoningSeparator = this.reasoningSeparator ?: assistant.reasoningSeparator,
+    startReplyWith = this.startReplyValue ?: assistant.startReplyWith,
 )
 
 /** 预设 prompts → 系统提示合并：main 自定义时替换整条（官方整包覆盖语义），其余条目按官方顺序追加 */

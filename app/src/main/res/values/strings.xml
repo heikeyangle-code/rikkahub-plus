@@ -196,6 +196,10 @@
   <string name="preset_edit_content">Content</string>
   <string name="preset_edit_identifier">Identifier</string>
   <string name="preset_edit_entry">Entry %d</string>
+  <string name="preset_param_reasoning_prefix">Reasoning Prefix</string>
+  <string name="preset_param_reasoning_suffix">Reasoning Suffix</string>
+  <string name="preset_param_reasoning_separator">Reasoning Separator</string>
+  <string name="preset_param_start_reply">Start Reply With</string>
   <string name="assistant_page_tab_extensions">Extensions</string>
   <string name="assistant_page_tab_local_tools">Local Tools</string>
   <string name="assistant_page_tab_mcp">MCP</string>

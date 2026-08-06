@@ -71,6 +71,10 @@ data class Assistant(
     val lorebookIds: Set<Uuid> = emptySet(),            // 关联的 Lorebook ID
     val presetIds: Set<Uuid> = emptySet(),              // 开启的官方预设 ID（新助手默认全关）
     val presetPostHistory: String? = null,              // 预设 jailbreak prompt（注入聊天历史之后，由预设应用写入）
+    val reasoningPrefix: String? = null,                // 预设 reasoning 模板 prefix（自定义思维链解析分隔符）
+    val reasoningSuffix: String? = null,                // 预设 reasoning 模板 suffix
+    val reasoningSeparator: String? = null,             // 预设 reasoning 模板 separator
+    val startReplyWith: String? = null,                 // 预设 Start Reply With value（拼到发送的用户消息前）
     val enabledSkills: Set<String> = emptySet(),        // 启用的 skill 名称列表
     val enableTimeReminder: Boolean = false,            // 时间间隔提醒注入
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt

@@ -1088,6 +1088,10 @@ private fun buildDetailParams(preset: ChatPreset, getString: (Int) -> String): L
     add(R.string.preset_param_tool_recurse, preset.toolRecurringLimit)
     add(R.string.preset_param_reasoning, preset.reasoningEffort)
     add(R.string.preset_param_model, preset.modelName)
+    add(R.string.preset_param_reasoning_prefix, preset.reasoningPrefix)
+    add(R.string.preset_param_reasoning_suffix, preset.reasoningSuffix)
+    add(R.string.preset_param_reasoning_separator, preset.reasoningSeparator)
+    add(R.string.preset_param_start_reply, preset.startReplyValue)
     return rows
 }
 
@@ -1129,6 +1133,10 @@ private fun PresetEditDialog(
     var systemPrompt by remember(preset) { mutableStateOf(preset.systemPrompt ?: "") }
     var contextTemplate by remember(preset) { mutableStateOf(preset.contextTemplate ?: "") }
     var messageTemplate by remember(preset) { mutableStateOf(preset.messageTemplate ?: "") }
+    var reasoningPrefix by remember(preset) { mutableStateOf(preset.reasoningPrefix ?: "") }
+    var reasoningSuffix by remember(preset) { mutableStateOf(preset.reasoningSuffix ?: "") }
+    var reasoningSeparator by remember(preset) { mutableStateOf(preset.reasoningSeparator ?: "") }
+    var startReplyValue by remember(preset) { mutableStateOf(preset.startReplyValue ?: "") }
     var prompts by remember(preset) { mutableStateOf(preset.prompts.toMutableList()) }
     var promptOrder by remember(preset) { mutableStateOf(preset.promptOrder.toMutableList()) }
     var showReasoningMenu by remember { mutableStateOf(false) }
@@ -1173,6 +1181,10 @@ private fun PresetEditDialog(
                 systemPrompt = systemPrompt.ifBlank { null },
                 contextTemplate = contextTemplate.ifBlank { null },
                 messageTemplate = messageTemplate.ifBlank { null },
+                reasoningPrefix = reasoningPrefix.ifBlank { null },
+                reasoningSuffix = reasoningSuffix.ifBlank { null },
+                reasoningSeparator = reasoningSeparator.ifBlank { null },
+                startReplyValue = startReplyValue.ifBlank { null },
                 prompts = prompts,
                 promptOrder = promptOrder,
             )
@@ -1347,6 +1359,47 @@ private fun PresetEditDialog(
                                                 label = { Text(context.getString(labelId)) },
                                                 minLines = 3,
                                                 maxLines = 8,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+
+                val reasoningFields = buildList {
+                    if (preset.type == PresetType.REASONING || preset.reasoningPrefix != null) {
+                        add(R.string.preset_param_reasoning_prefix to reasoningPrefix)
+                        add(R.string.preset_param_reasoning_suffix to reasoningSuffix)
+                        add(R.string.preset_param_reasoning_separator to reasoningSeparator)
+                    }
+                    if (preset.type == PresetType.START_REPLY_WITH || preset.startReplyValue != null) {
+                        add(R.string.preset_param_start_reply to startReplyValue)
+                    }
+                }
+                if (reasoningFields.isNotEmpty()) {
+                    item { DetailSectionLabel(context.getString(R.string.preset_detail_templates)) }
+                    item {
+                        CardGroup {
+                            item(
+                                onClick = null,
+                                headlineContent = {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        reasoningFields.forEach { (labelId, value) ->
+                                            OutlinedTextField(
+                                                value = value,
+                                                onValueChange = { newValue ->
+                                                    when (labelId) {
+                                                        R.string.preset_param_reasoning_prefix -> reasoningPrefix = newValue
+                                                        R.string.preset_param_reasoning_suffix -> reasoningSuffix = newValue
+                                                        R.string.preset_param_reasoning_separator -> reasoningSeparator = newValue
+                                                        R.string.preset_param_start_reply -> startReplyValue = newValue
+                                                    }
+                                                },
+                                                label = { Text(context.getString(labelId)) },
+                                                singleLine = true,
                                                 modifier = Modifier.fillMaxWidth(),
                                             )
                                         }
