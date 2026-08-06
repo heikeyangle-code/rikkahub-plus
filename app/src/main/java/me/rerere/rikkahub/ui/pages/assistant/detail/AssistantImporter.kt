@@ -486,14 +486,10 @@ private fun applyEntryExtensions(entry: TavernBookEntry, e: JsonObject?): Tavern
             depth = extensions["depth"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: entry.depth,
             group = extensions["group"]?.jsonPrimitive?.contentOrNull ?: entry.group,
             groupWeight = extensions["group_weight"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: entry.groupWeight,
-            groupOverride = extensions["group_priority"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
+            groupOverride = extensions["group_override"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
                 ?: entry.groupOverride,
-            inclusionGroup = (extensions?.let { parseInclusionGroup(it["inclusion_group"]) } ?: "")
-                .ifBlank { parseInclusionGroup(e["inclusion_group"]) },
             useGroupScoring = extensions?.get("use_group_scoring")?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
                 ?: e["use_group_scoring"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: entry.useGroupScoring,
-            groupPriority = extensions?.get("group_priority")?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
-                ?: e["group_priority"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: entry.groupPriority,
             automationId = extensions?.get("automation_id")?.jsonPrimitive?.contentOrNull
                 ?: e["automation_id"]?.jsonPrimitive?.contentOrNull ?: entry.automationId,
             displayIndex = extensions?.get("display_index")?.jsonPrimitive?.contentOrNull?.toIntOrNull()
@@ -518,13 +514,6 @@ private fun applyEntryExtensions(entry: TavernBookEntry, e: JsonObject?): Tavern
                 ?: e["ignore_budget"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: entry.ignoreBudget,
         )
     } catch (_: Exception) { entry }
-}
-
-/** inclusion_group 可为逗号分隔字符串或数组，统一转逗号分隔字符串 */
-private fun parseInclusionGroup(element: JsonElement?): String = when {
-    element == null -> ""
-    element is JsonArray -> element.mapNotNull { it.jsonPrimitive.contentOrNull }.joinToString(",")
-    else -> element.jsonPrimitive?.contentOrNull ?: ""
 }
 
 /** extensions 里的递归控制可为布尔、数字（延迟层级）或 uid 数组，统一转布尔 */
@@ -645,9 +634,7 @@ private fun tavernEntryToInjection(entry: TavernBookEntry): PromptInjection.Rege
         groupWeight = entry.groupWeight,
         groupOverride = entry.groupOverride,
         useProbability = entry.useProbability,
-        inclusionGroup = entry.inclusionGroup,
         useGroupScoring = entry.useGroupScoring,
-        groupPriority = entry.groupPriority,
         automationId = entry.automationId,
         displayIndex = entry.displayIndex,
         displayPosition = entry.displayPosition,
@@ -736,8 +723,6 @@ internal fun injectionToTavernEntry(
             SelectiveLogic.NOT_ALL -> 1
             SelectiveLogic.NOT_ANY -> 2
             SelectiveLogic.AND_ALL -> 3
-            // 官方无 OR_ANY；本地遗留条目导出时按最接近的 AND_ANY 处理
-            SelectiveLogic.OR_ANY -> 0
         },
         group = injection.group,
         position = mapInjectionToPosition(injection.position),
@@ -763,9 +748,7 @@ internal fun injectionToTavernEntry(
         groupWeight = injection.groupWeight,
         groupOverride = injection.groupOverride,
         useProbability = injection.useProbability,
-        inclusionGroup = injection.inclusionGroup,
         useGroupScoring = injection.useGroupScoring,
-        groupPriority = injection.groupPriority,
         automationId = injection.automationId,
         displayIndex = injection.displayIndex,
         displayPosition = injection.displayPosition,

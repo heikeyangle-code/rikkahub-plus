@@ -472,9 +472,7 @@ sealed class PromptInjection {
         @Serializable(with = DelayUntilRecursionSerializer::class)
         val delayUntilRecursion: Int = 0,
         val useProbability: Boolean = true,              // 是否启用概率过滤（false=忽略probability直接触发）
-        val inclusionGroup: String = "",                 // 本地遗留字段（官方无此字段；官方分组用顶层 group 逗号分隔）
         val useGroupScoring: Boolean = false,            // 酒馆 extensions.use_group_scoring（按匹配关键词数选组胜者）
-        val groupPriority: Boolean = false,              // 本地遗留字段（官方无此字段；官方优先用 group_override）
         val automationId: String = "",                   // 酒馆 extensions.automation_id（本App暂不执行，仅保留）
         val displayIndex: Int = 0,                       // 酒馆 display_index（展示顺序）
         val displayPosition: Int = 0,                    // 酒馆 display_position（展示位置）
@@ -498,8 +496,6 @@ enum class SelectiveLogic {
     AND_ANY,      // 官方 0：主关键词命中 + 任一二级关键词命中（默认）
     @SerialName("and_all")
     AND_ALL,      // 官方 3：主关键词命中 + 全部二级关键词命中
-    @SerialName("or_any")
-    OR_ANY,       // 本地遗留扩展（官方无此模式）
     @SerialName("not_any")
     NOT_ANY,      // 官方 2：主关键词命中 + 没有任何二级关键词命中
     @SerialName("not_all")
@@ -594,8 +590,6 @@ fun PromptInjection.RegexInjection.isTriggered(
             SelectiveLogic.NOT_ANY -> !anySecondary
             // 官方 NOT_ALL：主关键词命中 + 二级关键词非全部命中
             SelectiveLogic.NOT_ALL -> !allSecondary
-            // 本地遗留扩展（官方无此模式）：主关键词已命中即可
-            SelectiveLogic.OR_ANY -> true
         }
     } else {
         // 非选择性模式：只检查主关键词
@@ -618,7 +612,6 @@ fun PromptInjection.RegexInjection.matchedKeyScore(context: String): Int {
             primaryMatches
         }
         SelectiveLogic.NOT_ANY, SelectiveLogic.NOT_ALL -> primaryMatches
-        SelectiveLogic.OR_ANY -> primaryMatches + secondaryMatches
     }
 }
 
@@ -766,7 +759,7 @@ fun Assistant.assembleContext(
         .replace("{{char}}", this.name)
         .replace("{{user}}", userName)
         .replace("{{persona}}", personaDesc)
-        .replace("{{system}}", this.systemPrompt.takeIf { it.isNotBlank() } ?: tav?.systemPrompt ?: "")
+        .replace("{{system}}", tav?.systemPrompt?.takeIf { it.isNotBlank() } ?: this.systemPrompt)
         .replace("{{description}}", tav?.description ?: "")
         .replace("{{personality}}", tav?.personality ?: "")
         .replace("{{scenario}}", tav?.scenario ?: "")
@@ -776,11 +769,11 @@ fun Assistant.assembleContext(
 
 /**
  * 官方 Chat Completion 结构拆分 — 主提示消息（对应官方 main prompt）。
- * 系统提示词（预设应用后）优先，空则回退角色卡自带 system_prompt（官方语义：
- * main 条目与角色卡字段并列，预设的 main 永远生效）
+ * 官方 systemPromptOverride（st_openai.js:1489 + power_user.js prefer_character_prompt 默认 true）：
+ * 角色卡 system_prompt 非空时覆盖 main；空则回退预设 main（预设 main 仍在角色卡无 system_prompt 时生效）
  */
 fun Assistant.assembleMainPrompt(): String {
-    return systemPrompt.takeIf { it.isNotBlank() } ?: tavernData?.systemPrompt ?: ""
+    return tavernData?.systemPrompt?.takeIf { it.isNotBlank() } ?: systemPrompt
 }
 
 /**

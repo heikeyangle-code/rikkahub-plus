@@ -1383,9 +1383,7 @@ private fun LorebookEditSheet(
                         preventRecursion = template.preventRecursion,
                         delayUntilRecursion = template.delayUntilRecursion,
                         useProbability = template.useProbability,
-                        inclusionGroup = template.inclusionGroup,
                         useGroupScoring = template.useGroupScoring,
-                        groupPriority = template.groupPriority,
                         automationId = template.automationId,
                         displayIndex = template.displayIndex,
                         displayPosition = template.displayPosition,
@@ -2316,7 +2314,6 @@ private fun RegexInjectionEditDialog(
                                             SelectiveLogic.AND_ALL -> stringResource(R.string.prompt_page_logic_and_all)
                                             SelectiveLogic.NOT_ALL -> stringResource(R.string.prompt_page_logic_not_all)
                                             SelectiveLogic.NOT_ANY -> stringResource(R.string.prompt_page_logic_not_any)
-                                            SelectiveLogic.OR_ANY -> stringResource(R.string.prompt_page_logic_or_any)
                                         },
                                         style = MaterialTheme.typography.bodyMedium,
                                     )

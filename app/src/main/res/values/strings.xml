@@ -1524,7 +1524,6 @@
   <string name="prompt_page_logic_and_all">AND ALL</string>
   <string name="prompt_page_logic_not_all">NOT ALL</string>
   <string name="prompt_page_logic_not_any">NOT ANY</string>
-  <string name="prompt_page_logic_or_any">OR ANY</string>
   <string name="persona_page_position_in_prompt">In Prompt</string>
   <string name="persona_page_position_top">Top of Author\'s Note</string>
   <string name="persona_page_position_bottom">Bottom of Author\'s Note</string>

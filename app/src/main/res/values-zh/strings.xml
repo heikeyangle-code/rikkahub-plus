@@ -1613,7 +1613,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="prompt_page_logic_and_all">全部副键匹配(AND ALL)</string>
   <string name="prompt_page_logic_not_all">副键非全部匹配(NOT ALL)</string>
   <string name="prompt_page_logic_not_any">副键均不匹配(NOT ANY)</string>
-  <string name="prompt_page_logic_or_any">任一匹配(OR ANY)</string>
   <string name="persona_page_position_in_prompt">系统提示词内(In Prompt)</string>
   <string name="persona_page_position_top">导演备注上方(Top of Author\'s Note)</string>
   <string name="persona_page_position_bottom">导演备注下方(Bottom of Author\'s Note)</string>

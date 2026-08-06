@@ -938,9 +938,7 @@ private fun EmbeddedBookSummary(
                         preventRecursion = template.preventRecursion,
                         delayUntilRecursion = template.delayUntilRecursion,
                         useProbability = template.useProbability,
-                        inclusionGroup = template.inclusionGroup,
                         useGroupScoring = template.useGroupScoring,
-                        groupPriority = template.groupPriority,
                         automationId = template.automationId,
                         displayIndex = template.displayIndex,
                         displayPosition = template.displayPosition,
@@ -996,9 +994,7 @@ private fun EmbeddedGroupSettingsDialog(
     var excludeRecursion by remember { mutableStateOf(template.excludeRecursion) }
     var preventRecursion by remember { mutableStateOf(template.preventRecursion) }
     var delayUntilRecursion by remember { mutableStateOf(template.delayUntilRecursion) }
-    var inclusionGroupStr by remember { mutableStateOf(template.inclusionGroup) }
     var useGroupScoring by remember { mutableStateOf(template.useGroupScoring) }
-    var groupPriority by remember { mutableStateOf(template.groupPriority) }
     var automationIdStr by remember { mutableStateOf(template.automationId) }
     var displayIndexStr by remember { mutableStateOf(template.displayIndex.toString()) }
     var displayPositionStr by remember { mutableStateOf(template.displayPosition.toString()) }
@@ -1320,9 +1316,7 @@ private fun EmbeddedGroupSettingsDialog(
                         excludeRecursion = excludeRecursion,
                         preventRecursion = preventRecursion,
                         delayUntilRecursion = delayUntilRecursion,
-                        inclusionGroup = inclusionGroupStr.trim(),
                         useGroupScoring = useGroupScoring,
-                        groupPriority = groupPriority,
                         automationId = automationIdStr.trim(),
                         displayIndex = displayIndexStr.toIntOrNull() ?: 0,
                         displayPosition = displayPositionStr.toIntOrNull() ?: 0,
@@ -1469,9 +1463,7 @@ private fun EntryEditor(
     var keysStr by remember(entry.id) { mutableStateOf(entry.keys.joinToString(", ")) }
     var secondaryKeysStr by remember(entry.id) { mutableStateOf(entry.secondaryKeys.joinToString(", ")) }
     var commentStr by remember(entry.id) { mutableStateOf(entry.comment) }
-    var inclusionGroupStr by remember(entry.id) { mutableStateOf(entry.inclusionGroup) }
     var useGroupScoring by remember(entry.id) { mutableStateOf(entry.useGroupScoring) }
-    var groupPriority by remember(entry.id) { mutableStateOf(entry.groupPriority) }
     var automationIdStr by remember(entry.id) { mutableStateOf(entry.automationId) }
     var displayIndexStr by remember(entry.id) { mutableStateOf(entry.displayIndex.toString()) }
     var displayPositionStr by remember(entry.id) { mutableStateOf(entry.displayPosition.toString()) }
@@ -1899,9 +1891,7 @@ private fun EntryEditor(
                     group = groupStr,
                     groupWeight = groupWeight.toIntOrNull() ?: 100,
                     groupOverride = groupOverride,
-                    inclusionGroup = inclusionGroupStr.trim(),
                     useGroupScoring = useGroupScoring,
-                    groupPriority = groupPriority,
                     automationId = automationIdStr.trim(),
                     displayIndex = displayIndexStr.toIntOrNull() ?: 0,
                     displayPosition = displayPositionStr.toIntOrNull() ?: 0,

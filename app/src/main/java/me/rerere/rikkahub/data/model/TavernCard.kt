@@ -94,9 +94,7 @@ data class TavernBookEntry(
     @Serializable(with = DelayUntilRecursionSerializer::class)
     val delayUntilRecursion: Int = 0,
     val useProbability: Boolean = true,  // 是否启用概率过滤（官方默认 true，wi.js 4026）
-    val inclusionGroup: String = "", // 本地遗留字段（官方无此字段；官方分组用顶层 group 逗号分隔）
     val useGroupScoring: Boolean = false, // 酒馆 extensions.use_group_scoring
-    val groupPriority: Boolean = false, // 本地遗留字段（官方无此字段；官方优先用 group_override）
     val automationId: String = "", // 酒馆 extensions.automation_id
     val displayIndex: Int = 0, // 酒馆 display_index
     val displayPosition: Int = 0, // 酒馆 display_position

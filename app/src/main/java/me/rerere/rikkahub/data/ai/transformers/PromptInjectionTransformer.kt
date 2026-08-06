@@ -477,16 +477,9 @@ private fun selectGroupWinners(
     if (newlyTriggered.isEmpty()) return emptyList()
 
     val grouped = newlyTriggered
-        .filter { it.group.isNotBlank() || it.inclusionGroup.isNotBlank() }
-        .flatMap { entry ->
-            val labels = buildList {
-                if (entry.group.isNotBlank()) add(entry.group)
-                entry.inclusionGroup.split(",").map { it.trim() }.filter { it.isNotEmpty() }.let { addAll(it) }
-            }.distinct()
-            labels.map { label -> label to entry }
-        }
-        .groupBy({ it.first }, { it.second })
-    val ungrouped = newlyTriggered.filter { it.group.isBlank() && it.inclusionGroup.isBlank() }
+        .filter { it.group.isNotBlank() }
+        .groupBy({ it.group }, { it })
+    val ungrouped = newlyTriggered.filter { it.group.isBlank() }
     val activated = mutableListOf<PromptInjection.RegexInjection>()
     activated.addAll(ungrouped)
 
@@ -500,19 +493,8 @@ private fun selectGroupWinners(
 
         // 官方：该组标签在本次扫描中已激活过任何条目 → 其余条目全部移除
         // （官方按 group 标签比对 allActivatedEntries，即使上轮的胜者本轮不再命中也要拦下）
-        val alreadyActivatedLabels = alreadyActivated.flatMap { entry ->
-            buildList {
-                if (entry.group.isNotBlank()) add(entry.group)
-                entry.inclusionGroup.split(",").map { it.trim() }.filter { it.isNotEmpty() }.let { addAll(it) }
-            }.distinct()
-        }.toSet()
-        if (entries.any { entry ->
-                buildList {
-                    if (entry.group.isNotBlank()) add(entry.group)
-                    entry.inclusionGroup.split(",").map { it.trim() }.filter { it.isNotEmpty() }.let { addAll(it) }
-                }.any { it in alreadyActivatedLabels }
-            }
-        ) continue
+        val alreadyActivatedLabels = alreadyActivated.mapNotNull { it.group.takeIf { g -> g.isNotBlank() } }.toSet()
+        if (entries.any { entry -> entry.group in alreadyActivatedLabels }) continue
 
         // 官方 filterGroupsByScoring：全局 use_group_scoring 与条目开关取或
         // 先移除“参与评分且分数低于组内最高”的条目（未参与评分的条目保留，随后仍参与 override/加权随机）
@@ -526,7 +508,7 @@ private fun selectGroupWinners(
         }
 
         // 官方 groupOverride：在评分幸存者中取 order（优先级）最高的覆盖条目
-        val overrides = survivors.filter { it.groupOverride || it.groupPriority }
+        val overrides = survivors.filter { it.groupOverride }
         val finalCandidates = if (overrides.isNotEmpty()) {
             listOf(overrides.maxByOrNull { it.priority } ?: overrides.first())
         } else {
