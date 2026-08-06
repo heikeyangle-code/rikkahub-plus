@@ -70,6 +70,7 @@ data class Assistant(
     val modeInjectionIds: Set<Uuid> = emptySet(),      // 关联的模式注入 ID
     val lorebookIds: Set<Uuid> = emptySet(),            // 关联的 Lorebook ID
     val presetIds: Set<Uuid> = emptySet(),              // 开启的官方预设 ID（新助手默认全关）
+    val presetPostHistory: String? = null,              // 预设 jailbreak prompt（注入聊天历史之后，由预设应用写入）
     val enabledSkills: Set<String> = emptySet(),        // 启用的 skill 名称列表
     val enableTimeReminder: Boolean = false,            // 时间间隔提醒注入
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt

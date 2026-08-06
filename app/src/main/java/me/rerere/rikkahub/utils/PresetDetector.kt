@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.utils
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -11,6 +12,9 @@ import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.ChatPreset
 import me.rerere.rikkahub.data.model.PresetType
+import me.rerere.rikkahub.data.model.customPrompts
+import me.rerere.rikkahub.data.model.jailbreakContent
+import me.rerere.rikkahub.data.model.mainPromptContent
 
 /**
  * 官方 SillyTavern 预设类型识别与解析。
@@ -99,6 +103,23 @@ object PresetDetector {
             toolRecurringLimit = int(root, "tool_call_recurse_limit"),
             reasoningEffort = (root["reasoning_effort"] as? JsonPrimitive)?.contentOrNull,
             modelName = firstNonBlank(root, "openai_model", "claude_model", "google_model", "custom_model"),
+            prompts = (root["prompts"] as? JsonArray)?.mapNotNull { el ->
+                (el as? JsonObject)?.let { o ->
+                    PresetPrompt(
+                        identifier = (o["identifier"] as? JsonPrimitive)?.contentOrNull,
+                        name = (o["name"] as? JsonPrimitive)?.contentOrNull,
+                        content = (o["content"] as? JsonPrimitive)?.contentOrNull,
+                    )
+                }
+            } ?: emptyList(),
+            promptOrder = (root["prompt_order"] as? JsonArray)?.mapNotNull { el ->
+                (el as? JsonObject)?.let { o ->
+                    PresetPromptOrder(
+                        identifier = (o["identifier"] as? JsonPrimitive)?.contentOrNull,
+                        enabled = (o["enabled"] as? JsonPrimitive)?.booleanOrNull ?: true,
+                    )
+                }
+            } ?: emptyList(),
             unsupportedCount = countUnsupported(root),
             rawJson = root.toString(),
         )
@@ -143,6 +164,7 @@ object PresetDetector {
         "repetition_penalty", "openai_max_tokens", "openai_max_context", "seed",
         "stream_openai", "enable_web_search", "tool_call_recurse_limit", "reasoning_effort",
         "openai_model", "claude_model", "google_model", "custom_model",
+        "prompts", "prompt_order",
     )
 
     /** 统计官方 settingsToUpdate 键中非空且本地未映射的字段数（已整包保留在 rawJson） */
@@ -161,6 +183,8 @@ object PresetDetector {
 /**
  * 官方预设应用语义：预设里非 null 的字段覆盖助手当前设置，
  * null 的字段保持助手现状（官方 preset 应用同样整包覆盖当前设置）。
+ * 自定义 prompts：main 覆盖 systemPrompt，jailbreak 注入聊天历史之后，
+ * 其余条目按官方顺序追加进系统提示（本地注入链已提供官方 12 个默认条目的等价效果，默认内容跳过）。
  */
 fun ChatPreset.applyTo(assistant: Assistant): Assistant = assistant.copy(
     temperature = this.temperature ?: assistant.temperature,
@@ -177,10 +201,27 @@ fun ChatPreset.applyTo(assistant: Assistant): Assistant = assistant.copy(
     enableWebSearch = this.enableWebSearch ?: assistant.enableWebSearch,
     toolRecurringLimit = this.toolRecurringLimit ?: assistant.toolRecurringLimit,
     reasoningLevel = this.reasoningEffort?.let(::reasoningLevelFromOfficial) ?: assistant.reasoningLevel,
-    systemPrompt = this.systemPrompt ?: assistant.systemPrompt,
+    systemPrompt = applyPromptExtras(this, this.systemPrompt ?: assistant.systemPrompt),
+    presetPostHistory = this.jailbreakContent(),
     contextTemplate = this.contextTemplate ?: assistant.contextTemplate,
     messageTemplate = this.messageTemplate ?: assistant.messageTemplate,
 )
+
+/** 预设 prompts → 系统提示合并：main 自定义时替换整条（官方整包覆盖语义），其余条目按官方顺序追加 */
+private fun applyPromptExtras(preset: ChatPreset, base: String): String {
+    val custom = preset.customPrompts()
+    val mainOverride = preset.mainPromptContent()
+    val extras = custom.filter { it.identifier != "main" && it.identifier != "jailbreak" }
+    if (mainOverride == null && extras.isEmpty()) return base
+    val parts = buildList {
+        if (mainOverride != null) add(mainOverride)
+        else if (base.isNotBlank()) add(base)
+        extras.forEach { p ->
+            add(listOfNotNull(p.name ?: p.identifier, p.content).joinToString("\n"))
+        }
+    }
+    return parts.joinToString("\n\n")
+}
 
 /** 官方 reasoning_effort（auto/min/low/medium/high/max）→ 本地 ReasoningLevel */
 fun reasoningLevelFromOfficial(effort: String): ReasoningLevel = when (effort.lowercase()) {

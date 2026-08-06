@@ -94,6 +94,9 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.ChatPreset
 import me.rerere.rikkahub.data.model.PresetType
+import me.rerere.rikkahub.data.model.customPrompts
+import me.rerere.rikkahub.data.model.jailbreakContent
+import me.rerere.rikkahub.data.model.mainPromptContent
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -674,6 +677,28 @@ private fun PresetImportDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.tertiary,
                     )
+                }
+                val customPrompts = remember(preset) { preset.customPrompts() }
+                if (customPrompts.isNotEmpty()) {
+                    Text(
+                        context.getString(R.string.preset_import_prompts, customPrompts.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    if (preset.mainPromptContent() != null) {
+                        Text(
+                            context.getString(R.string.preset_import_prompts_main),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    if (preset.jailbreakContent() != null) {
+                        Text(
+                            context.getString(R.string.preset_import_prompts_jailbreak),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
                 if (rows.isNotEmpty()) {
                     CardGroup {

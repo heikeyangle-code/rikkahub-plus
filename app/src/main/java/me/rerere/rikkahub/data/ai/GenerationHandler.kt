@@ -627,6 +627,11 @@ class GenerationHandler(
             }
 
             addAll(limitedChat.withMessageNames())
+
+            // ── 预设 jailbreak prompt：聊天历史之后注入（官方 jailbreak 同位置）──
+            assistant.presetPostHistory?.takeIf { it.isNotBlank() }?.let {
+                add(UIMessage.system(prompt = it))
+            }
         }.let { base ->
             val persona = settings.personas.find { it.id == settings.activePersonaId }
             if (persona != null && persona.enabled && persona.description.isNotBlank() &&
