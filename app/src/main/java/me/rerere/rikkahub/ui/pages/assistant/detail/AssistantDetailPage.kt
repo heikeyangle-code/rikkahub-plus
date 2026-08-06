@@ -108,6 +108,8 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.ChatPreset
+import me.rerere.rikkahub.data.model.PresetPrompt
+import me.rerere.rikkahub.data.model.PresetPromptOrder
 import me.rerere.rikkahub.data.model.PresetType
 import me.rerere.rikkahub.data.model.customPrompts
 import me.rerere.rikkahub.data.model.jailbreakContent
@@ -1227,49 +1229,38 @@ private fun PresetEditDialog(
                             headlineContent = {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_temperature), temperature,
-                                        { temperature = it }, KeyboardType.Decimal,
-                                    )
+                                        context.getString(R.string.preset_param_temperature), temperature, KeyboardType.Decimal,
+                                    ) { temperature = it }
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_top_p), topP,
-                                        { topP = it }, KeyboardType.Decimal,
-                                    )
+                                        context.getString(R.string.preset_param_top_p), topP, KeyboardType.Decimal,
+                                    ) { topP = it }
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_top_k), topK,
-                                        { topK = it }, KeyboardType.Number,
-                                    )
+                                        context.getString(R.string.preset_param_top_k), topK, KeyboardType.Number,
+                                    ) { topK = it }
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_min_p), minP,
-                                        { minP = it }, KeyboardType.Decimal,
-                                    )
+                                        context.getString(R.string.preset_param_min_p), minP, KeyboardType.Decimal,
+                                    ) { minP = it }
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_frequency_penalty), frequencyPenalty,
-                                        { frequencyPenalty = it }, KeyboardType.Decimal,
-                                    )
+                                        context.getString(R.string.preset_param_frequency_penalty), frequencyPenalty, KeyboardType.Decimal,
+                                    ) { frequencyPenalty = it }
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_presence_penalty), presencePenalty,
-                                        { presencePenalty = it }, KeyboardType.Decimal,
-                                    )
+                                        context.getString(R.string.preset_param_presence_penalty), presencePenalty, KeyboardType.Decimal,
+                                    ) { presencePenalty = it }
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_repetition_penalty), repetitionPenalty,
-                                        { repetitionPenalty = it }, KeyboardType.Decimal,
-                                    )
+                                        context.getString(R.string.preset_param_repetition_penalty), repetitionPenalty, KeyboardType.Decimal,
+                                    ) { repetitionPenalty = it }
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_max_tokens), maxTokens,
-                                        { maxTokens = it }, KeyboardType.Number,
-                                    )
+                                        context.getString(R.string.preset_param_max_tokens), maxTokens, KeyboardType.Number,
+                                    ) { maxTokens = it }
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_max_context), maxContext,
-                                        { maxContext = it }, KeyboardType.Number,
-                                    )
+                                        context.getString(R.string.preset_param_max_context), maxContext, KeyboardType.Number,
+                                    ) { maxContext = it }
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_seed), seed,
-                                        { seed = it }, KeyboardType.Number,
-                                    )
+                                        context.getString(R.string.preset_param_seed), seed, KeyboardType.Number,
+                                    ) { seed = it }
                                     EditFieldRow(
-                                        context.getString(R.string.preset_param_tool_recurse), toolRecurringLimit,
-                                        { toolRecurringLimit = it }, KeyboardType.Number,
-                                    )
+                                        context.getString(R.string.preset_param_tool_recurse), toolRecurringLimit, KeyboardType.Number,
+                                    ) { toolRecurringLimit = it }
                                     EditFieldRow(context.getString(R.string.preset_param_model), modelName) { modelName = it }
                                     Box {
                                         OutlinedTextField(
@@ -1374,13 +1365,13 @@ private fun PresetEditDialog(
                                 onClick = null,
                                 headlineContent = {
                                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        val orderEntry = promptOrder.firstOrNull { it.identifier == prompt.identifier }
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
                                                 context.getString(R.string.preset_edit_entry, index + 1),
                                                 style = MaterialTheme.typography.titleSmall,
                                                 modifier = Modifier.weight(1f),
                                             )
-                                            val orderEntry = promptOrder.firstOrNull { it.identifier == prompt.identifier }
                                             IconButton(
                                                 onClick = { movePrompt(index, -1) },
                                                 enabled = index > 0,
@@ -1474,8 +1465,8 @@ private fun PresetEditDialog(
 private fun EditFieldRow(
     label: String,
     value: String,
-    onValueChange: (String) -> Unit,
     keyboardType: KeyboardType = KeyboardType.Text,
+    onValueChange: (String) -> Unit,
 ) {
     OutlinedTextField(
         value = value,
