@@ -128,7 +128,7 @@
   <string name="assistant_page_system_prompt">System Prompt</string>
   <string name="assistant_page_tab_basic">Basic Settings</string>
   <string name="preset_import">Import SillyTavern Preset</string>
-  <string name="preset_import_desc">Import an official SillyTavern preset file (.json), auto-detect its type, and apply parameters to this assistant</string>
+  <string name="preset_import_desc">Import an official SillyTavern preset file (.json); the type is auto-detected and it is added to the preset library</string>
   <string name="preset_import_failed">Failed to parse preset: %s</string>
   <string name="preset_import_cancel">Cancel</string>
   <string name="preset_import_detected_type">Detected type: %s</string>
@@ -139,7 +139,7 @@
   <string name="preset_import_prompts">Contains %d custom prompt(s) that will be applied while enabled</string>
   <string name="preset_import_prompts_main">Custom main prompt overrides the system prompt</string>
   <string name="preset_import_prompts_jailbreak">Custom post-history instructions will be injected after chat history</string>
-  <string name="preset_empty">No presets yet — import one above</string>
+  <string name="preset_empty">No presets yet — manage to import in global settings</string>
   <string name="preset_type_chat_completion">Chat Completion</string>
   <string name="preset_type_instruct">Instruct Template</string>
   <string name="preset_type_context">Context Template</string>
@@ -180,7 +180,6 @@
   <string name="preset_detail_show_raw">Show raw JSON</string>
   <string name="preset_detail_hide_raw">Hide raw JSON</string>
   <string name="preset_detail_unsupported">Contains %d official fields without a local counterpart</string>
-  <string name="preset_detail_no_params">No applicable parameters</string>
   <string name="preset_detail_no_prompts">No custom prompt entries</string>
   <string name="preset_detail_view">View details</string>
   <string name="preset_edit_title">Edit Preset</string>
@@ -200,6 +199,16 @@
   <string name="preset_param_reasoning_suffix">Reasoning Suffix</string>
   <string name="preset_param_reasoning_separator">Reasoning Separator</string>
   <string name="preset_param_start_reply">Start Reply With</string>
+  <string name="preset_library">SillyTavern Presets</string>
+  <string name="preset_manage">Manage Presets</string>
+  <string name="preset_manage_desc">Import, edit or delete the preset library in global settings</string>
+  <string name="preset_delete">Delete</string>
+  <string name="preset_delete_confirm_title">Delete Preset</string>
+  <string name="preset_delete_confirm_desc">Delete \"%1$s\" from the preset library? It will be disabled on all assistants.</string>
+  <string name="preset_delete_success">Preset deleted</string>
+  <string name="preset_import_success_global">Preset imported</string>
+  <string name="setting_page_presets">SillyTavern Presets</string>
+  <string name="setting_page_presets_desc">Import and manage the official preset library</string>
   <string name="assistant_page_tab_extensions">Extensions</string>
   <string name="assistant_page_tab_local_tools">Local Tools</string>
   <string name="assistant_page_tab_mcp">MCP</string>

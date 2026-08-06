@@ -63,6 +63,7 @@ import me.rerere.hugeicons.stroke.ImageUpload
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.Edit01
+import me.rerere.hugeicons.stroke.File01
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Notebook
 import me.rerere.hugeicons.stroke.MessageMultiple01
@@ -250,6 +251,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = { Icon(HugeIcons.Brain02, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_providers_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_providers)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingPresets) },
+                        leadingContent = { Icon(HugeIcons.File01, null) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_presets_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_presets)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingSearch) },

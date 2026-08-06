@@ -279,7 +279,9 @@ class ChatCompletionsAPI(
             if (params.frequencyPenalty != null) put("frequency_penalty", params.frequencyPenalty)
             if (params.presencePenalty != null) put("presence_penalty", params.presencePenalty)
             if (params.topK != null) put("top_k", params.topK)
-            if (params.seed != null) put("seed", params.seed)
+            // 官方 st_openai.js:2977：seed >= 0 才发送；-1（官方默认，随机种子）不发送，
+            // 否则网关（Go/one-api 类，seed 字段 u64）会拒绝 -1 导致生成失败
+            if (params.seed != null && params.seed >= 0) put("seed", params.seed)
 
             put("stream", stream)
             if (stream) {

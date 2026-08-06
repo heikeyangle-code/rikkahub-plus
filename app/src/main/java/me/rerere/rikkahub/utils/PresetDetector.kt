@@ -35,10 +35,14 @@ object PresetDetector {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun parse(raw: String): ChatPreset? = runCatching {
+    fun parse(raw: String, fileName: String? = null): ChatPreset? = runCatching {
         val root = json.parseToJsonElement(raw) as? JsonObject ?: return null
         val type = detect(root)
-        val name = (root["name"] as? JsonPrimitive)?.contentOrNull ?: ""
+        // 官方磁盘预设文件（src/endpoints/presets.js save 只写 request.body.preset）顶层无 name——
+        // name 仅在文件名里；instruct/context/sysprompt/reasoning 等文件顶层有 name 时优先用之
+        val fileBase = fileName?.substringBeforeLast('.')?.trim()?.takeIf { it.isNotBlank() }
+        val name = (root["name"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+            ?: fileBase
         val fallback = "未命名预设"
         when (type) {
             PresetType.CHAT_COMPLETION -> parseChatCompletion(root, name.ifBlank { fallback })
