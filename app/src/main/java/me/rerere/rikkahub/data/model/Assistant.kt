@@ -737,7 +737,7 @@ fun Assistant.assembleContext(
         .replace("{{char}}", this.name)
         .replace("{{user}}", userName)
         .replace("{{persona}}", personaDesc)
-        .replace("{{system}}", this.systemPrompt.takeIf { it.isNotBlank() } ?: tav?.systemPrompt)
+        .replace("{{system}}", this.systemPrompt.takeIf { it.isNotBlank() } ?: tav?.systemPrompt ?: "")
         .replace("{{description}}", tav?.description ?: "")
         .replace("{{personality}}", tav?.personality ?: "")
         .replace("{{scenario}}", tav?.scenario ?: "")
