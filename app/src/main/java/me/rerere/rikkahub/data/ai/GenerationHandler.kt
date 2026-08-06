@@ -52,6 +52,7 @@ import me.rerere.rikkahub.data.model.buildExampleMessages
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.utils.applyPlaceholders
+import me.rerere.rikkahub.utils.applyTo
 import java.util.Locale
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
@@ -542,6 +543,11 @@ class GenerationHandler(
         generationType: me.rerere.rikkahub.data.model.GenerationType = me.rerere.rikkahub.data.model.GenerationType.NORMAL,
         maxTokensOverride: Int? = null,
     ) {
+        // 开启的预设合并进本次生成的助手配置：按全局预设列表顺序覆盖，
+        // 预设非 null 字段覆盖助手字段（官方 preset 应用语义为整包覆盖当前设置）
+        val assistant = settings.presets
+            .filter { it.id in assistant.presetIds }
+            .fold(assistant) { acc, preset -> preset.applyTo(acc) }
         val limitedChat = messages.limitContext(assistant.contextMessageLimit)
         val internalMessages = buildList {
             val fallbackSystem = buildString {

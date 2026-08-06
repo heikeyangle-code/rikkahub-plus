@@ -57,6 +57,7 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -103,8 +104,8 @@ import me.rerere.rikkahub.ui.pages.assistant.detail.TavernCharacterCard
 import me.rerere.rikkahub.utils.CardExporter
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.PresetDetector
-import me.rerere.rikkahub.utils.applyTo
 import me.rerere.rikkahub.utils.plus
+import kotlin.uuid.Uuid
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
@@ -260,14 +261,21 @@ fun AssistantDetailPage(id: String) {
                         headlineContent = { Text(stringResource(R.string.assistant_page_tab_local_tools)) },
                         trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
                     )
-                    item(
-                        onClick = { presetPickerLauncher.launch(arrayOf("application/json")) },
-                        leadingContent = { Icon(HugeIcons.File01, null) },
-                        supportingContent = { Text(stringResource(R.string.preset_import_desc)) },
-                        headlineContent = { Text(stringResource(R.string.preset_import)) },
-                        trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
-                    )
                 }
+            }
+
+            // 官方预设（外置世界书式：每个预设一个开关，开启的预设参数在生成时生效）
+            item {
+                PresetCard(
+                    presets = settings.presets,
+                    selectedIds = assistant.presetIds,
+                    onToggle = { id, checked ->
+                        val newIds = if (checked) assistant.presetIds + id else assistant.presetIds - id
+                        vm.update(assistant.copy(presetIds = newIds))
+                    },
+                    onImport = { presetPickerLauncher.launch(arrayOf("application/json")) },
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
             }
         }
     }
@@ -284,10 +292,11 @@ fun AssistantDetailPage(id: String) {
             preset = preset,
             assistant = assistant,
             onDismiss = { pendingPreset = null },
-            onApply = {
+            onImport = {
                 pendingPreset = null
-                vm.update(preset.applyTo(assistant))
+                // 存入全局预设库，并自动绑定到当前助手（导入的默认开，新助手默认全关）
                 vm.updateSettings(settings.copy(presets = settings.presets + preset))
+                vm.update(assistant.copy(presetIds = assistant.presetIds + preset.id))
                 toaster.show(context.getString(R.string.preset_import_success))
             },
         )
@@ -547,6 +556,64 @@ private fun GreetingPickerSheet(
     }
 }
 
+/** 官方预设卡片：导入按钮 + 每个预设一个开关（对齐外置世界书 LorebooksContent 的 ListItem+Switch 模式） */
+@Composable
+private fun PresetCard(
+    presets: List<ChatPreset>,
+    selectedIds: Set<Uuid>,
+    onToggle: (Uuid, Boolean) -> Unit,
+    onImport: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    CardGroup(modifier = modifier) {
+        item(
+            onClick = onImport,
+            leadingContent = { Icon(HugeIcons.File01, null) },
+            supportingContent = { Text(stringResource(R.string.preset_import_desc)) },
+            headlineContent = { Text(stringResource(R.string.preset_import)) },
+            trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+        )
+        presets.forEach { preset ->
+            item(
+                onClick = null,
+                leadingContent = null,
+                supportingContent = {
+                    Text(
+                        text = presetTypeLabel(context, preset.type),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                headlineContent = {
+                    Text(preset.name.ifBlank { context.getString(R.string.preset_type_unknown) })
+                },
+                trailingContent = {
+                    Switch(
+                        checked = selectedIds.contains(preset.id),
+                        onCheckedChange = { checked -> onToggle(preset.id, checked) }
+                    )
+                },
+            )
+        }
+        if (presets.isEmpty()) {
+            item(
+                onClick = null,
+                leadingContent = null,
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.preset_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                headlineContent = { Text(stringResource(R.string.preset_import)) },
+                trailingContent = null,
+            )
+        }
+    }
+}
+
 private data class PresetParamRow(
     val label: String,
     val current: String,
@@ -558,7 +625,7 @@ private fun PresetImportDialog(
     preset: ChatPreset,
     assistant: Assistant,
     onDismiss: () -> Unit,
-    onApply: () -> Unit,
+    onImport: () -> Unit,
 ) {
     val context = LocalContext.current
     val rows = remember(preset, assistant) {
@@ -591,6 +658,11 @@ private fun PresetImportDialog(
                         if (rows.isEmpty()) R.string.preset_import_no_apply_desc
                         else R.string.preset_import_apply_desc
                     ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    context.getString(R.string.preset_import_enable_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -635,8 +707,8 @@ private fun PresetImportDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onApply) {
-                Text(stringResource(if (rows.isEmpty()) R.string.preset_import_save_only else R.string.preset_import_apply))
+            TextButton(onClick = onImport) {
+                Text(stringResource(R.string.preset_import))
             }
         },
         dismissButton = {

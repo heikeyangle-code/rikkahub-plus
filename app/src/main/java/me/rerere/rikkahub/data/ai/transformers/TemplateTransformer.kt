@@ -7,6 +7,7 @@ import kotlinx.datetime.toInstant
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.utils.applyTo
 import me.rerere.rikkahub.utils.toLocalDate
 import me.rerere.rikkahub.utils.toLocalTime
 import java.io.Reader
@@ -55,10 +56,13 @@ class TemplateTransformer(
 
 class AssistantTemplateLoader(private val settingsStore: SettingsStore) : Loader<String> {
     override fun getReader(cacheKey: String?): Reader? {
-        val content = settingsStore.settingsFlow.value.assistants
-            .find { it.id.toString() == cacheKey }?.messageTemplate
-            ?: return null
-        return StringReader(content)
+        val settings = settingsStore.settingsFlow.value
+        val assistant = settings.assistants.find { it.id.toString() == cacheKey } ?: return null
+        // 与 GenerationHandler 相同的遮蔽逻辑：开启的预设覆盖助手的消息模板
+        val effective = settings.presets
+            .filter { it.id in assistant.presetIds }
+            .fold(assistant) { acc, preset -> preset.applyTo(acc) }
+        return StringReader(effective.messageTemplate)
     }
 
     override fun setCharset(charset: String?) {}
