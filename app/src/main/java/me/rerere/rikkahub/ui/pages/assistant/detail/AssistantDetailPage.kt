@@ -18,6 +18,9 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Eye
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
+import me.rerere.hugeicons.stroke.Edit01
+import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.Delete01
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
@@ -61,8 +64,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -138,6 +146,7 @@ fun AssistantDetailPage(id: String) {
     var showExport by remember { mutableStateOf(false) }
     var pendingPreset by remember { mutableStateOf<ChatPreset?>(null) }
     var viewPreset by remember { mutableStateOf<ChatPreset?>(null) }
+    var editPreset by remember { mutableStateOf<ChatPreset?>(null) }
 
     // 官方 SillyTavern 预设导入（preset-manager.js 单预设/master 导入通道，自动识别类型）
     val presetPickerLauncher = rememberLauncherForActivityResult(
@@ -286,6 +295,7 @@ fun AssistantDetailPage(id: String) {
                     },
                     onImport = { presetPickerLauncher.launch(arrayOf("application/json")) },
                     onView = { viewPreset = it },
+                    onEdit = { editPreset = it },
                     modifier = Modifier.padding(horizontal = 8.dp),
                 )
             }
@@ -320,6 +330,19 @@ fun AssistantDetailPage(id: String) {
             preset = preset,
             enabled = assistant.presetIds.contains(preset.id),
             onDismiss = { viewPreset = null },
+        )
+    }
+
+    editPreset?.let { preset ->
+        PresetEditDialog(
+            preset = preset,
+            onDismiss = { editPreset = null },
+            onSave = { edited ->
+                editPreset = null
+                // 写回全局预设库（官方 Update 语义：整包覆盖当前预设）
+                vm.updateSettings(settings.copy(presets = settings.presets.map { if (it.id == edited.id) edited else it }))
+                toaster.show(context.getString(R.string.preset_edit_saved))
+            },
         )
     }
 }
@@ -585,6 +608,7 @@ private fun PresetCard(
     onToggle: (Uuid, Boolean) -> Unit,
     onImport: () -> Unit,
     onView: (ChatPreset) -> Unit,
+    onEdit: (ChatPreset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -612,6 +636,9 @@ private fun PresetCard(
                 },
                 trailingContent = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { onEdit(preset) }) {
+                            Icon(HugeIcons.Edit01, stringResource(R.string.preset_edit_title))
+                        }
                         IconButton(onClick = { onView(preset) }) {
                             Icon(HugeIcons.Eye, stringResource(R.string.preset_detail_view))
                         }
@@ -1068,6 +1095,396 @@ private fun presetDetailValueText(value: Any?): String = when (value) {
     is Float -> if (value % 1f == 0f) value.toInt().toString() else value.toString()
     is Int -> value.toString()
     else -> value.toString()
+}
+
+/**
+ * 预设编辑：参数逐项编辑 + 提示词条目逐条编辑/增删/排序/开关
+ * （对齐官方：参数在设置面板、prompts 在 Prompt Manager；保存写回全局预设库）
+ */
+@Composable
+private fun PresetEditDialog(
+    preset: ChatPreset,
+    onDismiss: () -> Unit,
+    onSave: (ChatPreset) -> Unit,
+) {
+    val context = LocalContext.current
+    var name by remember(preset) { mutableStateOf(preset.name) }
+    var temperature by remember(preset) { mutableStateOf(preset.temperature?.toString() ?: "") }
+    var topP by remember(preset) { mutableStateOf(preset.topP?.toString() ?: "") }
+    var topK by remember(preset) { mutableStateOf(preset.topK?.toString() ?: "") }
+    var minP by remember(preset) { mutableStateOf(preset.minP?.toString() ?: "") }
+    var frequencyPenalty by remember(preset) { mutableStateOf(preset.frequencyPenalty?.toString() ?: "") }
+    var presencePenalty by remember(preset) { mutableStateOf(preset.presencePenalty?.toString() ?: "") }
+    var repetitionPenalty by remember(preset) { mutableStateOf(preset.repetitionPenalty?.toString() ?: "") }
+    var maxTokens by remember(preset) { mutableStateOf(preset.maxTokens?.toString() ?: "") }
+    var maxContext by remember(preset) { mutableStateOf(preset.maxContext?.toString() ?: "") }
+    var seed by remember(preset) { mutableStateOf(preset.seed?.toString() ?: "") }
+    var stream by remember(preset) { mutableStateOf(preset.stream) }
+    var webSearch by remember(preset) { mutableStateOf(preset.enableWebSearch) }
+    var toolRecurringLimit by remember(preset) { mutableStateOf(preset.toolRecurringLimit?.toString() ?: "") }
+    var reasoningEffort by remember(preset) { mutableStateOf(preset.reasoningEffort ?: "") }
+    var modelName by remember(preset) { mutableStateOf(preset.modelName ?: "") }
+    var systemPrompt by remember(preset) { mutableStateOf(preset.systemPrompt ?: "") }
+    var contextTemplate by remember(preset) { mutableStateOf(preset.contextTemplate ?: "") }
+    var messageTemplate by remember(preset) { mutableStateOf(preset.messageTemplate ?: "") }
+    var prompts by remember(preset) { mutableStateOf(preset.prompts.toMutableList()) }
+    var promptOrder by remember(preset) { mutableStateOf(preset.promptOrder.toMutableList()) }
+    var showReasoningMenu by remember { mutableStateOf(false) }
+
+    fun movePrompt(index: Int, delta: Int) {
+        val newIndex = index + delta
+        if (newIndex in prompts.indices) {
+            prompts = prompts.toMutableList().apply { add(newIndex, removeAt(index)) }
+        }
+    }
+
+    fun toggleEnabled(prompt: PresetPrompt) {
+        val identifier = prompt.identifier
+        val order = promptOrder.toMutableList()
+        val idx = order.indexOfFirst { it.identifier == identifier }
+        if (idx >= 0) order[idx] = order[idx].copy(enabled = !order[idx].enabled)
+        else order.add(PresetPromptOrder(identifier = identifier, enabled = false))
+        promptOrder = order
+    }
+
+    fun save() {
+        fun f(s: String) = s.toFloatOrNull()?.takeIf { !it.isNaN() }
+        fun i(s: String) = s.toIntOrNull()
+        onSave(
+            preset.copy(
+                name = name.ifBlank { preset.name },
+                temperature = f(temperature),
+                topP = f(topP),
+                topK = i(topK),
+                minP = f(minP),
+                frequencyPenalty = f(frequencyPenalty),
+                presencePenalty = f(presencePenalty),
+                repetitionPenalty = f(repetitionPenalty),
+                maxTokens = i(maxTokens),
+                maxContext = i(maxContext),
+                seed = i(seed),
+                stream = stream,
+                enableWebSearch = webSearch,
+                toolRecurringLimit = i(toolRecurringLimit),
+                reasoningEffort = reasoningEffort.ifBlank { null },
+                modelName = modelName.ifBlank { null },
+                systemPrompt = systemPrompt.ifBlank { null },
+                contextTemplate = contextTemplate.ifBlank { null },
+                messageTemplate = messageTemplate.ifBlank { null },
+                prompts = prompts,
+                promptOrder = promptOrder,
+            )
+        )
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = context.getString(R.string.preset_edit_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = presetTypeLabel(context, preset.type),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                item {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text(context.getString(R.string.preset_edit_name)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                item { DetailSectionLabel(context.getString(R.string.preset_detail_params)) }
+                item {
+                    CardGroup {
+                        item(
+                            onClick = null,
+                            headlineContent = {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_temperature), temperature,
+                                        { temperature = it }, KeyboardType.Decimal,
+                                    )
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_top_p), topP,
+                                        { topP = it }, KeyboardType.Decimal,
+                                    )
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_top_k), topK,
+                                        { topK = it }, KeyboardType.Number,
+                                    )
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_min_p), minP,
+                                        { minP = it }, KeyboardType.Decimal,
+                                    )
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_frequency_penalty), frequencyPenalty,
+                                        { frequencyPenalty = it }, KeyboardType.Decimal,
+                                    )
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_presence_penalty), presencePenalty,
+                                        { presencePenalty = it }, KeyboardType.Decimal,
+                                    )
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_repetition_penalty), repetitionPenalty,
+                                        { repetitionPenalty = it }, KeyboardType.Decimal,
+                                    )
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_max_tokens), maxTokens,
+                                        { maxTokens = it }, KeyboardType.Number,
+                                    )
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_max_context), maxContext,
+                                        { maxContext = it }, KeyboardType.Number,
+                                    )
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_seed), seed,
+                                        { seed = it }, KeyboardType.Number,
+                                    )
+                                    EditFieldRow(
+                                        context.getString(R.string.preset_param_tool_recurse), toolRecurringLimit,
+                                        { toolRecurringLimit = it }, KeyboardType.Number,
+                                    )
+                                    EditFieldRow(context.getString(R.string.preset_param_model), modelName) { modelName = it }
+                                    Box {
+                                        OutlinedTextField(
+                                            value = reasoningEffort,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text(context.getString(R.string.preset_param_reasoning)) },
+                                            trailingIcon = { Icon(HugeIcons.ArrowDown01, null, modifier = Modifier.size(18.dp)) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        DropdownMenu(
+                                            expanded = showReasoningMenu,
+                                            onDismissRequest = { showReasoningMenu = false },
+                                        ) {
+                                            listOf("auto", "min", "low", "medium", "high", "max").forEach { option ->
+                                                DropdownMenuItem(
+                                                    text = { Text(option) },
+                                                    onClick = {
+                                                        reasoningEffort = option
+                                                        showReasoningMenu = false
+                                                    },
+                                                )
+                                            }
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .matchParentSize()
+                                                .clickable { showReasoningMenu = !showReasoningMenu },
+                                        )
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(
+                                            context.getString(R.string.preset_param_stream),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Switch(checked = stream == true, onCheckedChange = { stream = it })
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(
+                                            context.getString(R.string.preset_param_web_search),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Switch(checked = webSearch == true, onCheckedChange = { webSearch = it })
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+
+                val templateFields = buildList {
+                    add(R.string.preset_param_system_prompt to systemPrompt)
+                    add(R.string.preset_param_context_template to contextTemplate)
+                    add(R.string.preset_param_message_template to messageTemplate)
+                }.filter { it.first != R.string.preset_param_system_prompt || preset.type == PresetType.SYSPROMPT || preset.systemPrompt != null }
+                    .filter { it.first != R.string.preset_param_context_template || preset.type == PresetType.CONTEXT || preset.contextTemplate != null }
+                    .filter { it.first != R.string.preset_param_message_template || preset.type == PresetType.INSTRUCT || preset.messageTemplate != null }
+                if (templateFields.isNotEmpty()) {
+                    item { DetailSectionLabel(context.getString(R.string.preset_detail_templates)) }
+                    item {
+                        CardGroup {
+                            item(
+                                onClick = null,
+                                headlineContent = {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        templateFields.forEach { (labelId, value) ->
+                                            OutlinedTextField(
+                                                value = value,
+                                                onValueChange = { newValue ->
+                                                    when (labelId) {
+                                                        R.string.preset_param_system_prompt -> systemPrompt = newValue
+                                                        R.string.preset_param_context_template -> contextTemplate = newValue
+                                                        R.string.preset_param_message_template -> messageTemplate = newValue
+                                                    }
+                                                },
+                                                label = { Text(context.getString(labelId)) },
+                                                minLines = 3,
+                                                maxLines = 8,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+
+                item { DetailSectionLabel(context.getString(R.string.preset_detail_prompts)) }
+                item {
+                    CardGroup {
+                        prompts.forEachIndexed { index, prompt ->
+                            item(
+                                onClick = null,
+                                headlineContent = {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                context.getString(R.string.preset_edit_entry, index + 1),
+                                                style = MaterialTheme.typography.titleSmall,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            val orderEntry = promptOrder.firstOrNull { it.identifier == prompt.identifier }
+                                            IconButton(
+                                                onClick = { movePrompt(index, -1) },
+                                                enabled = index > 0,
+                                            ) {
+                                                Icon(HugeIcons.ArrowUp01, context.getString(R.string.preset_edit_move_up), modifier = Modifier.size(18.dp))
+                                            }
+                                            IconButton(
+                                                onClick = { movePrompt(index, 1) },
+                                                enabled = index < prompts.lastIndex,
+                                            ) {
+                                                Icon(HugeIcons.ArrowDown01, context.getString(R.string.preset_edit_move_down), modifier = Modifier.size(18.dp))
+                                            }
+                                            IconButton(onClick = { prompts = prompts.toMutableList().apply { removeAt(index) } }) {
+                                                Icon(HugeIcons.Delete01, context.getString(R.string.preset_edit_delete), modifier = Modifier.size(18.dp))
+                                            }
+                                        }
+                                        OutlinedTextField(
+                                            value = prompt.identifier ?: "",
+                                            onValueChange = { newValue ->
+                                                prompts = prompts.toMutableList().apply { set(index, prompt.copy(identifier = newValue.ifBlank { null })) }
+                                            },
+                                            label = { Text(context.getString(R.string.preset_edit_identifier)) },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        OutlinedTextField(
+                                            value = prompt.name ?: "",
+                                            onValueChange = { newValue ->
+                                                prompts = prompts.toMutableList().apply { set(index, prompt.copy(name = newValue.ifBlank { null })) }
+                                            },
+                                            label = { Text(context.getString(R.string.preset_edit_name)) },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        OutlinedTextField(
+                                            value = prompt.content ?: "",
+                                            onValueChange = { newValue ->
+                                                prompts = prompts.toMutableList().apply { set(index, prompt.copy(content = newValue.ifBlank { null })) }
+                                            },
+                                            label = { Text(context.getString(R.string.preset_edit_content)) },
+                                            minLines = 3,
+                                            maxLines = 8,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                            Text(
+                                                context.getString(R.string.preset_edit_enabled),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            Switch(
+                                                checked = orderEntry?.enabled != false,
+                                                onCheckedChange = { toggleEnabled(prompt) },
+                                            )
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                        item(
+                            onClick = {
+                                prompts = (prompts + PresetPrompt()).toMutableList()
+                            },
+                            leadingContent = { Icon(HugeIcons.Add01, null) },
+                            headlineContent = { Text(context.getString(R.string.preset_edit_add_prompt)) },
+                        )
+                    }
+                }
+
+                item {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 24.dp),
+                    ) {
+                        TextButton(onClick = onDismiss) {
+                            Text(context.getString(R.string.preset_edit_cancel))
+                        }
+                        TextButton(onClick = { save() }) {
+                            Text(context.getString(R.string.preset_edit_save))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditFieldRow(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    keyboardType: KeyboardType = KeyboardType.Text,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 private fun presetTypeLabel(context: Context, type: PresetType): String = when (type) {
