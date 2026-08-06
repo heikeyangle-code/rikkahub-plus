@@ -737,7 +737,7 @@ fun Assistant.assembleContext(
         .replace("{{char}}", this.name)
         .replace("{{user}}", userName)
         .replace("{{persona}}", personaDesc)
-        .replace("{{system}}", tav?.systemPrompt ?: this.systemPrompt.take(200))
+        .replace("{{system}}", this.systemPrompt.takeIf { it.isNotBlank() } ?: tav?.systemPrompt)
         .replace("{{description}}", tav?.description ?: "")
         .replace("{{personality}}", tav?.personality ?: "")
         .replace("{{scenario}}", tav?.scenario ?: "")
@@ -746,10 +746,12 @@ fun Assistant.assembleContext(
 }
 
 /**
- * 官方 Chat Completion 结构拆分 — 主提示消息（对应官方 main prompt / system_prompt）
+ * 官方 Chat Completion 结构拆分 — 主提示消息（对应官方 main prompt）。
+ * 系统提示词（预设应用后）优先，空则回退角色卡自带 system_prompt（官方语义：
+ * main 条目与角色卡字段并列，预设的 main 永远生效）
  */
 fun Assistant.assembleMainPrompt(): String {
-    return tavernData?.systemPrompt?.takeIf { it.isNotBlank() } ?: systemPrompt
+    return systemPrompt.takeIf { it.isNotBlank() } ?: tavernData?.systemPrompt ?: ""
 }
 
 /**
