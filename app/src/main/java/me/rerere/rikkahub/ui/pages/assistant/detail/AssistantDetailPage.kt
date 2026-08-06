@@ -15,6 +15,9 @@ import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Puzzle
 import me.rerere.hugeicons.stroke.Wrench01
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Eye
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
@@ -34,6 +37,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,6 +47,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -70,9 +75,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -130,6 +137,7 @@ fun AssistantDetailPage(id: String) {
     var showGreetingPicker by remember { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
     var pendingPreset by remember { mutableStateOf<ChatPreset?>(null) }
+    var viewPreset by remember { mutableStateOf<ChatPreset?>(null) }
 
     // 官方 SillyTavern 预设导入（preset-manager.js 单预设/master 导入通道，自动识别类型）
     val presetPickerLauncher = rememberLauncherForActivityResult(
@@ -277,6 +285,7 @@ fun AssistantDetailPage(id: String) {
                         vm.update(assistant.copy(presetIds = newIds))
                     },
                     onImport = { presetPickerLauncher.launch(arrayOf("application/json")) },
+                    onView = { viewPreset = it },
                     modifier = Modifier.padding(horizontal = 8.dp),
                 )
             }
@@ -303,6 +312,14 @@ fun AssistantDetailPage(id: String) {
                 vm.update(assistant.copy(presetIds = assistant.presetIds + preset.id))
                 toaster.show(context.getString(R.string.preset_import_success))
             },
+        )
+    }
+
+    viewPreset?.let { preset ->
+        PresetDetailSheet(
+            preset = preset,
+            enabled = assistant.presetIds.contains(preset.id),
+            onDismiss = { viewPreset = null },
         )
     }
 }
@@ -567,6 +584,7 @@ private fun PresetCard(
     selectedIds: Set<Uuid>,
     onToggle: (Uuid, Boolean) -> Unit,
     onImport: () -> Unit,
+    onView: (ChatPreset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -593,10 +611,15 @@ private fun PresetCard(
                     Text(preset.name.ifBlank { context.getString(R.string.preset_type_unknown) })
                 },
                 trailingContent = {
-                    Switch(
-                        checked = selectedIds.contains(preset.id),
-                        onCheckedChange = { checked -> onToggle(preset.id, checked) }
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { onView(preset) }) {
+                            Icon(HugeIcons.Eye, stringResource(R.string.preset_detail_view))
+                        }
+                        Switch(
+                            checked = selectedIds.contains(preset.id),
+                            onCheckedChange = { checked -> onToggle(preset.id, checked) }
+                        )
+                    }
                 },
             )
         }
@@ -749,6 +772,302 @@ private fun PresetImportDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.preset_import_cancel)) }
         }
     )
+}
+
+/**
+ * 预设详情：参数全铺 + 模板全文 + 提示词条目按官方 prompts 数组顺序分条列出。
+ * 官方没有详情对话框——参数铺在设置面板、prompts 在 Prompt Manager 分条编辑，
+ * 这里是两处界面的合并展示。
+ */
+@Composable
+private fun PresetDetailSheet(
+    preset: ChatPreset,
+    enabled: Boolean,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val params = remember(preset) { buildDetailParams(preset) { context.getString(it) } }
+    var showRaw by remember { mutableStateOf(false) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = preset.name.ifBlank { context.getString(R.string.preset_type_unknown) },
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = presetTypeLabel(context, preset.type),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                item {
+                    Text(
+                        text = context.getString(
+                            if (enabled) R.string.preset_detail_enabled_state else R.string.preset_detail_disabled_state
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    )
+                }
+
+                item { DetailSectionLabel(context.getString(R.string.preset_detail_params)) }
+                item {
+                    CardGroup {
+                        if (params.isEmpty()) {
+                            item(
+                                onClick = null,
+                                supportingContent = {
+                                    Text(
+                                        context.getString(R.string.preset_detail_no_params),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                },
+                                headlineContent = {},
+                            )
+                        } else {
+                            params.forEach { (label, value) ->
+                                item(
+                                    onClick = null,
+                                    headlineContent = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(vertical = 2.dp),
+                                        ) {
+                                            Text(
+                                                label,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            Text(
+                                                value,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.primary,
+                                            )
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                val templates = buildList {
+                    add(R.string.preset_param_system_prompt to preset.systemPrompt)
+                    add(R.string.preset_param_context_template to preset.contextTemplate)
+                    add(R.string.preset_param_message_template to preset.messageTemplate)
+                }.filter { !it.second.isNullOrBlank() }
+                if (templates.isNotEmpty()) {
+                    item { DetailSectionLabel(context.getString(R.string.preset_detail_templates)) }
+                    item {
+                        CardGroup {
+                            templates.forEach { (labelId, value) ->
+                                item(
+                                    onClick = null,
+                                    headlineContent = {
+                                        Column(modifier = Modifier.padding(vertical = 2.dp)) {
+                                            Text(
+                                                context.getString(labelId),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                            Text(
+                                                value,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                            )
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item { DetailSectionLabel(context.getString(R.string.preset_detail_prompts)) }
+                item {
+                    CardGroup {
+                        if (preset.prompts.isEmpty()) {
+                            item(
+                                onClick = null,
+                                supportingContent = {
+                                    Text(
+                                        context.getString(R.string.preset_detail_no_prompts),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                },
+                                headlineContent = {},
+                            )
+                        } else {
+                            preset.prompts.forEach { prompt ->
+                                val orderEntry = preset.promptOrder.firstOrNull { it.identifier == prompt.identifier }
+                                val isOn = orderEntry?.enabled != false
+                                item(
+                                    onClick = null,
+                                    headlineContent = {
+                                        Column(modifier = Modifier.padding(vertical = 2.dp)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    prompt.name ?: prompt.identifier ?: "?",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    modifier = Modifier.weight(1f),
+                                                )
+                                                Text(
+                                                    context.getString(if (isOn) R.string.preset_detail_prompt_on else R.string.preset_detail_prompt_off),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (isOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(50))
+                                                        .background(
+                                                            if (isOn) MaterialTheme.colorScheme.primaryContainer
+                                                            else MaterialTheme.colorScheme.surfaceVariant
+                                                        )
+                                                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                                                )
+                                            }
+                                            Spacer(Modifier.height(4.dp))
+                                            val content = prompt.content?.takeIf { it.isNotBlank() }
+                                            if (content != null) {
+                                                Text(
+                                                    content,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                )
+                                            } else {
+                                                Text(
+                                                    context.getString(R.string.preset_detail_placeholder),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.outline,
+                                                )
+                                            }
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (preset.unsupportedCount > 0 || preset.rawJson.isNotBlank()) {
+                    item { DetailSectionLabel(context.getString(R.string.preset_detail_raw_json)) }
+                    item {
+                        CardGroup {
+                            item(
+                                onClick = { showRaw = !showRaw },
+                                headlineContent = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = if (preset.unsupportedCount > 0) {
+                                                context.getString(R.string.preset_detail_unsupported, preset.unsupportedCount) +
+                                                    " · " + context.getString(
+                                                        if (showRaw) R.string.preset_detail_hide_raw else R.string.preset_detail_show_raw
+                                                    )
+                                            } else {
+                                                context.getString(
+                                                    if (showRaw) R.string.preset_detail_hide_raw else R.string.preset_detail_show_raw
+                                                )
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.tertiary,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Icon(
+                                            if (showRaw) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.tertiary,
+                                        )
+                                    }
+                                },
+                            )
+                            if (showRaw) {
+                                item(
+                                    onClick = null,
+                                    headlineContent = {
+                                        Text(
+                                            preset.rawJson,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailSectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 2.dp),
+    )
+}
+
+/** 详情参数行：仅列出预设中非 null 的参数（与官方面板一致，长文本不截断） */
+private fun buildDetailParams(preset: ChatPreset, getString: (Int) -> String): List<Pair<String, String>> {
+    val rows = mutableListOf<Pair<String, String>>()
+    fun add(labelId: Int, value: Any?) {
+        if (value == null) return
+        rows += getString(labelId) to presetDetailValueText(value)
+    }
+    add(R.string.preset_param_temperature, preset.temperature)
+    add(R.string.preset_param_top_p, preset.topP)
+    add(R.string.preset_param_top_k, preset.topK)
+    add(R.string.preset_param_min_p, preset.minP)
+    add(R.string.preset_param_frequency_penalty, preset.frequencyPenalty)
+    add(R.string.preset_param_presence_penalty, preset.presencePenalty)
+    add(R.string.preset_param_repetition_penalty, preset.repetitionPenalty)
+    add(R.string.preset_param_max_tokens, preset.maxTokens)
+    add(R.string.preset_param_max_context, preset.maxContext)
+    add(R.string.preset_param_seed, preset.seed)
+    add(R.string.preset_param_stream, preset.stream)
+    add(R.string.preset_param_web_search, preset.enableWebSearch)
+    add(R.string.preset_param_tool_recurse, preset.toolRecurringLimit)
+    add(R.string.preset_param_reasoning, preset.reasoningEffort)
+    add(R.string.preset_param_model, preset.modelName)
+    return rows
+}
+
+private fun presetDetailValueText(value: Any?): String = when (value) {
+    null -> "-"
+    is Boolean -> if (value) "true" else "false"
+    is Float -> if (value % 1f == 0f) value.toInt().toString() else value.toString()
+    is Int -> value.toString()
+    else -> value.toString()
 }
 
 private fun presetTypeLabel(context: Context, type: PresetType): String = when (type) {
