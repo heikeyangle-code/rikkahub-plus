@@ -128,6 +128,9 @@ private val regexCache = SimpleCache.builder<String, Result<Regex>>()
     .expireAfterWrite(10, TimeUnit.MINUTES)
     .build()
 
+// 官方 matchKeys 用 /\s+/ 判断多词关键词（split 后 >1 个词则整词模式退化为 includes）
+private val WHITESPACE_REGEX = Regex("\\s+")
+
 private fun compileRegexCached(pattern: String): Regex? {
     regexCache.getIfPresent(pattern)?.let { return it.getOrNull() }
     val result = runCatching {
@@ -636,15 +639,37 @@ private fun keyMatches(
     return if (useRegex) {
         try {
             val options = if (caseSensitive) emptySet() else setOf(RegexOption.IGNORE_CASE)
-            val pattern = if (matchWholeWords) "\\b(?:${key.trim().trim('^', '$')})\\b" else key
+            // 旧版官方 useRegex 分支的整词包裹；边界统一用 (?:^|\W)(?:...)(?:$|\W)，
+            // 不用 \b（Java \w 是 ASCII 集，CJK 关键词在 \b 下永远无法匹配）
+            val pattern = if (matchWholeWords) {
+                "(?:^|\\W)(?:${key.trim().trim('^', '$')})(?:\$|\\W)"
+            } else {
+                key
+            }
             Regex(pattern, options).containsMatchIn(context)
         } catch (_: Exception) { false }
     } else {
         val options = if (caseSensitive) emptySet() else setOf(RegexOption.IGNORE_CASE)
-        val pattern = if (matchWholeWords) "\\b${Regex.escape(key)}\\b" else Regex.escape(key)
-        try {
-            Regex(pattern, options).containsMatchIn(context)
-        } catch (_: Exception) { false }
+        val trimmed = key.trim()
+        // 官方：trim 后为空的关键词直接不匹配（否则空模式会匹配一切）
+        if (trimmed.isEmpty()) return false
+        if (matchWholeWords) {
+            // 官方 matchKeys：整词匹配用自定义边界 (?:^|\W)(key)(?:$|\W)，不是 \b——
+            // Java \w 是 ASCII 集，CJK 关键词在 \b 下永远无法匹配
+            if (trimmed.split(WHITESPACE_REGEX).size > 1) {
+                // 官方：多词关键词（含空格）整词模式退化为纯子串包含
+                context.contains(trimmed, ignoreCase = !caseSensitive)
+            } else {
+                try {
+                    Regex("(?:^|\\W)(${Regex.escape(trimmed)})(?:\$|\\W)", options)
+                        .containsMatchIn(context)
+                } catch (_: Exception) { false }
+            }
+        } else {
+            try {
+                Regex(Regex.escape(trimmed), options).containsMatchIn(context)
+            } catch (_: Exception) { false }
+        }
     }
 }
 

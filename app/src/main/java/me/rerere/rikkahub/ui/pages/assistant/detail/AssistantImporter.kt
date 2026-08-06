@@ -402,7 +402,7 @@ private fun parseEntriesArray(arr: kotlinx.serialization.json.JsonArray): List<T
                 groupOverride = e["group_override"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false,
                 delay = e["delay"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0,
                 useProbability = e["useProbability"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
-                    ?: e["use_probability"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false,
+                    ?: e["use_probability"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true,
                 extensionsRaw = e["extensions"]?.toString() ?: "",
             ), e)
         } catch (_: Exception) { null }
@@ -442,7 +442,7 @@ private fun parseEntriesMap(obj: JsonObject): List<TavernBookEntry> {
                 groupOverride = e["group_override"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false,
                 delay = e["delay"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0,
                 useProbability = e["useProbability"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
-                    ?: e["use_probability"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false,
+                    ?: e["use_probability"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true,
                 extensionsRaw = e["extensions"]?.toString() ?: "",
             ), e)
         } catch (_: Exception) { null }

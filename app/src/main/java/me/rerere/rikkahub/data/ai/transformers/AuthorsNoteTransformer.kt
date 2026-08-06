@@ -34,7 +34,6 @@ object AuthorsNoteTransformer : InputMessageTransformer {
             interval <= 0 -> false
             else -> userCount >= interval && userCount % interval == 0
         }
-        if (!shouldInject) return messages
 
         val noteText = when {
             personaTop -> "$personaDesc\n${settings.authorNote}"
@@ -43,36 +42,54 @@ object AuthorsNoteTransformer : InputMessageTransformer {
         }
 
         // 内部标记：PlaceholderTransformer 发送前会剥离，避免注入块被当成真实消息
-        val body = "[Author's Note]\n$noteText"
-        // 官方（st_openai.js getPromptRole）：三个位置都使用用户选择的注入角色
         val noteMsg = when (settings.authorNoteRole) {
-            MessageRole.ASSISTANT -> UIMessage.assistant(body)
-            MessageRole.USER -> UIMessage.user(body)
-            else -> UIMessage.system(body)
+            MessageRole.ASSISTANT -> UIMessage.assistant("[Author's Note]\n$noteText")
+            MessageRole.USER -> UIMessage.user("[Author's Note]\n$noteText")
+            else -> UIMessage.system("[Author's Note]\n$noteText")
         }
 
-        return when (settings.authorNotePosition) {
-            // Before Main Prompt / Story String：整个提示词最前面
-            AuthorNotePosition.BEFORE_PROMPT -> listOf(noteMsg) + messages
-
-            // After Main Prompt / Story String：紧跟主提示词（官方插入到 main 集合末尾）
-            AuthorNotePosition.IN_PROMPT -> {
-                val idx = (messages.indexOfFirst { it.role == MessageRole.SYSTEM } + 1).coerceAtLeast(0)
-                messages.take(idx) + noteMsg + messages.drop(idx)
+        // 官方无人设间隔概念：人设 TOP/BOTTOM 合并进备注后每条消息都注入（仅受备注开关门控）。
+        // 本地 interval 是备注文本的扩展，非注入轮（interval>0 且未到倍数）人设单独注入，避免整条丢失；
+        // interval<=0 视为备注整体关闭，人设也一并跳过（保持原有"0=关闭"语义）
+        if (!shouldInject) {
+            if (interval <= 0 || (!personaTop && !personaBottom)) return messages
+            val personaMsg = when (settings.authorNoteRole) {
+                MessageRole.ASSISTANT -> UIMessage.assistant("[User Persona]\n$personaDesc")
+                MessageRole.USER -> UIMessage.user("[User Persona]\n$personaDesc")
+                else -> UIMessage.system("[User Persona]\n$personaDesc")
             }
-
-            // In-chat @ Depth：从对话最末尾往前数 depth 条；depth 0 = 对话最末尾
-            AuthorNotePosition.IN_CHAT -> {
-                val chatSize = ctx.chatMessageCount ?: messages.size
-                val depth = settings.authorNoteDepth.coerceAtLeast(0)
-                val insertIdx = findSafeInsertIndex(
-                    messages,
-                    (messages.size - minOf(depth, chatSize))
-                        .coerceIn(messages.size - chatSize, messages.size),
-                )
-                messages.take(insertIdx) + noteMsg + messages.drop(insertIdx)
-            }
+            return injectAt(settings, ctx, messages, personaMsg)
         }
+
+        return injectAt(settings, ctx, messages, noteMsg)
+    }
+}
+
+private fun injectAt(
+    settings: me.rerere.rikkahub.data.datastore.Settings,
+    ctx: TransformerContext,
+    messages: List<UIMessage>,
+    msg: UIMessage,
+): List<UIMessage> = when (settings.authorNotePosition) {
+    // Before Main Prompt / Story String：整个提示词最前面
+    AuthorNotePosition.BEFORE_PROMPT -> listOf(msg) + messages
+
+    // After Main Prompt / Story String：紧跟主提示词（官方插入到 main 集合末尾）
+    AuthorNotePosition.IN_PROMPT -> {
+        val idx = (messages.indexOfFirst { it.role == MessageRole.SYSTEM } + 1).coerceAtLeast(0)
+        messages.take(idx) + msg + messages.drop(idx)
+    }
+
+    // In-chat @ Depth：从对话最末尾往前数 depth 条；depth 0 = 对话最末尾
+    AuthorNotePosition.IN_CHAT -> {
+        val chatSize = ctx.chatMessageCount ?: messages.size
+        val depth = settings.authorNoteDepth.coerceAtLeast(0)
+        val insertIdx = findSafeInsertIndex(
+            messages,
+            (messages.size - minOf(depth, chatSize))
+                .coerceIn(messages.size - chatSize, messages.size),
+        )
+        messages.take(insertIdx) + msg + messages.drop(insertIdx)
     }
 }
 
