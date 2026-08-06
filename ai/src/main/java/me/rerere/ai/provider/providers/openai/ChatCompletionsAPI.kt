@@ -275,6 +275,11 @@ class ChatCompletionsAPI(
                 if (params.topP != null) put("top_p", params.topP)
             }
             if (params.maxTokens != null) put("max_tokens", params.maxTokens)
+            // 官方 SillyTavern 预设参数（OpenAI 官方 API 支持的字段）
+            if (params.frequencyPenalty != null) put("frequency_penalty", params.frequencyPenalty)
+            if (params.presencePenalty != null) put("presence_penalty", params.presencePenalty)
+            if (params.topK != null) put("top_k", params.topK)
+            if (params.seed != null) put("seed", params.seed)
 
             put("stream", stream)
             if (stream) {

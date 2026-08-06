@@ -291,6 +291,8 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                 params.temperature
             )
             if (params.topP != null) put("top_p", params.topP)
+            // 官方 SillyTavern 预设参数（Anthropic API 支持的字段）
+            if (params.topK != null) put("top_k", params.topK)
 
             put("stream", stream)
 

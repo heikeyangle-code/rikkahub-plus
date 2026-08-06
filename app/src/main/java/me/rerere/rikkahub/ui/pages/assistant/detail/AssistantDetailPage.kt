@@ -74,6 +74,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -90,6 +91,8 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
+import me.rerere.rikkahub.data.model.ChatPreset
+import me.rerere.rikkahub.data.model.PresetType
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -99,6 +102,8 @@ import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.pages.assistant.detail.TavernCharacterCard
 import me.rerere.rikkahub.utils.CardExporter
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.utils.PresetDetector
+import me.rerere.rikkahub.utils.applyTo
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -116,8 +121,31 @@ fun AssistantDetailPage(id: String) {
     val navController = LocalNavController.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val toaster = LocalToaster.current
     var showGreetingPicker by remember { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
+    var pendingPreset by remember { mutableStateOf<ChatPreset?>(null) }
+
+    // 官方 SillyTavern 预设导入（preset-manager.js 单预设/master 导入通道，自动识别类型）
+    val presetPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val raw = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                }.getOrNull()
+            }
+            val preset = raw?.let { PresetDetector.parse(it) }
+            if (preset == null) {
+                toaster.show(context.getString(R.string.preset_import_failed, context.getString(R.string.preset_type_unknown)))
+            } else {
+                pendingPreset = preset
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -232,6 +260,13 @@ fun AssistantDetailPage(id: String) {
                         headlineContent = { Text(stringResource(R.string.assistant_page_tab_local_tools)) },
                         trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
                     )
+                    item(
+                        onClick = { presetPickerLauncher.launch(arrayOf("application/json")) },
+                        leadingContent = { Icon(HugeIcons.File01, null) },
+                        supportingContent = { Text(stringResource(R.string.preset_import_desc)) },
+                        headlineContent = { Text(stringResource(R.string.preset_import)) },
+                        trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                    )
                 }
             }
         }
@@ -241,6 +276,20 @@ fun AssistantDetailPage(id: String) {
         ExportCardDialog(
             assistant = assistant,
             onDismiss = { showExport = false },
+        )
+    }
+
+    pendingPreset?.let { preset ->
+        PresetImportDialog(
+            preset = preset,
+            assistant = assistant,
+            onDismiss = { pendingPreset = null },
+            onApply = {
+                pendingPreset = null
+                vm.update(preset.applyTo(assistant))
+                vm.updateSettings(settings.copy(presets = settings.presets + preset))
+                toaster.show(context.getString(R.string.preset_import_success))
+            },
         )
     }
 }
@@ -496,6 +545,165 @@ private fun GreetingPickerSheet(
             }
         }
     }
+}
+
+private data class PresetParamRow(
+    val label: String,
+    val current: String,
+    val preset: String,
+)
+
+@Composable
+private fun PresetImportDialog(
+    preset: ChatPreset,
+    assistant: Assistant,
+    onDismiss: () -> Unit,
+    onApply: () -> Unit,
+) {
+    val context = LocalContext.current
+    val rows = remember(preset, assistant) {
+        buildPresetRows(preset, assistant) { context.getString(it) }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(preset.name.ifBlank { context.getString(R.string.preset_import) }) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Icon(
+                        HugeIcons.File01,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        context.getString(R.string.preset_import_detected_type, presetTypeLabel(context, preset.type)),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    context.getString(
+                        if (rows.isEmpty()) R.string.preset_import_no_apply_desc
+                        else R.string.preset_import_apply_desc
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (rows.isNotEmpty()) {
+                    CardGroup {
+                        rows.forEach { row ->
+                            item {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        row.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Text(
+                                        row.current,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        textDecoration = TextDecoration.LineThrough,
+                                    )
+                                    Text(
+                                        "  →  ",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                    Text(
+                                        row.preset,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onApply) {
+                Text(stringResource(if (rows.isEmpty()) R.string.preset_import_save_only else R.string.preset_import_apply))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.preset_import_cancel)) }
+        }
+    )
+}
+
+private fun presetTypeLabel(context: Context, type: PresetType): String = when (type) {
+    PresetType.CHAT_COMPLETION -> context.getString(R.string.preset_type_chat_completion)
+    PresetType.INSTRUCT -> context.getString(R.string.preset_type_instruct)
+    PresetType.CONTEXT -> context.getString(R.string.preset_type_context)
+    PresetType.SYSPROMPT -> context.getString(R.string.preset_type_sysprompt)
+    PresetType.TEXT_COMPLETION -> context.getString(R.string.preset_type_text_completion)
+    PresetType.REASONING -> context.getString(R.string.preset_type_reasoning)
+    PresetType.START_REPLY_WITH -> context.getString(R.string.preset_type_start_reply_with)
+    PresetType.UNKNOWN -> context.getString(R.string.preset_type_unknown)
+}
+
+/** 官方预设参数 → 预览行：仅列出预设中非 null 的参数 */
+private fun buildPresetRows(
+    preset: ChatPreset,
+    assistant: Assistant,
+    getString: (Int) -> String,
+): List<PresetParamRow> {
+    val rows = mutableListOf<PresetParamRow>()
+    fun add(labelId: Int, presetValue: Any?, currentValue: Any?) {
+        if (presetValue == null) return
+        rows += PresetParamRow(getString(labelId), presetValueText(currentValue), presetValueText(presetValue))
+    }
+    when (preset.type) {
+        PresetType.CHAT_COMPLETION -> {
+            add(R.string.preset_param_temperature, preset.temperature, assistant.temperature)
+            add(R.string.preset_param_top_p, preset.topP, assistant.topP)
+            add(R.string.preset_param_top_k, preset.topK, assistant.topK)
+            add(R.string.preset_param_min_p, preset.minP, assistant.minP)
+            add(R.string.preset_param_frequency_penalty, preset.frequencyPenalty, assistant.frequencyPenalty)
+            add(R.string.preset_param_presence_penalty, preset.presencePenalty, assistant.presencePenalty)
+            add(R.string.preset_param_repetition_penalty, preset.repetitionPenalty, assistant.repetitionPenalty)
+            add(R.string.preset_param_max_tokens, preset.maxTokens, assistant.maxTokens)
+            add(R.string.preset_param_max_context, preset.maxContext, assistant.maxContextTokens)
+            add(R.string.preset_param_seed, preset.seed, assistant.seed)
+        }
+        PresetType.TEXT_COMPLETION -> {
+            add(R.string.preset_param_temperature, preset.temperature, assistant.temperature)
+            add(R.string.preset_param_top_p, preset.topP, assistant.topP)
+            add(R.string.preset_param_top_k, preset.topK, assistant.topK)
+            add(R.string.preset_param_min_p, preset.minP, assistant.minP)
+            add(R.string.preset_param_repetition_penalty, preset.repetitionPenalty, assistant.repetitionPenalty)
+        }
+        PresetType.SYSPROMPT ->
+            add(R.string.preset_param_system_prompt, preset.systemPrompt, assistant.systemPrompt.ifBlank { null })
+        PresetType.CONTEXT ->
+            add(R.string.preset_param_context_template, preset.contextTemplate, assistant.contextTemplate)
+        PresetType.INSTRUCT ->
+            add(R.string.preset_param_message_template, preset.messageTemplate, assistant.messageTemplate)
+        else -> {}
+    }
+    return rows
+}
+
+private fun presetValueText(value: Any?): String = when (value) {
+    null -> "-"
+    is Float -> if (value % 1f == 0f) value.toInt().toString() else value.toString()
+    is Int -> value.toString()
+    is String -> if (value.length > 60) value.take(60) + "…" else value
+    else -> value.toString()
 }
 
 @Composable

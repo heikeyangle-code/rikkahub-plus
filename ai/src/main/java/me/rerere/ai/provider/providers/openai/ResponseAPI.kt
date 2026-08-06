@@ -209,6 +209,9 @@ class ResponseAPI(
                 if (params.topP != null) put("top_p", params.topP)
             }
             if (params.maxTokens != null) put("max_output_tokens", params.maxTokens)
+            // 官方 SillyTavern 预设参数（Responses API 支持的字段）
+            if (params.topK != null) put("top_k", params.topK)
+            if (params.minP != null) put("min_p", params.minP)
 
             // system instructions
             if (messages.any { it.role == MessageRole.SYSTEM }) {

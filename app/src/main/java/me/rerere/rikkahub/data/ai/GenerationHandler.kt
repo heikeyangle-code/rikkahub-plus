@@ -694,6 +694,13 @@ class GenerationHandler(
             temperature = assistant.temperature,
             topP = assistant.topP,
             maxTokens = maxTokensOverride ?: assistant.maxTokens,
+            frequencyPenalty = assistant.frequencyPenalty,
+            presencePenalty = assistant.presencePenalty,
+            topK = assistant.topK,
+            minP = assistant.minP,
+            repetitionPenalty = assistant.repetitionPenalty,
+            seed = assistant.seed,
+            maxContextTokens = assistant.maxContextTokens,
             tools = tools,
             reasoningLevel = assistant.reasoningLevel,
             customHeaders = buildList {
