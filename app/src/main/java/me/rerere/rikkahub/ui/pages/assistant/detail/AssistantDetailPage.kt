@@ -923,7 +923,7 @@ private fun PresetDetailSheet(
                                             )
                                             Spacer(Modifier.height(4.dp))
                                             Text(
-                                                value,
+                                                value.orEmpty(),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurface,
                                             )
