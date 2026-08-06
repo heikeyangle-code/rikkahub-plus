@@ -13,6 +13,8 @@ import kotlinx.serialization.json.intOrNull
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.ChatPreset
+import me.rerere.rikkahub.data.model.PresetPrompt
+import me.rerere.rikkahub.data.model.PresetPromptOrder
 import me.rerere.rikkahub.data.model.PresetType
 import me.rerere.rikkahub.data.model.customPrompts
 import me.rerere.rikkahub.data.model.jailbreakContent
