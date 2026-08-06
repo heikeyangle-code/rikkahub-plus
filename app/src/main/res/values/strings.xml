@@ -155,6 +155,12 @@
   <string name="preset_param_max_tokens">Max Tokens</string>
   <string name="preset_param_max_context">Max Context</string>
   <string name="preset_param_seed">Seed</string>
+  <string name="preset_param_stream">Stream Output</string>
+  <string name="preset_param_web_search">Web Search</string>
+  <string name="preset_param_tool_recurse">Tool Call Recurse Limit</string>
+  <string name="preset_param_reasoning">Reasoning Effort</string>
+  <string name="preset_param_model">Model</string>
+  <string name="preset_unsupported_hint">Contains %d official fields without a local counterpart — kept intact for round-trip</string>
   <string name="preset_param_system_prompt">System Prompt</string>
   <string name="preset_param_message_template">Message Template</string>
   <string name="preset_param_context_template">Context Template</string>

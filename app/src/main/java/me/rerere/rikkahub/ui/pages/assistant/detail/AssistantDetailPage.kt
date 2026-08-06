@@ -291,6 +291,7 @@ fun AssistantDetailPage(id: String) {
         PresetImportDialog(
             preset = preset,
             assistant = assistant,
+            settings = settings,
             onDismiss = { pendingPreset = null },
             onImport = {
                 pendingPreset = null
@@ -624,12 +625,13 @@ private data class PresetParamRow(
 private fun PresetImportDialog(
     preset: ChatPreset,
     assistant: Assistant,
+    settings: me.rerere.rikkahub.data.datastore.Settings,
     onDismiss: () -> Unit,
     onImport: () -> Unit,
 ) {
     val context = LocalContext.current
-    val rows = remember(preset, assistant) {
-        buildPresetRows(preset, assistant) { context.getString(it) }
+    val rows = remember(preset, assistant, settings) {
+        buildPresetRows(preset, assistant, settings) { context.getString(it) }
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -666,6 +668,13 @@ private fun PresetImportDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (preset.unsupportedCount > 0) {
+                    Text(
+                        context.getString(R.string.preset_unsupported_hint, preset.unsupportedCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
                 if (rows.isNotEmpty()) {
                     CardGroup {
                         rows.forEach { row ->
@@ -732,6 +741,7 @@ private fun presetTypeLabel(context: Context, type: PresetType): String = when (
 private fun buildPresetRows(
     preset: ChatPreset,
     assistant: Assistant,
+    settings: me.rerere.rikkahub.data.datastore.Settings,
     getString: (Int) -> String,
 ): List<PresetParamRow> {
     val rows = mutableListOf<PresetParamRow>()
@@ -751,6 +761,21 @@ private fun buildPresetRows(
             add(R.string.preset_param_max_tokens, preset.maxTokens, assistant.maxTokens)
             add(R.string.preset_param_max_context, preset.maxContext, assistant.maxContextTokens)
             add(R.string.preset_param_seed, preset.seed, assistant.seed)
+            add(R.string.preset_param_stream, preset.stream, assistant.streamOutput)
+            add(R.string.preset_param_web_search, preset.enableWebSearch, assistant.enableWebSearch)
+            add(R.string.preset_param_tool_recurse, preset.toolRecurringLimit, assistant.toolRecurringLimit)
+            add(R.string.preset_param_reasoning, preset.reasoningEffort, assistant.reasoningLevel.effort)
+            if (preset.modelName != null) {
+                val currentModel = settings.providers
+                    .flatMap { it.models }
+                    .find { it.id == assistant.chatModelId }
+                    ?.modelId
+                rows += PresetParamRow(
+                    getString(R.string.preset_param_model),
+                    currentModel ?: "-",
+                    preset.modelName,
+                )
+            }
         }
         PresetType.TEXT_COMPLETION -> {
             add(R.string.preset_param_temperature, preset.temperature, assistant.temperature)
@@ -772,6 +797,7 @@ private fun buildPresetRows(
 
 private fun presetValueText(value: Any?): String = when (value) {
     null -> "-"
+    is Boolean -> if (value) "true" else "false"
     is Float -> if (value % 1f == 0f) value.toInt().toString() else value.toString()
     is Int -> value.toString()
     is String -> if (value.length > 60) value.take(60) + "…" else value

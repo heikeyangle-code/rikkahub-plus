@@ -40,9 +40,16 @@ data class ChatPreset(
     val maxTokens: Int? = null,
     val maxContext: Int? = null,
     val seed: Int? = null,
+    // 官方其他可映射设置（openai.js settingsToUpdate）
+    val stream: Boolean? = null,           // stream_openai → 本地 streamOutput
+    val enableWebSearch: Boolean? = null,  // enable_web_search → 本地 enableWebSearch
+    val toolRecurringLimit: Int? = null,   // tool_call_recurse_limit → 本地 toolRecurringLimit
+    val reasoningEffort: String? = null,   // reasoning_effort（auto/min/low/medium/high/max）→ ReasoningLevel
+    val modelName: String? = null,         // openai_model / claude_model / google_model（按内容取其一）
     // 其他类型的映射字段
     val systemPrompt: String? = null,      // SYSPROMPT: content
     val contextTemplate: String? = null,   // CONTEXT: story_string
     val messageTemplate: String? = null,   // INSTRUCT: input_sequence/output_sequence 拼接
+    val unsupportedCount: Int = 0,         // 官方有但本地无对应的字段数（已整包保留在 rawJson）
     val rawJson: String = "",              // 官方原始 JSON 整包（无损往返）
 )

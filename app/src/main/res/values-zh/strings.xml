@@ -156,6 +156,12 @@
   <string name="preset_param_max_tokens">Max Tokens</string>
   <string name="preset_param_max_context">Max Context</string>
   <string name="preset_param_seed">Seed</string>
+  <string name="preset_param_stream">流式输出</string>
+  <string name="preset_param_web_search">网络搜索</string>
+  <string name="preset_param_tool_recurse">工具调用递归上限</string>
+  <string name="preset_param_reasoning">推理力度</string>
+  <string name="preset_param_model">模型</string>
+  <string name="preset_unsupported_hint">含 %d 个本地无对应的官方字段，已整包保留（无损往返）</string>
   <string name="preset_param_system_prompt">系统提示词</string>
   <string name="preset_param_message_template">消息模板</string>
   <string name="preset_param_context_template">上下文模板</string>

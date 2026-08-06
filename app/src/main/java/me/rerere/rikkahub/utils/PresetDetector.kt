@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.intOrNull
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.ChatPreset
 import me.rerere.rikkahub.data.model.PresetType
@@ -78,9 +79,8 @@ object PresetDetector {
     }
 
     private fun parseChatCompletion(root: JsonObject, name: String): ChatPreset {
-        val fileName = ""
         return ChatPreset(
-            name = name.ifBlank { fileName },
+            name = name,
             type = PresetType.CHAT_COMPLETION,
             temperature = float(root, "temperature"),
             topP = float(root, "top_p"),
@@ -92,6 +92,14 @@ object PresetDetector {
             maxTokens = int(root, "openai_max_tokens"),
             maxContext = int(root, "openai_max_context"),
             seed = int(root, "seed"),
+            stream = (root["stream_openai"] as? JsonPrimitive)?.let {
+                if (it.isString) it.contentOrNull?.toBooleanStrictOrNull() else it.booleanOrNull
+            },
+            enableWebSearch = (root["enable_web_search"] as? JsonPrimitive)?.booleanOrNull,
+            toolRecurringLimit = int(root, "tool_call_recurse_limit"),
+            reasoningEffort = (root["reasoning_effort"] as? JsonPrimitive)?.contentOrNull,
+            modelName = firstNonBlank(root, "openai_model", "claude_model", "google_model", "custom_model"),
+            unsupportedCount = countUnsupported(root),
             rawJson = root.toString(),
         )
     }
@@ -125,6 +133,29 @@ object PresetDetector {
 
     private fun int(root: JsonObject, key: String): Int? =
         (root[key] as? JsonPrimitive)?.intOrNull
+
+    private fun firstNonBlank(root: JsonObject, vararg keys: String): String? =
+        keys.firstNotNullOfOrNull { key -> (root[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() } }
+
+    /** 官方 settingsToUpdate 键中本地已映射的键（检测/解析/应用覆盖的集合） */
+    private val mappedKeys = setOf(
+        "temperature", "top_p", "top_k", "min_p", "frequency_penalty", "presence_penalty",
+        "repetition_penalty", "openai_max_tokens", "openai_max_context", "seed",
+        "stream_openai", "enable_web_search", "tool_call_recurse_limit", "reasoning_effort",
+        "openai_model", "claude_model", "google_model", "custom_model",
+    )
+
+    /** 统计官方 settingsToUpdate 键中非空且本地未映射的字段数（已整包保留在 rawJson） */
+    private fun countUnsupported(root: JsonObject): Int = root.keys.count { key ->
+        if (key in mappedKeys || key in PRESET_META_KEYS) return@count false
+        val value = root[key] ?: return@count false
+        if (value is JsonNull) return@count false
+        val blankString = (value as? JsonPrimitive)?.isString == true && value.contentOrNull.isNullOrBlank()
+        !blankString
+    }
+
+    /** 预设元数据键（name 等），不计入未支持字段 */
+    private val PRESET_META_KEYS = setOf("name")
 }
 
 /**
@@ -142,7 +173,21 @@ fun ChatPreset.applyTo(assistant: Assistant): Assistant = assistant.copy(
     minP = this.minP ?: assistant.minP,
     repetitionPenalty = this.repetitionPenalty ?: assistant.repetitionPenalty,
     seed = this.seed ?: assistant.seed,
+    streamOutput = this.stream ?: assistant.streamOutput,
+    enableWebSearch = this.enableWebSearch ?: assistant.enableWebSearch,
+    toolRecurringLimit = this.toolRecurringLimit ?: assistant.toolRecurringLimit,
+    reasoningLevel = this.reasoningEffort?.let(::reasoningLevelFromOfficial) ?: assistant.reasoningLevel,
     systemPrompt = this.systemPrompt ?: assistant.systemPrompt,
     contextTemplate = this.contextTemplate ?: assistant.contextTemplate,
     messageTemplate = this.messageTemplate ?: assistant.messageTemplate,
 )
+
+/** 官方 reasoning_effort（auto/min/low/medium/high/max）→ 本地 ReasoningLevel */
+fun reasoningLevelFromOfficial(effort: String): ReasoningLevel = when (effort.lowercase()) {
+    "min" -> ReasoningLevel.LOW
+    "low" -> ReasoningLevel.LOW
+    "medium" -> ReasoningLevel.MEDIUM
+    "high" -> ReasoningLevel.HIGH
+    "max" -> ReasoningLevel.XHIGH
+    else -> ReasoningLevel.AUTO // "auto" 及未知值
+}
