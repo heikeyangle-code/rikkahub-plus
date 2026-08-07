@@ -44,6 +44,7 @@ import me.rerere.hugeicons.stroke.File01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.model.ChatPreset
+import me.rerere.rikkahub.data.model.customPrompts
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.preset.PresetDetailSheet
 import me.rerere.rikkahub.ui.components.preset.PresetEditDialog
