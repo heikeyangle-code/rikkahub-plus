@@ -44,23 +44,24 @@ object PresetDetector {
         val name = (root["name"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
             ?: fileBase
         val fallback = "未命名预设"
+        val presetName = name?.takeIf { it.isNotBlank() } ?: fallback
         when (type) {
-            PresetType.CHAT_COMPLETION -> parseChatCompletion(root, name.ifBlank { fallback })
-            PresetType.TEXT_COMPLETION -> parseTextCompletion(root, name.ifBlank { fallback })
+            PresetType.CHAT_COMPLETION -> parseChatCompletion(root, presetName)
+            PresetType.TEXT_COMPLETION -> parseTextCompletion(root, presetName)
             PresetType.SYSPROMPT -> ChatPreset(
-                name = name.ifBlank { fallback },
+                name = presetName,
                 type = type,
                 systemPrompt = (root["content"] as? JsonPrimitive)?.contentOrNull,
                 rawJson = raw,
             )
             PresetType.CONTEXT -> ChatPreset(
-                name = name.ifBlank { fallback },
+                name = presetName,
                 type = type,
                 contextTemplate = (root["story_string"] as? JsonPrimitive)?.contentOrNull,
                 rawJson = raw,
             )
             PresetType.INSTRUCT -> ChatPreset(
-                name = name.ifBlank { fallback },
+                name = presetName,
                 type = type,
                 messageTemplate = buildMessageTemplate(
                     input = (root["input_sequence"] as? JsonPrimitive)?.contentOrNull,
@@ -69,7 +70,7 @@ object PresetDetector {
                 rawJson = raw,
             )
             PresetType.REASONING -> ChatPreset(
-                name = name.ifBlank { fallback },
+                name = presetName,
                 type = type,
                 reasoningPrefix = (root["prefix"] as? JsonPrimitive)?.contentOrNull,
                 reasoningSuffix = (root["suffix"] as? JsonPrimitive)?.contentOrNull,
@@ -77,14 +78,14 @@ object PresetDetector {
                 rawJson = raw,
             )
             PresetType.START_REPLY_WITH -> ChatPreset(
-                name = name.ifBlank { fallback },
+                name = presetName,
                 type = type,
                 startReplyValue = (root["value"] as? JsonPrimitive)?.contentOrNull,
                 startReplyShow = (root["show"] as? JsonPrimitive)?.booleanOrNull,
                 rawJson = raw,
             )
             else -> ChatPreset(
-                name = name.ifBlank { fallback },
+                name = presetName,
                 type = type,
                 rawJson = raw,
             )

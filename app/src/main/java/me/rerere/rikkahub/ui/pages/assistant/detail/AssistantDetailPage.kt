@@ -424,6 +424,7 @@ private fun GreetingPickerSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -600,6 +601,7 @@ private fun ExportCardDialog(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val toaster = LocalToaster.current
     // 独立于对话框的 scope（对话框关闭后仍可执行导出）
     val exportScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
     var downloadingAvatar by remember { mutableStateOf(false) }
