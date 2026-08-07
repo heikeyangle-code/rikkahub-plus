@@ -135,8 +135,9 @@
   <string name="preset_import_detected_type">识别类型：%s</string>
   <string name="preset_import_apply_desc">以下参数在预设开启期间生效</string>
   <string name="preset_import_no_apply_desc">该预设类型的参数无法在本地应用，将保存供查看</string>
-  <string name="preset_import_enable_desc">导入后自动为当前助手开启——新助手默认全部关闭</string>
+  <string name="preset_import_bind_title">应用到助手——勾选的助手聊天时将使用此预设，未勾选保持原设置</string>
   <string name="preset_import_success">预设已导入并开启</string>
+  <string name="preset_import_success_bound">预设已导入并应用到 %1$d 个助手</string>
   <string name="preset_import_prompts">含 %d 条自定义提示词，开启期间自动生效</string>
   <string name="preset_import_prompts_main">自定义主提示词将覆盖系统提示词</string>
   <string name="preset_import_prompts_jailbreak">自定义历史后指令将注入到聊天历史之后</string>

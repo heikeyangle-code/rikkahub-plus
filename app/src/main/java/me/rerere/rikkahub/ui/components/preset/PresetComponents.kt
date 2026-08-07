@@ -4,6 +4,7 @@ package me.rerere.rikkahub.ui.components.preset
 
 import android.content.Context
 import androidx.compose.foundation.background
+import kotlin.uuid.Uuid
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +54,7 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.File01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.ChatPreset
 import me.rerere.rikkahub.data.model.PresetPrompt
 import me.rerere.rikkahub.data.model.PresetPromptOrder
@@ -71,11 +73,16 @@ internal data class PresetParamRow(
 @Composable
 internal fun PresetImportDialog(
     preset: ChatPreset,
+    assistants: List<Assistant>,
     rows: List<PresetParamRow>,
     onDismiss: () -> Unit,
-    onImport: () -> Unit,
+    onImport: (Set<Uuid>) -> Unit,
 ) {
     val context = LocalContext.current
+    var targetIds by remember { mutableStateOf(emptySet<Uuid>()) }
+    fun toggleTarget(id: Uuid) {
+        targetIds = if (id in targetIds) targetIds - id else targetIds + id
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(preset.name.ifBlank { context.getString(R.string.preset_import) }) },
@@ -106,11 +113,36 @@ internal fun PresetImportDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    context.getString(R.string.preset_import_enable_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (assistants.isNotEmpty()) {
+                    Text(
+                        context.getString(R.string.preset_import_bind_title),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    CardGroup {
+                        assistants.forEach { assistant ->
+                            item(
+                                onClick = { toggleTarget(assistant.id) },
+                                headlineContent = {
+                                    Text(
+                                        assistant.name,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                                trailingContent = {
+                                    Switch(
+                                        checked = assistant.id in targetIds,
+                                        onCheckedChange = { checked ->
+                                            if (checked) targetIds = targetIds + assistant.id
+                                            else targetIds = targetIds - assistant.id
+                                        },
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
                 if (preset.unsupportedCount > 0) {
                     Text(
                         context.getString(R.string.preset_unsupported_hint, preset.unsupportedCount),
@@ -181,7 +213,7 @@ internal fun PresetImportDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onImport) {
+            TextButton(onClick = { onImport(targetIds) }) {
                 Text(context.getString(R.string.preset_import))
             }
         },

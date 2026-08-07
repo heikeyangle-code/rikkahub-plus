@@ -134,8 +134,9 @@
   <string name="preset_import_detected_type">Detected type: %s</string>
   <string name="preset_import_apply_desc">The following parameters take effect while this preset is enabled</string>
   <string name="preset_import_no_apply_desc">Parameters of this preset type cannot be applied locally; it will be saved for viewing</string>
-  <string name="preset_import_enable_desc">Import and enable for this assistant — new assistants start with all presets off</string>
+  <string name="preset_import_bind_title">Apply to assistants — checked ones will use this preset in chat; unchecked ones keep current settings</string>
   <string name="preset_import_success">Preset imported and enabled</string>
+  <string name="preset_import_success_bound">Preset imported and applied to %1$d assistant(s)</string>
   <string name="preset_import_prompts">Contains %d custom prompt(s) that will be applied while enabled</string>
   <string name="preset_import_prompts_main">Custom main prompt overrides the system prompt</string>
   <string name="preset_import_prompts_jailbreak">Custom post-history instructions will be injected after chat history</string>

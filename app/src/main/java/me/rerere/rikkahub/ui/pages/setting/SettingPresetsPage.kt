@@ -183,12 +183,28 @@ fun SettingPresetsPage(vm: SettingVM = koinViewModel()) {
     pendingPreset?.let { preset ->
         PresetImportDialog(
             preset = preset,
+            assistants = settings.assistants,
             rows = emptyList(), // 全局库无助手上下文，不显示参数对比
             onDismiss = { pendingPreset = null },
-            onImport = {
+            onImport = { targetIds ->
                 pendingPreset = null
-                vm.updateSettings(settings.copy(presets = settings.presets + preset))
-                toaster.show(context.getString(R.string.preset_import_success_global))
+                // 导入进全局库；勾选的助手立即绑定（官方"导入即应用当前会话"语义的本地多助手映射）
+                vm.updateSettings(
+                    settings.copy(
+                        presets = settings.presets + preset,
+                        assistants = settings.assistants.map { assistant ->
+                            if (assistant.id in targetIds) assistant.copy(presetIds = assistant.presetIds + preset.id)
+                            else assistant
+                        },
+                    )
+                )
+                toaster.show(
+                    context.getString(
+                        if (targetIds.isEmpty()) R.string.preset_import_success_global
+                        else R.string.preset_import_success_bound,
+                        targetIds.size,
+                    )
+                )
             },
         )
     }
