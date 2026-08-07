@@ -136,8 +136,12 @@ object PresetDetector {
                     )
                 }
             } ?: emptyList(),
-            promptOrder = (root["prompt_order"] as? JsonArray)?.mapNotNull { el ->
-                (el as? JsonObject)?.let { o ->
+            // 官方 prompt_order 磁盘结构（PromptManager.js addPromptOrderForCharacter）：
+            // [{character_id, order: [{identifier, enabled}]}]，逐条开关在 order 数组里
+            promptOrder = (root["prompt_order"] as? JsonArray)?.flatMap { list ->
+                ((list as? JsonObject)?.get("order") as? JsonArray) ?: emptyList()
+            }.mapNotNull { entry ->
+                (entry as? JsonObject)?.let { o ->
                     PresetPromptOrder(
                         identifier = (o["identifier"] as? JsonPrimitive)?.contentOrNull,
                         enabled = (o["enabled"] as? JsonPrimitive)?.booleanOrNull ?: true,

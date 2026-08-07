@@ -89,13 +89,17 @@ val DEFAULT_PROMPT_CONTENT: Map<String, String> = mapOf(
     "enhanceDefinitions" to "If you have more knowledge of {{char}}, add to the character's lore and personality to enhance them but keep the Character Sheet's definitions absolute.",
 )
 
-/** 预设中自定义的提示词条目：content 非空、与官方默认不同、且未被 prompt_order 禁用（保持官方数组顺序） */
+/** 预设中自定义的提示词条目：content 非空、与官方默认不同、且官方组装会注入的（保持官方数组顺序）。
+ *  官方语义（PromptManager.js getPromptsForCharacter）：只注入 prompt_order 里 enabled=true 的条目，
+ *  不在 order 里的 prompt（未挂载模块）不参与组装；旧格式预设无 prompt_order 时回退为全部条目生效。 */
 fun ChatPreset.customPrompts(): List<PresetPrompt> {
-    val disabled = promptOrder.filter { !it.enabled }.mapNotNull { it.identifier }.toSet()
+    val orderPresent = promptOrder.isNotEmpty()
+    val enabledIds = promptOrder.filter { it.enabled }.mapNotNull { it.identifier }.toSet()
+    val disabledIds = promptOrder.filter { !it.enabled }.mapNotNull { it.identifier }.toSet()
     return prompts.filter { p ->
         val content = p.content?.takeIf { it.isNotBlank() } ?: return@filter false
         p.identifier?.let { id -> DEFAULT_PROMPT_CONTENT[id]?.let { return@filter content != it } }
-        p.identifier !in disabled
+        if (orderPresent) p.identifier in enabledIds else p.identifier !in disabledIds
     }
 }
 
