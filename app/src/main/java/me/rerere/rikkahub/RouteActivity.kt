@@ -698,6 +698,7 @@ sealed interface Screen : NavKey {
     @Serializable
     data object SettingModels : Screen
 
+    @Serializable
     data object SettingPresets : Screen
 
     @Serializable
