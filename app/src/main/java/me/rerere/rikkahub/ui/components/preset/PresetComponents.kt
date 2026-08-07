@@ -491,7 +491,7 @@ internal fun PresetEditDialog(
         val order = promptOrder.toMutableList()
         val idx = order.indexOfFirst { it.identifier == identifier }
         if (idx >= 0) order[idx] = order[idx].copy(enabled = !order[idx].enabled)
-        else order.add(PresetPromptOrder(identifier = identifier, enabled = false))
+        else order.add(PresetPromptOrder(identifier = identifier, enabled = true))
         promptOrder = order
     }
 
@@ -770,11 +770,16 @@ internal fun PresetEditDialog(
                                     headlineContent = {
                                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                             val orderEntry = promptOrder.firstOrNull { it.identifier == prompt.identifier }
+                                            // 开关提到标题行：模块切换一眼可见（珠矶 151 条，隐藏开关没法用）
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Text(
                                                     context.getString(R.string.preset_edit_entry, index + 1),
                                                     style = MaterialTheme.typography.titleSmall,
                                                     modifier = Modifier.weight(1f),
+                                                )
+                                                Switch(
+                                                    checked = orderEntry?.enabled != false,
+                                                    onCheckedChange = { toggleEnabled(prompt) },
                                                 )
                                                 IconButton(
                                                     onClick = { movePrompt(index, -1) },
@@ -820,17 +825,6 @@ internal fun PresetEditDialog(
                                                 maxLines = 8,
                                                 modifier = Modifier.fillMaxWidth(),
                                             )
-                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                                Text(
-                                                    context.getString(R.string.preset_edit_enabled),
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    modifier = Modifier.weight(1f),
-                                                )
-                                                Switch(
-                                                    checked = orderEntry?.enabled != false,
-                                                    onCheckedChange = { toggleEnabled(prompt) },
-                                                )
-                                            }
                                         }
                                     },
                                 )
