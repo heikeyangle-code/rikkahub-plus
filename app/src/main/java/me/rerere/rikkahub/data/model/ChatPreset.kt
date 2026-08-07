@@ -46,6 +46,16 @@ data class ChatPreset(
     val toolRecurringLimit: Int? = null,   // tool_call_recurse_limit → 本地 toolRecurringLimit
     val reasoningEffort: String? = null,   // reasoning_effort（auto/min/low/medium/high/max）→ ReasoningLevel
     val modelName: String? = null,         // openai_model / claude_model / google_model（按内容取其一）
+    // 官方行为开关（openai.js settingsToUpdate，非 null 时覆盖助手）
+    val useSysprompt: Boolean? = null,         // use_sysprompt：false 时 system 降级为 user 角色（仅 Claude/Google 后端，OpenAI 不受影响）
+    val squashSystemMessages: Boolean? = null, // squash_system_messages：合并相邻 system 消息
+    val continuePrefill: Boolean? = null,      // continue_prefill：true=最后一条消息作为预填继续，false=末尾追加 nudge 提示词
+    val assistantPrefill: String? = null,      // assistant_prefill：continue 预填前缀（仅 Claude 语义）
+    val newChatPrompt: String? = null,         // new_chat_prompt：对话历史前注入的起始提示
+    val newGroupChatPrompt: String? = null,    // new_group_chat_prompt：群聊版（{{group}} 宏）
+    val continueNudgePrompt: String? = null,   // continue_nudge_prompt：续写引导（null 用官方默认文本）
+    val groupNudgePrompt: String? = null,      // group_nudge_prompt：群聊引导（null 用官方默认文本）
+    val maxContextUnlocked: Boolean? = null,   // max_context_unlocked：解锁模型上下文上限到 2M
     // 其他类型的映射字段
     val systemPrompt: String? = null,      // SYSPROMPT: content
     val contextTemplate: String? = null,   // CONTEXT: story_string

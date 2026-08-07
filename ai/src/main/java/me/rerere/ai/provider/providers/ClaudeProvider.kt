@@ -273,11 +273,15 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         params: TextGenerationParams,
         stream: Boolean = false
     ): JsonObject {
+        // 官方 use_sysprompt=false（openai.js:2813 → chat-completions.js convertClaudeMessages）：
+        // 不收集 system block，所有 system 消息降级为 user 角色进消息流
+        val effectiveMessages = if (params.useSysprompt) messages
+        else messages.map { if (it.role == MessageRole.SYSTEM) it.copy(role = MessageRole.USER) else it }
         return buildJsonObject {
             put("model", params.model.modelId)
             put(
                 "messages",
-                buildMessages(messages, providerSetting.promptCaching, providerSetting.promptCacheTtl)
+                buildMessages(effectiveMessages, providerSetting.promptCaching, providerSetting.promptCacheTtl)
             )
             put("max_tokens", params.maxTokens ?: 64_000)
 
@@ -298,7 +302,8 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
 
             // system prompt：官方 claude.js 把所有 system 内容合并进 system block 数组。
             // 角色卡字段/世界书/人设/预设 jailbreak 都是独立 SYSTEM 消息，必须全部收集而非只取第一条
-            val systemTextParts = messages
+            // （use_sysprompt=false 时 effectiveMessages 已无 SYSTEM，此块自然为空）
+            val systemTextParts = effectiveMessages
                 .filter { it.role == MessageRole.SYSTEM }
                 .flatMap { it.parts.filterIsInstance<UIMessagePart.Text>() }
             if (systemTextParts.isNotEmpty()) {

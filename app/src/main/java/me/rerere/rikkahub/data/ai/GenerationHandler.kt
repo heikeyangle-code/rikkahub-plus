@@ -548,6 +548,11 @@ class GenerationHandler(
         val assistant = settings.presets
             .filter { it.id in assistant.presetIds }
             .fold(assistant) { acc, preset -> preset.applyTo(acc) }
+        // 群聊判断与本地 PlaceholderTransformer.groupMembers() 一致（assistant 是群成员）
+        val isGroupChat = settings.groupChats.any { it.memberIds.contains(assistant.id) }
+        // 官方 new_chat_prompt / group_nudge 注入的消息对象（squash 时按官方 excludeList 排除）
+        var newChatMessage: UIMessage? = null
+        var groupNudgeMessage: UIMessage? = null
         // 官方 Start Reply With（script.js sendMessage）：value 拼到当前发送的用户消息前。
         // 只影响发送给模型的载荷（limitedChat），不写回已存历史，避免重生成时重复前置
         val srwMessages = if (assistant.startReplyWith.isNullOrBlank()) {
@@ -642,11 +647,34 @@ class GenerationHandler(
                 add(UIMessage.user(prompt = userContext))
             }
 
+            // ── 官方 new_chat_prompt（openai.js:885/1069-1070）：chatHistory 最前插入起始提示 ──
+            // insert 有内容检查（空串不插入）；{{group}}/{{char}} 等宏由 PlaceholderTransformer 统一替换
+            val newChatText = (if (isGroupChat) assistant.newGroupChatPrompt else assistant.newChatPrompt)
+                ?.takeIf { it.isNotBlank() }
+            newChatMessage = newChatText?.let { UIMessage.system(prompt = it) }
+            newChatMessage?.let { add(it) }
+
             addAll(limitedChat.withMessageNames())
+
+            // ── 官方 group nudge（openai.js:896-906/1075）：群聊非 impersonate 生成时注入 ──
+            // noGroupNudgeTypes=['impersonate']；位置在 chatHistory 集合末尾（jailbreak 之前）
+            if (isGroupChat && generationType != me.rerere.rikkahub.data.model.GenerationType.IMPERSONATE) {
+                val groupNudgeText = (assistant.groupNudgePrompt ?: DEFAULT_GROUP_NUDGE_PROMPT).takeIf { it.isNotBlank() }
+                groupNudgeMessage = groupNudgeText?.let { UIMessage.system(prompt = it) }
+                groupNudgeMessage?.let { add(it) }
+            }
 
             // ── 预设 jailbreak prompt：聊天历史之后注入（官方 jailbreak 同位置）──
             assistant.presetPostHistory?.takeIf { it.isNotBlank() }?.let {
                 add(UIMessage.system(prompt = it))
+            }
+
+            // ── 官方 continue nudge（openai.js:896-918）：continue 且非 continue_prefill 时 ──
+            // 最后一条消息保留在历史，nudge 提示词作为 system 消息追加末尾（官方 add(collection, -1)）
+            if (generationType == me.rerere.rikkahub.data.model.GenerationType.CONTINUE && !assistant.continuePrefill) {
+                (assistant.continueNudgePrompt ?: DEFAULT_CONTINUE_NUDGE_PROMPT).takeIf { it.isNotBlank() }?.let {
+                    add(UIMessage.system(prompt = it))
+                }
             }
         }.let { base ->
             val persona = settings.personas.find { it.id == settings.activePersonaId }
@@ -699,6 +727,14 @@ class GenerationHandler(
             } else {
                 base
             }
+        }.let { base ->
+            // ── 官方 squash_system_messages（openai.js squashSystemMessages）──
+            // 合并相邻 system 消息（\n 连接），排除 newMainChat/groupNudge（官方 excludeList）
+            if (assistant.squashSystemMessages) {
+                squashSystemMessages(base, setOfNotNull(newChatMessage, groupNudgeMessage))
+            } else {
+                base
+            }
         }.transforms(
             transformers = transformers,
             context = context,
@@ -727,7 +763,9 @@ class GenerationHandler(
             minP = assistant.minP,
             repetitionPenalty = assistant.repetitionPenalty,
             seed = assistant.seed,
-            maxContextTokens = assistant.maxContextTokens,
+            // 官方 max_context_unlocked（openai.js:4967）：解锁模型上下文上限到 max_2mil
+            maxContextTokens = if (assistant.maxContextUnlocked) MAX_UNLOCKED_CONTEXT else assistant.maxContextTokens,
+            useSysprompt = assistant.useSysprompt,
             tools = tools,
             reasoningLevel = assistant.reasoningLevel,
             customHeaders = buildList {
@@ -1060,3 +1098,44 @@ private fun List<UIMessage>.withMessageNames(): List<UIMessage> = map { message 
         message.copy(parts = listOf(UIMessagePart.Text("$name: ")) + message.parts)
     }
 }
+
+/** 官方默认 nudge 提示词（openai.js:110-114） */
+private const val DEFAULT_CONTINUE_NUDGE_PROMPT =
+    "[Continue your last message without repeating its original content.]"
+private const val DEFAULT_GROUP_NUDGE_PROMPT = "[Write the next reply only as {{char}}.]"
+
+/** 官方 max_2mil（openai.js:136-137）：max_context_unlocked 时返回的上下文上限 */
+private const val MAX_UNLOCKED_CONTEXT = 2000 * 1000
+
+/**
+ * 官方 squash_system_messages（openai.js squashSystemMessages）：合并相邻 system 消息。
+ * 官方 excludeList = ['newMainChat', 'newChat', 'groupNudge']（不合并）；
+ * 空内容 system 消息跳过（本地注入的消息均有内容，无需处理）；
+ * continueNudge 不在排除列表（与相邻 system 正常合并，忠实官方）。
+ */
+private fun squashSystemMessages(
+    messages: List<UIMessage>,
+    excluded: Set<UIMessage>,
+): List<UIMessage> {
+    val result = mutableListOf<UIMessage>()
+    for (message in messages) {
+        if (message in excluded) {
+            result.add(message)
+            continue
+        }
+        val last = result.lastOrNull()
+        if (last != null && last !in excluded &&
+            last.role == MessageRole.SYSTEM && message.role == MessageRole.SYSTEM
+        ) {
+            result[result.lastIndex] = last.copy(
+                parts = last.parts + UIMessagePart.Text("\n" + message.textContent())
+            )
+        } else {
+            result.add(message)
+        }
+    }
+    return result
+}
+
+private fun UIMessage.textContent(): String =
+    parts.filterIsInstance<UIMessagePart.Text>().joinToString("") { it.text }

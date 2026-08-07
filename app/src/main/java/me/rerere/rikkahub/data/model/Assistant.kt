@@ -75,6 +75,16 @@ data class Assistant(
     val reasoningSuffix: String? = null,                // 预设 reasoning 模板 suffix
     val reasoningSeparator: String? = null,             // 预设 reasoning 模板 separator
     val startReplyWith: String? = null,                 // 预设 Start Reply With value（拼到发送的用户消息前）
+    // 官方行为开关（openai.js settingsToUpdate，预设 applyTo 覆盖，默认值对齐官方）
+    val useSysprompt: Boolean = true,                   // use_sysprompt：false 时 system 消息降级为 user（仅 Claude/Google 后端）
+    val squashSystemMessages: Boolean = false,          // squash_system_messages：合并相邻 system 消息（官方默认 false）
+    val continuePrefill: Boolean = false,               // continue_prefill：false=末尾追加 nudge 提示词（官方默认 false）
+    val assistantPrefill: String? = null,               // assistant_prefill：continue 预填前缀
+    val newChatPrompt: String? = null,                  // new_chat_prompt：历史前注入（null=不注入，保持本地默认）
+    val newGroupChatPrompt: String? = null,             // new_group_chat_prompt：群聊版
+    val continueNudgePrompt: String? = null,            // continue_nudge_prompt（null=官方默认文本）
+    val groupNudgePrompt: String? = null,               // group_nudge_prompt（null=官方默认文本）
+    val maxContextUnlocked: Boolean = false,            // max_context_unlocked：解锁上下文到 2M（官方默认 false）
     val enabledSkills: Set<String> = emptySet(),        // 启用的 skill 名称列表
     val enableTimeReminder: Boolean = false,            // 时间间隔提醒注入
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt

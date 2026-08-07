@@ -140,6 +140,10 @@ internal fun PresetImportDialog(
                     preset.maxTokens, preset.maxContext, preset.seed,
                     preset.stream, preset.enableWebSearch, preset.toolRecurringLimit,
                     preset.reasoningEffort, preset.modelName,
+                    // 官方行为开关（openai.js settingsToUpdate）
+                    preset.useSysprompt, preset.squashSystemMessages, preset.continuePrefill,
+                    preset.assistantPrefill, preset.newChatPrompt, preset.newGroupChatPrompt,
+                    preset.continueNudgePrompt, preset.groupNudgePrompt, preset.maxContextUnlocked,
                 ).size
                 if (appliedParamCount > 0 || enabledModules.isNotEmpty()) {
                     Text(

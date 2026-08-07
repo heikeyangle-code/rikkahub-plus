@@ -352,9 +352,13 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         messages: List<UIMessage>,
         params: TextGenerationParams
     ): JsonObject = buildJsonObject {
+        // 官方 use_sysprompt=false（chat-completions.js:522 convertGooglePrompt）：
+        // 不收集 systemInstruction，所有 system 消息降级为 user 进 contents
+        val effectiveMessages = if (params.useSysprompt) messages
+        else messages.map { if (it.role == MessageRole.SYSTEM) it.copy(role = MessageRole.USER) else it }
         // System instruction：官方 google.js 把所有 system 内容合并进 systemInstruction.parts。
         // 角色卡字段/世界书/人设/预设 jailbreak 都是独立 SYSTEM 消息，必须全部收集而非只取第一条
-        val systemParts = messages
+        val systemParts = effectiveMessages
             .filter { it.role == MessageRole.SYSTEM }
             .flatMap { it.parts.filterIsInstance<UIMessagePart.Text>() }
         if (systemParts.isNotEmpty() && !params.model.outputModalities.contains(Modality.IMAGE)) {
@@ -421,7 +425,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         // Contents (user messages)
         put(
             "contents",
-            buildContents(messages)
+            buildContents(effectiveMessages)
         )
 
         // Tools

@@ -114,6 +114,7 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.utils.applyPlaceholders
+import me.rerere.rikkahub.utils.applyTo
 import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.rikkahub.utils.sendNotification
 import me.rerere.rikkahub.utils.cancelNotification
@@ -778,30 +779,46 @@ class ChatService(
                 }
                 val assistant = settings.getAssistantById(conversation.assistantId)
                     ?: settings.getCurrentAssistant()
+                // 预设 fold（与 GenerationHandler 同语义）：continue 分支的开关在预设应用后决定
+                val presetAssistant = settings.presets
+                    .filter { it.id in assistant.presetIds }
+                    .fold(assistant) { acc, preset -> preset.applyTo(acc) }
                 val targetNode = nodes[lastAssistantIndex]
                 val lastText = targetNode.messages.getOrNull(targetNode.selectIndex)?.toText().orEmpty()
-                // 官方语义：把最后一条助手消息作为“预填”，模型接着它继续写。
-                // 可选参数作为预填的追加文本（quiet_prompt），由模型继续接写，而不是当作指令。
-                val prompt = buildString {
+                // 官方 continue 分支（openai.js:896-918/1310-1320）：
+                // continue_prefill=true：最后一条助手消息 shift 出来 + assistant_prefill 作为预填，
+                //   模型接着预填继续写（官方 assistant_prefill 为空时 content = 原消息文本，即本地原行为）
+                // continue_prefill=false：最后一条消息保留在历史，GenerationHandler 末尾追加 nudge 提示词
+                val prefillMode = presetAssistant.continuePrefill
+                val history = (if (prefillMode) nodes.take(lastAssistantIndex) else nodes).map { node ->
+                    UIMessage(
+                        role = node.role,
+                        parts = listOf(UIMessagePart.Text(
+                            node.messages.getOrNull(node.selectIndex)?.toText().orEmpty()
+                        )),
+                    )
+                }
+                val prompt = if (prefillMode) buildString {
+                    presetAssistant.assistantPrefill?.takeIf { it.isNotBlank() }?.let {
+                        append(it)
+                        appendLine()
+                        appendLine()
+                    }
                     append(lastText)
                     extraPrompt?.trim()?.takeIf { it.isNotBlank() }?.let {
                         appendLine()
                         append(it)
                     }
+                } else {
+                    // nudge 模式：历史已含最后一条消息，可选参数作为 assistant 预填尾注（quiet 语义）
+                    extraPrompt?.trim().orEmpty()
                 }
                 val continuation = generateForAssistant(
                     assistant = assistant,
                     settings = settings,
                     prompt = prompt,
                     promptRole = MessageRole.ASSISTANT,
-                    history = nodes.take(lastAssistantIndex).map { node ->
-                        UIMessage(
-                            role = node.role,
-                            parts = listOf(UIMessagePart.Text(
-                                node.messages.getOrNull(node.selectIndex)?.toText().orEmpty()
-                            )),
-                        )
-                    },
+                    history = history,
                     conversationId = conversationId,
                     generationType = GenerationType.CONTINUE,
                 )

@@ -67,6 +67,8 @@ data class TextGenerationParams(
     val repetitionPenalty: Float? = null,
     val seed: Int? = null,
     val maxContextTokens: Int? = null,
+    // 官方 use_sysprompt：false 时 system 消息降级为 user 角色（仅 Claude/Google 转换消费，OpenAI 不受影响）
+    val useSysprompt: Boolean = true,
     val tools: List<Tool> = emptyList(),
     val reasoningLevel: ReasoningLevel = ReasoningLevel.OFF,
     val customHeaders: List<CustomHeader> = emptyList(),

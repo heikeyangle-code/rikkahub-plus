@@ -127,6 +127,16 @@ object PresetDetector {
             toolRecurringLimit = int(root, "tool_call_recurse_limit"),
             reasoningEffort = (root["reasoning_effort"] as? JsonPrimitive)?.contentOrNull,
             modelName = firstNonBlank(root, "openai_model", "claude_model", "google_model", "custom_model"),
+            // 官方行为开关（openai.js settingsToUpdate），空字符串按无配置处理（不覆盖助手）
+            useSysprompt = bool(root, "use_sysprompt"),
+            squashSystemMessages = bool(root, "squash_system_messages"),
+            continuePrefill = bool(root, "continue_prefill"),
+            assistantPrefill = strOrNull(root, "assistant_prefill"),
+            newChatPrompt = strOrNull(root, "new_chat_prompt"),
+            newGroupChatPrompt = strOrNull(root, "new_group_chat_prompt"),
+            continueNudgePrompt = strOrNull(root, "continue_nudge_prompt"),
+            groupNudgePrompt = strOrNull(root, "group_nudge_prompt"),
+            maxContextUnlocked = bool(root, "max_context_unlocked"),
             prompts = (root["prompts"] as? JsonArray)?.mapNotNull { el ->
                 (el as? JsonObject)?.let { o ->
                     PresetPrompt(
@@ -183,6 +193,13 @@ object PresetDetector {
     private fun int(root: JsonObject, key: String): Int? =
         (root[key] as? JsonPrimitive)?.intOrNull
 
+    private fun bool(root: JsonObject, key: String): Boolean? =
+        (root[key] as? JsonPrimitive)?.booleanOrNull
+
+    /** 字符串设置：空串按无配置处理（官方空值 = 用默认，避免覆盖助手现有值） */
+    private fun strOrNull(root: JsonObject, key: String): String? =
+        (root[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+
     private fun firstNonBlank(root: JsonObject, vararg keys: String): String? =
         keys.firstNotNullOfOrNull { key -> (root[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() } }
 
@@ -192,6 +209,9 @@ object PresetDetector {
         "repetition_penalty", "openai_max_tokens", "openai_max_context", "seed",
         "stream_openai", "enable_web_search", "tool_call_recurse_limit", "reasoning_effort",
         "openai_model", "claude_model", "google_model", "custom_model",
+        "use_sysprompt", "squash_system_messages", "continue_prefill", "assistant_prefill",
+        "new_chat_prompt", "new_group_chat_prompt", "continue_nudge_prompt", "group_nudge_prompt",
+        "max_context_unlocked",
         "prompts", "prompt_order",
     )
 
@@ -237,6 +257,16 @@ fun ChatPreset.applyTo(assistant: Assistant): Assistant = assistant.copy(
     reasoningSuffix = this.reasoningSuffix ?: assistant.reasoningSuffix,
     reasoningSeparator = this.reasoningSeparator ?: assistant.reasoningSeparator,
     startReplyWith = this.startReplyValue ?: assistant.startReplyWith,
+    // 官方行为开关（openai.js settingsToUpdate），非 null 覆盖
+    useSysprompt = this.useSysprompt ?: assistant.useSysprompt,
+    squashSystemMessages = this.squashSystemMessages ?: assistant.squashSystemMessages,
+    continuePrefill = this.continuePrefill ?: assistant.continuePrefill,
+    assistantPrefill = this.assistantPrefill ?: assistant.assistantPrefill,
+    newChatPrompt = this.newChatPrompt ?: assistant.newChatPrompt,
+    newGroupChatPrompt = this.newGroupChatPrompt ?: assistant.newGroupChatPrompt,
+    continueNudgePrompt = this.continueNudgePrompt ?: assistant.continueNudgePrompt,
+    groupNudgePrompt = this.groupNudgePrompt ?: assistant.groupNudgePrompt,
+    maxContextUnlocked = this.maxContextUnlocked ?: assistant.maxContextUnlocked,
 )
 
 /** 预设 prompts → 系统提示合并：main 自定义时替换整条（官方整包覆盖语义），其余条目按官方顺序追加 */
