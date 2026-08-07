@@ -140,7 +140,7 @@ object PresetDetector {
             // [{character_id, order: [{identifier, enabled}]}]，逐条开关在 order 数组里
             promptOrder = (root["prompt_order"] as? JsonArray)?.flatMap { list ->
                 ((list as? JsonObject)?.get("order") as? JsonArray) ?: emptyList()
-            }.mapNotNull { entry ->
+            }?.mapNotNull { entry ->
                 (entry as? JsonObject)?.let { o ->
                     PresetPromptOrder(
                         identifier = (o["identifier"] as? JsonPrimitive)?.contentOrNull,

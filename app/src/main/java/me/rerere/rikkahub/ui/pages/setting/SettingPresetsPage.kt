@@ -223,7 +223,9 @@ fun SettingPresetsPage(vm: SettingVM = koinViewModel()) {
                     context.getString(
                         if (targetIds.isEmpty()) R.string.preset_import_success_global
                         else R.string.preset_import_success_bound,
+                        preset.name.ifBlank { context.getString(R.string.preset_type_unknown) },
                         targetIds.size,
+                        preset.customPrompts().size,
                     )
                 )
             },

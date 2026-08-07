@@ -69,6 +69,34 @@ internal data class PresetParamRow(
     val preset: String,
 )
 
+/** 官方 settingsToUpdate 键 → 中文含义（导入提示/detail sheet 只列人话，不列技术键名） */
+private val UNSUPPORTED_LABELS: Map<String, String> = mapOf(
+    "use_sysprompt" to "系统提示词开关",
+    "squash_system_messages" to "系统消息合并",
+    "continue_prefill" to "续写前置提示",
+    "function_calling" to "工具调用开关",
+    "media_inlining" to "图片内联",
+    "inline_image_quality" to "图片质量",
+    "request_images" to "图片生成",
+    "show_thoughts" to "思考显示",
+    "verbosity" to "输出详略",
+    "n" to "生成条数",
+    "impersonation_prompt" to "扮演提示",
+    "new_chat_prompt" to "新对话提示",
+    "new_group_chat_prompt" to "群聊提示",
+    "new_example_chat_prompt" to "示例对话提示",
+    "continue_nudge_prompt" to "续写引导",
+    "group_nudge_prompt" to "群聊引导",
+    "bias_preset_selected" to "偏见预设",
+    "wi_format" to "世界书格式",
+    "scenario_format" to "场景格式",
+    "personality_format" to "性格格式",
+    "names_behavior" to "名称行为",
+    "max_context_unlocked" to "上下文解锁",
+    "top_a" to "Top-A 采样",
+    "extensions" to "扩展配置",
+)
+
 @Composable
 internal fun PresetImportDialog(
     preset: ChatPreset,
@@ -104,14 +132,28 @@ internal fun PresetImportDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Text(
-                    context.getString(
-                        if (rows.isEmpty()) R.string.preset_import_no_apply_desc
-                        else R.string.preset_import_apply_desc
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                // 正面汇总先行：参数数 + 启用模块数（修复全局导入走 no_apply 假提示的误导）
+                val enabledModules = remember(preset) { preset.customPrompts() }
+                val appliedParamCount = listOfNotNull(
+                    preset.temperature, preset.topP, preset.topK, preset.minP,
+                    preset.frequencyPenalty, preset.presencePenalty, preset.repetitionPenalty,
+                    preset.maxTokens, preset.maxContext, preset.seed,
+                    preset.stream, preset.enableWebSearch, preset.toolRecurringLimit,
+                    preset.reasoningEffort, preset.modelName,
+                ).size
+                if (appliedParamCount > 0 || enabledModules.isNotEmpty()) {
+                    Text(
+                        context.getString(R.string.preset_import_summary, appliedParamCount, enabledModules.size),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text(
+                        context.getString(R.string.preset_import_no_apply_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (assistants.isNotEmpty()) {
                     Text(
                         context.getString(R.string.preset_import_bind_title),
@@ -143,9 +185,11 @@ internal fun PresetImportDialog(
                     }
                 }
                 if (preset.unsupportedKeys.isNotEmpty()) {
-                    val shown = preset.unsupportedKeys.take(6).joinToString(", ")
-                    val suffix = if (preset.unsupportedKeys.size > 6) {
-                        context.getString(R.string.preset_unsupported_more, preset.unsupportedKeys.size - 6)
+                    // 只提示真正没用的字段，且用人话（官方键名 → 中文含义），最多 3 个
+                    val labels = preset.unsupportedKeys.map { UNSUPPORTED_LABELS[it] ?: it }
+                    val shown = labels.take(3).joinToString(" · ")
+                    val suffix = if (labels.size > 3) {
+                        context.getString(R.string.preset_unsupported_more, labels.size - 3)
                     } else ""
                     Text(
                         context.getString(R.string.preset_unsupported_keys, shown + suffix),
@@ -153,7 +197,7 @@ internal fun PresetImportDialog(
                         color = MaterialTheme.colorScheme.tertiary,
                     )
                 }
-                val customPrompts = remember(preset) { preset.customPrompts() }
+                val customPrompts = enabledModules
                 if (customPrompts.isNotEmpty()) {
                     Text(
                         context.getString(R.string.preset_import_prompts, customPrompts.size),
@@ -369,7 +413,7 @@ internal fun PresetDetailSheet(
                                     onClick = null,
                                     headlineContent = {
                                         Text(
-                                            key,
+                                            UNSUPPORTED_LABELS[key] ?: key,
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.tertiary,
                                         )
