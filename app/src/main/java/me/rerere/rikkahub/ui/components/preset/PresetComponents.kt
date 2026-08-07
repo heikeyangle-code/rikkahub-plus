@@ -41,7 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
@@ -143,9 +142,13 @@ internal fun PresetImportDialog(
                         }
                     }
                 }
-                if (preset.unsupportedCount > 0) {
+                if (preset.unsupportedKeys.isNotEmpty()) {
+                    val shown = preset.unsupportedKeys.take(6).joinToString(", ")
+                    val suffix = if (preset.unsupportedKeys.size > 6) {
+                        context.getString(R.string.preset_unsupported_more, preset.unsupportedKeys.size - 6)
+                    } else ""
                     Text(
-                        context.getString(R.string.preset_unsupported_hint, preset.unsupportedCount),
+                        context.getString(R.string.preset_unsupported_keys, shown + suffix),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.tertiary,
                     )
@@ -235,7 +238,6 @@ internal fun PresetDetailSheet(
     onDelete: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    var showRaw by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -358,50 +360,18 @@ internal fun PresetDetailSheet(
                     }
                 }
 
-                if (preset.unsupportedCount > 0 || preset.rawJson.isNotBlank()) {
-                    item { DetailSectionLabel(context.getString(R.string.preset_detail_raw_json)) }
+                if (preset.unsupportedKeys.isNotEmpty()) {
+                    item { DetailSectionLabel(context.getString(R.string.preset_detail_unsupported)) }
                     item {
                         CardGroup {
-                            item(
-                                onClick = { showRaw = !showRaw },
-                                headlineContent = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = if (preset.unsupportedCount > 0) {
-                                                context.getString(R.string.preset_detail_unsupported, preset.unsupportedCount) +
-                                                    " · " + context.getString(
-                                                        if (showRaw) R.string.preset_detail_hide_raw else R.string.preset_detail_show_raw
-                                                    )
-                                            } else {
-                                                context.getString(
-                                                    if (showRaw) R.string.preset_detail_hide_raw else R.string.preset_detail_show_raw
-                                                )
-                                            },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.tertiary,
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                        Icon(
-                                            if (showRaw) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.tertiary,
-                                        )
-                                    }
-                                },
-                            )
-                            if (showRaw) {
+                            preset.unsupportedKeys.forEach { key ->
                                 item(
                                     onClick = null,
                                     headlineContent = {
                                         Text(
-                                            preset.rawJson,
+                                            key,
                                             style = MaterialTheme.typography.bodySmall,
-                                            fontFamily = FontFamily.Monospace,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            // 超长单行 JSON measure 开销大 → 限高折叠，避免滑动卡顿
-                                            maxLines = 60,
-                                            overflow = TextOverflow.Ellipsis,
+                                            color = MaterialTheme.colorScheme.tertiary,
                                         )
                                     },
                                 )

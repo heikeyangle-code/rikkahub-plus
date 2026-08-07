@@ -60,7 +60,7 @@ data class ChatPreset(
     // 官方 Prompt Manager（openai.js settingsToUpdate 的 prompts/prompt_order 键）
     val prompts: List<PresetPrompt> = emptyList(),      // 自定义提示词条目（官方内容非默认的）
     val promptOrder: List<PresetPromptOrder> = emptyList(), // 官方 prompt_order（enabled 开关）
-    val unsupportedCount: Int = 0,         // 官方有但本地无对应的字段数（已整包保留在 rawJson）
+    val unsupportedKeys: List<String> = emptyList(),   // 官方有但本地无对应的字段名（内容已整包保留在 rawJson）
     val rawJson: String = "",              // 官方原始 JSON 整包（无损往返）
 )
 

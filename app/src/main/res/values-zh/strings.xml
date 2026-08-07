@@ -165,7 +165,8 @@
   <string name="preset_param_tool_recurse">工具调用递归上限</string>
   <string name="preset_param_reasoning">推理力度</string>
   <string name="preset_param_model">模型</string>
-  <string name="preset_unsupported_hint">含 %d 个本地无对应的官方字段，已整包保留（无损往返）</string>
+  <string name="preset_unsupported_keys">本地暂不生效的官方字段：%1$s</string>
+  <string name="preset_unsupported_more">，等 %1$d 个</string>
   <string name="preset_param_system_prompt">系统提示词</string>
   <string name="preset_param_message_template">消息模板</string>
   <string name="preset_param_context_template">上下文模板</string>
@@ -178,10 +179,7 @@
   <string name="preset_detail_placeholder">占位条目 — 内容由本地注入链生成</string>
   <string name="preset_detail_enabled_state">当前助手已开启</string>
   <string name="preset_detail_disabled_state">当前助手未开启</string>
-  <string name="preset_detail_raw_json">原始 JSON</string>
-  <string name="preset_detail_show_raw">展开原始 JSON</string>
-  <string name="preset_detail_hide_raw">收起原始 JSON</string>
-  <string name="preset_detail_unsupported">含 %d 个本地无对应的官方字段</string>
+  <string name="preset_detail_unsupported">本地暂不生效的官方字段</string>
   <string name="preset_detail_no_prompts">无自定义提示词条目</string>
   <string name="preset_detail_view">查看详情</string>
   <string name="preset_edit_title">编辑预设</string>

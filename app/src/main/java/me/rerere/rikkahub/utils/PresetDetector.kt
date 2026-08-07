@@ -144,7 +144,7 @@ object PresetDetector {
                     )
                 }
             } ?: emptyList(),
-            unsupportedCount = countUnsupported(root),
+            unsupportedKeys = unsupportedKeys(root),
             rawJson = root.toString(),
         )
     }
@@ -191,11 +191,11 @@ object PresetDetector {
         "prompts", "prompt_order",
     )
 
-    /** 统计官方 settingsToUpdate 键中非空且本地未映射的字段数（已整包保留在 rawJson） */
-    private fun countUnsupported(root: JsonObject): Int = root.keys.count { key ->
-        if (key in mappedKeys || key in PRESET_META_KEYS) return@count false
-        val value = root[key] ?: return@count false
-        if (value is JsonNull) return@count false
+    /** 官方 settingsToUpdate 键中非空且本地未映射的字段名（内容已整包保留在 rawJson） */
+    private fun unsupportedKeys(root: JsonObject): List<String> = root.keys.filter { key ->
+        if (key in mappedKeys || key in PRESET_META_KEYS) return@filter false
+        val value = root[key] ?: return@filter false
+        if (value is JsonNull) return@filter false
         val blankString = (value as? JsonPrimitive)?.isString == true && value.contentOrNull.isNullOrBlank()
         !blankString
     }

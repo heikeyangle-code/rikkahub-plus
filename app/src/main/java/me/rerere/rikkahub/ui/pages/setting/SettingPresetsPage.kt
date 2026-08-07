@@ -16,6 +16,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -149,6 +150,7 @@ fun SettingPresetsPage(vm: SettingVM = koinViewModel()) {
                         modifier = Modifier.padding(horizontal = 8.dp),
                         title = { Text(stringResource(R.string.preset_library)) },
                     ) {
+                        val currentAssistant = settings.getCurrentAssistant()
                         settings.presets.forEach { preset ->
                             item(
                                 onClick = { viewPreset = preset },
@@ -164,6 +166,24 @@ fun SettingPresetsPage(vm: SettingVM = koinViewModel()) {
                                 },
                                 trailingContent = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
+                                        // 快捷绑定：开关控制该预设是否应用于当前活跃助手（与导入对话框勾选同语义）
+                                        Switch(
+                                            checked = preset.id in currentAssistant.presetIds,
+                                            onCheckedChange = { checked ->
+                                                vm.updateSettings(
+                                                    settings.copy(
+                                                        assistants = settings.assistants.map { assistant ->
+                                                            if (assistant.id == currentAssistant.id) {
+                                                                assistant.copy(
+                                                                    presetIds = if (checked) assistant.presetIds + preset.id
+                                                                    else assistant.presetIds - preset.id
+                                                                )
+                                                            } else assistant
+                                                        }
+                                                    )
+                                                )
+                                            },
+                                        )
                                         IconButton(onClick = { editPreset = preset }) {
                                             Icon(HugeIcons.Edit01, stringResource(R.string.preset_edit_title))
                                         }
