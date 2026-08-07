@@ -85,6 +85,7 @@ data class Assistant(
     val continueNudgePrompt: String? = null,            // continue_nudge_prompt（null=官方默认文本）
     val groupNudgePrompt: String? = null,               // group_nudge_prompt（null=官方默认文本）
     val maxContextUnlocked: Boolean = false,            // max_context_unlocked：解锁上下文到 2M（官方默认 false）
+    val enableFunctionCalling: Boolean = true,          // function_calling：false 时工具全部禁用（官方默认 true）
     val enabledSkills: Set<String> = emptySet(),        // 启用的 skill 名称列表
     val enableTimeReminder: Boolean = false,            // 时间间隔提醒注入
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt

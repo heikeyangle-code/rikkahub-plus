@@ -1117,7 +1117,8 @@ class ChatService(
                     add(workspaceReminderTransformer)
                 },
                 outputTransformers = outputTransformers,
-                tools = buildList {
+                // 官方 function_calling（openai.js settingsToUpdate）：false 时工具全部禁用
+                tools = if (assistant.enableFunctionCalling) buildList {
                     if (assistant.localTools.contains(LocalToolOption.FileTools)) {
                         addAll(createFileTools())
                     }
@@ -1190,7 +1191,7 @@ class ChatService(
                             )
                         )
                     }
-                },
+                } else emptyList(),
             ).onCompletion {
                 // 取消前台服务；通知由 ChatNotificationManager 通过 AppEventBus 消费
                 fgJob?.cancel()
@@ -1498,7 +1499,8 @@ class ChatService(
             } else {
                 memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
             },
-            tools = buildList {
+            // 官方 function_calling（openai.js settingsToUpdate）：false 时工具全部禁用
+            tools = if (assistant.enableFunctionCalling) buildList {
                 if (assistant.localTools.contains(LocalToolOption.FileTools)) {
                     addAll(createFileTools())
                 }
@@ -1541,7 +1543,7 @@ class ChatService(
                         )
                     )
                 }
-            },
+            } else emptyList(),
             inputTransformers = buildList {
                 addAll(inputTransformers)
                 add(templateTransformer)

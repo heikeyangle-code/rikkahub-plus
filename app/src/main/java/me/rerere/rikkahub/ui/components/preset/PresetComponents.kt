@@ -144,6 +144,7 @@ internal fun PresetImportDialog(
                     preset.useSysprompt, preset.squashSystemMessages, preset.continuePrefill,
                     preset.assistantPrefill, preset.newChatPrompt, preset.newGroupChatPrompt,
                     preset.continueNudgePrompt, preset.groupNudgePrompt, preset.maxContextUnlocked,
+                    preset.functionCalling,
                 ).size
                 if (appliedParamCount > 0 || enabledModules.isNotEmpty()) {
                     Text(

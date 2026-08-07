@@ -137,6 +137,7 @@ object PresetDetector {
             continueNudgePrompt = strOrNull(root, "continue_nudge_prompt"),
             groupNudgePrompt = strOrNull(root, "group_nudge_prompt"),
             maxContextUnlocked = bool(root, "max_context_unlocked"),
+            functionCalling = bool(root, "function_calling"),
             prompts = (root["prompts"] as? JsonArray)?.mapNotNull { el ->
                 (el as? JsonObject)?.let { o ->
                     PresetPrompt(
@@ -211,7 +212,7 @@ object PresetDetector {
         "openai_model", "claude_model", "google_model", "custom_model",
         "use_sysprompt", "squash_system_messages", "continue_prefill", "assistant_prefill",
         "new_chat_prompt", "new_group_chat_prompt", "continue_nudge_prompt", "group_nudge_prompt",
-        "max_context_unlocked",
+        "max_context_unlocked", "function_calling",
         "prompts", "prompt_order",
     )
 
@@ -267,6 +268,7 @@ fun ChatPreset.applyTo(assistant: Assistant): Assistant = assistant.copy(
     continueNudgePrompt = this.continueNudgePrompt ?: assistant.continueNudgePrompt,
     groupNudgePrompt = this.groupNudgePrompt ?: assistant.groupNudgePrompt,
     maxContextUnlocked = this.maxContextUnlocked ?: assistant.maxContextUnlocked,
+    enableFunctionCalling = this.functionCalling ?: assistant.enableFunctionCalling,
 )
 
 /** 预设 prompts → 系统提示合并：main 自定义时替换整条（官方整包覆盖语义），其余条目按官方顺序追加 */

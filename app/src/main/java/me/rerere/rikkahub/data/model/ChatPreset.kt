@@ -56,6 +56,7 @@ data class ChatPreset(
     val continueNudgePrompt: String? = null,   // continue_nudge_prompt：续写引导（null 用官方默认文本）
     val groupNudgePrompt: String? = null,      // group_nudge_prompt：群聊引导（null 用官方默认文本）
     val maxContextUnlocked: Boolean? = null,   // max_context_unlocked：解锁模型上下文上限到 2M
+    val functionCalling: Boolean? = null,      // function_calling：false 时工具全部禁用（本地 enableFunctionCalling）
     // 其他类型的映射字段
     val systemPrompt: String? = null,      // SYSPROMPT: content
     val contextTemplate: String? = null,   // CONTEXT: story_string
